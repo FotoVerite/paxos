@@ -1,62 +1,119 @@
 use crate::message::Message;
-use crate::node::ballot::Ballot;
 use crate::monitor::{Event, PaxosObserver};
+use crate::node::ballot::Ballot;
+use crate::paxos_command::PaxosCommand;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 pub struct Proposer {
     id: usize,
-    ballot: Ballot,
-    proposed_value: String,
-    highest_seen_ballot: Ballot,
+    quorum: usize,
+    state: HashMap<usize, ProposedDecree>,
     observer: Arc<dyn PaxosObserver>,
 }
 
+struct ProposedDecree {
+    ballot: Ballot,
+    highest_seen_ballot: Ballot,
+    proposed_value: PaxosCommand,
+    chosen: bool,
+    votes: HashMap<usize, HashSet<usize>>,
+}
+
 impl Proposer {
-    pub fn new(id: usize, observer: Arc<dyn PaxosObserver>) -> Self {
-        Self { 
+    pub fn new(id: usize, quorum: usize, observer: Arc<dyn PaxosObserver>) -> Self {
+        Self {
             id,
-            ballot: Ballot::new(0, id), // Start at round 0
-            proposed_value: "".to_string(),
-            highest_seen_ballot: Ballot::new(0, 0),
+            quorum,
+            state: HashMap::new(),
             observer,
         }
     }
 
-    pub fn propose(&mut self, value: String) -> Message {
-        // Increment round for new proposal
-        self.ballot.number += 1;
-        self.proposed_value = value.clone();
-        
-        self.observer.on_event(Event::Proposal { id: self.id, value: value.clone() });
-        
-        Message::Prepare { ballot: self.ballot }
+    pub fn promise(
+        &mut self,
+        decree_num: usize,
+        ballot: Ballot,
+        accepted_ballot: Ballot,
+        accepted_value: PaxosCommand,
+    ) -> Message {
+        if let Some(proposed_decree) = self.state.get_mut(&decree_num) {
+            if ballot != proposed_decree.ballot {
+                // Out of sync, we've already sent a Promise
+                return Message::NACK;
+            }
+            if proposed_decree.chosen == true {
+                return Message::Accept {
+                    from: self.id,
+                    decree_num,
+                    ballot,
+                    value: proposed_decree.proposed_value.clone(),
+                };
+            }
+
+            if accepted_ballot > proposed_decree.highest_seen_ballot {
+                proposed_decree.highest_seen_ballot = accepted_ballot;
+                proposed_decree.proposed_value = accepted_value.clone();
+            }
+            let votes = proposed_decree.votes.entry(ballot.number).or_default();
+            votes.insert(ballot.node_id);
+
+            if votes.len() >= self.quorum {
+                proposed_decree.chosen = true;
+                return Message::Accept {
+                    from: self.id,
+                    decree_num,
+                    ballot,
+                    value: proposed_decree.proposed_value.clone(),
+                };
+            }
+            return Message::NACK;
+        }
+        // We are in a bad state
+        return Message::NACK;
     }
 
-    pub async fn handle_message(&mut self, msg: Message) -> Message{
-        match msg {
-            Message::Promise { ballot, accepted_ballot, accepted_value } => {
-                if ballot != self.ballot {
-                     return None;
-                }
+    pub fn propose(&mut self, decree_num: usize, cmd: PaxosCommand) -> Message {
+        if self.state.contains_key(&decree_num) {
+            // We're in a bad state
+            return Message::NACK;
+        }
+        let ballot = Ballot {
+            number: 1,
+            node_id: self.id,
+        };
+        let proposed_decree = ProposedDecree {
+            ballot,
+            chosen: false,
+            highest_seen_ballot: ballot,
+            proposed_value: cmd.clone(),
+            votes: HashMap::new(),
+        };
+        self.state.insert(decree_num, proposed_decree);
 
-                if accepted_ballot > self.highest_seen_ballot {
-                    self.highest_seen_ballot = accepted_ballot;
-                    if let Some(val) = accepted_value {
-                        self.proposed_value = val;
-                    }
-                }
-                
-                return Some(Message::Accept {
-                    ballot: self.ballot, 
-                    value: self.proposed_value.clone(),
-                });
-            }
-            Message::NACK => {
-                // If rejected, jump ahead
-                self.ballot.number += 1;
-                Some(Message::Prepare { ballot: self.ballot })
-            }
-            _ => None
+        self.observer.on_event(Event::Proposal {
+            decree_num,
+            id: self.id,
+            value: cmd.clone(),
+        });
+
+        Message::Prepare {
+            from: self.id,
+            decree_num,
+            ballot: ballot,
+        }
+    }
+
+    pub async fn handle_message(&mut self, msg: Message) -> Message {
+        match msg {
+            Message::Promise {
+                decree_num,
+                ballot,
+                accepted_ballot,
+                accepted_value,
+                ..
+            } => self.promise(decree_num, ballot, accepted_ballot, accepted_value),
+            _ => Message::NACK,
         }
     }
 }

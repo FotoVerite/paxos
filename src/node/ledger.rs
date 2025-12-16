@@ -1,6 +1,4 @@
-use std::{
-    collections::{HashMap},
-};
+use std::collections::HashMap;
 
 use tokio::sync::Mutex;
 
@@ -47,6 +45,11 @@ impl Ledger {
         };
     }
 
+    pub async fn next(&self) -> usize {
+        let state = self.state.lock().await;
+        return state.log.len();
+    }
+
     pub async fn vote(&self, decree_num: usize, ballot: Ballot, cmd: PaxosCommand) {
         let mut state = self.state.lock().await;
 
@@ -59,7 +62,7 @@ impl Ledger {
         if decree.chosen {
             return;
         }
-    
+
         let ballot_votes = decree.votes.entry(ballot.number).or_default();
 
         match ballot_votes.get(&ballot.node_id) {

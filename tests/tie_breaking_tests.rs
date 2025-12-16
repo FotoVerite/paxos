@@ -1,0 +1,277 @@
+use std::sync::{Arc, Mutex};
+
+use paxos::{
+    message::Message,
+    monitor::{Event, PaxosObserver},
+    node::{acceptor::Acceptor, ballot::Ballot, proposer::Proposer},
+    paxos_command::PaxosCommand,
+};
+
+// ============================================================================
+// TEST OBSERVER
+// ============================================================================
+
+#[derive(Clone)]
+struct TestObserver {
+    events: Arc<Mutex<Vec<Event>>>,
+}
+
+impl TestObserver {
+    fn new() -> Self {
+        Self {
+            events: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn as_arc(&self) -> Arc<dyn PaxosObserver> {
+        Arc::new(self.clone())
+    }
+}
+
+impl PaxosObserver for TestObserver {
+    fn on_event(&self, event: Event) {
+        self.events.lock().unwrap().push(event);
+    }
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+fn new_observer() -> TestObserver {
+    TestObserver::new()
+}
+
+fn new_acceptor(id: usize, observer: &TestObserver) -> Acceptor {
+    Acceptor::new(id, observer.as_arc())
+}
+
+fn new_proposer(id: usize, quorum: usize, observer: &TestObserver) -> Proposer {
+    Proposer::new(id, quorum, observer.as_arc())
+}
+
+async fn handle_at_acceptor(acceptor: &mut Acceptor, msg: Message) -> Message {
+    acceptor.handle_message(msg).await
+}
+
+async fn handle_at_proposer(proposer: &mut Proposer, msg: Message) -> Message {
+    proposer.handle_message(msg).await
+}
+
+// ============================================================================
+// TIE-BREAKING TESTS
+// ============================================================================
+
+#[tokio::test]
+async fn tie_breaking_same_round_higher_node_id_wins() {
+    let observer = new_observer();
+    let mut acceptor = new_acceptor(1, &observer);
+
+    let b_node1 = Ballot::new(5, 1); // ballot (5, 1)
+    let b_node2 = Ballot::new(5, 2); // ballot (5, 2) - higher node_id
+
+    let resp1 = handle_at_acceptor(
+        &mut acceptor,
+        Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b_node1,
+        },
+    )
+    .await;
+    assert!(matches!(resp1, Message::Promise { .. }));
+
+    // Node 2 has same round but higher node_id - should be accepted
+    let resp2 = handle_at_acceptor(
+        &mut acceptor,
+        Message::Prepare {
+            from: 2,
+            decree_num: 0,
+            ballot: b_node2,
+        },
+    )
+    .await;
+    assert!(matches!(resp2, Message::Promise { .. }));
+}
+
+#[tokio::test]
+async fn tie_breaking_lower_node_id_rejected_same_round() {
+    let observer = new_observer();
+    let mut acceptor = new_acceptor(1, &observer);
+
+    let b_node2 = Ballot::new(5, 2);
+    let b_node1 = Ballot::new(5, 1); // Lower node_id
+
+    let resp1 = handle_at_acceptor(
+        &mut acceptor,
+        Message::Prepare {
+            from: 2,
+            decree_num: 0,
+            ballot: b_node2,
+        },
+    )
+    .await;
+    assert!(matches!(resp1, Message::Promise { .. }));
+
+    // Node 1 has same round but lower node_id - should be rejected
+    let resp2 = handle_at_acceptor(
+        &mut acceptor,
+        Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b_node1,
+        },
+    )
+    .await;
+    assert!(matches!(resp2, Message::NACK));
+}
+
+#[tokio::test]
+async fn ballot_ordering_complete_comparisons() {
+    let observer = new_observer();
+    let mut acceptor = new_acceptor(1, &observer);
+
+    // Test all comparison combinations
+    let b1_1 = Ballot::new(1, 1);
+    let b1_2 = Ballot::new(1, 2);
+    let b2_1 = Ballot::new(2, 1);
+    let b2_2 = Ballot::new(2, 2);
+
+    // Lower round always loses
+    assert!(b1_1 < b2_1);
+    assert!(b1_2 < b2_1);
+    assert!(b1_2 < b2_2);
+
+    // Same round: lower node_id loses
+    assert!(b1_1 < b1_2);
+    assert!(b2_1 < b2_2);
+
+    // Equality
+    assert!(b1_1 == b1_1);
+    assert!(b2_2 == b2_2);
+}
+
+#[tokio::test]
+async fn proposer_ballot_ordering_from_proposer_perspective() {
+    let observer = new_observer();
+    let mut proposer = new_proposer(1, 1, &observer);
+
+    let cmd = PaxosCommand::GET {
+        key: "test".to_string(),
+    };
+
+    let msg = proposer.propose(0, cmd.clone());
+
+    if let Message::Prepare { ballot, .. } = msg {
+        // Proposer 1 should create ballot (1, 1)
+        assert_eq!(ballot.number, 1);
+        assert_eq!(ballot.node_id, 1);
+    } else {
+        panic!("Expected Prepare message");
+    }
+
+    // Now proposer 2 with same quorum
+    let observer2 = new_observer();
+    let mut proposer2 = new_proposer(2, 1, &observer2);
+    let msg2 = proposer2.propose(0, cmd);
+
+    if let Message::Prepare { ballot: b2, .. } = msg2 {
+        // Proposer 2 should create ballot (1, 2)
+        assert_eq!(b2.number, 1);
+        assert_eq!(b2.node_id, 2);
+        // Ballot from proposer 2 should be higher
+        if let Message::Prepare { ballot: b1, .. } = msg {
+            assert!(b1 < b2);
+        }
+    }
+}
+
+#[tokio::test]
+async fn acceptor_rejects_lower_node_id_when_already_promised_to_higher() {
+    let observer = new_observer();
+    let mut acceptor = new_acceptor(1, &observer);
+
+    let b_higher_node = Ballot::new(5, 2);
+    let b_lower_node = Ballot::new(5, 1);
+
+    // Promise to higher node_id first
+    let resp1 = handle_at_acceptor(
+        &mut acceptor,
+        Message::Prepare {
+            from: 2,
+            decree_num: 0,
+            ballot: b_higher_node,
+        },
+    )
+    .await;
+    assert!(matches!(resp1, Message::Promise { .. }));
+
+    // Try lower node_id - should be rejected
+    let resp2 = handle_at_acceptor(
+        &mut acceptor,
+        Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b_lower_node,
+        },
+    )
+    .await;
+    assert!(matches!(resp2, Message::NACK));
+}
+
+#[tokio::test]
+async fn tie_breaking_affects_accept_phase() {
+    let observer = new_observer();
+    let mut acceptor = new_acceptor(1, &observer);
+
+    let b_node1 = Ballot::new(5, 1);
+    let b_node2 = Ballot::new(5, 2); // Higher due to node_id
+
+    // Promise to node 1
+    handle_at_acceptor(
+        &mut acceptor,
+        Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b_node1,
+        },
+    )
+    .await;
+
+    // Promise to node 2 with higher ballot
+    handle_at_acceptor(
+        &mut acceptor,
+        Message::Prepare {
+            from: 2,
+            decree_num: 0,
+            ballot: b_node2,
+        },
+    )
+    .await;
+
+    // Node 1 tries to Accept at its ballot (5,1) - should fail (too low)
+    let resp = handle_at_acceptor(
+        &mut acceptor,
+        Message::Accept {
+            from: 1,
+            decree_num: 0,
+            ballot: b_node1,
+            value: PaxosCommand::NOOP,
+        },
+    )
+    .await;
+    assert!(matches!(resp, Message::NACK));
+
+    // Node 2 tries to Accept at its ballot (5,2) - should succeed
+    let resp2 = handle_at_acceptor(
+        &mut acceptor,
+        Message::Accept {
+            from: 2,
+            decree_num: 0,
+            ballot: b_node2,
+            value: PaxosCommand::NOOP,
+        },
+    )
+    .await;
+    assert!(matches!(resp2, Message::Accepted { .. }));
+}

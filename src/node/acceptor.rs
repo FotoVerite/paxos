@@ -54,6 +54,7 @@ impl Acceptor {
             });
 
             return Message::Promise {
+                from: self.id,
                 decree_num,
                 ballot,
                 accepted_ballot: decree.accepted_ballot,
@@ -79,6 +80,7 @@ impl Acceptor {
             });
 
             return Message::Accepted {
+                from: self.id,
                 decree_num,
                 ballot,
                 value: cmd,
@@ -89,11 +91,12 @@ impl Acceptor {
 
     pub async fn handle_message(&mut self, msg: Message) -> Message {
         match msg {
-            Message::Prepare { decree_num, ballot } => return self.prepare(decree_num, ballot),
+            Message::Prepare { decree_num, ballot, .. } => return self.prepare(decree_num, ballot),
             Message::Accept {
                 decree_num,
                 ballot,
                 value,
+                ..
             } => return self.accept(decree_num, ballot, value),
             _ => Message::NACK,
         }

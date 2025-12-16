@@ -24,8 +24,9 @@ impl Learner {
                 decree_num,
                 ballot,
                 value,
+                ..
             } => {
-                ledger.vote(decree_num, ballot, value.clone());
+                ledger.vote(decree_num, ballot, value.clone()).await;
                 self.observer.on_event(Event::Learn {
                     decree_num,
                     id: self.id,
@@ -34,6 +35,5 @@ impl Learner {
             }
             _ => {}
         }
-        // To be implemented
     }
 }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio::sync::{
     Mutex,
-    mpsc::{Receiver, Sender},
+    mpsc::{Receiver},
 };
 
 use crate::{
@@ -10,6 +10,7 @@ use crate::{
     message::Message,
     monitor::PaxosObserver,
     node::{acceptor::Acceptor, learner::Learner, ledger::Ledger, proposer::Proposer},
+    paxos_command::PaxosCommand,
 };
 
 pub struct PaxosNode {
@@ -27,21 +28,22 @@ pub struct PaxosState {
 }
 
 impl PaxosState {
-    pub async fn propose(&mut self, value: String) {
-        let msg = self.proposer.propose(value);
+    pub async fn propose(&mut self, value: PaxosCommand) {
+        let decree_num = self.ledger.next().await;
+        let msg = self.proposer.propose(decree_num, value);
 
         self.peers.broadcast(msg).await
     }
 
     pub async fn handle_message(&mut self, msg: Message) {
         match msg {
-            Message::Promise { ballot, .. } => {
+            Message::Promise { .. } => {
                 let reply = self.proposer.handle_message(msg).await;
-                self.peers.send(ballot.node_id, reply);
+                self.peers.broadcast(reply).await;
             }
-            Message::Prepare { ballot, .. } | Message::Accept { ballot, .. } => {
+            Message::Prepare { from, .. } | Message::Accept { from, .. } => {
                 let reply = self.acceptor.handle_message(msg).await;
-                self.peers.send(ballot.node_id, reply);
+                self.peers.send(from, reply).await;
             }
             Message::Accepted { .. } => {
                 self.learner.handle_message(msg, &mut self.ledger).await;
@@ -58,12 +60,14 @@ impl PaxosNode {
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
         peers: PeerSender,
+        quorum: usize,
     ) -> Self {
         let state = Arc::new(Mutex::new(PaxosState {
             peers,
-            proposer: Proposer::new(id, Arc::clone(&observer)),
+            proposer: Proposer::new(id, quorum, Arc::clone(&observer)),
             acceptor: Acceptor::new(id, Arc::clone(&observer)),
             learner: Learner::new(id, Arc::clone(&observer)),
+            ledger: Ledger::init(quorum),
         }));
         return Self {
             id,
@@ -72,9 +76,9 @@ impl PaxosNode {
         };
     }
 
-    pub async fn propose(&mut self, value: String) {
+    pub async fn propose(&mut self, cmd: PaxosCommand) {
         let mut state = self.state.lock().await;
-        state.propose(value).await;
+        state.propose(cmd).await;
     }
 
     pub fn start(&mut self) {
@@ -84,7 +88,7 @@ impl PaxosNode {
         tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
                 let mut state = state.lock().await;
-                state.handle_message(msg);
+                state.handle_message(msg).await;
             }
         });
     }

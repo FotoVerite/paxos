@@ -1,18 +1,17 @@
 use rand::Rng;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use std::{process::Command, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
-    cluster::{ledger::Ledger, peer_sender::PeerSender}, message::Message, monitor::PaxosObserver,
-    node::paxos_node::PaxosNode, paxos_command::PaxosCommand,
+    cluster::peer_sender::PeerSender, message::Message, monitor::PaxosObserver,
+    node::{paxos_node::PaxosNode}, paxos_command::PaxosCommand,
 };
 
 pub struct Cluster {
     id: usize,
     total_number: usize,
     nodes: Vec<PaxosNode>,
-    ledger: Ledger,
     observer: Arc<dyn PaxosObserver>,
 }
 
@@ -25,7 +24,6 @@ impl Cluster {
             peers.push(tx);
             receivers.push(rx);
         }
-        let (ledger, ledger_tx) = Ledger::init();
         let nodes = receivers
             .into_iter()
             .enumerate()
@@ -35,6 +33,7 @@ impl Cluster {
                     rx,
                     Arc::clone(&observer),
                     PeerSender::new(i, peers.clone()),   
+                    total_number / 2 + 1
                 )
             })
             .collect();
@@ -43,7 +42,6 @@ impl Cluster {
             id,
             total_number,
             nodes,
-            ledger,
             observer: Arc::clone(&observer),
         }
     }
@@ -56,10 +54,10 @@ impl Cluster {
         return self.total_number / 2 + 1;
     }
 
-    pub async fn propose(&mut self, value: Command) {
+    pub async fn propose(&mut self, cmd: PaxosCommand) {
         let node_id = random_node_idx(self.total_number);
         if let Some(node) = self.nodes.get_mut(node_id) {
-            node.propose(Command).await;
+            node.propose(cmd).await;
         }
     }
 
