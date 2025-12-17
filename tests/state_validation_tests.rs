@@ -1,66 +1,12 @@
-use std::sync::{Arc, Mutex};
+mod test_helpers;
 
 use paxos::{
     message::Message,
-    monitor::{Event, PaxosObserver},
-    node::{acceptor::Acceptor, ballot::Ballot, proposer::Proposer},
+    monitor::Event,
+    node::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
-
-// ============================================================================
-// TEST OBSERVER WITH STATE TRACKING
-// ============================================================================
-
-#[derive(Clone)]
-struct TestObserver {
-    events: Arc<Mutex<Vec<Event>>>,
-}
-
-impl TestObserver {
-    fn new() -> Self {
-        Self {
-            events: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    fn get_events(&self) -> Vec<Event> {
-        self.events.lock().unwrap().clone()
-    }
-
-    fn as_arc(&self) -> Arc<dyn PaxosObserver> {
-        Arc::new(self.clone())
-    }
-}
-
-impl PaxosObserver for TestObserver {
-    fn on_event(&self, event: Event) {
-        self.events.lock().unwrap().push(event);
-    }
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-fn new_observer() -> TestObserver {
-    TestObserver::new()
-}
-
-fn new_acceptor(id: usize, observer: &TestObserver) -> Acceptor {
-    Acceptor::new(id, observer.as_arc())
-}
-
-fn new_proposer(id: usize, quorum: usize, observer: &TestObserver) -> Proposer {
-    Proposer::new(id, quorum, observer.as_arc())
-}
-
-async fn handle_at_acceptor(acceptor: &mut Acceptor, msg: Message) -> Message {
-    acceptor.handle_message(msg).await
-}
-
-async fn handle_at_proposer(proposer: &mut Proposer, msg: Message) -> Message {
-    proposer.handle_message(msg).await
-}
+use test_helpers::NodeBuilder;
 
 // ============================================================================
 // STATE VALIDATION TESTS
@@ -69,15 +15,14 @@ async fn handle_at_proposer(proposer: &mut Proposer, msg: Message) -> Message {
 /// Invariant: Acceptor never promises a ballot and then accepts at a lower ballot
 #[tokio::test]
 async fn acceptor_ballot_monotonicity_within_decree() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b5 = Ballot::new(5, 1);
     let b3 = Ballot::new(3, 1);
 
     // Promise to ballot (5, 1)
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -87,8 +32,7 @@ async fn acceptor_ballot_monotonicity_within_decree() {
     .await;
 
     // Try to accept at lower ballot (3, 1) - should be rejected
-    let resp = handle_at_acceptor(
-        &mut acceptor,
+    let resp = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -108,14 +52,13 @@ async fn acceptor_ballot_monotonicity_within_decree() {
 /// Invariant: Acceptor never promises same decree at same or lower ballot twice
 #[tokio::test]
 async fn acceptor_no_promise_downgrade_same_decree() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b5 = Ballot::new(5, 1);
 
     // First promise to (5, 1)
-    let resp1 = handle_at_acceptor(
-        &mut acceptor,
+    let resp1 = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -126,8 +69,7 @@ async fn acceptor_no_promise_downgrade_same_decree() {
     assert!(matches!(resp1, Message::Promise { .. }));
 
     // Second promise attempt with same ballot - should be rejected
-    let resp2 = handle_at_acceptor(
-        &mut acceptor,
+    let resp2 = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -146,8 +88,8 @@ async fn acceptor_no_promise_downgrade_same_decree() {
 /// Invariant: Acceptor maintains monotonic ballot progression per decree
 #[tokio::test]
 async fn acceptor_monotonic_promise_progression() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b3 = Ballot::new(3, 1);
     let b5 = Ballot::new(5, 1);
@@ -155,8 +97,7 @@ async fn acceptor_monotonic_promise_progression() {
     let b6 = Ballot::new(6, 1); // Would be out of order after 7
 
     // Promise sequence: 3 -> 5 -> 7 (valid progression)
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -165,8 +106,7 @@ async fn acceptor_monotonic_promise_progression() {
     )
     .await;
 
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -175,8 +115,7 @@ async fn acceptor_monotonic_promise_progression() {
     )
     .await;
 
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -186,8 +125,7 @@ async fn acceptor_monotonic_promise_progression() {
     .await;
 
     // Try to promise at 6 after promising at 7 - should fail
-    let resp = handle_at_acceptor(
-        &mut acceptor,
+    let resp = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -206,15 +144,14 @@ async fn acceptor_monotonic_promise_progression() {
 /// Invariant: Acceptor state is independent per decree
 #[tokio::test]
 async fn acceptor_decree_independence_for_ballots() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b5_1 = Ballot::new(5, 1);
     let b3_1 = Ballot::new(3, 1);
 
     // Decree 0: Promise to (5, 1)
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -224,8 +161,7 @@ async fn acceptor_decree_independence_for_ballots() {
     .await;
 
     // Decree 1: Should be able to promise to (3, 1) independently
-    let resp = handle_at_acceptor(
-        &mut acceptor,
+    let resp = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 1,
@@ -244,8 +180,8 @@ async fn acceptor_decree_independence_for_ballots() {
 /// Invariant: Proposer doesn't send Accept with lower ballot after higher
 #[tokio::test]
 async fn proposer_ballot_monotonicity_per_decree() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -282,8 +218,8 @@ async fn proposer_ballot_monotonicity_per_decree() {
 /// Invariant: Proposer tracks multiple decrees with same ballot number
 #[tokio::test]
 async fn proposer_same_ballot_different_decrees() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd0 = PaxosCommand::GET {
         key: "decree0".to_string(),
@@ -309,15 +245,14 @@ async fn proposer_same_ballot_different_decrees() {
 /// Invariant: Acceptor never returns accepted_value for rejected Prepare
 #[tokio::test]
 async fn acceptor_never_leaks_value_on_nack() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b5 = Ballot::new(5, 1);
     let b3 = Ballot::new(3, 1);
 
     // Accept a value at ballot (5, 1)
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -326,8 +261,7 @@ async fn acceptor_never_leaks_value_on_nack() {
     )
     .await;
 
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -341,8 +275,7 @@ async fn acceptor_never_leaks_value_on_nack() {
     .await;
 
     // Try to prepare with lower ballot - gets NACK
-    let resp = handle_at_acceptor(
-        &mut acceptor,
+    let resp = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -361,8 +294,8 @@ async fn acceptor_never_leaks_value_on_nack() {
 /// Invariant: Proposer adopts previously accepted value with highest ballot
 #[tokio::test]
 async fn proposer_value_adoption_invariant() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
     let new_value = PaxosCommand::GET {
         key: "new".to_string(),
@@ -388,7 +321,7 @@ async fn proposer_value_adoption_invariant() {
         accepted_value: old_value.clone(),
     };
 
-    let msg1 = handle_at_proposer(&mut proposer, promise1).await;
+    let msg1 = proposer.handle_message( promise1).await;
 
     // Verify proposer adopted the old value
     if let Message::Accept { value, .. } = msg1 {
@@ -407,7 +340,7 @@ async fn proposer_value_adoption_invariant() {
         accepted_value: older_value,
     };
 
-    let msg2 = handle_at_proposer(&mut proposer, promise2).await;
+    let msg2 = proposer.handle_message( promise2).await;
 
     // INVARIANT: Must keep the value from highest accepted_ballot
     if let Message::Accept { value, .. } = msg2 {
@@ -421,8 +354,8 @@ async fn proposer_value_adoption_invariant() {
 /// Invariant: Accept message must match the ballot in Prepare -> Promise flow
 #[tokio::test]
 async fn proposer_accept_ballot_matches_promise() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -445,7 +378,7 @@ async fn proposer_accept_ballot_matches_promise() {
         accepted_value: PaxosCommand::NOOP,
     };
 
-    let accept = handle_at_proposer(&mut proposer, promise).await;
+    let accept = proposer.handle_message( promise).await;
 
     // INVARIANT: Accept ballot must match Promise ballot (which matched Prepare)
     if let Message::Accept { ballot: accept_ballot, .. } = accept {
@@ -461,16 +394,15 @@ async fn proposer_accept_ballot_matches_promise() {
 /// Invariant: Acceptor rejects Accept messages from lower ballot than promised
 #[tokio::test]
 async fn acceptor_accept_ballot_validation() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b7 = Ballot::new(7, 1);
     let b5 = Ballot::new(5, 1);
     let b9 = Ballot::new(9, 1);
 
     // Promise to ballot (7, 1)
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -480,8 +412,7 @@ async fn acceptor_accept_ballot_validation() {
     .await;
 
     // Try to accept at (5, 1) - too low
-    let resp1 = handle_at_acceptor(
-        &mut acceptor,
+    let resp1 = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -493,8 +424,7 @@ async fn acceptor_accept_ballot_validation() {
     assert!(matches!(resp1, Message::NACK));
 
     // Accept at (7, 1) - exact ballot
-    let resp2 = handle_at_acceptor(
-        &mut acceptor,
+    let resp2 = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -507,8 +437,7 @@ async fn acceptor_accept_ballot_validation() {
 
     // Accept at (9, 1) - higher than promised, but we need a new promise first
     // This tests that acceptor enforces min_ballot >= promised ballot
-    let new_promise = handle_at_acceptor(
-        &mut acceptor,
+    let new_promise = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -518,8 +447,7 @@ async fn acceptor_accept_ballot_validation() {
     .await;
     assert!(matches!(new_promise, Message::Promise { .. }));
 
-    let resp3 = handle_at_acceptor(
-        &mut acceptor,
+    let resp3 = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -539,16 +467,15 @@ async fn acceptor_accept_ballot_validation() {
 /// Invariant: Multiple proposals at different ballots maintain isolation
 #[tokio::test]
 async fn concurrent_proposals_ballot_isolation() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b1_1 = Ballot::new(1, 1); // Proposer 1
     let b1_2 = Ballot::new(1, 2); // Proposer 2
     let b1_3 = Ballot::new(1, 3); // Proposer 3
 
     // All three proposers promise with same round
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -557,8 +484,7 @@ async fn concurrent_proposals_ballot_isolation() {
     )
     .await;
 
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 2,
             decree_num: 0,
@@ -567,8 +493,7 @@ async fn concurrent_proposals_ballot_isolation() {
     )
     .await;
 
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 3,
             decree_num: 0,
@@ -578,8 +503,7 @@ async fn concurrent_proposals_ballot_isolation() {
     .await;
 
     // Proposer 1 and 2 try to accept - but 3 has highest ballot
-    let accept1 = handle_at_acceptor(
-        &mut acceptor,
+    let accept1 = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -591,8 +515,7 @@ async fn concurrent_proposals_ballot_isolation() {
     )
     .await;
 
-    let accept2 = handle_at_acceptor(
-        &mut acceptor,
+    let accept2 = acceptor.handle_message(
         Message::Accept {
             from: 2,
             decree_num: 0,
@@ -615,8 +538,7 @@ async fn concurrent_proposals_ballot_isolation() {
     );
 
     // Only proposer 3 succeeds
-    let accept3 = handle_at_acceptor(
-        &mut acceptor,
+    let accept3 = acceptor.handle_message(
         Message::Accept {
             from: 3,
             decree_num: 0,

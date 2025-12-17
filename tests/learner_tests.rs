@@ -1,54 +1,7 @@
-use std::sync::{Arc, Mutex};
+mod test_helpers;
 
-use paxos::{
-    message::Message,
-    monitor::{Event, PaxosObserver},
-    node::{ballot::Ballot, learner::Learner},
-    paxos_command::PaxosCommand,
-};
-
-// ============================================================================
-// TEST OBSERVER
-// ============================================================================
-
-#[derive(Clone)]
-struct TestObserver {
-    events: Arc<Mutex<Vec<Event>>>,
-}
-
-impl TestObserver {
-    fn new() -> Self {
-        Self {
-            events: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    fn get_events(&self) -> Vec<Event> {
-        self.events.lock().unwrap().clone()
-    }
-
-    fn as_arc(&self) -> Arc<dyn PaxosObserver> {
-        Arc::new(self.clone())
-    }
-}
-
-impl PaxosObserver for TestObserver {
-    fn on_event(&self, event: Event) {
-        self.events.lock().unwrap().push(event);
-    }
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-fn new_observer() -> TestObserver {
-    TestObserver::new()
-}
-
-fn new_learner(id: usize, observer: &TestObserver) -> Learner {
-    Learner::new(id, observer.as_arc())
-}
+use paxos::{message::Message, monitor::Event, node::ballot::Ballot, paxos_command::PaxosCommand};
+use test_helpers::NodeBuilder;
 
 // ============================================================================
 // LEARNER TESTS
@@ -56,8 +9,9 @@ fn new_learner(id: usize, observer: &TestObserver) -> Learner {
 
 #[tokio::test]
 async fn learner_receives_accepted_values() {
-    let observer = new_observer();
-    let mut learner = new_learner(1, &observer);
+    let builder = NodeBuilder::new();
+    let observer = builder.observer();
+    let mut learner = builder.learner(1);
 
     let cmd1 = PaxosCommand::GET {
         key: "key1".to_string(),
@@ -74,7 +28,7 @@ async fn learner_receives_accepted_values() {
                 ballot: Ballot::new(1, 1),
                 value: cmd1.clone(),
             },
-            &mut paxos::node::ledger::Ledger::init(2),
+            &mut paxos::node::ledger::Ledger::init(1, 2).await.unwrap(),
         )
         .await;
     learner
@@ -85,7 +39,7 @@ async fn learner_receives_accepted_values() {
                 ballot: Ballot::new(1, 1),
                 value: cmd2.clone(),
             },
-            &mut paxos::node::ledger::Ledger::init(2),
+            &mut paxos::node::ledger::Ledger::init(1, 2).await.unwrap(),
         )
         .await;
 
@@ -99,8 +53,9 @@ async fn learner_receives_accepted_values() {
 
 #[tokio::test]
 async fn learner_ignores_non_accepted_messages() {
-    let observer = new_observer();
-    let mut learner = new_learner(1, &observer);
+    let builder = NodeBuilder::new();
+    let observer = builder.observer();
+    let mut learner = builder.learner(1);
 
     // Try to send a Prepare (learner should ignore it)
     learner
@@ -110,7 +65,7 @@ async fn learner_ignores_non_accepted_messages() {
                 decree_num: 0,
                 ballot: Ballot::new(1, 1),
             },
-            &mut paxos::node::ledger::Ledger::init(2),
+            &mut paxos::node::ledger::Ledger::init(1, 2).await.unwrap(),
         )
         .await;
 
@@ -120,9 +75,10 @@ async fn learner_ignores_non_accepted_messages() {
 
 #[tokio::test]
 async fn learner_learns_multiple_decrees() {
-    let observer = new_observer();
-    let mut learner = new_learner(1, &observer);
-    let mut ledger = paxos::node::ledger::Ledger::init(1);
+    let builder = NodeBuilder::new();
+    let observer = builder.observer();
+    let mut learner = builder.learner(1);
+    let mut ledger = paxos::node::ledger::Ledger::init(1, 1).await.unwrap();
 
     let b = Ballot::new(1, 1);
 

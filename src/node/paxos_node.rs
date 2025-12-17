@@ -55,25 +55,27 @@ impl PaxosState {
 }
 
 impl PaxosNode {
-    pub fn new(
+    pub async fn new(
         id: usize,
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
         peers: PeerSender,
         quorum: usize,
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
+        let ledger = Ledger::init(id, quorum).await?;
+        let acceptor = Acceptor::new(id, Arc::clone(&observer)).await?;
         let state = Arc::new(Mutex::new(PaxosState {
             peers,
-            proposer: Proposer::new(id, quorum, Arc::clone(&observer)),
-            acceptor: Acceptor::new(id, Arc::clone(&observer)),
+            proposer: Proposer::new(id, quorum, Arc::clone(&observer)).await?,
+            acceptor,
             learner: Learner::new(id, Arc::clone(&observer)),
-            ledger: Ledger::init(quorum),
+            ledger,
         }));
-        return Self {
+        Ok(Self {
             id,
             rx: Some(rx),
             state,
-        };
+        })
     }
 
     pub async fn propose(&mut self, cmd: PaxosCommand) {

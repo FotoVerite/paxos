@@ -1,60 +1,43 @@
+mod test_helpers;
 use paxos::{
-    message::Message, node::{acceptor::Acceptor, ballot::Ballot, proposer::Proposer},
-    paxos_command::PaxosCommand, monitor::NoOpObserver,
+    message::Message,
+    node::{ballot::Ballot, proposer::Proposer},
+    paxos_command::PaxosCommand,
 };
-
-use std::sync::Arc;
+use test_helpers::{cleanup_persisted_state, NodeBuilder};
 
 #[tokio::test]
 async fn test_basic_paxos_flow() {
-    let observer = Arc::new(NoOpObserver);
-    
-    // 1. Setup
-    let mut acceptor = Acceptor::new(1, observer.clone());
-    let mut proposer = Proposer::new(1, 1, observer.clone()); // Proposer ID 1, quorum=1
+    cleanup_persisted_state();
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
-    // 2. Propose a value
     let value = PaxosCommand::GET {
         key: "test_key".to_string(),
     };
     let msg = proposer.propose(0, value.clone());
 
-    // 3. Acceptor handles Prepare message
     let response = acceptor.handle_message(msg).await;
 
-    // 4. Should get a Promise
-    if let Message::Promise {
-        ballot,
-        accepted_ballot: _,
-        accepted_value: _,
-        ..
-    } = response
-    {
-        assert_eq!(ballot.number, 1, "Should promise for ballot number 1");
+    assert!(
+        matches!(response, Message::Promise { ballot, .. } if ballot.number == 1),
+        "Should have received a promise for ballot 1"
+    );
 
-        // 5. Feed Promise back to Proposer
-        let accept_request = proposer.handle_message(response).await;
+    let accept_request = proposer.handle_message(response).await;
 
-        if let Message::Accept {
-            ballot: b,
-            value: v,
-            ..
-        } = accept_request
-        {
-            assert_eq!(b.number, 1);
-            assert_eq!(v, value);
-        } else {
-            panic!("Proposer should have sent Accept, got {:?}", accept_request);
-        }
-    } else {
-        panic!("Expected Promise message, got {:?}", response);
-    }
+    assert!(
+        matches!(accept_request, Message::Accept { ballot, value: v, .. } if ballot.number == 1 && v == value),
+        "Proposer should have sent Accept with correct ballot and value"
+    );
 }
 
 #[tokio::test]
 async fn test_acceptor_rejects_lower_ballot() {
-    let observer = Arc::new(NoOpObserver);
-    let mut acceptor = Acceptor::new(1, observer.clone());
+    cleanup_persisted_state();
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     // First prepare with ballot 5
     let msg1 = Message::Prepare {
@@ -77,8 +60,9 @@ async fn test_acceptor_rejects_lower_ballot() {
 
 #[tokio::test]
 async fn test_proposer_adopts_previous_value() {
-    let observer = Arc::new(NoOpObserver);
-    let mut proposer = Proposer::new(1, 1, observer.clone());
+    cleanup_persisted_state();
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd1 = PaxosCommand::GET {
         key: "key1".to_string(),
@@ -102,9 +86,6 @@ async fn test_proposer_adopts_previous_value() {
     let accept_msg = proposer.handle_message(promise).await;
 
     // Should adopt the previous value
-    if let Message::Accept { value, .. } = accept_msg {
-        assert_eq!(value, cmd2);
-    } else {
-        panic!("Expected Accept, got {:?}", accept_msg);
-    }
+    assert!(matches!(accept_msg, Message::Accept { value, .. } if value == cmd2));
 }
+

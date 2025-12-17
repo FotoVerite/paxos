@@ -142,25 +142,24 @@ NACK
 - **Message Routing** - `from` field ensures correct delivery
 - **Test Reorganization** - Split monolithic 1351-line file into 9 focused test files
 
-### ❌ Critical Issues Found (3 Failing Tests)
+### ✅ Critical Issues Fixed (All 3 Tests Now Passing)
 
-#### 1. **accept_before_prepare_same_decree** - SAFETY VIOLATION
+#### 1. **accept_before_prepare_same_decree** - SAFETY VIOLATION ✅ FIXED
 - **Issue**: Acceptor accepts without prior promise
-- **Spec Requirement**: Acceptor must promise ballot before accepting at that ballot
-- **Impact**: Violates Paxos Phase 1 guarantee
-- **Fix Location**: Acceptor.handle_message() for Accept messages
+- **Fix**: Added check in `Acceptor.accept()` to require promise before accept
+- **Change**: Used `get_mut()` to modify decree state, validate min_ballot is set
 
-#### 2. **accept_with_different_value_than_proposed** - SAFETY VIOLATION
+#### 2. **accept_with_different_value_than_proposed** - SAFETY VIOLATION ✅ FIXED
 - **Issue**: Acceptor overwrites accepted value at same ballot
-- **Spec Requirement**: Once accepted at ballot B, value is immutable at ballot B
-- **Impact**: Multiple different values could be considered "accepted" for same ballot
-- **Fix Location**: Acceptor state management for accepted_value
+- **Fix**: Added idempotency check in `Acceptor.accept()`
+- **Change**: If ballot matches accepted_ballot, verify same value, reject if different
+- **Code**: `if ballot == decree.accepted_ballot && cmd != decree.accepted_value { return NACK }`
 
-#### 3. **proposer_with_insufficient_promises** - LIVENESS ISSUE
-- **Issue**: Proposer doesn't send Accept when quorum is reached
-- **Spec Requirement**: Proposer must send Accept after receiving quorum of promises
-- **Impact**: Consensus cannot be reached even with sufficient promises
-- **Fix Location**: Proposer promise handling logic, quorum calculation
+#### 3. **proposer_with_insufficient_promises** - LIVENESS ISSUE ✅ FIXED
+- **Issue**: Proposer doesn't count acceptor votes correctly
+- **Fix**: Changed vote tracking from `ballot.node_id` (proposer) to `from` (acceptor)
+- **Change**: `votes.insert(from)` instead of `votes.insert(ballot.node_id)`
+- **Impact**: Now correctly reaches quorum when sufficient acceptors promise
 
 ### ⏳ In Progress / Coming Next
 
@@ -178,17 +177,19 @@ NACK
   - Message reordering/delays
 - **Impact**: Unknown behavior under network faults
 
-### 3. **Ledger Semantics** ⚠️
-- Current `next()` returns `log.len()` assuming sequential decrees
-- Doesn't handle gaps (what if decree 0 and 2 chosen, but 1 rejected?)
-- **Impact**: Potential issues with decree numbering in retry scenarios
+### 3. **Ledger Gap Handling** ✅
+- ✅ Ledger now correctly tracks chosen vs unchosen decrees
+- ✅ Supports gaps: if 0,2,3 chosen but 1 not, `next()` returns 1
+- ✅ Supports out-of-order: decrees can arrive in any order
+- **Current implementation**: O(n) scan from decree 0 to find first unchosen
+- **Tests**: 8 comprehensive gap handling tests, all passing
 
 ## Test Execution Summary
 
 ```
-Total Tests: 66
-Passing: 63 ✓
-Failing: 3 ❌
+Total Tests: 74
+Passing: 74 ✓
+Failing: 0 ❌
 
 Test File Breakdown:
 - acceptor_tests.rs: 7/7 passing
@@ -198,8 +199,9 @@ Test File Breakdown:
 - concurrent_decrees_tests.rs: 9/9 passing
 - integration_tests.rs: 4/4 passing
 - state_validation_tests.rs: 11/11 passing
-- edge_case_tests.rs: 10/13 passing (3 failing - see Critical Issues)
+- edge_case_tests.rs: 13/13 passing ✅ (all 3 critical bugs fixed)
 - basic_paxos_test.rs: 3/3 passing
+- ledger_gap_handling_tests.rs: 8/8 passing ✅ (new)
 - test_helpers.rs: 4/4 passing
 - multi_node_tests.rs: 1/1 passing
 ```
@@ -272,6 +274,40 @@ Ballot ordering is lexicographic: (number, node_id)
    - Required for: retry scenarios with gaps
    - Current issue: `next()` breaks with gaps
    - Estimated effort: Medium (redesign decree tracking)
+
+## Future Optimizations
+
+### Ledger Frontier Optimization (Post-MVP)
+**Current**: `next()` is O(n) — scans from decree 0 to find first unchosen
+**Problem**: With millions of decrees, this becomes slow
+**Solution**: Track the "frontier" of sequential chosen decrees
+
+**How it works:**
+```rust
+struct LedgerState {
+    log: Vec<PaxosCommand>,
+    decrees: HashMap<usize, Decree>,
+    next_available: usize,  // ← Frontier pointer
+}
+```
+
+When a decree is chosen in `vote()`:
+1. Mark decree as chosen
+2. If it equals `next_available`, advance frontier
+3. Keep advancing while next consecutive decree is also chosen
+
+Example:
+```
+State: next_available = 0
+Choose decree 0 → next_available = 1 (check 1...)
+Choose decree 2 → next_available still 1 (decree 1 not chosen)
+Choose decree 1 → next_available = 2, then 3 (check if 2,3... chosen)
+```
+
+**Result**: `next()` becomes O(1) instead of O(n)
+**Complexity**: Only scan forward when a decree actually becomes chosen, amortized O(1)
+
+**Why this matters**: Multi-Paxos runs forever. With millions of decrees, O(n) becomes unacceptable.
 
 ## Website Requirements
 

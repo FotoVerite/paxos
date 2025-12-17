@@ -2,14 +2,26 @@ use crate::message::Message;
 use crate::monitor::{Event, PaxosObserver};
 use crate::node::ballot::Ballot;
 use crate::paxos_command::PaxosCommand;
+use anyhow::Result;
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::Arc;
+
+const DATA_DIR: &str = ".paxos";
 
 pub struct Proposer {
     id: usize,
     quorum: usize,
     state: HashMap<usize, ProposedDecree>,
     observer: Arc<dyn PaxosObserver>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+struct ProposedDecreeState {
+    ballot: Ballot,
+    highest_seen_ballot: Ballot,
+    proposed_value: PaxosCommand,
+    chosen: bool,
 }
 
 struct ProposedDecree {
@@ -21,13 +33,77 @@ struct ProposedDecree {
 }
 
 impl Proposer {
-    pub fn new(id: usize, quorum: usize, observer: Arc<dyn PaxosObserver>) -> Self {
-        Self {
+    pub async fn new(id: usize, quorum: usize, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
+        let state = Self::load_or_init(id).await?;
+        Ok(Self {
             id,
             quorum,
-            state: HashMap::new(),
+            state,
             observer,
+        })
+    }
+
+    fn state_path(&self) -> String {
+        format!("{}/proposer_state_{}.bin", DATA_DIR, self.id)
+    }
+
+    async fn ensure_dir_exists() -> Result<()> {
+        tokio::fs::create_dir_all(DATA_DIR).await?;
+        Ok(())
+    }
+
+    async fn save(&self) -> Result<()> {
+        Self::ensure_dir_exists().await?;
+        let state_to_save: HashMap<usize, ProposedDecreeState> = self
+            .state
+            .iter()
+            .map(|(k, v)| {
+                (
+                    *k,
+                    ProposedDecreeState {
+                        ballot: v.ballot,
+                        highest_seen_ballot: v.highest_seen_ballot,
+                        proposed_value: v.proposed_value.clone(),
+                        chosen: v.chosen,
+                    },
+                )
+            })
+            .collect();
+        let encoded = bincode::serialize(&state_to_save)?;
+        tokio::fs::write(self.state_path(), encoded).await?;
+        Ok(())
+    }
+
+    async fn load_or_init(node_id: usize) -> Result<HashMap<usize, ProposedDecree>> {
+        let path_str = format!("{}/proposer_state_{}.bin", DATA_DIR, node_id);
+        let path = Path::new(&path_str);
+
+        if !path.exists() {
+            return Ok(HashMap::new());
         }
+
+        let data = tokio::fs::read(&path).await?;
+        if data.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let loaded_state: HashMap<usize, ProposedDecreeState> = bincode::deserialize(&data)?;
+        let state = loaded_state
+            .into_iter()
+            .map(|(k, v)| {
+                (
+                    k,
+                    ProposedDecree {
+                        ballot: v.ballot,
+                        highest_seen_ballot: v.highest_seen_ballot,
+                        proposed_value: v.proposed_value,
+                        chosen: v.chosen,
+                        votes: HashMap::new(),
+                    },
+                )
+            })
+            .collect();
+        Ok(state)
     }
 
     pub fn promise(
@@ -36,6 +112,7 @@ impl Proposer {
         ballot: Ballot,
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,
+        from_node: usize,
     ) -> Message {
         if let Some(proposed_decree) = self.state.get_mut(&decree_num) {
             if ballot != proposed_decree.ballot {
@@ -56,7 +133,7 @@ impl Proposer {
                 proposed_decree.proposed_value = accepted_value.clone();
             }
             let votes = proposed_decree.votes.entry(ballot.number).or_default();
-            votes.insert(ballot.node_id);
+            votes.insert(from_node);
 
             if votes.len() >= self.quorum {
                 proposed_decree.chosen = true;
@@ -107,12 +184,12 @@ impl Proposer {
     pub async fn handle_message(&mut self, msg: Message) -> Message {
         match msg {
             Message::Promise {
+                from,
                 decree_num,
                 ballot,
                 accepted_ballot,
                 accepted_value,
-                ..
-            } => self.promise(decree_num, ballot, accepted_ballot, accepted_value),
+            } => self.promise(decree_num, ballot, accepted_ballot, accepted_value, from),
             _ => Message::NACK,
         }
     }

@@ -1,74 +1,12 @@
-use std::sync::{Arc, Mutex};
+mod test_helpers;
 
 use paxos::{
     message::Message,
-    monitor::{Event, PaxosObserver},
-    node::{acceptor::Acceptor, ballot::Ballot, learner::Learner, proposer::Proposer},
+    monitor::Event,
+    node::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
-
-// ============================================================================
-// TEST OBSERVER
-// ============================================================================
-
-#[derive(Clone)]
-struct TestObserver {
-    events: Arc<Mutex<Vec<Event>>>,
-}
-
-impl TestObserver {
-    fn new() -> Self {
-        Self {
-            events: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    fn get_events(&self) -> Vec<Event> {
-        self.events.lock().unwrap().clone()
-    }
-
-    fn as_arc(&self) -> Arc<dyn PaxosObserver> {
-        Arc::new(self.clone())
-    }
-}
-
-impl PaxosObserver for TestObserver {
-    fn on_event(&self, event: Event) {
-        self.events.lock().unwrap().push(event);
-    }
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-fn new_observer() -> TestObserver {
-    TestObserver::new()
-}
-
-fn new_acceptor(id: usize, observer: &TestObserver) -> Acceptor {
-    Acceptor::new(id, observer.as_arc())
-}
-
-fn new_proposer(id: usize, quorum: usize, observer: &TestObserver) -> Proposer {
-    Proposer::new(id, quorum, observer.as_arc())
-}
-
-fn new_learner(id: usize, observer: &TestObserver) -> Learner {
-    Learner::new(id, observer.as_arc())
-}
-
-async fn handle_at_acceptor(acceptor: &mut Acceptor, msg: Message) -> Message {
-    acceptor.handle_message(msg).await
-}
-
-async fn handle_at_proposer(proposer: &mut Proposer, msg: Message) -> Message {
-    proposer.handle_message(msg).await
-}
-
-async fn handle_at_learner(learner: &mut Learner, msg: Message, ledger: &mut paxos::node::ledger::Ledger) {
-    learner.handle_message(msg, ledger).await
-}
+use test_helpers::{cleanup_persisted_state, NodeBuilder};
 
 // ============================================================================
 // EDGE CASE TESTS
@@ -77,9 +15,9 @@ async fn handle_at_learner(learner: &mut Learner, msg: Message, ledger: &mut pax
 /// Edge case: Promise arrives after Accept has been sent (out of order)
 #[tokio::test]
 async fn out_of_order_promise_after_accept() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -101,7 +39,7 @@ async fn out_of_order_promise_after_accept() {
         accepted_ballot: Ballot::new(0, 0),
         accepted_value: PaxosCommand::NOOP,
     };
-    let accept = handle_at_proposer(&mut proposer, promise).await;
+    let accept = proposer.handle_message(promise).await;
 
     // Now imagine Promise from another acceptor arrives (out of order)
     let late_promise = Message::Promise {
@@ -113,7 +51,7 @@ async fn out_of_order_promise_after_accept() {
     };
 
     // Proposer should handle it gracefully (may already have sent Accept, or queue it)
-    let resp = handle_at_proposer(&mut proposer, late_promise).await;
+    let resp = proposer.handle_message(late_promise).await;
 
     // Either NACK (quorum already met) or Accept is acceptable
     match resp {
@@ -125,21 +63,18 @@ async fn out_of_order_promise_after_accept() {
 /// Edge case: Accept message arrives at acceptor before Prepare (out of order)
 #[tokio::test]
 async fn accept_before_prepare_same_decree() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b = Ballot::new(5, 1);
 
     // Accept arrives before Prepare - acceptor has no promise yet
-    let resp = handle_at_acceptor(
-        &mut acceptor,
-        Message::Accept {
-            from: 1,
-            decree_num: 0,
-            ballot: b,
-            value: PaxosCommand::NOOP,
-        },
-    )
+    let resp = acceptor.handle_message(Message::Accept {
+        from: 1,
+        decree_num: 0,
+        ballot: b,
+        value: PaxosCommand::NOOP,
+    })
     .await;
 
     // SHOULD reject - acceptor must have promised before accepting
@@ -153,32 +88,26 @@ async fn accept_before_prepare_same_decree() {
 /// Edge case: Duplicate Prepare messages from same proposer
 #[tokio::test]
 async fn duplicate_prepare_messages() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b = Ballot::new(5, 1);
 
     // First Prepare
-    let resp1 = handle_at_acceptor(
-        &mut acceptor,
-        Message::Prepare {
-            from: 1,
-            decree_num: 0,
-            ballot: b,
-        },
-    )
+    let resp1 = acceptor.handle_message(Message::Prepare {
+        from: 1,
+        decree_num: 0,
+        ballot: b,
+    })
     .await;
     assert!(matches!(resp1, Message::Promise { .. }));
 
     // Duplicate Prepare with same ballot
-    let resp2 = handle_at_acceptor(
-        &mut acceptor,
-        Message::Prepare {
-            from: 1,
-            decree_num: 0,
-            ballot: b,
-        },
-    )
+    let resp2 = acceptor.handle_message(Message::Prepare {
+        from: 1,
+        decree_num: 0,
+        ballot: b,
+    })
     .await;
 
     // Should be rejected (already promised to this ballot)
@@ -191,8 +120,8 @@ async fn duplicate_prepare_messages() {
 /// Edge case: Duplicate Accept messages
 #[tokio::test]
 async fn duplicate_accept_messages() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b = Ballot::new(5, 1);
     let value = PaxosCommand::PUT {
@@ -201,8 +130,7 @@ async fn duplicate_accept_messages() {
     };
 
     // Prepare first
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -212,8 +140,7 @@ async fn duplicate_accept_messages() {
     .await;
 
     // First Accept
-    let resp1 = handle_at_acceptor(
-        &mut acceptor,
+    let resp1 = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -225,8 +152,7 @@ async fn duplicate_accept_messages() {
     assert!(matches!(resp1, Message::Accepted { .. }));
 
     // Duplicate Accept with same ballot and value
-    let resp2 = handle_at_acceptor(
-        &mut acceptor,
+    let resp2 = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -247,9 +173,9 @@ async fn duplicate_accept_messages() {
 /// Edge case: Learner receives Accepted out of order
 #[tokio::test]
 async fn learner_out_of_order_accepted() {
-    let observer = new_observer();
-    let mut learner = new_learner(1, &observer);
-    let mut ledger = paxos::node::ledger::Ledger::init(2);
+    let builder = NodeBuilder::new();
+    let mut learner = builder.learner(1);
+    let mut ledger = paxos::node::ledger::Ledger::init(2, 2).await.unwrap();
 
     let b = Ballot::new(1, 1);
     let cmd0 = PaxosCommand::GET {
@@ -260,8 +186,7 @@ async fn learner_out_of_order_accepted() {
     };
 
     // Receive Accepted for decree 1 first
-    handle_at_learner(
-        &mut learner,
+    learner.handle_message(
         Message::Accepted {
             from: 2,
             decree_num: 1,
@@ -273,8 +198,7 @@ async fn learner_out_of_order_accepted() {
     .await;
 
     // Then Accepted for decree 0
-    handle_at_learner(
-        &mut learner,
+    learner.handle_message(
         Message::Accepted {
             from: 2,
             decree_num: 0,
@@ -286,7 +210,8 @@ async fn learner_out_of_order_accepted() {
     .await;
 
     // Both should be learned despite order
-    let learns = observer
+    let learns = builder
+        .observer()
         .get_events()
         .iter()
         .filter(|e| matches!(e, Event::Learn { .. }))
@@ -297,8 +222,8 @@ async fn learner_out_of_order_accepted() {
 /// Edge case: Proposer with insufficient promises (minority quorum)
 #[tokio::test]
 async fn proposer_with_insufficient_promises() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 3, &observer); // Needs 3 promises (5-node cluster)
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 3).await.unwrap(); // Needs 3 promises (5-node cluster)
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -320,7 +245,7 @@ async fn proposer_with_insufficient_promises() {
         accepted_value: PaxosCommand::NOOP,
     };
 
-    let resp1 = handle_at_proposer(&mut proposer, promise1).await;
+    let resp1 = proposer.handle_message( promise1).await;
 
     // MUST NOT send Accept yet (only 1 promise, need 3)
     assert!(
@@ -337,7 +262,7 @@ async fn proposer_with_insufficient_promises() {
         accepted_value: PaxosCommand::NOOP,
     };
 
-    let resp2 = handle_at_proposer(&mut proposer, promise2).await;
+    let resp2 = proposer.handle_message( promise2).await;
 
     // MUST NOT send Accept (only 2 promises, need 3)
     assert!(
@@ -354,7 +279,7 @@ async fn proposer_with_insufficient_promises() {
         accepted_value: PaxosCommand::NOOP,
     };
 
-    let resp3 = handle_at_proposer(&mut proposer, promise3).await;
+    let resp3 = proposer.handle_message( promise3).await;
 
     // MUST send Accept when quorum is reached (3 >= 3)
     assert!(
@@ -366,15 +291,14 @@ async fn proposer_with_insufficient_promises() {
 /// Edge case: Very large ballot numbers
 #[tokio::test]
 async fn large_ballot_numbers() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b_huge = Ballot::new(999999, 1);
     let b_higher = Ballot::new(1000000, 1);
 
     // Prepare with huge ballot
-    let resp1 = handle_at_acceptor(
-        &mut acceptor,
+    let resp1 = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -385,8 +309,7 @@ async fn large_ballot_numbers() {
     assert!(matches!(resp1, Message::Promise { .. }));
 
     // Higher ballot should still work
-    let resp2 = handle_at_acceptor(
-        &mut acceptor,
+    let resp2 = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -400,8 +323,8 @@ async fn large_ballot_numbers() {
 /// Edge case: Accept with different value at same ballot
 #[tokio::test]
 async fn accept_with_different_value_than_proposed() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b = Ballot::new(5, 1);
     let value1 = PaxosCommand::GET {
@@ -412,8 +335,7 @@ async fn accept_with_different_value_than_proposed() {
     };
 
     // Prepare
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -423,8 +345,7 @@ async fn accept_with_different_value_than_proposed() {
     .await;
 
     // Accept with value1
-    let resp1 = handle_at_acceptor(
-        &mut acceptor,
+    let resp1 = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -437,8 +358,7 @@ async fn accept_with_different_value_than_proposed() {
 
     // Try to accept with different value at same ballot
     // Once accepted, acceptor should not change the value at same ballot
-    let resp2 = handle_at_acceptor(
-        &mut acceptor,
+    let resp2 = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -467,8 +387,8 @@ async fn accept_with_different_value_than_proposed() {
 /// Edge case: Proposer receives Promise from itself
 #[tokio::test]
 async fn proposer_promise_from_itself() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -490,7 +410,7 @@ async fn proposer_promise_from_itself() {
         accepted_value: PaxosCommand::NOOP,
     };
 
-    let resp = handle_at_proposer(&mut proposer, promise_from_self).await;
+    let resp = proposer.handle_message( promise_from_self).await;
 
     // Should be handled gracefully - may count as a promise or ignore
     match resp {
@@ -503,8 +423,8 @@ async fn proposer_promise_from_itself() {
 /// Edge case: Multiple proposals competing for same decree (concurrent)
 #[tokio::test]
 async fn multiple_concurrent_proposals_same_decree() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b1_1 = Ballot::new(1, 1); // Proposer 1
     let b1_2 = Ballot::new(1, 2); // Proposer 2
@@ -521,8 +441,7 @@ async fn multiple_concurrent_proposals_same_decree() {
     };
 
     // All three prepare
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -531,8 +450,7 @@ async fn multiple_concurrent_proposals_same_decree() {
     )
     .await;
 
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 2,
             decree_num: 0,
@@ -541,8 +459,7 @@ async fn multiple_concurrent_proposals_same_decree() {
     )
     .await;
 
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Prepare {
             from: 3,
             decree_num: 0,
@@ -552,8 +469,7 @@ async fn multiple_concurrent_proposals_same_decree() {
     .await;
 
     // P1 tries to accept (lowest ballot) - should fail
-    let resp1 = handle_at_acceptor(
-        &mut acceptor,
+    let resp1 = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -565,8 +481,7 @@ async fn multiple_concurrent_proposals_same_decree() {
     assert!(matches!(resp1, Message::NACK));
 
     // P2 tries to accept (middle ballot) - should fail
-    let resp2 = handle_at_acceptor(
-        &mut acceptor,
+    let resp2 = acceptor.handle_message(
         Message::Accept {
             from: 2,
             decree_num: 0,
@@ -578,8 +493,7 @@ async fn multiple_concurrent_proposals_same_decree() {
     assert!(matches!(resp2, Message::NACK));
 
     // P3 tries to accept (highest ballot) - should succeed
-    let resp3 = handle_at_acceptor(
-        &mut acceptor,
+    let resp3 = acceptor.handle_message(
         Message::Accept {
             from: 3,
             decree_num: 0,
@@ -594,14 +508,13 @@ async fn multiple_concurrent_proposals_same_decree() {
 /// Edge case: Acceptor receives messages for very sparse decree numbers
 #[tokio::test]
 async fn sparse_decree_numbering() {
-    let observer = new_observer();
-    let mut acceptor = new_acceptor(1, &observer);
+    let builder = NodeBuilder::new();
+    let mut acceptor = builder.acceptor(1).await.unwrap();
 
     let b = Ballot::new(1, 1);
 
     // Prepare for decree 0
-    let resp0 = handle_at_acceptor(
-        &mut acceptor,
+    let resp0 = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 0,
@@ -612,8 +525,7 @@ async fn sparse_decree_numbering() {
     assert!(matches!(resp0, Message::Promise { .. }));
 
     // Prepare for decree 1000 (huge gap)
-    let resp1000 = handle_at_acceptor(
-        &mut acceptor,
+    let resp1000 = acceptor.handle_message(
         Message::Prepare {
             from: 1,
             decree_num: 1000,
@@ -624,8 +536,7 @@ async fn sparse_decree_numbering() {
     assert!(matches!(resp1000, Message::Promise { .. }));
 
     // Both decrees should be independent
-    handle_at_acceptor(
-        &mut acceptor,
+    acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 0,
@@ -635,8 +546,7 @@ async fn sparse_decree_numbering() {
     )
     .await;
 
-    let resp = handle_at_acceptor(
-        &mut acceptor,
+    let resp = acceptor.handle_message(
         Message::Accept {
             from: 1,
             decree_num: 1000,
@@ -654,9 +564,10 @@ async fn sparse_decree_numbering() {
 /// Edge case: Learner receives Accepted for same decree from all acceptors
 #[tokio::test]
 async fn learner_consensus_from_all_acceptors() {
-    let observer = new_observer();
-    let mut learner = new_learner(1, &observer);
-    let mut ledger = paxos::node::ledger::Ledger::init(3);
+    let builder = NodeBuilder::new();
+    let mut learner = builder.learner(1);
+    let mut ledger = paxos::node::ledger::Ledger::init(3, 2).await.unwrap();
+    let observer: test_helpers::RecordingObserver = builder.observer();
 
     let b = Ballot::new(1, 1);
     let cmd = PaxosCommand::PUT {
@@ -666,8 +577,7 @@ async fn learner_consensus_from_all_acceptors() {
 
     // Receive Accepted from all 3 acceptors
     for acceptor_id in 2..=4 {
-        handle_at_learner(
-            &mut learner,
+        learner.handle_message(
             Message::Accepted {
                 from: acceptor_id,
                 decree_num: 0,
@@ -691,8 +601,8 @@ async fn learner_consensus_from_all_acceptors() {
 /// Edge case: Promise with accepted_ballot higher than current ballot
 #[tokio::test]
 async fn promise_reports_higher_accepted_ballot() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -712,7 +622,7 @@ async fn promise_reports_higher_accepted_ballot() {
         },
     };
 
-    let resp = handle_at_proposer(&mut proposer, promise).await;
+    let resp = proposer.handle_message( promise).await;
 
     // Proposer should adopt the old value despite its high ballot
     if let Message::Accept { value, .. } = resp {

@@ -16,7 +16,7 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn new(id: usize, total_number: usize, observer: Arc<dyn PaxosObserver>) -> Self {
+    pub async fn new(id: usize, total_number: usize, observer: Arc<dyn PaxosObserver>) -> anyhow::Result<Self> {
         let mut peers = Vec::<Sender<Message>>::with_capacity(total_number);
         let mut receivers = Vec::<Receiver<Message>>::with_capacity(total_number);
         for _ in 0..total_number {
@@ -24,26 +24,25 @@ impl Cluster {
             peers.push(tx);
             receivers.push(rx);
         }
-        let nodes = receivers
-            .into_iter()
-            .enumerate()
-            .map(|(i, rx)| {
-                PaxosNode::new(
-                    i + 1,
-                    rx,
-                    Arc::clone(&observer),
-                    PeerSender::new(i, peers.clone()),   
-                    total_number / 2 + 1
-                )
-            })
-            .collect();
+        
+        let mut nodes = Vec::new();
+        for (i, rx) in receivers.into_iter().enumerate() {
+            let node = PaxosNode::new(
+                i,
+                rx,
+                Arc::clone(&observer),
+                PeerSender::new(i, peers.clone()),   
+                total_number / 2 + 1
+            ).await?;
+            nodes.push(node);
+        }
 
-        Self {
+        Ok(Self {
             id,
             total_number,
             nodes,
             observer: Arc::clone(&observer),
-        }
+        })
     }
 
     pub fn num_nodes(&self) -> usize {

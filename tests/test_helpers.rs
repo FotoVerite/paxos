@@ -5,9 +5,19 @@ use std::sync::{Arc, Mutex};
 use paxos::{
     message::Message,
     monitor::{Event, PaxosObserver},
-    node::{acceptor::Acceptor, ballot::Ballot, learner::Learner, proposer::Proposer, ledger::Ledger},
+    node::{acceptor::Acceptor, learner::Learner, proposer::Proposer, ledger::Ledger},
     paxos_command::PaxosCommand,
 };
+
+// ============================================================================
+// CLEANUP HELPERS
+// ============================================================================
+
+/// Cleans up all persisted state files from tests
+#[allow(dead_code)]
+pub fn cleanup_persisted_state() {
+    let _ = std::fs::remove_dir_all(".paxos");
+}
 
 // ============================================================================
 // TEST OBSERVER
@@ -26,10 +36,12 @@ impl RecordingObserver {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_events(&self) -> Vec<Event> {
         self.events.lock().unwrap().clone()
     }
 
+    #[allow(dead_code)]
     pub fn clear(&self) {
         self.events.lock().unwrap().clear();
     }
@@ -58,6 +70,7 @@ impl RecordingObserver {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub fn accepts(&self) -> Vec<Event> {
         self.events
             .lock()
@@ -68,6 +81,7 @@ impl RecordingObserver {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub fn learns(&self) -> Vec<Event> {
         self.events
             .lock()
@@ -105,28 +119,31 @@ impl NodeBuilder {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_observer(observer: RecordingObserver) -> Self {
         Self { observer }
     }
 
+    #[allow(dead_code)]
     pub fn observer(&self) -> RecordingObserver {
         self.observer.clone()
     }
 
-    pub fn proposer(&self, id: usize, quorum: usize) -> Proposer {
-        Proposer::new(id, quorum, self.observer.as_arc())
+    pub async fn proposer(&self, id: usize, quorum: usize) -> anyhow::Result<Proposer> {
+        Proposer::new(id, quorum, self.observer.as_arc()).await
     }
 
-    pub fn acceptor(&self, id: usize) -> Acceptor {
-        Acceptor::new(id, self.observer.as_arc())
+    pub async fn acceptor(&self, id: usize) -> anyhow::Result<Acceptor> {
+        Acceptor::new(id, self.observer.as_arc()).await
     }
 
     pub fn learner(&self, id: usize) -> Learner {
         Learner::new(id, self.observer.as_arc())
     }
 
-    pub fn ledger(&self, quorum: usize) -> Ledger {
-        Ledger::init(quorum)
+    #[allow(dead_code)]
+    pub async fn ledger(&self, id: usize, quorum: usize) -> anyhow::Result<Ledger> {
+        Ledger::init(id, quorum).await
     }
 }
 
@@ -157,6 +174,7 @@ impl ScenarioBuilder {
     }
 
     /// Mark multiple nodes as partitioned
+    #[allow(dead_code)]
     pub fn partition_minority(mut self, count: usize) -> Self {
         for i in 0..count {
             self.partitioned.push(i);
@@ -180,6 +198,12 @@ impl ScenarioBuilder {
         self.node_count - self.partitioned.len()
     }
 
+    #[allow(dead_code)]
+    pub fn can_reach_quorum(&self) -> bool {
+        self.available_nodes() >= self.quorum_size()
+    }
+
+    #[allow(dead_code)]
     pub fn observer(&self) -> RecordingObserver {
         self.observer.clone()
     }
@@ -195,6 +219,7 @@ pub struct MessageSimulator {
     messages: Vec<(usize, Message)>, // (from_node, msg) pairs awaiting delivery
 }
 
+#[allow(dead_code)]
 impl MessageSimulator {
     pub fn new(scenario: ScenarioBuilder) -> Self {
         Self {
@@ -246,8 +271,10 @@ impl MessageSimulator {
 // ============================================================================
 
 /// Factory for common test values
+#[allow(dead_code)]
 pub struct PayloadFactory;
 
+#[allow(dead_code)]
 impl PayloadFactory {
     pub fn noop() -> PaxosCommand {
         PaxosCommand::NOOP
@@ -282,6 +309,7 @@ impl QuorumCalc {
         votes >= Self::for_nodes(n)
     }
 
+    #[allow(dead_code)]
     pub fn is_minority(votes: usize, n: usize) -> bool {
         !Self::is_majority(votes, n)
     }
@@ -296,6 +324,7 @@ impl QuorumCalc {
 // ============================================================================
 
 /// Helper assertions for cleaner test code
+#[allow(dead_code)]
 pub fn assert_message_type(msg: &Message, expected: &str) {
     let actual = match msg {
         Message::Prepare { .. } => "Prepare",
@@ -307,6 +336,7 @@ pub fn assert_message_type(msg: &Message, expected: &str) {
     assert_eq!(actual, expected, "Expected {}, got {}", expected, actual);
 }
 
+#[allow(dead_code)]
 pub fn assert_ballot_number(msg: &Message, expected_number: usize, expected_id: usize) {
     match msg {
         Message::Prepare { ballot, .. }
@@ -365,11 +395,11 @@ mod tests {
         assert!(!scenario.is_partitioned(0));
     }
 
-    #[test]
-    fn test_node_builder() {
+    #[tokio::test]
+    async fn test_node_builder() {
         let builder = NodeBuilder::new();
-        let proposer = builder.proposer(1, 1);
-        let acceptor = builder.acceptor(1);
+        let _proposer = builder.proposer(1, 1).await.unwrap();
+        let _acceptor = builder.acceptor(1).await.unwrap();
         let _learner = builder.learner(1);
         // Just verify they construct without panic
     }

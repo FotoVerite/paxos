@@ -1,58 +1,11 @@
-use std::sync::{Arc, Mutex};
+mod test_helpers;
 
 use paxos::{
     message::Message,
-    monitor::{Event, PaxosObserver},
-    node::{ballot::Ballot, proposer::Proposer},
+    node::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
-
-// ============================================================================
-// TEST OBSERVER
-// ============================================================================
-
-#[derive(Clone)]
-struct TestObserver {
-    events: Arc<Mutex<Vec<Event>>>,
-}
-
-impl TestObserver {
-    fn new() -> Self {
-        Self {
-            events: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    fn as_arc(&self) -> Arc<dyn PaxosObserver> {
-        Arc::new(self.clone())
-    }
-}
-
-impl PaxosObserver for TestObserver {
-    fn on_event(&self, event: Event) {
-        self.events.lock().unwrap().push(event);
-    }
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-fn new_observer() -> TestObserver {
-    TestObserver::new()
-}
-
-fn new_proposer(id: usize, quorum: usize, observer: &TestObserver) -> Proposer {
-    Proposer::new(id, quorum, observer.as_arc())
-}
-
-fn send_prepare(proposer: &mut Proposer, decree_num: usize, cmd: PaxosCommand) -> Message {
-    proposer.propose(decree_num, cmd)
-}
-
-async fn handle_at_proposer(proposer: &mut Proposer, msg: Message) -> Message {
-    proposer.handle_message(msg).await
-}
+use test_helpers::NodeBuilder;
 
 // ============================================================================
 // PROPOSER TESTS
@@ -60,11 +13,10 @@ async fn handle_at_proposer(proposer: &mut Proposer, msg: Message) -> Message {
 
 #[tokio::test]
 async fn proposer_issues_prepare_with_correct_ballot() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
-    let msg = send_prepare(
-        &mut proposer,
+    let msg = proposer.propose(
         0,
         PaxosCommand::GET {
             key: "key".to_string(),
@@ -81,13 +33,13 @@ async fn proposer_issues_prepare_with_correct_ballot() {
 
 #[tokio::test]
 async fn proposer_sends_accept_on_promise() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
     let cmd = PaxosCommand::GET {
         key: "mykey".to_string(),
     };
 
-    send_prepare(&mut proposer, 0, cmd.clone());
+    proposer.propose(0, cmd.clone());
 
     let promise = Message::Promise {
         from: 2,
@@ -96,7 +48,7 @@ async fn proposer_sends_accept_on_promise() {
         accepted_ballot: Ballot::new(0, 0),
         accepted_value: PaxosCommand::NOOP,
     };
-    let resp = handle_at_proposer(&mut proposer, promise).await;
+    let resp = proposer.handle_message(promise).await;
 
     if let Message::Accept { ballot, value, .. } = resp {
         assert_eq!(ballot, Ballot::new(1, 1));
@@ -108,8 +60,8 @@ async fn proposer_sends_accept_on_promise() {
 
 #[tokio::test]
 async fn proposer_adopts_previously_accepted_value() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
     let proposed_cmd = PaxosCommand::GET {
         key: "newkey".to_string(),
     };
@@ -118,7 +70,7 @@ async fn proposer_adopts_previously_accepted_value() {
         version: 1,
     };
 
-    send_prepare(&mut proposer, 0, proposed_cmd);
+    proposer.propose(0, proposed_cmd);
 
     let promise = Message::Promise {
         from: 2,
@@ -127,7 +79,7 @@ async fn proposer_adopts_previously_accepted_value() {
         accepted_ballot: Ballot::new(5, 1),
         accepted_value: previous_cmd.clone(),
     };
-    let resp = handle_at_proposer(&mut proposer, promise).await;
+    let resp = proposer.handle_message(promise).await;
 
     if let Message::Accept { ballot, value, .. } = resp {
         assert_eq!(ballot, Ballot::new(1, 1));
@@ -139,11 +91,10 @@ async fn proposer_adopts_previously_accepted_value() {
 
 #[tokio::test]
 async fn proposer_ignores_promise_for_wrong_ballot() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
 
-    send_prepare(
-        &mut proposer,
+    proposer.propose(
         0,
         PaxosCommand::GET {
             key: "key".to_string(),
@@ -157,7 +108,7 @@ async fn proposer_ignores_promise_for_wrong_ballot() {
         accepted_ballot: Ballot::new(0, 0),
         accepted_value: PaxosCommand::NOOP,
     };
-    let resp = handle_at_proposer(&mut proposer, promise).await;
+    let resp = proposer.handle_message(promise).await;
 
     // Wrong ballot should return NACK
     assert!(matches!(resp, Message::NACK));
@@ -165,18 +116,14 @@ async fn proposer_ignores_promise_for_wrong_ballot() {
 
 #[tokio::test]
 async fn proposer_picks_highest_accepted_ballot() {
-    let observer = new_observer();
-    let mut proposer = new_proposer(1, 1, &observer);
+    let builder = NodeBuilder::new();
+    let mut proposer = builder.proposer(1, 1).await.unwrap();
     let proposed_cmd = PaxosCommand::GET {
         key: "key".to_string(),
     };
 
-    send_prepare(&mut proposer, 0, proposed_cmd);
+    proposer.propose(0, proposed_cmd);
 
-    let value_from_3 = PaxosCommand::PUT {
-        key: "ballot3".to_string(),
-        version: 1,
-    };
     let value_from_5 = PaxosCommand::PUT {
         key: "ballot5".to_string(),
         version: 2,
@@ -189,7 +136,7 @@ async fn proposer_picks_highest_accepted_ballot() {
         accepted_ballot: Ballot::new(5, 1),
         accepted_value: value_from_5.clone(),
     };
-    let resp = handle_at_proposer(&mut proposer, promise1).await;
+    let resp = proposer.handle_message(promise1).await;
 
     if let Message::Accept { value, .. } = resp {
         assert_eq!(value, value_from_5);

@@ -1,4 +1,5 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum PaxosCommand {
     NOOP,
     GET { key: String },
