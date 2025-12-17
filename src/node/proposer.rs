@@ -16,6 +16,10 @@ pub struct Proposer {
     observer: Arc<dyn PaxosObserver>,
 }
 
+/// Represents the persistent state of a proposed decree.
+/// This struct is used for serialization and deserialization to/from disk.
+/// It omits transient runtime state like the `votes` map, as that information
+/// is not relevant across restarts and should be re-established during a new proposal phase.
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 struct ProposedDecreeState {
     ballot: Ballot,
@@ -24,12 +28,15 @@ struct ProposedDecreeState {
     chosen: bool,
 }
 
+/// Represents the full in-memory runtime state of a proposed decree managed by the Proposer.
+/// The `votes` field is transient and not persisted, as it represents promises received
+/// during a specific proposal round which become invalid upon a Proposer restart.
 struct ProposedDecree {
     ballot: Ballot,
     highest_seen_ballot: Ballot,
     proposed_value: PaxosCommand,
     chosen: bool,
-    votes: HashMap<usize, HashSet<usize>>,
+    votes: HashMap<usize, HashSet<usize>>, // Transient state, not persisted
 }
 
 impl Proposer {
@@ -52,6 +59,9 @@ impl Proposer {
         Ok(())
     }
 
+    /// Saves the current state of the Proposer to disk.
+    /// Only the persistent fields (`ProposedDecreeState`) are serialized,
+    /// omitting transient runtime data like the `votes` map.
     async fn save(&self) -> Result<()> {
         Self::ensure_dir_exists().await?;
         let state_to_save: HashMap<usize, ProposedDecreeState> = self
@@ -74,6 +84,10 @@ impl Proposer {
         Ok(())
     }
 
+    /// Loads the Proposer's state from disk or initializes it if no state is found.
+    /// When loading, it reconstructs the in-memory `ProposedDecree` from the
+    /// `ProposedDecreeState`, re-initializing transient fields (like `votes`) to their default
+    /// or empty values, as they are not persisted.
     async fn load_or_init(node_id: usize) -> Result<HashMap<usize, ProposedDecree>> {
         let path_str = format!("{}/proposer_state_{}.bin", DATA_DIR, node_id);
         let path = Path::new(&path_str);
@@ -98,7 +112,7 @@ impl Proposer {
                         highest_seen_ballot: v.highest_seen_ballot,
                         proposed_value: v.proposed_value,
                         chosen: v.chosen,
-                        votes: HashMap::new(),
+                        votes: HashMap::new(), // Votes are re-initialized as they are transient
                     },
                 )
             })
