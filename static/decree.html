@@ -492,6 +492,64 @@
             min-width: 0;
         }
 
+        .collapsible-section {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .collapsible-header:hover {
+            background: #334155;
+        }
+
+        .collapsible-header h2 {
+            margin: 0;
+            flex: 1;
+        }
+
+        .collapsible-toggle {
+            font-size: 1.5rem;
+            color: #60a5fa;
+            transition: transform 0.3s;
+        }
+
+        .collapsible-toggle.closed {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            padding: 0 20px 20px 20px;
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .collapsible-content.hidden {
+            display: none;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 1000px;
+            }
+        }
+
         @media (max-width: 1200px) {
             .explanation-with-notation {
                 grid-template-columns: 1fr;
@@ -546,6 +604,13 @@
             </div>
         </div>
 
+        <!-- Collapsible Ballot Simulation -->
+        <div class="collapsible-section">
+            <div class="collapsible-header" onclick="toggleBallotSection()">
+                <h2>🗳️ Interactive Ballot Simulation</h2>
+                <span class="collapsible-toggle closed" id="ballotToggle">▼</span>
+            </div>
+            <div class="collapsible-content hidden" id="ballotContent">
         <div class="main-grid">
             <div class="visualization">
                 <!-- Decree Display -->
@@ -578,11 +643,14 @@
                 </div>
             </div>
         </div>
+        </div>
+        </div>
+        </div>
 
         <!-- Explanation with Notation Sidebar -->
-         <div class="explanation-with-notation">
-             <div class="explanation-content">
-             <h2>The Paxos Decree Lifecycle</h2>
+        <div class="explanation-with-notation">
+        <div class="explanation-content">
+        <h2>The Paxos Decree Lifecycle</h2>
              
              <p>A decree in Paxos goes through several phases before being learned by all priests:</p>
 
@@ -610,6 +678,31 @@
                 <strong>The Critical Invariant (B3):</strong> "For every ballot B, if any priest in B's quorum voted in an earlier ballot in B, then the decree of B equals the decree of the latest of those earlier ballots."
                 <br><br>
                 This ensures that once a decree has been accepted by a quorum in any ballot, all future ballots will propose that same decree. This is what provides consistency.
+            </div>
+
+            <h2>The Three Conditions</h2>
+
+            <div class="key-concept">
+               <strong>$\mathbf{B1}(\mathcal{B})$:</strong> Each ballot in the set $\mathcal{B}$ has a unique ballot number.
+            </div>
+
+            <div class="key-concept">
+               <strong>$\mathbf{B2}(\mathcal{B})$:</strong> The quorums of any two ballots in $\mathcal{B}$ have at least one priest in common. That is, $B.{\rm qrm} \cap B'.{\rm qrm} \neq \emptyset$ for all $B, B' \in \mathcal{B}$.
+            </div>
+
+            <div class="key-concept">
+               <strong>$\mathbf{B3}(\mathcal{B})$:</strong> For every ballot $B \in \mathcal{B}$, if any priest in $B$'s quorum voted in an earlier ballot in $\mathcal{B}$, then the decree of $B$ equals the decree of the latest such earlier ballot.
+            </div>
+
+            <h2>The Lemma</h2>
+
+            <div style="background: #0f172a; border: 2px solid #60a5fa; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+               <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.8;">
+                   <strong style="color: #60a5fa;">If the three conditions B1, B2, and B3 are satisfied by a set of ballots $\mathcal{B}$, then all priests learn the same decree.</strong>
+               </p>
+               <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 15px; border-top: 1px solid #334155; padding-top: 15px;">
+                   <strong>Proof Sketch:</strong> By B2, any two quorums intersect. By B3, any ballot whose quorum contains a priest who voted earlier must propose the same decree as that earlier vote. Since every pair of quorums shares at least one priest, if two different decrees were each accepted by a quorum, their quorums would share a priest who voted for both—contradicting B3. Therefore, at most one decree can be accepted by a quorum, and all priests eventually learn it.
+               </p>
             </div>
 
             </div>
@@ -645,6 +738,7 @@
                     <div class="notation-item">$\exists$ = exists</div>
                     <div class="notation-item">$\in$ = element of</div>
                     <div class="notation-item">$\subseteq$ = subset</div>
+                    <div class="notation-item">$\triangleq$ = defined as</div>
                     <div class="notation-item">$\land$ = AND</div>
                     <div class="notation-item">$\Rightarrow$ = implies</div>
                     <div class="notation-item">$\cap$ = intersection</div>
@@ -661,6 +755,20 @@
             </div>
 
     <script>
+        // Toggle ballot simulation section
+        function toggleBallotSection() {
+            const content = document.getElementById('ballotContent');
+            const toggle = document.getElementById('ballotToggle');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                toggle.classList.remove('closed');
+            } else {
+                content.classList.add('hidden');
+                toggle.classList.add('closed');
+            }
+        }
+
         // Markov chain for decree generation
         const priestNames = ["Cicero", "Marcus", "Pompey", "Brutus", "Augustus"];
         
