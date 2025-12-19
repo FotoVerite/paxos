@@ -116,6 +116,9 @@ impl PaxosObserver for RecordingObserver {
                     });
                     learned.lock().await.insert(decree_num, value.to_string());
                 }
+                Event::NodeState { id: _, role: _, ballot: _, learned_count: _ } => {
+                    // NodeState events are internal and don't need recording
+                }
             }
             // Decrement pending task counter when done
             pending.fetch_sub(1, Ordering::Release);

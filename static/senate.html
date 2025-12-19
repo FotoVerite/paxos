@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senate Visualizer - Paxos</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        body {
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .visualization {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .control-panel {
+            width: 300px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .control-panel h2 {
+            color: #60a5fa;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            color: #cbd5e1;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #0f172a;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .stats-group {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        .event-log {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+        }
+
+        .event-item {
+            border-left: 2px solid #60a5fa;
+            padding-left: 8px;
+            margin-bottom: 6px;
+            color: #cbd5e1;
+            font-family: 'Monaco', monospace;
+        }
+
+        .event-item.learn {
+            border-left-color: #34d399;
+        }
+
+        .event-item.promise {
+            border-left-color: #fbbf24;
+        }
+
+        .event-item.accept {
+            border-left-color: #f87171;
+        }
+
+        </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="/">⚡ Paxos</a>
+            </div>
+            <div class="nav-menu">
+                <a href="/" class="nav-link">Visualizer</a>
+                <a href="/senate" class="nav-link active">Senate</a>
+                <a href="/decree" class="nav-link">Decree Lifecycle</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="visualization">
+            <svg id="senateSvg"></svg>
+        </div>
+
+        <div class="control-panel">
+            <div>
+                <div class="status-indicator">
+                    <div class="status-dot" id="connectionStatus"></div>
+                    <span id="statusText">Connecting...</span>
+                </div>
+            </div>
+
+            <div>
+                <h2>Controls</h2>
+                <div class="control-group">
+                    <label for="nodeCount">Nodes:</label>
+                    <input type="number" id="nodeCount" value="5" min="3" max="20">
+                </div>
+                <div class="control-group">
+                    <label for="duration">Duration (sec):</label>
+                    <input type="number" id="duration" value="120" min="10">
+                </div>
+                <div class="control-group">
+                    <label for="randomness">Randomness:</label>
+                    <input type="range" id="randomness" value="0.3" min="0" max="1" step="0.1">
+                    <small style="color: #94a3b8;" id="randomnessValue">0.3</small>
+                </div>
+                <button id="startBtn" onclick="startScenario()">Start</button>
+            </div>
+
+            <div>
+                <h2>Stats</h2>
+                <div class="stats-group">
+                    <div class="stat-item">
+                        <div class="stat-value" id="proposalCount">0</div>
+                        <div class="stat-label">Proposals</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="promiseCount">0</div>
+                        <div class="stat-label">Promises</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="acceptCount">0</div>
+                        <div class="stat-label">Accepts</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="learnCount">0</div>
+                        <div class="stat-label">Learned</div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h2>Events</h2>
+                <div class="event-log" id="eventLog"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const svg = document.getElementById('senateSvg');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const statusText = document.getElementById('statusText');
+        const eventLog = document.getElementById('eventLog');
+        const randomnessSlider = document.getElementById('randomness');
+        const randomnessValue = document.getElementById('randomnessValue');
+
+        // Update randomness display
+        randomnessSlider.addEventListener('change', (e) => {
+            randomnessValue.textContent = parseFloat(e.target.value).toFixed(1);
+        });
+
+        let clusterInfo = null;
+        let senateRadius = 150;
+        let senateCenter = { x: 0, y: 0 };
+        let nodeElements = {};
+        let activeBeams = new Map(); // Track active message beams
+        let eventCounts = { proposal: 0, promise: 0, accept: 0, learn: 0 };
+
+        // Color palette for events
+        const eventColors = {
+            proposal: '#8b5cf6',  // Purple
+            promise: '#fbbf24',   // Amber
+            accept: '#f87171',    // Red
+            learn: '#34d399'      // Emerald
+        };
+
+        const ws = new WebSocket("ws://" + window.location.host + "/ws");
+
+        ws.onopen = function() {
+            connectionStatus.classList.add('connected');
+            statusText.textContent = '✓ Connected';
+        };
+
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.ClusterInitialized) {
+                    clusterInfo = data.ClusterInitialized;
+                    renderSenate();
+                    return;
+                }
+                
+                if (data.Event) {
+                    handleEvent(data.Event);
+                }
+            } catch (e) {
+                console.error('Parse error:', e);
+            }
+        };
+
+        ws.onclose = function() {
+            connectionStatus.classList.remove('connected');
+            statusText.textContent = '✗ Disconnected';
+        };
+
+        function renderSenate() {
+            if (!clusterInfo) return;
+
+            svg.innerHTML = '';
+            const rect = svg.getBoundingClientRect();
+            senateCenter = { x: rect.width / 2, y: rect.height / 2 };
+
+            // Create defs for gradients and filters
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+
+            // Glow filter
+            const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+            filter.setAttribute('id', 'glow');
+            filter.innerHTML = `
+                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            `;
+            defs.appendChild(filter);
+
+            // Gradient for senate ring
+            const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+            gradient.setAttribute('id', 'senateGradient');
+            gradient.innerHTML = `
+                <stop offset="0%" style="stop-color:#1e40af;stop-opacity:0.3" />
+                <stop offset="100%" style="stop-color:#1e40af;stop-opacity:0.1" />
+            `;
+            defs.appendChild(gradient);
+
+            svg.appendChild(defs);
+
+            // Background
+            const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bg.setAttribute('width', rect.width);
+            bg.setAttribute('height', rect.height);
+            bg.setAttribute('fill', '#0f172a');
+            svg.appendChild(bg);
+
+            // Message beams layer (drawn first so they appear behind)
+            const beamsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            beamsLayer.setAttribute('id', 'beams');
+            svg.appendChild(beamsLayer);
+
+            // Senate ring (stylized circular structure)
+            const senateRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            senateRing.setAttribute('cx', senateCenter.x);
+            senateRing.setAttribute('cy', senateCenter.y);
+            senateRing.setAttribute('r', senateRadius);
+            senateRing.setAttribute('fill', 'url(#senateGradient)');
+            senateRing.setAttribute('stroke', '#3b82f6');
+            senateRing.setAttribute('stroke-width', '2');
+            senateRing.setAttribute('opacity', '0.4');
+            svg.appendChild(senateRing);
+
+            // Inner glow circle
+            const glowCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            glowCircle.setAttribute('cx', senateCenter.x);
+            glowCircle.setAttribute('cy', senateCenter.y);
+            glowCircle.setAttribute('r', senateRadius - 5);
+            glowCircle.setAttribute('fill', 'none');
+            glowCircle.setAttribute('stroke', '#60a5fa');
+            glowCircle.setAttribute('stroke-width', '1');
+            glowCircle.setAttribute('opacity', '0.2');
+            glowCircle.setAttribute('stroke-dasharray', '5,5');
+            svg.appendChild(glowCircle);
+
+            // Place senators around the ring
+            const { total_nodes } = clusterInfo;
+            const angleStep = (Math.PI * 2) / total_nodes;
+
+            for (let i = 0; i < total_nodes; i++) {
+                const angle = angleStep * i - Math.PI / 2;
+                const x = senateCenter.x + senateRadius * Math.cos(angle);
+                const y = senateCenter.y + senateRadius * Math.sin(angle);
+
+                // Senator group
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('id', `node-${i}`);
+                group.setAttribute('data-node-id', i);
+
+                // Outer glow ring
+                const glow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                glow.setAttribute('cx', x);
+                glow.setAttribute('cy', y);
+                glow.setAttribute('r', 28);
+                glow.setAttribute('fill', 'none');
+                glow.setAttribute('stroke', '#60a5fa');
+                glow.setAttribute('stroke-width', '1');
+                glow.setAttribute('opacity', '0');
+                glow.setAttribute('class', 'node-glow');
+                group.appendChild(glow);
+
+                // Main node circle
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', x);
+                circle.setAttribute('cy', y);
+                circle.setAttribute('r', 20);
+                circle.setAttribute('fill', '#3b82f6');
+                circle.setAttribute('stroke', '#1e40af');
+                circle.setAttribute('stroke-width', '2');
+                circle.setAttribute('class', 'node-circle');
+                group.appendChild(circle);
+
+                // Node label
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', x);
+                text.setAttribute('y', y);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('dominant-baseline', 'middle');
+                text.setAttribute('fill', '#fff');
+                text.setAttribute('font-weight', 'bold');
+                text.setAttribute('font-size', '14');
+                text.textContent = i;
+                group.appendChild(text);
+
+                // State below node
+                const stateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                stateText.setAttribute('x', x);
+                stateText.setAttribute('y', y + 35);
+                stateText.setAttribute('text-anchor', 'middle');
+                stateText.setAttribute('fill', '#94a3b8');
+                stateText.setAttribute('font-size', '10');
+                stateText.setAttribute('class', 'node-state');
+                stateText.textContent = '--';
+                group.appendChild(stateText);
+
+                svg.appendChild(group);
+                nodeElements[i] = { x, y, element: group };
+            }
+        }
+
+        function handleEvent(eventData) {
+            let eventType = 'event';
+            let eventClass = 'event-item';
+            let nodeId = null;
+            let colorClass = 'proposal';
+            let color = eventColors.proposal;
+
+            if (eventData.Proposal) {
+                eventType = 'Proposal';
+                nodeId = eventData.Proposal.id;
+                colorClass = 'proposal';
+                color = eventColors.proposal;
+                eventCounts.proposal++;
+            } else if (eventData.Promise) {
+                eventType = 'Promise';
+                nodeId = eventData.Promise.id;
+                colorClass = 'promise';
+                color = eventColors.promise;
+                eventCounts.promise++;
+            } else if (eventData.Accept) {
+                eventType = 'Accept';
+                nodeId = eventData.Accept.id;
+                colorClass = 'accept';
+                color = eventColors.accept;
+                eventCounts.accept++;
+            } else if (eventData.Learn) {
+                eventType = 'Learn';
+                nodeId = eventData.Learn.id;
+                colorClass = 'learn';
+                color = eventColors.learn;
+                eventCounts.learn++;
+            }
+
+            // Update counts
+            document.getElementById('proposalCount').textContent = eventCounts.proposal;
+            document.getElementById('promiseCount').textContent = eventCounts.promise;
+            document.getElementById('acceptCount').textContent = eventCounts.accept;
+            document.getElementById('learnCount').textContent = eventCounts.learn;
+
+            // Activate node
+            if (nodeId !== null) {
+                activateNode(nodeId, color);
+                
+                // Draw beam to random other node with randomness factor
+                const randomness = parseFloat(randomnessSlider.value);
+                if (Math.random() < 0.7 + randomness * 0.3) {
+                    const targetNode = Math.floor(Math.random() * clusterInfo.total_nodes);
+                    if (targetNode !== nodeId) {
+                        // Add slight delay based on randomness
+                        const delayMs = randomness > 0 ? Math.random() * randomness * 100 : 0;
+                        setTimeout(() => {
+                            drawBeam(nodeId, targetNode, color);
+                        }, delayMs);
+                    }
+                }
+            }
+
+            // Add to event log
+            const item = document.createElement('div');
+            item.className = `event-item ${colorClass}`;
+            item.textContent = `[${eventType}] Node ${nodeId}`;
+            eventLog.insertBefore(item, eventLog.firstChild);
+            while (eventLog.children.length > 20) {
+                eventLog.removeChild(eventLog.lastChild);
+            }
+        }
+
+        function activateNode(nodeId, color = '#60a5fa') {
+            const element = nodeElements[nodeId];
+            if (!element) return;
+
+            const circle = element.element.querySelector('.node-circle');
+            const glow = element.element.querySelector('.node-glow');
+
+            // Change circle color
+            circle.setAttribute('fill', color);
+            
+            // Pulse effect with glow
+            circle.style.filter = `drop-shadow(0 0 12px ${color})`;
+            glow.setAttribute('stroke', color);
+            glow.setAttribute('opacity', '0.8');
+
+            setTimeout(() => {
+                circle.setAttribute('fill', '#3b82f6');
+                circle.style.filter = '';
+                glow.setAttribute('stroke', '#60a5fa');
+                glow.setAttribute('opacity', '0');
+            }, 300);
+        }
+
+        function drawBeam(fromId, toId, color) {
+            const from = nodeElements[fromId];
+            const to = nodeElements[toId];
+            if (!from || !to) return;
+
+            const beamsLayer = document.getElementById('beams');
+            
+            // Create animated line
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', from.x);
+            line.setAttribute('y1', from.y);
+            line.setAttribute('x2', from.x);
+            line.setAttribute('y2', from.y);
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', '2.5');
+            line.setAttribute('opacity', '0.9');
+            line.setAttribute('filter', 'url(#glow)');
+            line.setAttribute('stroke-linecap', 'round');
+
+            beamsLayer.appendChild(line);
+
+            // Animate beam drawing
+            let progress = 0;
+            const drawInterval = setInterval(() => {
+                progress += 0.1;
+                if (progress >= 1) {
+                    progress = 1;
+                    clearInterval(drawInterval);
+                    // Fade out after fully drawn
+                    setTimeout(() => {
+                        let opacity = 0.9;
+                        const fadeInterval = setInterval(() => {
+                            opacity -= 0.1;
+                            line.setAttribute('opacity', Math.max(0, opacity));
+                            if (opacity <= 0) {
+                                clearInterval(fadeInterval);
+                                line.remove();
+                            }
+                        }, 40);
+                    }, 200);
+                } else {
+                    // Interpolate endpoint
+                    const currentX = from.x + (to.x - from.x) * progress;
+                    const currentY = from.y + (to.y - from.y) * progress;
+                    line.setAttribute('x2', currentX);
+                    line.setAttribute('y2', currentY);
+                }
+            }, 30);
+        }
+
+        async function startScenario() {
+            const nodeCount = parseInt(document.getElementById('nodeCount').value);
+            const duration = parseInt(document.getElementById('duration').value);
+
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/start-scenario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        node_count: nodeCount,
+                        duration_secs: duration
+                    })
+                });
+
+                if (response.ok) {
+                    setTimeout(() => {
+                        btn.disabled = false;
+                    }, 2000);
+                }
+            } catch (e) {
+                console.error('Error:', e);
+                btn.disabled = false;
+            }
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (clusterInfo) {
+                renderSenate();
+            }
+        });
+    </script>
+</body>
+</html>

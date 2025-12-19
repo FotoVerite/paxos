@@ -7,6 +7,7 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
+    http::StatusCode,
 };
 use tower_http::services::ServeDir;
 
@@ -36,6 +37,8 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
         .route("/ws", get(websocket_handler))
         .route("/api/start-scenario", post(start_scenario_handler))
         .route("/api/propose", post(propose_handler))
+        .route("/senate", get(senate_handler))
+        .route("/decree", get(decree_handler))
         .nest_service("/", static_files_service)
         .with_state(app_state);
 
@@ -93,4 +96,16 @@ async fn propose_handler(
         Ok(_) => (axum::http::StatusCode::OK, "Proposal submitted".to_string()),
         Err(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("Error: {}", e)),
     }
+}
+
+/// Serve the Senate visualizer page
+async fn senate_handler() -> impl IntoResponse {
+    let html = include_str!("../../static/senate.html");
+    (StatusCode::OK, [("Content-Type", "text/html")], html)
+}
+
+/// Serve the Decree lifecycle visualizer page
+async fn decree_handler() -> impl IntoResponse {
+    let html = include_str!("../../static/decree.html");
+    (StatusCode::OK, [("Content-Type", "text/html")], html)
 }
