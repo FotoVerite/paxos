@@ -1,0 +1,106 @@
+{
+  "name": "Packet Loss Scenario",
+  "description": "Tests Paxos resilience to packet loss in the network",
+  "node_count": 5,
+  "phases": [
+    {
+      "name": "Setup",
+      "steps": [
+        {
+          "type": "enable_failures"
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 100
+          }
+        }
+      ]
+    },
+    {
+      "name": "Introduce Packet Loss",
+      "steps": [
+        {
+          "type": "add_packet_loss",
+          "data": {
+            "from": 0,
+            "to": 1,
+            "drop_rate": 0.3
+          }
+        },
+        {
+          "type": "add_packet_loss",
+          "data": {
+            "from": 0,
+            "to": 2,
+            "drop_rate": 0.2
+          }
+        },
+        {
+          "type": "add_packet_loss",
+          "data": {
+            "from": 1,
+            "to": 0,
+            "drop_rate": 0.25
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consensus with Packet Loss",
+      "steps": [
+        {
+          "type": "propose",
+          "data": {
+            "command": {
+              "EnactDecree": {
+                "author": "Pericles",
+                "law": "Democracy requires communication"
+              }
+            }
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 800
+          }
+        },
+        {
+          "type": "propose",
+          "data": {
+            "command": {
+              "BuildAcropolis": {
+                "stones_required": 5000,
+                "architect": "Phidias"
+              }
+            }
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 800
+          }
+        },
+        {
+          "type": "propose",
+          "data": {
+            "command": {
+              "AppointArchon": {
+                "name": "Aspasia",
+                "term_length_years": 3
+              }
+            }
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 800
+          }
+        }
+      ]
+    }
+  ]
+}

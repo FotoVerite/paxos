@@ -6,7 +6,7 @@ use tokio::sync::{
 };
 
 use crate::{
-    cluster::peer_sender::PeerSender,
+    cluster::network_simulator::NetworkSimulator,
     message::Message,
     monitor::PaxosObserver,
     node::{acceptor::Acceptor, learner::Learner, ledger::Ledger, proposer::Proposer},
@@ -14,13 +14,14 @@ use crate::{
 };
 
 pub struct PaxosNode {
+    #[allow(dead_code)]
     id: usize,
     rx: Option<Receiver<Message>>,
     state: Arc<Mutex<PaxosState>>,
 }
 
 pub struct PaxosState {
-    peers: PeerSender, // Track the highest accepted_ballot from Promises
+    peers: Arc<NetworkSimulator>, // Track the highest accepted_ballot from Promises
     proposer: Proposer,
     acceptor: Acceptor,
     learner: Learner,
@@ -59,7 +60,7 @@ impl PaxosNode {
         id: usize,
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
-        peers: PeerSender,
+        peers: Arc<NetworkSimulator>,
         quorum: usize,
     ) -> anyhow::Result<Self> {
         let ledger = Ledger::init(id, quorum).await?;

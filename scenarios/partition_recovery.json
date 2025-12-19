@@ -1,0 +1,165 @@
+{
+  "name": "Partition Recovery Scenario",
+  "description": "Tests Paxos behavior when a node is partitioned from the cluster and then recovers",
+  "node_count": 5,
+  "phases": [
+    {
+      "name": "Initialization",
+      "steps": [
+        {
+          "type": "enable_failures"
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 100
+          }
+        }
+      ]
+    },
+    {
+      "name": "Normal Operation",
+      "steps": [
+        {
+          "type": "propose",
+          "data": {
+            "command": {
+              "EnactDecree": {
+                "author": "Socrates",
+                "law": "All good things are virtuous"
+              }
+            }
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 500
+          }
+        }
+      ]
+    },
+    {
+      "name": "Partition Node 0",
+      "steps": [
+        {
+          "type": "partition",
+          "data": {
+            "node1": 0,
+            "node2": 1
+          }
+        },
+        {
+          "type": "partition",
+          "data": {
+            "node1": 0,
+            "node2": 2
+          }
+        },
+        {
+          "type": "partition",
+          "data": {
+            "node1": 0,
+            "node2": 3
+          }
+        },
+        {
+          "type": "partition",
+          "data": {
+            "node1": 0,
+            "node2": 4
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 100
+          }
+        }
+      ]
+    },
+    {
+      "name": "Propose During Partition",
+      "steps": [
+        {
+          "type": "propose",
+          "data": {
+            "command": {
+              "AppointArchon": {
+                "name": "Plato",
+                "term_length_years": 5
+              }
+            }
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 500
+          }
+        }
+      ]
+    },
+    {
+      "name": "Heal Partition",
+      "steps": [
+        {
+          "type": "heal_partition",
+          "data": {
+            "node1": 0,
+            "node2": 1
+          }
+        },
+        {
+          "type": "heal_partition",
+          "data": {
+            "node1": 0,
+            "node2": 2
+          }
+        },
+        {
+          "type": "heal_partition",
+          "data": {
+            "node1": 0,
+            "node2": 3
+          }
+        },
+        {
+          "type": "heal_partition",
+          "data": {
+            "node1": 0,
+            "node2": 4
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 200
+          }
+        }
+      ]
+    },
+    {
+      "name": "Resume Normal Operation",
+      "steps": [
+        {
+          "type": "propose",
+          "data": {
+            "command": {
+              "BuildAcropolis": {
+                "stones_required": 1000,
+                "architect": "Ictinus"
+              }
+            }
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 500
+          }
+        }
+      ]
+    }
+  ]
+}

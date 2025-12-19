@@ -3,7 +3,7 @@
 
 use crate::paxos_command::PaxosCommand;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum Event {
     Proposal {
         id: usize,
@@ -25,6 +25,12 @@ pub enum Event {
         id: usize,
         decree_num: usize,
         value: PaxosCommand,
+    },
+    NodeState {
+        id: usize,
+        role: String,
+        ballot: usize,
+        learned_count: usize,
     },
 }
 

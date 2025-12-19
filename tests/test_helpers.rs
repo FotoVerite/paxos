@@ -46,6 +46,13 @@ impl RecordingObserver {
         self.events.lock().unwrap().clear();
     }
 
+    /// For compatibility with async observer. This version is synchronous 
+    /// (events are recorded immediately), so no waiting needed.
+    #[allow(dead_code)]
+    pub async fn wait_for_events(&self) {
+        // Sync version records immediately, no waiting needed
+    }
+
     pub fn as_arc(&self) -> Arc<dyn PaxosObserver> {
         Arc::new(self.clone())
     }
@@ -107,38 +114,41 @@ impl PaxosObserver for RecordingObserver {
 // NODE BUILDER
 // ============================================================================
 
+use paxos::monitor::NoOpObserver;
+
+// ... (keep the rest of the file as is)
+
+// ============================================================================
+// NODE BUILDER
+// ============================================================================
+
 /// Builder for creating proposer/acceptor/learner with consistent setup
 pub struct NodeBuilder {
-    observer: RecordingObserver,
+    observer: Arc<dyn PaxosObserver>,
 }
 
 impl NodeBuilder {
     pub fn new() -> Self {
         Self {
-            observer: RecordingObserver::new(),
+            observer: Arc::new(NoOpObserver),
         }
     }
 
     #[allow(dead_code)]
-    pub fn with_observer(observer: RecordingObserver) -> Self {
+    pub fn with_observer(observer: Arc<dyn PaxosObserver>) -> Self {
         Self { observer }
     }
 
-    #[allow(dead_code)]
-    pub fn observer(&self) -> RecordingObserver {
-        self.observer.clone()
-    }
-
     pub async fn proposer(&self, id: usize, quorum: usize) -> anyhow::Result<Proposer> {
-        Proposer::new(id, quorum, self.observer.as_arc()).await
+        Proposer::new(id, quorum, Arc::clone(&self.observer)).await
     }
 
     pub async fn acceptor(&self, id: usize) -> anyhow::Result<Acceptor> {
-        Acceptor::new(id, self.observer.as_arc()).await
+        Acceptor::new(id, Arc::clone(&self.observer)).await
     }
 
     pub fn learner(&self, id: usize) -> Learner {
-        Learner::new(id, self.observer.as_arc())
+        Learner::new(id, Arc::clone(&self.observer))
     }
 
     #[allow(dead_code)]

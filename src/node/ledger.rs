@@ -106,39 +106,51 @@ impl Ledger {
         }
     }
 
-    pub async fn vote(&self, decree_num: usize, ballot: Ballot, cmd: PaxosCommand) {
+    pub async fn vote(
+        &self,
+        decree_num: usize,
+        ballot: Ballot,
+        cmd: PaxosCommand,
+        acceptor_id: usize,
+    ) -> Option<PaxosCommand> {
         let mut state = self.state.lock().await;
 
         if state.log.len() <= decree_num {
             state.log.resize(decree_num + 1, PaxosCommand::NOOP);
         }
 
-        let decree = state.decrees.entry(decree_num).or_insert(Decree::default());
+        let decree = state.decrees.entry(decree_num).or_insert_with(Decree::default);
 
         if decree.chosen {
-            return;
+            return None; // Already chosen, this vote doesn't trigger a learn event
         }
 
         let ballot_votes = decree.votes.entry(ballot.number).or_default();
 
-        match ballot_votes.get(&ballot.node_id) {
+        match ballot_votes.get(&acceptor_id) {
             Some(existing) if existing != &cmd => {
                 // protocol violation — ignore or panic in debug
-                debug_assert!(existing == &cmd);
-                return;
+                debug_assert!(
+                    existing == &cmd,
+                    "Ledger vote conflict: existing {:?} vs new {:?}",
+                    existing,
+                    cmd
+                );
+                return None;
             }
             _ => {
-                ballot_votes.insert(ballot.node_id, cmd.clone());
+                ballot_votes.insert(acceptor_id, cmd.clone());
             }
         }
 
         if ballot_votes.len() >= self.quorum {
             decree.chosen = true;
-            state.log[decree_num] = cmd;
+            state.log[decree_num] = cmd.clone();
+            drop(state);
+            let _ = self.save().await;
+            return Some(cmd); // This vote caused the decree to be chosen
         }
 
-        // Save state after any vote
-        drop(state);
-        let _ = self.save().await;
+        None
     }
 }

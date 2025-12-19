@@ -1,0 +1,112 @@
+{
+  "name": "High Latency Scenario",
+  "description": "Tests Paxos performance with high latency between nodes",
+  "node_count": 3,
+  "phases": [
+    {
+      "name": "Setup",
+      "steps": [
+        {
+          "type": "enable_failures"
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 100
+          }
+        }
+      ]
+    },
+    {
+      "name": "Add Latency",
+      "steps": [
+        {
+          "type": "add_delay",
+          "data": {
+            "from": 0,
+            "to": 1,
+            "delay": 500
+          }
+        },
+        {
+          "type": "add_delay",
+          "data": {
+            "from": 0,
+            "to": 2,
+            "delay": 500
+          }
+        },
+        {
+          "type": "add_delay",
+          "data": {
+            "from": 1,
+            "to": 0,
+            "delay": 500
+          }
+        },
+        {
+          "type": "add_delay",
+          "data": {
+            "from": 1,
+            "to": 2,
+            "delay": 500
+          }
+        },
+        {
+          "type": "add_delay",
+          "data": {
+            "from": 2,
+            "to": 0,
+            "delay": 500
+          }
+        },
+        {
+          "type": "add_delay",
+          "data": {
+            "from": 2,
+            "to": 1,
+            "delay": 500
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consensus with Latency",
+      "steps": [
+        {
+          "type": "propose",
+          "data": {
+            "command": {
+              "Ostracize": {
+                "citizen": "Meletus"
+              }
+            }
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 2000
+          }
+        },
+        {
+          "type": "propose",
+          "data": {
+            "command": {
+              "EnactDecree": {
+                "author": "Aristotle",
+                "law": "Patience is a virtue"
+              }
+            }
+          }
+        },
+        {
+          "type": "wait",
+          "data": {
+            "duration": 2000
+          }
+        }
+      ]
+    }
+  ]
+}

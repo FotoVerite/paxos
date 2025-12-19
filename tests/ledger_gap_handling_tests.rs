@@ -31,14 +31,14 @@ async fn ledger_finds_first_gap_simple() {
 
     // Choose decree 0
     ledger
-        .vote(0, b, cmd0.clone())
+        .vote(0, b, cmd0.clone(), 0)
         .await;
 
     // Skip decree 1 (don't vote)
 
     // Choose decree 2
     ledger
-        .vote(2, b, cmd2.clone())
+        .vote(2, b, cmd2.clone(), 0)
         .await;
 
     // next() should return 1 (the first unchosen decree)
@@ -59,7 +59,7 @@ async fn ledger_finds_gap_after_multiple_chosen() {
 
     // Choose decrees 0, 1, 2
     for i in 0..3 {
-        ledger.vote(i, b, cmd.clone()).await;
+        ledger.vote(i, b, cmd.clone(), 0).await;
     }
 
     // next() should return 3 (first unchosen)
@@ -90,7 +90,7 @@ async fn ledger_next_skips_to_first_unchosen() {
 
     // Choose 0, 1, 2, 3, 4
     for i in 0..5 {
-        ledger.vote(i, b, cmd.clone()).await;
+        ledger.vote(i, b, cmd.clone(), 0).await;
     }
 
     // Simulate retry scenario: proposer wants next decree after 2
@@ -108,10 +108,10 @@ async fn ledger_large_gap_in_middle() {
     let cmd = PaxosCommand::NOOP;
 
     // Choose 0, 1, 100, 101
-    ledger.vote(0, b, cmd.clone()).await;
-    ledger.vote(1, b, cmd.clone()).await;
-    ledger.vote(100, b, cmd.clone()).await;
-    ledger.vote(101, b, cmd.clone()).await;
+    ledger.vote(0, b, cmd.clone(), 0).await;
+    ledger.vote(1, b, cmd.clone(), 0).await;
+    ledger.vote(100, b, cmd.clone(), 0).await;
+    ledger.vote(101, b, cmd.clone(), 0).await;
 
     // next() should be 2 (first gap after sequential prefix)
     let next = ledger.next().await;
@@ -130,12 +130,12 @@ async fn ledger_gap_consistency_after_vote() {
     let cmd = PaxosCommand::NOOP;
 
     // Start with gap at 1
-    ledger.vote(0, b, cmd.clone()).await;
+    ledger.vote(0, b, cmd.clone(), 0).await;
     let next1 = ledger.next().await;
     assert_eq!(next1, 1);
 
     // Fill the gap
-    ledger.vote(1, b, cmd.clone()).await;
+    ledger.vote(1, b, cmd.clone(), 0).await;
     let next2 = ledger.next().await;
     assert_eq!(next2, 2, "After filling gap 1, next should advance to 2");
 }
@@ -152,28 +152,28 @@ async fn ledger_interleaved_proposals() {
     // Simulate proposer thread 2 proposing decrees 1, 4
     // They complete in random order: 0, 3, 1, 6, 4
 
-    ledger.vote(0, b, cmd.clone()).await;
+    ledger.vote(0, b, cmd.clone(), 0).await;
     let next = ledger.next().await;
     assert_eq!(next, 1, "After 0, next is 1");
 
-    ledger.vote(3, b, cmd.clone()).await;
+    ledger.vote(3, b, cmd.clone(), 0).await;
     let next = ledger.next().await;
     assert_eq!(next, 1, "After 0,3, next is still 1 (gap)");
 
-    ledger.vote(1, b, cmd.clone()).await;
+    ledger.vote(1, b, cmd.clone(), 0).await;
     let next = ledger.next().await;
     assert_eq!(next, 2, "After 0,1,3, next is 2 (gap)");
 
-    ledger.vote(6, b, cmd.clone()).await;
+    ledger.vote(6, b, cmd.clone(), 0).await;
     let next = ledger.next().await;
     assert_eq!(next, 2, "After 0,1,3,6, next is still 2 (gap)");
 
-    ledger.vote(4, b, cmd.clone()).await;
+    ledger.vote(4, b, cmd.clone(), 0).await;
     let next = ledger.next().await;
     assert_eq!(next, 2, "After 0,1,3,4,6, next is still 2 (gap)");
 
     // Fill gap at 2
-    ledger.vote(2, b, cmd.clone()).await;
+    ledger.vote(2, b, cmd.clone(), 0).await;
     let next = ledger.next().await;
     assert_eq!(next, 5, "After filling 0-4, next is 5 (first unchosen)");
 }
@@ -188,12 +188,12 @@ async fn ledger_chosen_state_independent_of_gaps() {
     let cmd = PaxosCommand::NOOP;
 
     // Decree 0: get 2 votes (chosen)
-    ledger.vote(0, b1, cmd.clone()).await;
-    ledger.vote(0, b2, cmd.clone()).await;
+    ledger.vote(0, b1, cmd.clone(), 0).await;
+    ledger.vote(0, b2, cmd.clone(), 1).await;
 
     // Decree 2: get 2 votes (chosen)
-    ledger.vote(2, b1, cmd.clone()).await;
-    ledger.vote(2, b2, cmd.clone()).await;
+    ledger.vote(2, b1, cmd.clone(), 0).await;
+    ledger.vote(2, b2, cmd.clone(), 1).await;
 
     // Decree 1: get 0 votes (not chosen)
 
@@ -230,14 +230,14 @@ async fn ledger_detects_chosen_values_at_quorum() {
     };
 
     // After 1 vote (below quorum of 2): value not yet chosen
-    ledger.vote(0, b, cmd.clone()).await;
+    ledger.vote(0, b, cmd.clone(), 0).await;
 
     // TODO: When get_chosen_value() is implemented, add:
     // let chosen = ledger.get_chosen_value(0).await;
     // assert_eq!(chosen, None, "Value not chosen with 1 vote (below quorum)");
 
     // After 2 votes (at quorum): value should be chosen
-    ledger.vote(0, b, cmd.clone()).await;
+    ledger.vote(0, b, cmd.clone(), 1).await;
 
     // TODO: Uncomment when get_chosen_value() is implemented:
     // let chosen = ledger.get_chosen_value(0).await;

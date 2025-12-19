@@ -1,7 +1,7 @@
 mod test_helpers;
 use paxos::{
     message::Message,
-    node::{ballot::Ballot, proposer::Proposer},
+    node::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 use test_helpers::{cleanup_persisted_state, NodeBuilder};

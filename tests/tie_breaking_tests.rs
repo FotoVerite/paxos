@@ -65,9 +65,6 @@ async fn tie_breaking_lower_node_id_rejected_same_round() {
 
 #[tokio::test]
 async fn ballot_ordering_complete_comparisons() {
-    let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
-
     // Test all comparison combinations
     let b1_1 = Ballot::new(1, 1);
     let b1_2 = Ballot::new(1, 2);

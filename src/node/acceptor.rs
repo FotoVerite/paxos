@@ -48,15 +48,18 @@ impl Acceptor {
         });
     }
 
+    #[allow(dead_code)]
     fn state_path(&self) -> String {
         format!("{}/state_{}.bin", DATA_DIR, self.id)
     }
 
+    #[allow(dead_code)]
     async fn ensure_dir_exists() -> Result<()> {
         tokio::fs::create_dir_all(DATA_DIR).await?;
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn save(&self) -> Result<()> {
         Self::ensure_dir_exists().await?;
         let encoded = bincode::serialize(&self.state)?;

@@ -21,17 +21,18 @@ impl Learner {
     pub async fn handle_message(&mut self, msg: Message, ledger: &mut Ledger) {
         match msg {
             Message::Accepted {
+                from,
                 decree_num,
                 ballot,
                 value,
-                ..
             } => {
-                ledger.vote(decree_num, ballot, value.clone()).await;
-                self.observer.on_event(Event::Learn {
-                    decree_num,
-                    id: self.id,
-                    value: value.clone(),
-                });
+                if let Some(chosen_value) = ledger.vote(decree_num, ballot, value, from).await {
+                    self.observer.on_event(Event::Learn {
+                        decree_num,
+                        id: self.id,
+                        value: chosen_value,
+                    });
+                }
             }
             _ => {}
         }

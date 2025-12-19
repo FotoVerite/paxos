@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paxos Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            margin-bottom: 30px;
+            border-bottom: 2px solid #1e293b;
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #60a5fa;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            color: #60a5fa;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
+        }
+
+        .events-panel {
+            grid-column: 1 / -1;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .event {
+            background: #0f172a;
+            border-left: 3px solid #60a5fa;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        .event.learn {
+            border-left-color: #34d399;
+        }
+
+        .event.promise {
+            border-left-color: #fbbf24;
+        }
+
+        .event.proposal {
+            border-left-color: #8b5cf6;
+        }
+
+        .event.accept {
+            border-left-color: #f87171;
+        }
+
+        .event-type {
+            font-weight: bold;
+            color: #60a5fa;
+            margin-right: 10px;
+        }
+
+        .event.learn .event-type {
+            color: #34d399;
+        }
+
+        .event.promise .event-type {
+            color: #fbbf24;
+        }
+
+        .event.proposal .event-type {
+            color: #8b5cf6;
+        }
+
+        .event.accept .event-type {
+            color: #f87171;
+        }
+
+        .event-data {
+            color: #cbd5e1;
+            margin-top: 5px;
+            font-size: 0.85rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #60a5fa;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: #60a5fa;
+            color: #0f172a;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #3b82f6;
+        }
+
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+            color: #94a3b8;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: #0f172a;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ef4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #34d399;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .status-text {
+            color: #94a3b8;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+
+        .events-panel {
+            scrollbar-width: thin;
+        }
+
+        .cluster-visualization {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            min-height: 150px;
+        }
+
+        .node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .node-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: 2px solid #1e40af;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .node-circle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 12px rgba(59, 130, 246, 0.5);
+        }
+
+        .node-circle.active {
+            background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+            border-color: #059669;
+            box-shadow: 0 0 20px rgba(52, 211, 153, 0.6);
+        }
+
+        .node-label {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            text-align: center;
+        }
+
+        .control-panel {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            color: #cbd5e1;
+            font-weight: 500;
+            min-width: 100px;
+        }
+
+        .control-group input[type="number"],
+        .control-group input[type="text"] {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .control-group input::placeholder {
+            color: #64748b;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #60a5fa;
+            color: #0f172a;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #3b82f6;
+        }
+
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+            color: #94a3b8;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Paxos Visualizer</h1>
+            <p class="subtitle">Real-time consensus protocol monitoring</p>
+        </header>
+
+        <div class="status">
+            <div class="status-indicator" id="connectionStatus"></div>
+            <span class="status-text" id="statusText">Connecting...</span>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat">
+                <div class="stat-value" id="proposalCount">0</div>
+                <div class="stat-label">Proposals</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="promiseCount">0</div>
+                <div class="stat-label">Promises</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="acceptCount">0</div>
+                <div class="stat-label">Accepts</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="learnCount">0</div>
+                <div class="stat-label">Learned</div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <h2 style="margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px;">Scenario Controls</h2>
+            
+            <div class="control-group">
+                <label for="nodeCount">Nodes:</label>
+                <input type="number" id="nodeCount" value="5" min="3" max="20">
+                <label for="duration">Duration (seconds):</label>
+                <input type="number" id="duration" value="120" min="10">
+            </div>
+            
+            <div class="control-group">
+                <button id="startBtn" onclick="startScenario()">Start Scenario</button>
+            </div>
+        </div>
+
+        <div style="width: 100%; margin-bottom: 20px;">
+            <div class="panel">
+                <h2>Cluster</h2>
+                <div class="cluster-visualization" id="clusterVis">
+                    <p style="color: #94a3b8;">Waiting for simulation...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="panel">
+                <h2>Nodes Info</h2>
+                <div id="nodesList" style="font-size: 0.9rem; line-height: 1.8;">
+                    <p style="color: #94a3b8;">Awaiting scenario start...</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Details</h2>
+                <div id="stats" style="font-size: 0.9rem; line-height: 1.8;">
+                    <p style="color: #94a3b8;">Awaiting events...</p>
+                </div>
+            </div>
+
+            <div class="events-panel panel scrollbar-hide">
+                <h2>Events</h2>
+                <div id="events"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const connectionStatus = document.getElementById('connectionStatus');
+        const statusText = document.getElementById('statusText');
+        const eventsDiv = document.getElementById('events');
+        const clusterVis = document.getElementById('clusterVis');
+
+        let clusterInfo = null;
+        let nodeActivityTimers = {};
+        let nodeStates = {};  // Track node states: { ballot, learned }
+
+        let eventCounts = {
+            proposal: 0,
+            promise: 0,
+            accept: 0,
+            learn: 0
+        };
+        
+        let learnedCounts = {};  // Track how many values each node has learned
+
+        const ws = new WebSocket("ws://" + window.location.host + "/ws");
+
+        ws.onopen = function() {
+            connectionStatus.classList.add('connected');
+            statusText.textContent = '✓ Connected';
+            console.log("WebSocket connection established");
+        };
+
+        function renderCluster() {
+            if (!clusterInfo) return;
+            
+            clusterVis.innerHTML = '';
+            const { total_nodes, quorum_size } = clusterInfo;
+            
+            // Update nodes info panel
+            let nodesInfo = `<strong>Active Nodes: ${total_nodes}</strong><br>`;
+            nodesInfo += `Quorum: ${quorum_size}<br><br>`;
+            for (let i = 0; i < total_nodes; i++) {
+                nodesInfo += `<div>Node ${i}: <span id="node-info-${i}" style="color: #cbd5e1;">--</span></div>`;
+            }
+            document.getElementById('nodesList').innerHTML = nodesInfo;
+            
+            for (let i = 0; i < total_nodes; i++) {
+                const nodeEl = document.createElement('div');
+                nodeEl.className = 'node';
+                nodeEl.id = `node-${i}`;
+                
+                const circle = document.createElement('div');
+                circle.className = 'node-circle';
+                circle.textContent = i;
+                circle.id = `node-circle-${i}`;
+                
+                const label = document.createElement('div');
+                label.className = 'node-label';
+                label.textContent = `Node ${i}`;
+                label.id = `node-label-${i}`;
+                
+                const state = document.createElement('div');
+                state.className = 'node-label';
+                state.style.fontSize = '0.8rem';
+                state.style.color = '#64748b';
+                state.textContent = '--';
+                state.id = `node-state-${i}`;
+                
+                nodeEl.appendChild(circle);
+                nodeEl.appendChild(label);
+                nodeEl.appendChild(state);
+                clusterVis.appendChild(nodeEl);
+                
+                // Initialize state tracking
+                nodeStates[i] = { ballot: 0, learned: 0 };
+                learnedCounts[i] = 0;
+            }
+            
+            // Add quorum info
+            const quorumInfo = document.createElement('div');
+            quorumInfo.style.marginTop = '20px';
+            quorumInfo.style.color = '#94a3b8';
+            quorumInfo.style.fontSize = '0.9rem';
+            quorumInfo.textContent = `Quorum size: ${quorum_size} of ${total_nodes}`;
+            clusterVis.appendChild(quorumInfo);
+        }
+
+        function updateNodeState(nodeId, ballot, learned) {
+            nodeStates[nodeId] = { ballot, learned };
+            const stateEl = document.getElementById(`node-state-${nodeId}`);
+            if (stateEl) {
+                stateEl.textContent = `b:${ballot} l:${learned}`;
+            }
+            const infoEl = document.getElementById(`node-info-${nodeId}`);
+            if (infoEl) {
+                infoEl.textContent = `ballot: ${ballot}, learned: ${learned}`;
+            }
+        }
+
+        function activateNode(nodeId) {
+            const circle = document.getElementById(`node-circle-${nodeId}`);
+            if (circle) {
+                circle.classList.add('active');
+                
+                // Clear any existing timer
+                if (nodeActivityTimers[nodeId]) {
+                    clearTimeout(nodeActivityTimers[nodeId]);
+                }
+                
+                // Remove active class after 300ms
+                nodeActivityTimers[nodeId] = setTimeout(() => {
+                    circle.classList.remove('active');
+                }, 300);
+            }
+        }
+
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                // Handle cluster initialization
+                if (data.ClusterInitialized) {
+                    clusterInfo = data.ClusterInitialized;
+                    renderCluster();
+                    console.log('Cluster initialized:', clusterInfo);
+                    return;
+                }
+                
+                // Handle events
+                if (data.Event) {
+                    const eventData = data.Event;
+                    
+                    // Determine event type and extract ballot
+                    let eventType = 'event';
+                    let eventClass = '';
+                    let nodeId = null;
+                    let ballot = null;
+                    
+                    if (eventData.Proposal) {
+                        eventType = 'Proposal';
+                        eventClass = 'proposal';
+                        eventCounts.proposal++;
+                        nodeId = eventData.Proposal.id;
+                        ballot = 0; // Proposals don't have explicit ballot
+                    } else if (eventData.Promise) {
+                        eventType = 'Promise';
+                        eventClass = 'promise';
+                        eventCounts.promise++;
+                        nodeId = eventData.Promise.id;
+                        ballot = eventData.Promise.ballot;
+                    } else if (eventData.Accept) {
+                        eventType = 'Accept';
+                        eventClass = 'accept';
+                        eventCounts.accept++;
+                        nodeId = eventData.Accept.id;
+                        ballot = eventData.Accept.ballot;
+                    } else if (eventData.Learn) {
+                        eventType = 'Learn';
+                        eventClass = 'learn';
+                        eventCounts.learn++;
+                        nodeId = eventData.Learn.id;
+                        learnedCounts[nodeId] = (learnedCounts[nodeId] || 0) + 1;
+                        // Update node state with learned count
+                        updateNodeState(nodeId, nodeStates[nodeId]?.ballot || 0, learnedCounts[nodeId]);
+                    }
+
+                    // Update counts
+                    document.getElementById('proposalCount').textContent = eventCounts.proposal;
+                    document.getElementById('promiseCount').textContent = eventCounts.promise;
+                    document.getElementById('acceptCount').textContent = eventCounts.accept;
+                    document.getElementById('learnCount').textContent = eventCounts.learn;
+
+                    // Update node ballot state
+                    if (nodeId !== null && ballot !== null) {
+                        updateNodeState(nodeId, ballot, learnedCounts[nodeId] || 0);
+                    }
+
+                    // Activate node
+                    if (nodeId !== null) {
+                        activateNode(nodeId);
+                    }
+
+                    // Create event element
+                    const eventEl = document.createElement('div');
+                    eventEl.className = `event ${eventClass}`;
+                    eventEl.innerHTML = `
+                        <span class="event-type">${eventType}</span>
+                        <div class="event-data">${JSON.stringify(eventData, null, 2)}</div>
+                    `;
+                    
+                    eventsDiv.insertBefore(eventEl, eventsDiv.firstChild);
+                    
+                    // Keep only last 50 events
+                    while (eventsDiv.children.length > 50) {
+                        eventsDiv.removeChild(eventsDiv.lastChild);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to parse event:', e, event.data);
+            }
+        };
+
+        ws.onclose = function() {
+            connectionStatus.classList.remove('connected');
+            statusText.textContent = '✗ Disconnected';
+            console.log("WebSocket connection closed");
+        };
+
+        ws.onerror = function(error) {
+            connectionStatus.classList.remove('connected');
+            statusText.textContent = '✗ Error';
+            console.error("WebSocket error:", error);
+        };
+
+        // Control functions
+        async function startScenario() {
+            const nodeCount = parseInt(document.getElementById('nodeCount').value);
+            const duration = parseInt(document.getElementById('duration').value);
+            
+            if (!nodeCount || nodeCount < 3 || !duration || duration < 10) {
+                alert('Please enter valid values: nodes 3-20, duration 10+ seconds');
+                return;
+            }
+            
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            btn.textContent = 'Starting...';
+            
+            try {
+                const response = await fetch('/api/start-scenario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        node_count: nodeCount,
+                        duration_secs: duration
+                    })
+                });
+                
+                if (response.ok) {
+                    console.log('Scenario started');
+                    document.getElementById('proposeBtn').disabled = false;
+                    
+                    // Re-enable button after a delay
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.textContent = 'Start Scenario';
+                    }, 2000);
+                } else {
+                    alert('Failed to start scenario');
+                    btn.disabled = false;
+                    btn.textContent = 'Start Scenario';
+                }
+            } catch (e) {
+                console.error('Error:', e);
+                alert('Error starting scenario: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = 'Start Scenario';
+            }
+        }
+        
+
+    </script>
+</body>
+</html>

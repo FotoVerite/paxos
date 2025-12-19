@@ -1,7 +1,7 @@
 mod test_helpers;
 
 use paxos::{message::Message, monitor::Event, node::ballot::Ballot, paxos_command::PaxosCommand};
-use test_helpers::NodeBuilder;
+use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
 
 // ============================================================================
 // LEARNER TESTS
@@ -9,17 +9,18 @@ use test_helpers::NodeBuilder;
 
 #[tokio::test]
 async fn learner_receives_accepted_values() {
-    let builder = NodeBuilder::new();
-    let observer = builder.observer();
+    cleanup_persisted_state();
+    
+    let observer = RecordingObserver::new();
+    let builder = NodeBuilder::with_observer(observer.as_arc());
     let mut learner = builder.learner(1);
+    let mut ledger = paxos::node::ledger::Ledger::init(1, 2).await.unwrap();
 
     let cmd1 = PaxosCommand::GET {
         key: "key1".to_string(),
     };
-    let cmd2 = PaxosCommand::GET {
-        key: "key2".to_string(),
-    };
 
+    // Two acceptors vote for decree 0 (quorum = 2, so decree is chosen after 2 votes)
     learner
         .handle_message(
             Message::Accepted {
@@ -28,7 +29,7 @@ async fn learner_receives_accepted_values() {
                 ballot: Ballot::new(1, 1),
                 value: cmd1.clone(),
             },
-            &mut paxos::node::ledger::Ledger::init(1, 2).await.unwrap(),
+            &mut ledger,
         )
         .await;
     learner
@@ -37,9 +38,9 @@ async fn learner_receives_accepted_values() {
                 from: 3,
                 decree_num: 0,
                 ballot: Ballot::new(1, 1),
-                value: cmd2.clone(),
+                value: cmd1.clone(), // Same value for consensus
             },
-            &mut paxos::node::ledger::Ledger::init(1, 2).await.unwrap(),
+            &mut ledger,
         )
         .await;
 
@@ -48,14 +49,15 @@ async fn learner_receives_accepted_values() {
         .iter()
         .filter(|e| matches!(e, Event::Learn { .. }))
         .count();
-    assert_eq!(learns, 2);
+    assert_eq!(learns, 1); // One decree chosen, one Learn event
 }
 
 #[tokio::test]
 async fn learner_ignores_non_accepted_messages() {
-    let builder = NodeBuilder::new();
-    let observer = builder.observer();
+    let observer = RecordingObserver::new();
+    let builder = NodeBuilder::with_observer(observer.as_arc());
     let mut learner = builder.learner(1);
+    let mut ledger = paxos::node::ledger::Ledger::init(1, 2).await.unwrap();
 
     // Try to send a Prepare (learner should ignore it)
     learner
@@ -65,7 +67,7 @@ async fn learner_ignores_non_accepted_messages() {
                 decree_num: 0,
                 ballot: Ballot::new(1, 1),
             },
-            &mut paxos::node::ledger::Ledger::init(1, 2).await.unwrap(),
+            &mut ledger,
         )
         .await;
 
@@ -75,8 +77,10 @@ async fn learner_ignores_non_accepted_messages() {
 
 #[tokio::test]
 async fn learner_learns_multiple_decrees() {
-    let builder = NodeBuilder::new();
-    let observer = builder.observer();
+    cleanup_persisted_state();
+    
+    let observer = RecordingObserver::new();
+    let builder = NodeBuilder::with_observer(observer.as_arc());
     let mut learner = builder.learner(1);
     let mut ledger = paxos::node::ledger::Ledger::init(1, 1).await.unwrap();
 

@@ -14,6 +14,7 @@ pub struct Proposer {
     quorum: usize,
     state: HashMap<usize, ProposedDecree>,
     observer: Arc<dyn PaxosObserver>,
+    highest_ballot_number: usize,
 }
 
 /// Represents the persistent state of a proposed decree.
@@ -40,29 +41,33 @@ struct ProposedDecree {
 }
 
 impl Proposer {
-    pub async fn new(id: usize, quorum: usize, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
-        let state = Self::load_or_init(id).await?;
-        Ok(Self {
-            id,
-            quorum,
-            state,
-            observer,
-        })
-    }
-
-    fn state_path(&self) -> String {
+     pub async fn new(id: usize, quorum: usize, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
+         let state = Self::load_or_init(id).await?;
+         Ok(Self {
+             id,
+             quorum,
+             state,
+             observer,
+             highest_ballot_number: 0,
+         })
+     }
+ 
+     #[allow(dead_code)]
+     fn state_path(&self) -> String {
         format!("{}/proposer_state_{}.bin", DATA_DIR, self.id)
     }
 
-    async fn ensure_dir_exists() -> Result<()> {
-        tokio::fs::create_dir_all(DATA_DIR).await?;
-        Ok(())
-    }
-
-    /// Saves the current state of the Proposer to disk.
-    /// Only the persistent fields (`ProposedDecreeState`) are serialized,
-    /// omitting transient runtime data like the `votes` map.
-    async fn save(&self) -> Result<()> {
+    #[allow(dead_code)]
+     async fn ensure_dir_exists() -> Result<()> {
+         tokio::fs::create_dir_all(DATA_DIR).await?;
+         Ok(())
+     }
+    
+     /// Saves the current state of the Proposer to disk.
+     /// Only the persistent fields (`ProposedDecreeState`) are serialized,
+     /// omitting transient runtime data like the `votes` map.
+     #[allow(dead_code)]
+     async fn save(&self) -> Result<()> {
         Self::ensure_dir_exists().await?;
         let state_to_save: HashMap<usize, ProposedDecreeState> = self
             .state
@@ -165,18 +170,18 @@ impl Proposer {
     }
 
     pub fn propose(&mut self, decree_num: usize, cmd: PaxosCommand) -> Message {
-        if self.state.contains_key(&decree_num) {
-            // We're in a bad state
-            return Message::NACK;
-        }
+        // Increment the ballot number for every new proposal attempt.
+        self.highest_ballot_number += 1;
         let ballot = Ballot {
-            number: 1,
+            number: self.highest_ballot_number,
             node_id: self.id,
         };
+
+        // Create or update the state for this decree.
         let proposed_decree = ProposedDecree {
             ballot,
             chosen: false,
-            highest_seen_ballot: ballot,
+            highest_seen_ballot: Ballot { number: 0, node_id: 0 }, // Initialize to default, not proposer's own ballot
             proposed_value: cmd.clone(),
             votes: HashMap::new(),
         };
