@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Decree Lifecycle - Paxos</title>
     <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <style>
         .container {
             max-width: 1400px;
@@ -519,24 +522,89 @@
         </div>
 
         <!-- Explanation -->
-        <div class="explanation">
-            <h2>The Paxos Decree Lifecycle</h2>
-            
-            <p>A decree in Paxos goes through several phases before being learned by all priests:</p>
+         <div class="explanation">
+             <h2>Mathematical Notation</h2>
+             
+             <p style="font-style: italic; color: #a0aec0;">The Paxos algorithm is formally proven using precise mathematical notation. Here is a reference for the key symbols used in the paper and in this simulation:</p>
 
-            <div class="key-concept">
-                <strong>Phase 1 (Prepare):</strong> The proposer sends a prepare request with a ballot number to all priests. Priests respond with promises not to accept any lower-numbered ballots, and report any previously voted-for decrees.
-            </div>
+             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; margin-top: 20px;">
+                 <!-- Vote Components -->
+                 <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px;">
+                     <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">Vote Components</h3>
+                     <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
+                         <div style="margin-bottom: 10px;">$v$ = a vote (three-part object)</div>
+                         <div style="margin-bottom: 10px;">$v.{\rm pst}$ = priest who cast the vote</div>
+                         <div style="margin-bottom: 10px;">$v.{\rm bal}$ = ballot number</div>
+                         <div style="margin-bottom: 10px;">$v.{\rm dec}$ = decree value</div>
+                         <div style="margin-top: 12px;">$\text{null}_p$ = null vote (no vote cast)</div>
+                     </div>
+                 </div>
 
-            <div class="key-concept">
-                <strong>Phase 2 (Accept):</strong> The proposer sends an accept request with the decree value and ballot number. Priests vote for the decree if they haven't promised to a higher ballot number.
-            </div>
+                 <!-- Ballot Components -->
+                 <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px;">
+                     <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">Ballot Components</h3>
+                     <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
+                         <div style="margin-bottom: 10px;">$B$ = a ballot</div>
+                         <div style="margin-bottom: 10px;">$B.{\rm bal}$ = ballot number</div>
+                         <div style="margin-bottom: 10px;">$B.{\rm dec}$ = proposed decree</div>
+                         <div style="margin-bottom: 10px;">$B.{\rm vot}$ = priests who voted</div>
+                         <div style="margin-bottom: 10px;">$B.{\rm qrm}$ = quorum (voting priests)</div>
+                     </div>
+                 </div>
 
-            <div class="key-concept">
-                <strong>Phase 3 (Learn):</strong> Once a quorum of priests has voted, the decree is chosen. The proposer sends learn messages, and priests record the decree in their ledger (persistent storage).
-            </div>
+                 <!-- Key Functions -->
+                 <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px;">
+                     <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">Key Functions</h3>
+                     <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
+                         <div style="margin-bottom: 10px;">$\text{Votes}(B)$ = all votes in ballot $B$</div>
+                         <div style="margin-bottom: 10px;">$\text{MaxVote}(b, p, \mathcal{B})$ =</div>
+                         <div style="margin-left: 20px; color: #cbd5e1;">largest vote by priest $p$ with ballot number $< b$</div>
+                         <div style="margin-top: 8px; color: #94a3b8; font-size: 0.9rem;">Returns $\text{null}_p$ if no such vote exists</div>
+                     </div>
+                 </div>
 
-            <h2>Key Properties</h2>
+                 <!-- Logical Symbols -->
+                 <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px;">
+                     <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">Logical Symbols</h3>
+                     <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
+                         <div style="margin-bottom: 10px;">$\forall$ = for all</div>
+                         <div style="margin-bottom: 10px;">$\exists$ = there exists</div>
+                         <div style="margin-bottom: 10px;">$\in$ = element of (membership)</div>
+                         <div style="margin-bottom: 10px;">$\subseteq$ = subset of</div>
+                         <div style="margin-bottom: 10px;">$\land$ = logical AND</div>
+                         <div style="margin-bottom: 10px;">$\Rightarrow$ = implies</div>
+                         <div style="margin-bottom: 10px;">$\cap$ = intersection</div>
+                     </div>
+                 </div>
+             </div>
+
+             <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-bottom: 30px;">
+                 <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">The Three Conditions (B1, B2, B3)</h3>
+                 <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
+                     <div style="margin-bottom: 12px;">$\mathbf{B1}(\mathcal{B})$: Each ballot has a unique ballot number</div>
+                     <div style="margin-bottom: 12px;">$\mathbf{B2}(\mathcal{B})$: The quorums of any two ballots always intersect (share at least one priest)</div>
+                     <div style="margin-bottom: 0;">$\mathbf{B3}(\mathcal{B})$: $\forall B \in \mathcal{B}: \text{MaxVote}(B.{\rm bal}, B.{\rm qrm}, \mathcal{B}).{\rm bal} = -\infty \Rightarrow B.{\rm dec} = \text{MaxVote}(B.{\rm bal}, B.{\rm qrm}, \mathcal{B}).{\rm dec}$</div>
+                     <div style="margin-top: 8px; color: #cbd5e1;">In English: if no priest in $B$'s quorum voted before, $B$ can propose any decree. Otherwise, $B$ must propose the same decree as the latest earlier vote. This ensures all ballots after a quorum accepts are locked to that value.</div>
+                 </div>
+             </div>
+
+             <h2>The Paxos Decree Lifecycle</h2>
+             
+             <p>A decree in Paxos goes through several phases before being learned by all priests:</p>
+
+             <div class="key-concept">
+                 <strong>Phase 1 (Prepare):</strong> The proposer sends a prepare request with a ballot number to all priests. Priests respond with promises not to accept any lower-numbered ballots, and report any previously voted-for decrees.
+             </div>
+
+             <div class="key-concept">
+                 <strong>Phase 2 (Accept):</strong> The proposer sends an accept request with the decree value and ballot number. Priests vote for the decree if they haven't promised to a higher ballot number.
+             </div>
+
+             <div class="key-concept">
+                 <strong>Phase 3 (Learn):</strong> Once a quorum of priests has voted, the decree is chosen. The proposer sends learn messages, and priests record the decree in their ledger (persistent storage).
+             </div>
+
+             <h2>Key Properties</h2>
             
             <p><strong>Consistency (Safety):</strong> If a decree is learned, all priests who learn a decree for the same slot will learn the same value. This is guaranteed by condition B3 from the paper: if any priest in a ballot's quorum voted in an earlier ballot, the new ballot must propose the same decree.</p>
 
@@ -549,6 +617,8 @@
                 <br><br>
                 This ensures that once a decree has been accepted by a quorum in any ballot, all future ballots will propose that same decree. This is what provides consistency.
             </div>
+
+
         </div>
     </div>
 
@@ -934,6 +1004,19 @@
         // Initialize
         initializePriests();
         updateDisplay();
-    </script>
-</body>
-</html>
+        </script>
+        <script>
+            // Render KaTeX math when DOM is ready
+            document.addEventListener('DOMContentLoaded', function() {
+                if (window.renderMathInElement) {
+                    renderMathInElement(document.body, {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: true},
+                            {left: '$', right: '$', display: false}
+                        ]
+                    });
+                }
+            });
+        </script>
+        </body>
+        </html>
