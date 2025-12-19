@@ -445,6 +445,64 @@
         .history-ballot-container {
             animation: slideInDown 0.4s ease-out;
         }
+
+        .notation-sidebar {
+            position: sticky;
+            top: 100px;
+            width: 320px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .notation-sidebar h3 {
+            color: #60a5fa;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+        }
+
+        .notation-item {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+
+        .notation-section {
+            margin-bottom: 20px;
+        }
+
+        .notation-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .explanation-with-notation {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .explanation-content {
+            min-width: 0;
+        }
+
+        @media (max-width: 1200px) {
+            .explanation-with-notation {
+                grid-template-columns: 1fr;
+            }
+            .notation-sidebar {
+                position: relative;
+                top: 0;
+                width: 100%;
+                max-height: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -521,73 +579,9 @@
             </div>
         </div>
 
-        <!-- Explanation -->
-         <div class="explanation">
-             <h2>Mathematical Notation</h2>
-             
-             <p style="font-style: italic; color: #a0aec0;">The Paxos algorithm is formally proven using precise mathematical notation. Here is a reference for the key symbols used in the paper and in this simulation:</p>
-
-             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; margin-top: 20px;">
-                 <!-- Vote Components -->
-                 <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px;">
-                     <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">Vote Components</h3>
-                     <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
-                         <div style="margin-bottom: 10px;">$v$ = a vote (three-part object)</div>
-                         <div style="margin-bottom: 10px;">$v.{\rm pst}$ = priest who cast the vote</div>
-                         <div style="margin-bottom: 10px;">$v.{\rm bal}$ = ballot number</div>
-                         <div style="margin-bottom: 10px;">$v.{\rm dec}$ = decree value</div>
-                         <div style="margin-top: 12px;">$\text{null}_p$ = null vote (no vote cast)</div>
-                     </div>
-                 </div>
-
-                 <!-- Ballot Components -->
-                 <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px;">
-                     <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">Ballot Components</h3>
-                     <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
-                         <div style="margin-bottom: 10px;">$B$ = a ballot</div>
-                         <div style="margin-bottom: 10px;">$B.{\rm bal}$ = ballot number</div>
-                         <div style="margin-bottom: 10px;">$B.{\rm dec}$ = proposed decree</div>
-                         <div style="margin-bottom: 10px;">$B.{\rm vot}$ = priests who voted</div>
-                         <div style="margin-bottom: 10px;">$B.{\rm qrm}$ = quorum (voting priests)</div>
-                     </div>
-                 </div>
-
-                 <!-- Key Functions -->
-                 <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px;">
-                     <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">Key Functions</h3>
-                     <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
-                         <div style="margin-bottom: 10px;">$\text{Votes}(B)$ = all votes in ballot $B$</div>
-                         <div style="margin-bottom: 10px;">$\text{MaxVote}(b, p, \mathcal{B})$ =</div>
-                         <div style="margin-left: 20px; color: #cbd5e1;">largest vote by priest $p$ with ballot number $< b$</div>
-                         <div style="margin-top: 8px; color: #94a3b8; font-size: 0.9rem;">Returns $\text{null}_p$ if no such vote exists</div>
-                     </div>
-                 </div>
-
-                 <!-- Logical Symbols -->
-                 <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px;">
-                     <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">Logical Symbols</h3>
-                     <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
-                         <div style="margin-bottom: 10px;">$\forall$ = for all</div>
-                         <div style="margin-bottom: 10px;">$\exists$ = there exists</div>
-                         <div style="margin-bottom: 10px;">$\in$ = element of (membership)</div>
-                         <div style="margin-bottom: 10px;">$\subseteq$ = subset of</div>
-                         <div style="margin-bottom: 10px;">$\land$ = logical AND</div>
-                         <div style="margin-bottom: 10px;">$\Rightarrow$ = implies</div>
-                         <div style="margin-bottom: 10px;">$\cap$ = intersection</div>
-                     </div>
-                 </div>
-             </div>
-
-             <div style="background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-bottom: 30px;">
-                 <h3 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px;">The Three Conditions (B1, B2, B3)</h3>
-                 <div style="font-size: 0.95rem; color: #cbd5e1; line-height: 2;">
-                     <div style="margin-bottom: 12px;">$\mathbf{B1}(\mathcal{B})$: Each ballot has a unique ballot number</div>
-                     <div style="margin-bottom: 12px;">$\mathbf{B2}(\mathcal{B})$: The quorums of any two ballots always intersect (share at least one priest)</div>
-                     <div style="margin-bottom: 0;">$\mathbf{B3}(\mathcal{B})$: $\forall B \in \mathcal{B}: \text{MaxVote}(B.{\rm bal}, B.{\rm qrm}, \mathcal{B}).{\rm bal} = -\infty \Rightarrow B.{\rm dec} = \text{MaxVote}(B.{\rm bal}, B.{\rm qrm}, \mathcal{B}).{\rm dec}$</div>
-                     <div style="margin-top: 8px; color: #cbd5e1;">In English: if no priest in $B$'s quorum voted before, $B$ can propose any decree. Otherwise, $B$ must propose the same decree as the latest earlier vote. This ensures all ballots after a quorum accepts are locked to that value.</div>
-                 </div>
-             </div>
-
+        <!-- Explanation with Notation Sidebar -->
+         <div class="explanation-with-notation">
+             <div class="explanation-content">
              <h2>The Paxos Decree Lifecycle</h2>
              
              <p>A decree in Paxos goes through several phases before being learned by all priests:</p>
@@ -618,9 +612,53 @@
                 This ensures that once a decree has been accepted by a quorum in any ballot, all future ballots will propose that same decree. This is what provides consistency.
             </div>
 
+            </div>
+            <!-- Notation Sidebar -->
+            <div class="notation-sidebar">
+                <div class="notation-section">
+                    <h3>Vote Components</h3>
+                    <div class="notation-item">$v$ = a vote</div>
+                    <div class="notation-item">$v.{\rm pst}$ = priest</div>
+                    <div class="notation-item">$v.{\rm bal}$ = ballot #</div>
+                    <div class="notation-item">$v.{\rm dec}$ = decree</div>
+                    <div class="notation-item">$\text{null}_p$ = no vote</div>
+                </div>
 
-        </div>
-    </div>
+                <div class="notation-section">
+                    <h3>Ballot Components</h3>
+                    <div class="notation-item">$B$ = ballot</div>
+                    <div class="notation-item">$B.{\rm bal}$ = ballot #</div>
+                    <div class="notation-item">$B.{\rm dec}$ = decree</div>
+                    <div class="notation-item">$B.{\rm vot}$ = votes</div>
+                    <div class="notation-item">$B.{\rm qrm}$ = quorum</div>
+                </div>
+
+                <div class="notation-section">
+                    <h3>Functions</h3>
+                    <div class="notation-item">$\text{Votes}(B)$ = all votes</div>
+                    <div class="notation-item">$\text{MaxVote}(b, p)$ = largest vote</div>
+                </div>
+
+                <div class="notation-section">
+                    <h3>Logical Symbols</h3>
+                    <div class="notation-item">$\forall$ = for all</div>
+                    <div class="notation-item">$\exists$ = exists</div>
+                    <div class="notation-item">$\in$ = element of</div>
+                    <div class="notation-item">$\subseteq$ = subset</div>
+                    <div class="notation-item">$\land$ = AND</div>
+                    <div class="notation-item">$\Rightarrow$ = implies</div>
+                    <div class="notation-item">$\cap$ = intersection</div>
+                </div>
+
+                <div class="notation-section">
+                    <h3>The Conditions</h3>
+                    <div class="notation-item">$\mathbf{B1}$: Unique ballots</div>
+                    <div class="notation-item">$\mathbf{B2}$: Quorums intersect</div>
+                    <div class="notation-item">$\mathbf{B3}$: Consistency</div>
+                </div>
+            </div>
+            </div>
+            </div>
 
     <script>
         // Markov chain for decree generation
