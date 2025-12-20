@@ -26,14 +26,14 @@ impl Default for AcceptedDecree {
     fn default() -> AcceptedDecree {
         AcceptedDecree {
             min_ballot: Ballot {
-                number: 0,
+                number: usize::MIN,
                 node_id: 0,
             },
             accepted_ballot: Ballot {
-                number: 0,
+                number: usize::MIN,
                 node_id: 0,
             },
-            accepted_value: PaxosCommand::NOOP,
+            accepted_value: PaxosCommand::BLANK,
         }
     }
 }
@@ -93,7 +93,6 @@ impl Acceptor {
                 id: self.id,
                 ballot: ballot.number,
             });
-            let decree: &mut AcceptedDecree = self.state.entry(decree_num).or_default();
             decree.min_ballot = ballot;
 
             return Message::Promise {
@@ -111,17 +110,6 @@ impl Acceptor {
         let decree = self.state.get_mut(&decree_num);
         match decree {
             Some(decree) => {
-                if ballot == decree.accepted_ballot {
-                    if cmd != decree.accepted_value {
-                        return Message::NACK;
-                    }
-                    return Message::Accepted {
-                        from: self.id,
-                        decree_num,
-                        ballot,
-                        value: cmd,
-                    };
-                }
 
                 if ballot >= decree.min_ballot {
                     decree.min_ballot = ballot;

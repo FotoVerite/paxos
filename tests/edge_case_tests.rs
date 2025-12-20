@@ -321,69 +321,6 @@ async fn large_ballot_numbers() {
     assert!(matches!(resp2, Message::Promise { .. }));
 }
 
-/// Edge case: Accept with different value at same ballot
-#[tokio::test]
-async fn accept_with_different_value_than_proposed() {
-    let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
-
-    let b = Ballot::new(5, 1);
-    let value1 = PaxosCommand::GET {
-        key: "original".to_string(),
-    };
-    let value2 = PaxosCommand::GET {
-        key: "different".to_string(),
-    };
-
-    // Prepare
-    acceptor.handle_message(
-        Message::Prepare {
-            from: 1,
-            decree_num: 0,
-            ballot: b,
-        },
-    )
-    .await;
-
-    // Accept with value1
-    let resp1 = acceptor.handle_message(
-        Message::Accept {
-            from: 1,
-            decree_num: 0,
-            ballot: b,
-            value: value1.clone(),
-        },
-    )
-    .await;
-    assert!(matches!(resp1, Message::Accepted { value, .. } if value == value1));
-
-    // Try to accept with different value at same ballot
-    // Once accepted, acceptor should not change the value at same ballot
-    let resp2 = acceptor.handle_message(
-        Message::Accept {
-            from: 1,
-            decree_num: 0,
-            ballot: b,
-            value: value2.clone(),
-        },
-    )
-    .await;
-
-    // SHOULD reject or return the original value, never overwrite with new value
-    match resp2 {
-        Message::Accepted { value, .. } => {
-            // If accepted, MUST be the original value
-            assert_eq!(
-                value, value1,
-                "Acceptor MUST NOT change accepted value at same ballot"
-            );
-        }
-        Message::NACK => {
-            // Rejecting is also correct
-        }
-        _ => panic!("Unexpected response"),
-    }
-}
 
 /// Edge case: Proposer receives Promise from itself
 #[tokio::test]

@@ -1,0 +1,195 @@
+/* Leslie Lamport Bio Page Styles */
+
+/* ============================================================================
+   LAYOUT & CONTAINER
+   ============================================================================ */
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-xl);
+}
+
+/* ============================================================================
+   BIO SECTION
+   ============================================================================ */
+.bio-section {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-2xl);
+}
+
+.bio-header {
+    margin-bottom: var(--space-2xl);
+    text-align: center;
+}
+
+.bio-title {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.bio-title h1 {
+    margin-bottom: var(--space-xs);
+}
+
+.bio-subtitle {
+    color: var(--color-success);
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+/* ============================================================================
+   BIO CONTENT
+   ============================================================================ */
+.bio-content {
+    color: var(--color-text-secondary);
+    line-height: 1.8;
+}
+
+.bio-content p {
+    margin-bottom: var(--space-xl);
+    text-align: justify;
+}
+
+.bio-content p strong {
+    color: var(--color-primary);
+}
+
+.bio-content a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color var(--transition-fast);
+}
+
+.bio-content a:hover {
+    color: var(--color-accent);
+    text-decoration: underline;
+}
+
+/* ============================================================================
+   KEY PAPERS BOX
+   ============================================================================ */
+.key-papers {
+    background: var(--color-primary-dark);
+    border-left: 3px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-xl);
+    margin: var(--space-2xl) 0;
+}
+
+.key-papers h3 {
+    color: var(--color-primary);
+    margin-bottom: var(--space-lg);
+    margin-top: 0;
+}
+
+.key-papers ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.key-papers li {
+    padding: var(--space-md) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.key-papers li:last-child {
+    border-bottom: none;
+}
+
+.key-papers a {
+    color: var(--color-success);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.key-papers a:hover {
+    color: var(--color-success-light);
+    text-decoration: underline;
+}
+
+/* ============================================================================
+   QUOTE BOX
+   ============================================================================ */
+.bio-quote {
+    background: rgba(96, 165, 250, 0.1);
+    border-left: 3px solid var(--color-primary);
+    padding: var(--space-xl);
+    margin-top: var(--space-2xl);
+    border-radius: var(--radius-md);
+    font-size: 1.1rem;
+    color: var(--color-text-secondary);
+    font-style: italic;
+    line-height: 1.8;
+}
+
+/* ============================================================================
+   FOOTER & ATTRIBUTION
+   ============================================================================ */
+.bio-footer {
+    margin-top: var(--space-2xl);
+    padding-top: var(--space-xl);
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+}
+
+.bio-footer p {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.bio-footer a {
+    color: var(--color-accent);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.bio-footer a:hover {
+    color: var(--color-success);
+    text-decoration: underline;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+@media (max-width: 768px) {
+    .container {
+        padding: var(--space-xl) var(--space-md);
+    }
+
+    .bio-section {
+        padding: var(--space-xl);
+    }
+
+    .bio-header {
+        margin-bottom: var(--space-xl);
+    }
+
+    .bio-title h1 {
+        font-size: 2rem;
+    }
+
+    .bio-content p {
+        text-align: left;
+        font-size: 0.95rem;
+    }
+
+    .key-papers {
+        padding: var(--space-lg);
+    }
+
+    .key-papers h3 {
+        font-size: 1.1rem;
+    }
+
+    .bio-quote {
+        font-size: 1rem;
+        padding: var(--space-lg);
+    }
+}

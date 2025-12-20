@@ -34,12 +34,16 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
     };
 
     let app = Router::new()
+        .route("/", get(landing_handler))
         .route("/ws", get(websocket_handler))
         .route("/api/start-scenario", post(start_scenario_handler))
         .route("/api/propose", post(propose_handler))
+        .route("/visualizer", get(visualizer_handler))
         .route("/senate", get(senate_handler))
         .route("/decree", get(decree_handler))
-        .nest_service("/", static_files_service)
+        .route("/leslie", get(leslie_handler))
+
+        .fallback_service(static_files_service)
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -107,5 +111,22 @@ async fn senate_handler() -> impl IntoResponse {
 /// Serve the Decree lifecycle visualizer page
 async fn decree_handler() -> impl IntoResponse {
     let html = include_str!("../../static/decree.html");
+    (StatusCode::OK, [("Content-Type", "text/html")], html)
+}
+
+/// Serve the Landing page
+async fn landing_handler() -> impl IntoResponse {
+    let html = include_str!("../../static/landing.html");
+    (StatusCode::OK, [("Content-Type", "text/html")], html)
+}
+
+async fn leslie_handler() -> impl IntoResponse {
+    let html = include_str!("../../static/leslie.html");
+    (StatusCode::OK, [("Content-Type", "text/html")], html)
+}
+
+/// Serve the Visualizer page
+async fn visualizer_handler() -> impl IntoResponse {
+    let html = include_str!("../../static/visualizer.html");
     (StatusCode::OK, [("Content-Type", "text/html")], html)
 }

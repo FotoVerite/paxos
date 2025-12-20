@@ -9,6 +9,7 @@ pub enum PaxosCommand {
     BuildAcropolis { stones_required: u32, architect: String },
     GET { key: String },
     PUT { key: String, version: usize },
+    BLANK,
 }
 
 impl fmt::Display for PaxosCommand {
@@ -27,6 +28,7 @@ impl fmt::Display for PaxosCommand {
             }
             PaxosCommand::GET { key } => write!(f, "GET {}", key),
             PaxosCommand::PUT { key, version } => write!(f, "PUT {} v{}", key, version),
+            PaxosCommand::BLANK => write!(f, "BLANK"),
         }
     }
 }
