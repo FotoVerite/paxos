@@ -1,0 +1,27 @@
+<!-- Navigation Bar -->
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-brand">
+            <a href="/">⚡ Paxos</a>
+        </div>
+        <div class="nav-menu">
+            <a href="/visualizer" class="nav-link" id="nav-visualizer">Visualizer</a>
+            <a href="/senate" class="nav-link" id="nav-senate">Senate</a>
+            <a href="/decree" class="nav-link" id="nav-decree">Decree Lifecycle</a>
+        </div>
+    </div>
+</nav>
+
+<script>
+    // Set active nav link based on current page
+    const pageRoutes = {
+        '/visualizer': 'nav-visualizer',
+        '/senate': 'nav-senate',
+        '/decree': 'nav-decree'
+    };
+    
+    const currentPath = window.location.pathname;
+    if (pageRoutes[currentPath]) {
+        document.getElementById(pageRoutes[currentPath]).classList.add('active');
+    }
+</script>

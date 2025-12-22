@@ -1,27 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paxos Explained</title>
-    <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="/landing.css">
-</head>
-<body>
-    <!-- Navigation Bar -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <a href="/">⚡ Paxos</a>
-            </div>
-            <div class="nav-menu">
-                <a href="/visualizer" class="nav-link">Visualizer</a>
-                <a href="/senate" class="nav-link">Senate</a>
-                <a href="/decree" class="nav-link">Decree Lifecycle</a>
-            </div>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
+{% block title %}Paxos Explained{% endblock %}
+
+{% block extra_stylesheets %}
+    <link rel="stylesheet" href="/landing.css">
+{% endblock %}
+
+{% block content %}
     <div class="container">
         <header>
             <h1>Paxos a <i>very</i> part-time parliament</h1>
@@ -135,7 +120,9 @@
             </div>
         </section>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
         const pages = ['/', '/leslie', '/visualizer', '/senate', '/decree'];
         let currentPageIndex = pages.indexOf(window.location.pathname);
@@ -172,5 +159,4 @@
 
         updateNavLinks();
     </script>
-</body>
-</html>
+{% endblock %}

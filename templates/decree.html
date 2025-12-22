@@ -1,30 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Decree Lifecycle - Paxos</title>
-    <link rel="stylesheet" href="/style.css">
+{% extends "base.html" %}
+
+{% block title %}Decree Lifecycle - Paxos{% endblock %}
+
+{% block extra_stylesheets %}
     <link rel="stylesheet" href="/decree.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-</head>
-<body>
-    <!-- Navigation Bar -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <a href="/">⚡ Paxos</a>
-            </div>
-            <div class="nav-menu">
-                <a href="/" class="nav-link">Visualizer</a>
-                <a href="/senate" class="nav-link">Senate</a>
-                <a href="/decree" class="nav-link active">Decree Lifecycle</a>
-            </div>
-        </div>
-    </nav>
+{% endblock %}
 
+{% block content %}
     <div class="container">
         <header>
             <h1>📜 Decree Lifecycle</h1>
@@ -90,8 +75,7 @@
                 </div>
             </div>
         </div>
-        </div>
-        </div>
+            </div>
         </div>
 
         <!-- Explanation with Notation Sidebar -->
@@ -199,8 +183,10 @@
                 </div>
             </div>
             </div>
-            </div>
+    </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
         // Toggle ballot simulation section
         function toggleBallotSection() {
@@ -252,117 +238,85 @@
             "absolute": null,
             "forever": null,
             "supreme": null,
+            "weakness": null,
+            "chaos": null,
+            "fear": null,
+            "doubt": null,
+            "always": null,
             "peace": null,
             "order": null,
-            "strength": null,
+            "wisdom": null,
             "honor": null,
-            "wisdom": null
+            "sacrifice": null,
+            "unity": null,
+            "strength": null,
+            "commitment": null,
+            "all": null
         };
-        
-        function generateDecree() {
-            let decree = "";
-            let currentWord = "";
-            let wordCount = 0;
-            
-            while (wordCount < 4 && (wordCount === 0 || wordChain[currentWord] !== null)) {
-                const options = wordChain[currentWord];
-                if (!options || options.length === 0) break;
-                
-                currentWord = options[Math.floor(Math.random() * options.length)];
-                if (decree) decree += " ";
-                decree += currentWord;
-                wordCount++;
-            }
-            
-            return decree;
-        }
 
-        let ballotsTried = 0;
         let totalPriests = 5;
         let quorumSize = 3;
-        let learnedValue = null; // The value that was learned (locked forever)
-        let ballotHistory = []; // Track all ballots
-        let currentBallotData = null; // Current ballot being shown
-        let priestParticipation = {}; // Persistent participation rate for each priest
+        let priestParticipation = [0.9, 0.8, 0.85, 0.95, 0.7];
+        let ballotHistory = [];
+        let currentBallotData = null;
+        let learnedValue = null;
+        let ballotsTried = 0;
         let autoRetryTimeout = null;
 
-        function initializePriests() {
-            priestParticipation = {};
-            for (let i = 0; i < totalPriests; i++) {
-                priestParticipation[i] = 0.3 + Math.random() * 0.5;
+        function generateDecree() {
+            let decree = '';
+            let currentWord = '';
+            
+            while (true) {
+                const nextOptions = wordChain[currentWord];
+                if (!nextOptions) break;
+                
+                const nextWord = nextOptions[Math.floor(Math.random() * nextOptions.length)];
+                if (decree) decree += ' ';
+                decree += nextWord;
+                currentWord = nextWord;
             }
+            
+            return decree.charAt(0).toUpperCase() + decree.slice(1);
+        }
+
+        function initializePriests() {
+            document.getElementById('totalPriests').textContent = totalPriests;
+            document.getElementById('quorumSize').textContent = quorumSize;
         }
 
         function updateDisplay() {
-            document.getElementById('decreeValue').textContent = learnedValue || '--';
-            document.getElementById('quorumSize').textContent = quorumSize;
-            document.getElementById('totalPriests').textContent = totalPriests;
-            
-            const ballotsStat = document.getElementById('ballotsTried');
-            if (ballotsStat) ballotsStat.textContent = ballotsTried;
-
-            // Update status
-            const status = document.getElementById('decreeStatus');
-            if (learnedValue) {
-                status.textContent = `✓ LEARNED: "${learnedValue}"`;
-                status.style.color = '#34d399';
-            } else if (currentBallotData) {
-                const votes = currentBallotData.votes.length;
-                if (votes >= quorumSize) {
-                    status.textContent = `~ Accepted by quorum, learning...`;
-                    status.style.color = '#fbbf24';
-                } else if (votes > 0) {
-                    status.textContent = `Votes: ${votes}/${quorumSize}`;
-                    status.style.color = '#cbd5e1';
-                } else {
-                    status.textContent = 'Awaiting votes...';
-                    status.style.color = '#94a3b8';
-                }
-            } else {
-                status.textContent = 'Click "Try Ballot" to begin';
-                status.style.color = '#94a3b8';
-            }
-
-            // Update learned list
-            const learnedList = document.getElementById('learnedList');
-            if (learnedValue) {
-                learnedList.innerHTML = `<div class="learned-item">Consensus: "<strong>${learnedValue}</strong>"</div>`;
-            } else {
-                learnedList.innerHTML = '<div class="empty-state-message">Waiting for consensus...</div>';
-            }
-
-            renderCurrentBallot();
+            document.getElementById('ballotsTried').textContent = ballotsTried;
             renderHistory();
+            renderCurrentBallot();
+            
+            if (learnedValue) {
+                const learnedList = document.getElementById('learnedList');
+                learnedList.innerHTML = '';
+                for (let i = 0; i < totalPriests; i++) {
+                    const item = document.createElement('div');
+                    item.className = 'learned-item';
+                    item.textContent = `${priestNames[i]}: "${learnedValue}"`;
+                    learnedList.appendChild(item);
+                }
+            }
         }
 
         function initializeBallotDisplay() {
-             const container = document.getElementById('ballotContainer');
-             
-             if (!currentBallotData) {
-                 container.innerHTML = '<p class="no-ballot-message">No ballot in progress</p>';
-                 return;
-             }
-             
-             let html = `
-                 <div class="ballot-container" id="currentBallotDisplay">
-                     <div class="ballot-header">
-                         <div class="ballot-number">Ballot ${currentBallotData.number}</div>
-                         <div class="ballot-status" id="ballotStatus">⏳ In Progress</div>
-                     </div>
-
-                     <div class="proposed-decree">
-                         <span class="proposed-decree-label">Proposed: </span>
-                         <span class="proposed-decree-value">"${currentBallotData.decree}"</span>
-                     </div>
-
-                    <div class="phase-marker prepare">
-                        <span class="phase-name">Prepare</span>
-                        <span class="phase-description">Send ballot ${currentBallotData.number} to all priests</span>
-                    </div>
-
-                    <div class="priest-grid" id="priestGrid">
-            `;
+            if (!currentBallotData) return;
             
+            const container = document.getElementById('ballotContainer');
+            const { number, decree } = currentBallotData;
+            
+            let html = `
+                <div class="phase-marker prepare">
+                    <span class="phase-name">Prepare</span>
+                    <span class="phase-description">Ballot ${number}: Proposing "${decree}"</span>
+                </div>
+
+                <div class="priests-grid">
+            `;
+
             for (let i = 0; i < totalPriests; i++) {
                 html += `
                     <div class="priest" id="priest-${i}">
@@ -597,19 +551,18 @@
         // Initialize
         initializePriests();
         updateDisplay();
-        </script>
-        <script>
-            // Render KaTeX math when DOM is ready
-            document.addEventListener('DOMContentLoaded', function() {
-                if (window.renderMathInElement) {
-                    renderMathInElement(document.body, {
-                        delimiters: [
-                            {left: '$$', right: '$$', display: true},
-                            {left: '$', right: '$', display: false}
-                        ]
-                    });
-                }
-            });
-        </script>
-        </body>
-        </html>
+    </script>
+    <script>
+        // Render KaTeX math when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.renderMathInElement) {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ]
+                });
+            }
+        });
+    </script>
+{% endblock %}

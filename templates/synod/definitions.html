@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Paxos Definitions{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="panel">
+        <h1>Section 2. A basic protocol made complicated</h1>
+
+        <h2>Definitions</h2>
+        <p>
+            Breaking down the protocol is easier once we actually define terms. This is something that Lamport does
+            haphazardly constructing a basic proof before explaining it's constitute parts.
+        </p>
+
+        <dl>
+            <dt><a href="/synod/ballot">Ballot</a> or <strong>$\mathcal{B}$</strong></dt>
+            <dd>A unique descriptor of a vote that can be compared with any other ballot to determine which comes first.</dd>
+        </dl>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    // Render KaTeX math when DOM is ready
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.renderMathInElement) {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false }
+                ]
+            });
+        }
+    });
+</script>
+
+{% endblock %}

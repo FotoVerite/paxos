@@ -1,27 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Senate Visualizer - Paxos</title>
-    <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="/senate.css">
-</head>
-<body>
-    <!-- Navigation Bar -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <a href="/">⚡ Paxos</a>
-            </div>
-            <div class="nav-menu">
-                <a href="/" class="nav-link">Visualizer</a>
-                <a href="/senate" class="nav-link active">Senate</a>
-                <a href="/decree" class="nav-link">Decree Lifecycle</a>
-            </div>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
+{% block title %}Senate Visualizer - Paxos{% endblock %}
+
+{% block extra_stylesheets %}
+    <link rel="stylesheet" href="/senate.css">
+{% endblock %}
+
+{% block content %}
     <div class="container">
         <div class="visualization">
             <svg id="senateSvg"></svg>
@@ -81,7 +66,9 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
         const svg = document.getElementById('senateSvg');
         const connectionStatus = document.getElementById('connectionStatus');
@@ -448,5 +435,4 @@
             }
         });
     </script>
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "base.html" %} {% block title %}The Problem{% endblock %} {% block
+content %}
+<div class="container">
+  <div class="panel">
+    <h1>Section 1. The problem</h1>
+
+    <h2>Requirements</h2>
+    <p>
+      When confronted with the complexity of a problem, logically one would state in clear terms the issues one is
+      trying to solve. Lamport opted to dress up the problem in allgory and obscuating language.
+    </p>
+
+    <p>
+    <blockquote> The requirements of the parliamentary protocol could be achieved only by providing
+      the legislators with the necessary resources. Each legislator received a sturdy ledger
+      in which to record the decrees, a pen, and a supply of indelible ink. Legislators might
+      forget what they had been doing if they left the Chamber,3 so they would write
+      notes in the back of the ledgers to remind themselves of important parliamentary
+      tasks. An entry in the list of decrees was never changed, but notes could be crossed
+      out. Achieving the progress condition required that legislators be able to measure
+      the passage of time, so they were given simple hourglass timers.
+      Legislators carried their ledgers at all times, and could always read the list of
+      decrees and any note that had not been crossed out. The ledgers were made of the
+      finest parchment and were used for only the most important notes. A legislator
+      would write other notes on a slip of paper, which he might (or might not) lose if
+      he left the Chamber. The acoustics of the Chamber were poor, making oratory impossible. Legislators
+      could communicate only by messenger, and were provided with funds to hire as
+      many messengers as they needed. A messenger could be counted on not to garble
+      messages, but he might forget that he had already delivered a message, and deliver
+      it again. Like the legislators they served, messengers devoted only part of their
+      time to parliamentary duties. A messenger might leave the Chamber to conduct
+      some business—perhaps taking a six-month voyage—before delivering a message.
+      He might even leave forever, in which case the message would never be delivered.
+      Although legislators and messengers could enter and leave at any time, when
+      inside the Chamber they devoted themselves to the business of Parliament. While
+      they remained in the Chamber, messengers delivered messages in a timely fashion
+      and legislators reacted promptly to any messages they received.</blockquote>
+    </p>
+
+    <p>
+      When stripped of the storytelling, what he is trying to illustrate is the issues of values being agreed to by
+      nodes in a system. In a long-running distributed system with multiple nodes, failures and message delays are
+      inevitable. This is especially true with systems at scale that include thousands of nodes; even a 0.0001% failure
+      rate will manifest over time.
+    </p>
+
+    <p>
+      This is what Lamport is trying to illustrate with legislators coming and going, they are the nodes liveliness.
+      This is a the main constraint he will wrestle with.
+    <blockquote> "The problem of governing with a part-time parliament bears a remarkable correspondence to the problem
+      faced by today’s fault-tolerant distributed systems, where legislators correspond to processes and leaving the
+      Chamber corresponds to failing"</blockquote>
+    </p>
+
+
+    <p>
+      If a legislator is a node, what is a decree? What is a ledger.
+    </p>
+    
+    <p> Part of the reason for the metaphor is he wants
+      it to be a bit elastic what they can be. The decree is a discreet value that is agreed to, the ledger is some way
+      of it being recorded that stable. It could be memory, it could be a database, it could be json document. That
+      part
+      isn't important to Lamport. He is more interested in the process of how they are agreed to and recorded. He also
+      is making concrete the requirement that each node owns it's own recording and that it isn't a shared between
+      them.
+      So a database they were all using as their main ledger would not count not would it truly be distributed then,
+      that would be centralized.
+    </p>
+
+    <p>
+      Any of the other metadata, the "notes in the margins" cannot be counted on to always be there and accessible.
+      Messages, IE messengers might never be delivered or delayed. Time must be kept locally at least in a simplistic
+      manner, IE the hourglass timers. And there must be a retry mechanism, what those are are outside the main scope of
+      the paper.
+    </p>
+
+    <p>
+      The other main requirement he is concerned with is consistency. All legislators much agree. Agreement doesn't not
+      mean
+      the
+      same, it means non contradictory. They can contain different decrees but for any decree that overlap they must
+      have the same value
+    </p>
+
+    <p>
+      One requirement he is not concerned with is disagreements among the legislators. He is assuming they all trust
+      each other,
+      no Byzantine faults, no malicious actors, and no clients trying to propose different values for the same decrees.
+      He is basically saying transactions are not an problem this is to address and is outside the scope.
+    <blockquote> In modern parliaments, the passing
+      of decrees is hindered by disagreement among legislators. This was not the case
+      in Paxos, where an atmosphere of mutual trust prevailed</blockquote>
+    What little time on it will be late in the paper. <blockquote> "What evidence has been
+      uncovered is discussed in Section 3.3.5"</blockquote>
+    </p>
+
+
+  </div>
+</div>
+{% endblock %}

@@ -1,27 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paxos Visualizer</title>
-    <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="/visualizer.css">
-</head>
-<body>
-    <!-- Navigation Bar -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <a href="/">⚡ Paxos</a>
-            </div>
-            <div class="nav-menu">
-                <a href="/" class="nav-link active">Visualizer</a>
-                <a href="/senate" class="nav-link">Senate</a>
-                <a href="/decree" class="nav-link">Decree Lifecycle</a>
-            </div>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
+{% block title %}Paxos Visualizer{% endblock %}
+
+{% block extra_stylesheets %}
+    <link rel="stylesheet" href="/visualizer.css">
+{% endblock %}
+
+{% block content %}
     <div class="container">
         <header>
             <h1>⚡ Paxos Visualizer</h1>
@@ -97,7 +82,9 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
         const connectionStatus = document.getElementById('connectionStatus');
         const statusText = document.getElementById('statusText');
@@ -352,8 +339,5 @@
                 btn.textContent = 'Start Scenario';
             }
         }
-        
-
     </script>
-</body>
-</html>
+{% endblock %}

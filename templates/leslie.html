@@ -1,27 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leslie Lamport - Paxos Pioneer</title>
-    <link rel="stylesheet" href="/style.css">
-    <link rel="stylesheet" href="/leslie.css">
-</head>
-<body>
-    <!-- Navigation Bar -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <a href="/">⚡ Paxos</a>
-            </div>
-            <div class="nav-menu">
-                <a href="/visualizer" class="nav-link">Visualizer</a>
-                <a href="/senate" class="nav-link">Senate</a>
-                <a href="/decree" class="nav-link">Decree Lifecycle</a>
-            </div>
-        </div>
-    </nav>
+{% extends "base.html" %}
 
+{% block title %}Leslie Lamport - Paxos Pioneer{% endblock %}
+
+{% block extra_stylesheets %}
+    <link rel="stylesheet" href="/leslie.css">
+{% endblock %}
+
+{% block content %}
     <div class="container">
         <div class="bio-section">
             <div class="bio-header">
@@ -68,6 +53,4 @@
             </div>
         </div>
     </div>
-
-    </body>
-</html>
+{% endblock %}
