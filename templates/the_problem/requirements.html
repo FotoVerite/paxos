@@ -1,0 +1,89 @@
+{% extends "base.html" %} {% block title %}Requirements{% endblock %} {% block
+content %}
+<div class="container">
+  <div class="panel">
+    <h1>Section 1.2 Requirements</h1>
+
+    <blockquote>
+      The requirements of the parliamentary protocol could be achieved only by
+      providing the legislators with the necessary resources. Each legislator
+      received a sturdy ledger in which to record the decrees, a pen, and a
+      supply of indelible ink. Legislators might forget what they had been doing
+      if they left the Chamber,3 so they would write notes in the back of the
+      ledgers to remind themselves of important parliamentary tasks. An entry in
+      the list of decrees was never changed, but notes could be crossed out.
+      Achieving the progress condition required that legislators be able to
+      measure the passage of time, so they were given simple hourglass timers.
+      Legislators carried their ledgers at all times, and could always read the
+      list of decrees and any note that had not been crossed out. The ledgers
+      were made of the finest parchment and were used for only the most
+      important notes. A legislator would write other notes on a slip of paper,
+      which he might (or might not) lose if he left the Chamber. The acoustics
+      of the Chamber were poor, making oratory impossible. Legislators could
+      communicate only by messenger, and were provided with funds to hire as
+      many messengers as they needed. A messenger could be counted on not to
+      garble messages, but he might forget that he had already delivered a
+      message, and deliver it again. Like the legislators they served,
+      messengers devoted only part of their time to parliamentary duties. A
+      messenger might leave the Chamber to conduct some business—perhaps taking
+      a six-month voyage—before delivering a message. He might even leave
+      forever, in which case the message would never be delivered. Although
+      legislators and messengers could enter and leave at any time, when inside
+      the Chamber they devoted themselves to the business of Parliament. While
+      they remained in the Chamber, messengers delivered messages in a timely
+      fashion and legislators reacted promptly to any messages they received.
+    </blockquote>
+
+    <p>
+      Stripped of allegory this is laying out values being agreed to by nodes in
+      a system. In any long-running distributed system with multiple nodes,
+      failures and message delays are inevitable. This is especially true with
+      systems at scale that include thousands of nodes; even a 0.0001% failure
+      rate will manifest over time.
+    </p>
+
+    <p>
+      This is what legislators coming and going from the chamber maps too, they
+      are the nodes liveliness. This is a the main constraint he wrestle's with.
+      Nodes will fail, they will leave, new ones will come in, or old ones will
+      come back. How do ones handle this.
+    </p>
+
+    <blockquote>
+      "The problem of governing with a part-time parliament bears a remarkable
+      correspondence to the problem faced by today’s fault-tolerant distributed
+      systems, where legislators correspond to processes and leaving the Chamber
+      corresponds to failing"
+    </blockquote>
+
+    <p>And the goal of all of this</p>
+
+    <blockquote>
+      If a majority of the legislators were in the Chamber and no one entered or
+      left the Chamber for a sufficiently long period of time then any decree
+      proposed by a legislator in the Chamber would be passed, and every decree
+      that had been passed would appear in the ledger of every legislator in the
+      Chamber.
+    </blockquote>
+
+    <p>
+      The other main requirement he is concerned with is consistency. All
+      legislator's ledgers must agree. This means non contradictory. They can
+      contain different decrees but for any decree that overlap they must have
+      the same value
+    </p>
+
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/the-problem/the-island-of-paxos"
+          >Prev - 1.1 The Island of Paxos</a
+        >
+      </div>
+      <div class="next">
+        <a href="/the-problem/assumptions">Next - Section 1.3 Assumptions</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

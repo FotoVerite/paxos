@@ -35,10 +35,43 @@ macro_rules! page_template {
     };
 }
 
+// Section 1
+page_template!(
+    tiop_handler,
+    TiopHandler,
+    "the_problem/the_island_of_paxos.html"
+);
+page_template!(
+    requirements_handler,
+    RequirementsTemplate,
+    "the_problem/requirements.html"
+);
+
+page_template!(
+    assumptions_handler,
+    AssumptionsTemplate,
+    "the_problem/assumptions.html"
+);
+
+// Section 2
+page_template!(
+    synod_overview_handler,
+    SynodOverviewTemplate,
+    "synod/overview.html"
+);
+
+page_template!(
+    synod_decree_handler,
+    SynodDecreeTemplate,
+    "synod/decree_example.html"
+);
+
 // Define pages
 page_template!(landing_handler, LandingTemplate, "landing.html");
 page_template!(leslie_handler, LeslieTemplate, "leslie.html");
 page_template!(visualizer_handler, VisualizerTemplate, "visualizer.html");
+
+page_template!(overview_handler, OverviewTemplate, "overview.html");
 page_template!(senate_handler, SenateTemplate, "senate.html");
 page_template!(
     setting_of_paper_handler,
@@ -48,12 +81,28 @@ page_template!(
 page_template!(terms_handler, TermTemplate, "terms.html");
 page_template!(the_problem_handler, TheProblem, "the_problem.html");
 page_template!(decree_handler, DecreeTemplate, "decree.html");
+
+page_template!(
+    synod_constraints_handler,
+    SynodConstraints,
+    "./synod/constraints.html"
+);
 page_template!(
     synod_definitions_handler,
     SynodDefinitions,
     "./synod/definitions.html"
 );
+
+page_template!(synod_lemma_handler, SynodLemma, "./synod/lemma.html");
 page_template!(synod_ballot_handler, SynodBallot, "./synod/ballot.html");
+page_template!(
+    synod_ballot_number_handler,
+    SynodBallotNumber,
+    "./synod/ballot_number.html"
+);
+
+page_template!(synod_max_vote_handler, Synod, "./synod/max_vote.html");
+page_template!(synod_quorum_handler, SynodQuorum, "./synod/quorum.html");
 
 /// Shared state for the WebSocketObserver and ClusterManager.
 #[derive(Clone)]
@@ -79,13 +128,29 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
         .route("/senate", get(senate_handler))
         .route("/setting_of_paper", get(setting_of_paper_handler))
         .route("/terms", get(terms_handler))
+        .route("/overview", get(overview_handler))
+        //section-1
+        .route("/the-problem/the-island-of-paxos", get(tiop_handler))
+        .route("/the-problem/requirements", get(requirements_handler))
+        .route("/the-problem/assumptions", get(assumptions_handler))
+        //section-2
+        .route("/synod/overview", get(synod_overview_handler))
+        .route("/synod/decree-example", get(synod_decree_handler))
+
+
+
         .route("/the_problem", get(the_problem_handler))
         .route("/decree", get(decree_handler))
         .route("/ws", get(websocket_handler))
         .route("/api/start-scenario", post(start_scenario_handler))
         //synod
+        .route("/synod/constraints", get(synod_constraints_handler))
         .route("/synod/definitions", get(synod_definitions_handler))
         .route("/synod/ballot", get(synod_ballot_handler))
+        .route("/synod/ballot_number", get(synod_ballot_number_handler))
+        .route("/synod/lemma", get(synod_lemma_handler))
+        .route("/synod/max_vote", get(synod_max_vote_handler))
+        .route("/synod/quorum", get(synod_quorum_handler))
         .route("/api/propose", post(propose_handler))
         .fallback_service(static_files_service)
         .with_state(app_state);

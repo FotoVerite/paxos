@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Ballot Number{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="panel">
+        <h1>Ballot Number</a> or <strong>$\mathcal{B}$</strong>bal</h1>
+        <p>
+            A naive attempt to define a ballot number would be a simple integer [1, 2, 3, ...]. However, this approach is
+            insufficient because it does not provide a way to compare ballots from different nodes or ensure
+            uniqueness across the network. Even if nodes start their sequences randomly, eventually collisions occur.
+        </p>
+
+        <p>
+        <blockquote>
+             To keep different priests from initiating ballots with the same number, the set of possible ballot numbers was partitioned amongthe priests.While it is not known how this was
+            done, an obvious method would have been to let a ballot number be a pair consisting
+            of an integer and a priest, using a lexicographical ordering, where<br />
+            (13, Γρα˘ι) &le; (13, Λινσ˘ι) &le; (15, Γρα˘ι) since Γ came before Λ in the Paxon alphabet. In any case, it is known that every priest had an unbounded set of ballot numbers reserved for his use 
+        </blockquote>
+        </p>
+
+        <p>Implementation is not as important as what a ballot number must accomplish. It can be a complex number, a hash set or most simply a monotonically increasing id and a node id. (id, node_id).
+        
+        <p>
+        (1,1) &le; (1,2), &le; (3,1). 
+        </p>
+
+        <p>
+            This ensures that ballot identifiers are totally ordered, discrete, and easy to reason about.
+        </p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+    // Render KaTeX math when DOM is ready
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.renderMathInElement) {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false }
+                ]
+            });
+        }
+    });
+</script>
+
+{% endblock %}

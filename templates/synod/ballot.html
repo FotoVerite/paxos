@@ -11,30 +11,17 @@
 {% block content %}
 <div class="container">
     <div class="panel">
-        <h1>Ballot</h1>
+        <h1>Ballot  or <strong>$\mathcal{B}$</strong></h1>
         <p>
-            A naive attempt to define a ballot would be a simple integer [1, 2, 3, ...]. However, this approach is
-            insufficient because it does not provide a way to compare ballots from different nodes or ensure
-            uniqueness across the network. Even if nodes start their sequences randomly, eventually collisions occur.
+           The choice of naming the concept of the protocol container logic is a true mistake on Lamport's part. It confuses the concepts he's trying to explain with no additional clarity. It's easy to consider this a round of voting but that's not quite either. 
         </p>
 
         <p>
-        <blockquote>
-             To keep different priests from initiatingballots with the same number, the set of possible ballot numbers was partitioned amongthe priests.While it is not known how this was
-            done, an obvious method would have been to let a ballot number be a pair consisting
-            of an integer and a priest, using a lexicographical ordering, where<br />
-            (13, Γρα˘ι) &le; (13, Λινσ˘ι) &le; (15, Γρα˘ι) since Γ came before Λ in the Paxon alphabet. In any case, it is known that every priest had an unbounded set of ballot numbers reserved for his use 
-        </blockquote>
-        </p>
-
-        <p>Implementation is not as important as what a ballot number must accomplish. It can be a complex number, a hash set or most simply a monotonically increasing id and a node id. (id, node_id).
-        
-        <p>
-        (1,1) &le; (1,2), &le; (3,1). 
+            The truth is, it's not object, it's a mathematical concept, logical organization he's giving a bad name to and then treating it like a physical object. For ease of use we will call it the round to the protocol but know that that it is both more and less then that. 
         </p>
 
         <p>
-            This ensures that ballot identifiers are totally ordered, discrete, and easy to reason about.
+           A round is successful if the number of nodes that have voted for a decree meets or exceeds the quorum threshold.
         </p>
     </div>
 </div>

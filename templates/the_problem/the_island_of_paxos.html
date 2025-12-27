@@ -1,0 +1,53 @@
+{% extends "base.html" %} {% block title %}The Island Of Paxos{% endblock %} {%
+block content %}
+<div class="container">
+  <div class="panel">
+    <h1 class="panel-title">The Island Of Paxos</h1>
+    <blockquote>
+      <p>
+        Early in this millennium, the Aegean island of Paxos was a thriving
+        mercantile center...But trade came before civic duty, and no one in
+        Paxos was willing to devote his life to Parliament
+      </p>
+    </blockquote>
+
+    <p>
+      When confronted with the complexity of a problem, logically one would
+      state in clear terms the issues one is trying to solve. Lamport opted to
+      dress up the problem in allegory and obscuring language.
+    </p>
+
+    <p>
+      His description is telling; "But trade comes before civic duty". The
+      purpose of a node is multifaceted and to do work, agreement is simply one
+      part of it's purpose. While Lamport paper is concerned with the problem of
+      consensus, any system is more then that. It's main purpose is to be
+      productive which consensus allows it to be. Consensus on it's own is not
+      enough for a useful system.
+    </p>
+
+    <p></p>
+
+    <p>
+      The allergy exploring this leans heavily on personification of nodes as
+      people, with physical needs and toolsets. Ledgers with permanent ink;
+      messengers traveling to distant lands via sea and land. The purpose I
+      believe is to separate implementation from description. He wants there to
+      be a bit elasticity what they can be and how it works. How a ledger is
+      recorded is not as important as the fact that it is recorded. But metaphor
+      always leads to vagueness and a loss of precision. Throughout the paper I
+      will try to keep Lamport terminology as much as possible but I will also
+      try my best to add precision.
+    </p>
+
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/overiew">Prev - Paper Overview</a>
+      </div>
+      <div class="next">
+        <a href="/the-problem/requirements">Next - Section 1.2 Requirements</a>
+      </div>
+    </div>
+  </div>
+  {% endblock %}
+</div>

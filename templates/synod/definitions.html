@@ -1,47 +1,116 @@
-{% extends "base.html" %}
-
-{% block title %}Paxos Definitions{% endblock %}
-
-{% block extra_stylesheets %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+{% extends "base.html" %} {% block title %}Paxos Definitions{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <div class="container">
-    <div class="panel">
-        <h1>Section 2. A basic protocol made complicated</h1>
+  <div class="panel">
+    <h1>Section 2. A basic protocol made complicated</h1>
 
-        <h2>Definitions</h2>
-        <p>
-            Breaking down the protocol is easier once we actually define terms. This is something that Lamport does
-            haphazardly constructing a basic proof before explaining it's constitute parts.
-        </p>
+    <h2>Definitions</h2>
+    <p>
+      Breaking down the protocol is easier once we actually define terms. This
+      is something that Lamport does haphazardly constructing a basic proof
+      before explaining it's constitute parts.
+    </p>
+    <h3>Ballot/Round</h3>
+    <dl>
+      <dt>$\mathcal{B}$</dt>
+      <dd>Set of all ballots.</dd>
+      <dt><a href="/synod/ballot">Ballot</a> or <strong>B</strong></dt>
+      <dd>
+        A record or instance of the full protocol that contains all the needed
+        information as shown below here.
+      </dd>
+      <dt>Value or <strong>$B$dec</strong></dt>
+      <dd>The value for a decree that the protocol is recording</dd>
+      <dt><a href="/synod/quorum">Quorum</a> or <strong>B</strong>qrm</dt>
+      <dd>
+        A nonempty set of nodes (the ballot’s quorum). Usually thought of as (
+        Nodes / 2 + 1).
+      </dd>
+      <dt>Votes or <strong>$B$</strong>vote</dt>
+      <dd>Vote by nodes for a particular round of a decree process</dd>
+      <dt>
+        <a href="/synod/ballot_number">Ballot Number</a> or
+        <strong>B</strong>bal
+      </dt>
+      <dd>
+        A unique descriptor of a vote that can be compared with any other ballot
+        to determine which comes first.
+      </dd>
+      <dt>Null prior ballot or Null vote (sentinel)</dt>
+      <dd>
+        A sentinel value indicating that no prior accepted ballot exists in the
+        queried quorum. Formally represented by a ballot number of $-\infty$,
+        which is less than any valid ballot number.
+      </dd>
+      <dt>Null value</dt>
+      <dd>
+        BLANK IE: A sentinel meaning no value has been chosen; it is not a valid
+        decree.
+      </dd>
+    </dl>
 
-        <dl>
-            <dt><a href="/synod/ballot">Ballot</a> or <strong>$\mathcal{B}$</strong></dt>
-            <dd>A unique descriptor of a vote that can be compared with any other ballot to determine which comes first.</dd>
-        </dl>
-    </div>
+    <hr />
+    <h3>Additional Math Terms</h3>
+    <dl>
+      <dt>Theorem</dt>
+      <dd>
+        A statement that has been rigorously proven based on axioms,
+        definitions, and previously established theorems. In Paxos, theorems
+        establish the correctness properties of the protocol, like safety and
+        liveness.
+      </dd>
+
+      <dt>Constraint</dt>
+      <dd>
+        A condition or requirement that must hold true within the system. For
+        example, a quorum intersection is a constraint ensuring that chosen
+        values cannot conflict.
+      </dd>
+
+      <dt>Lemma</dt>
+      <dd>
+        An intermediate result used to prove a larger theorem. Lemmas in Paxos
+        typically reason about acceptor behavior, ballot ordering, or quorum
+        intersection.
+      </dd>
+      <dt>Corollary</dt>
+      <dd>
+        A statement that follows directly from a theorem or lemma. In Paxos, a
+        corollary might be that a specific value will eventually be learned by
+        all learners once a quorum accepts it.
+      </dd>
+
+      <dt>Prime notation (x′, B′)</dt>
+      <dd>
+        For any variable, a prime (') indicates a related or subsequent
+        instance, e.g., x' is a later value or copy of x, or B' is another
+        ballot distinct from B.
+      </dd>
+    </dl>
+  </div>
 </div>
 
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 
 <script>
-    // Render KaTeX math when DOM is ready
-    document.addEventListener('DOMContentLoaded', function () {
-        if (window.renderMathInElement) {
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },
-                    { left: '$', right: '$', display: false }
-                ]
-            });
-        }
-    });
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
 </script>
 
 {% endblock %}
