@@ -136,6 +136,7 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
         //section-2
         .route("/synod/overview", get(synod_overview_handler))
         .route("/synod/decree-example", get(synod_decree_handler))
+        .route("/synod/definitions", get(synod_definitions_handler))
 
 
 
@@ -145,7 +146,7 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
         .route("/api/start-scenario", post(start_scenario_handler))
         //synod
         .route("/synod/constraints", get(synod_constraints_handler))
-        .route("/synod/definitions", get(synod_definitions_handler))
+
         .route("/synod/ballot", get(synod_ballot_handler))
         .route("/synod/ballot_number", get(synod_ballot_number_handler))
         .route("/synod/lemma", get(synod_lemma_handler))
