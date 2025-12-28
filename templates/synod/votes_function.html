@@ -1,0 +1,85 @@
+{% extends "base.html" %} {% block title %} Votes($\mathcal{B})$ {% endblock %}
+{% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <h1>$\text{Votes}(\mathcal{B})$ Function</h1>
+
+    <blockquote>
+      For any votes $v$ and $v'$ , if $v$bal < $v'$ bal then $\lt$ $v'$
+    </blockquote>
+
+    <p>
+      This simple state that for any two unique votes, if the ballot id of one
+      is less than the other then it is less than the other then the vote is
+      less then that other one. This is just a formal way of saying that votes
+      can be ordered by their ballot id
+    </p>
+
+    <blockquote>
+      For any set $\mathcal{B}$ of ballots, the set $\text{Votes}(\mathcal{B})$
+      of votes in $\mathcal{B}$ was defined to consist of all votes $\text{v}$
+      such that $\text{v}$pst $\in$ $\text{b}$vot, $\text{v}$bal = $B$bal , and
+      $v$dec = $B$dec for some $B$ $\in$ $B$.
+    </blockquote>
+    <p>
+      $\text{Votes}(\mathcal{B})$ is a name for a set, parameterized by a set of
+      ballots. Given a group of ballots, it refers to all votes that match any
+      of them. It outputs the set of votes for a ballot that were cast by the
+      priest that were of the ballot vote where the vote ballot id = the
+      round/ballot ballot id and the vote decree is equal to the ballot decree
+    </p>
+
+    <p>
+      Notice that this means that a vote itself contains it's own decree and
+      ballot_id at least as a inditification and or as meta data
+    </p>
+
+    <div class="block">
+      <p>
+        A formal definition might read. <br />
+        A vote $v$ belongs to $\mathrm{Votes}(\mathcal{B})$ exactly when all of
+        the following hold for some $B \in \mathcal{B}$:
+      </p>
+
+      <ol>
+        <li>$v.\mathrm{pst} \in B.\mathrm{vot}$</li>
+        <li>$v.\mathrm{bal} = B.\mathrm{bal}$</li>
+        <li>$v.\mathrm{dec} = B.\mathrm{dec}$</li>
+      </ol>
+    </div>
+
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/synod/ballot-number">Prev - Ballot Number</a>
+      </div>
+      <div class="next">
+        <a href="/synod/max-vote">Next - $\text{MaxVote}(b, p, \mathcal{B})$ </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

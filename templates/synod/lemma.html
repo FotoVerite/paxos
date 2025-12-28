@@ -1,9 +1,6 @@
-{% extends "base.html" %} {% block title %}Paxos Max Vote Function{% endblock %}
+{% extends "base.html" %} {% block title %}Paxos Lemma{% endblock %}
 {% block extra_stylesheets %}
-<link
-  rel="stylesheet"
-  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 {% endblock %} {% block content %}
@@ -28,10 +25,74 @@
       </p>
     </div>
 
-    <p>
-      Lamport does this by contradiction. Which I will now try do in plain
-      english.
+     <p>
+      Lamport proves does this by contradiction.
     </p>
+
+    <blockquote>
+      <ol>
+        <li>
+          Choose $C \in \Psi(B, B)$ such that
+          $C_{\mathrm{bal}} = \min\{ B'_{\mathrm{bal}} : B' \in \Psi(B, B) \}$.
+          <br>
+          <strong>Proof:</strong> $C$ exists because $\Psi(B, B)$ is nonempty and finite.
+        </li>
+        <li>
+          $C_{\mathrm{bal}} > B_{\mathrm{bal}}$.
+          <br>
+          <strong>Proof:</strong> By step 1 and the definition of $\Psi(B, B)$.
+        </li>
+        <li>
+          $B_{\mathrm{vot}} \cap C_{\mathrm{qrm}} = \emptyset$.
+          <br>
+          <strong>Proof:</strong> By $B2(B)$ and the hypothesis that $B_{\mathrm{qrm}} \subseteq B_{\mathrm{vot}}$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)_{\mathrm{bal}} \ge B_{\mathrm{bal}}$.
+          <br>
+          <strong>Proof:</strong> By steps 2, 3 and the definition of $\mathrm{MaxVote}(C_{\mathrm{bal}},
+          C_{\mathrm{qrm}}, B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B) \in \mathrm{Votes}(B)$.
+          <br>
+          <strong>Proof:</strong> By step 4 (which implies that $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}},
+          B)$ is not a null vote) and the definition of $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)_{\mathrm{dec}} = C_{\mathrm{dec}}$.
+          <br>
+          <strong>Proof:</strong> By step 5 and $B3(B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)_{\mathrm{dec}} = B_{\mathrm{dec}}$.
+          <br>
+          <strong>Proof:</strong> By step 6, step 1, and the definition of $\Psi(B, B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)_{\mathrm{bal}} > B_{\mathrm{bal}}$.
+          <br>
+          <strong>Proof:</strong> By step 4, since steps 7 and $B1(B)$ imply $\mathrm{MaxVote}(C_{\mathrm{bal}},
+          C_{\mathrm{qrm}}, B)_{\mathrm{bal}} = B_{\mathrm{bal}}$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B) \in \mathrm{Votes}(\Psi(B, B))$.
+          <br>
+          <strong>Proof:</strong> By steps 7, 8, and the definition of $\Psi(B, B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)_{\mathrm{bal}} < C_{\mathrm{bal}}$. <br>
+            <strong>Proof:</strong> By definition of $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)$.
+        </li>
+        <li>
+          Contradiction.
+          <br>
+          <strong>Proof:</strong> By steps 9, 10, and 1.
+        </li>
+      </ol>
+    </blockquote>
+
+   <p>Paraphrased below in as simple english as possible.</p>
 
     <ol>
       <li>
@@ -43,22 +104,33 @@
         Given Constraint B2 Ballot C quorum includes the quorum of Ballot B and
         will be able to use MaxVote to find said vote
       </li>
-      <li>
-        Apply MaxVote: MaxVote(C_bal, C_qrm, B) selects the largest prior vote
-        in C’s quorum. By B3, C must adopt the decree of that vote.
+      <li> $\text{MaxVote}(Cbal, Cqrm, \mathcal{B})$ selects the largest prior vote
+        in $C’$s quorum. By B3, C must adopt the decree of that vote.
       </li>
       <li>
-        Observe the conflict: The vote chosen by MaxVote is either in B’s votes
+        Observe the conflict: The vote chosen by MaxVote is either in $B’$s votes
         (so it has decree B_dec) or is null. Either way, C cannot legitimately
         choose a different decree than B.
       </li>
       <li>
-        Contradiction arises: Our assumption that C picks a different decree is
-        impossible, because the rules force it to pick B’s decree.  Ψ(B, B) can only be empty.
+        Contradiction arises: Our assumption that $C$ picks a different decree is
+        impossible, because the rules force it to pick $B’$s decree. Ψ(B, B) can only be empty.
       </li>
     </ol>
 
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/synod/max-vote-quorum">Prev - $\text{MaxVote}(b, Q, \mathcal{B})$
+        </a>
+      </div>
+      <div class="next">
+        <a href="/synod/theorem-one">Next - Theorem One </a>
+      </div>
+    </div>
+
   </div>
+
+
 </div>
 
 {% endblock %} {% block scripts %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %} {% block title %}Paxos Protocol Definitions{% endblock %} {%
+block extra_stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+
+
+  <div class="panel">
+    <header>
+      <h1>📚 Ballot Definitions</h1>
+      <p class="subtitle">Key terms and concepts from the Paxos protocol</p>
+    </header>
+    <h3>Ballot/Round</h3>
+    <dl>
+      <dt>$\mathcal{B}$</dt>
+      <dd>Set of all ballots.</dd>
+      <dt>Ballot</a> or <strong>$B$</strong>
+        <a href="/synod/ballot-definition" class="link">↗</a>
+      </dt>
+      <dd>
+        A record or instance of the full protocol that contains all the needed
+        information as shown below here.
+      </dd>
+      <dt>Value or <strong>$B$</strong>dec</dt>
+      <dd>The value for a decree that the protocol is recording</dd>
+      <dt>Quorum or <strong>$B$</strong>qrm
+        <a href="/synod/quorum" class="link">↗</a>
+      </dt>
+      <dd>
+        A nonempty set of nodes (the ballot’s quorum). Usually thought of as (
+        Nodes / 2 + 1).
+      </dd>
+      <dt>Votes or <strong>$B$</strong>vote</dt>
+      <dd>Vote by nodes for a particular round of a decree process</dd>
+      <dt>
+        Ballot Number or
+        <strong>$B$</strong>bal
+         <a
+          href="/synod/ballot-number"
+          class="link"
+          >↗</a>
+      </dt>
+      <dd>
+        A unique descriptor of a vote that can be compared with any other ballot
+        to determine which comes first.
+      </dd>
+      <dt>Null prior ballot or Null vote (sentinel)</dt>
+      <dd>
+        A sentinel value indicating that no prior accepted ballot exists in the
+        queried quorum. Formally represented by a ballot number of $-\infty$,
+        which is less than any valid ballot number.
+      </dd>
+      <dt>Null value</dt>
+      <dd>
+        BLANK IE: A sentinel meaning no value has been chosen; it is not a valid
+        decree.
+      </dd>
+    </dl>
+    <hr />
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/synod/terms">Prev - Section 2 Terms</a>
+      </div>
+      <div class="next">
+        <a href="/synod/ballot">Next - Ballot </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

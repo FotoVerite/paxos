@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Paxos Max Vote Function{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="panel">
+        <h1>Section 2. $\text{MaxVote}(b, Q, \mathcal{B})$</h1>
+
+        <blockquote>
+            For any nonempty set $Q$ of priests,$\text{MaxVote}(b, Q, \mathcal{B})$ was defined to equal the
+            maximum of all votes ,$\text{MaxVote}(b, p, \mathcal{B})$ with $p$ in $Q$
+        </blockquote>
+
+
+        <p>
+            This function is an extension of the previous MaxVote function. Instead of taking a single priest/node
+            it takes a set of them called a quorum. It then returns the maximum vote from the set of votes returned
+            by calling the previous MaxVote function for each priest/node in the quorum.
+        </p>
+
+
+        <div class="nav-links">
+            <div class="prev">
+                <a href="/synod/max-vote">Prev - $\text{MaxVote}(b, p, \mathcal{B})$
+                </a>
+            </div>
+            <div class="next">
+                <a href="/synod/lemma">Next - Lemma </a>
+            </div>
+        </div>
+
+    </div>
+
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (window.renderMathInElement) {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false },
+                ],
+            });
+        }
+    });
+</script>
+{% endblock %}

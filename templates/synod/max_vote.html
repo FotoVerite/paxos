@@ -1,4 +1,6 @@
-{% extends "base.html" %} {% block title %}Paxos Max Vote Function{% endblock %}
+{% extends "base.html" %}
+{% block title %}Paxos Max Vote Function{% endblock %}
+
 {% block extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -6,10 +8,12 @@
 />
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-{% endblock %} {% block content %}
+{% endblock %}
+
+{% block content %}
 <div class="container">
   <div class="panel">
-    <h1>Section 2. A function partial functional name</h1>
+    <h1>Section 2. MaxVote Function</h1>
 
     <h2>$\text{MaxVote}(b, p, \mathcal{B})$</h2>
     <p>
@@ -20,9 +24,7 @@
     </p>
 
     <div class="key-concept">
-      <strong>MaxVote(b, p, B):</strong>
       <p>
-        formally defined as:
         <span class="math">
           $\{ v \in \text{Votes}(\mathcal{B}) : v_{\text{pst}} = p \wedge
           v_{\text{bal}} < b \} \cup \{ \text{null}_p \}$
@@ -31,27 +33,43 @@
     </div>
 
     <p>
-      This reads as the set of votes in the ballot B cast by priest p with
-      ballot numbers less than b, together with the null vote.
+      In words: this reads the vote from the set of votes in $\mathcal{B}$ cast
+      by priest $p$ whose ballot number is less than $b$, or the null vote
+      if none exist.
     </p>
 
     <p>
-      This is <em>not</em> an implementation detail Lamport is specifying what
-      the function must do, not how to implement it.
+      Conceptually, it returns a <strong>single vote</strong> (the one with the
+      highest ballot number below $b$), not a set of votes or a ballot itself.
+      This is a logical definition for the proof — it does not specify an
+      implementation.
     </p>
 
     <p>
-      This also explains why he switches from $B_{\text{bal}}$ to
-      $v_{\text{bal}}$: he’s interested in the vote and the ballot attached to
-      it, while disambiguating the value obtained versus the ballot itself. The vote is just a technicality to get the ballot.
+      This also explains why Lamport switches notation from $B_{\mathrm{bal}}$
+      to $v_{\mathrm{bal}}$: he is referring to the ballot attached to the vote,
+      not the ballot itself. The vote here is just a technical construct to access
+      the associated ballot.
     </p>
+
+    <div class="nav-links">
+      <div class="prev">
+      <a
+          href="/synod/votes-function-b">Prev - Votes($\mathcal{B})$
+        </a>
+      </div>
+      <div class="next">
+        <a href="/synod/max-vote-quorum">Next - $\text{MaxVote}(b, Q, \mathcal{B})$ </a>
+      </div>
+    </div>
   </div>
+
+   
 </div>
+{% endblock %}
 
-{% endblock %} {% block scripts %}
-
+{% block scripts %}
 <script>
-  // Render KaTeX math when DOM is ready
   document.addEventListener("DOMContentLoaded", function () {
     if (window.renderMathInElement) {
       renderMathInElement(document.body, {
@@ -63,5 +81,4 @@
     }
   });
 </script>
-
 {% endblock %}

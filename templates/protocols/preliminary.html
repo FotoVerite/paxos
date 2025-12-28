@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% block title %}Paxos Protocol Constraints{% endblock
+{% extends "base.html" %} {% block title %}Paxos Preliminary Protocol{% endblock
 %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -9,22 +9,32 @@
 {% endblock %} {% block content %}
 <div class="container">
   <div class="panel">
-    <h1>Section 2. A basic protocol made constrained</h1>
+    <h1>Section 2.1. Preliminary Protocol</h1>
 
-    <p>There are three major constraints to the paxos protocol</p>
+    <p>
+      This protocol is used to demonstrate that the paxos protocol is safe. It
+      does not yet prove that deadlocks will not happen only that decrees will
+      not be overwritten.
+    </p>
 
     <div class="key-concept">
-      <h2>Ballot Uniqueness</h2>
+      (1) Priest $p$ chooses a new ballot number b and sends a $NextBallot(b)$
+      message to some set of priests.
+    </div>
 
-      <strong>$\mathbf{B1}(\mathcal{B})$:</strong> $\triangleq \forall B, B' \in
-      \mathcal{B} : (B \neq B') \Rightarrow (B_{\text{bal}} \neq
-      B'_{\text{bal}})$
+    <p>
+      Said set of priest can and usually includes itself. You can think of
+      message functions as small data payloads including all the needed data.
+      Notice that the ballot number b can be any number including ones lower
+      than previously used or even ones previously used. This is why this
+      protocol is about safety not about progress.
+    </p>
 
-      <p>
-        If two distinct ballots $B$ and $B'$ belong to the set $\mathcal{B}$,
-        then their ballot numbers $B_{\text{bal}}$ and $B'_{\text{bal}}$ must
-        also be distinct.
-      </p>
+    <div class="key-concept">
+      (2) A priest $q$ responds to the receipt of a$ NextBallot(b)$ message by
+      sending a $LastVote(b, v)$ message to $p$, where $v$ is the vote with the
+      largest ballot number less than $b$ that $q$ has cast, or his null vote null $q$
+      if $q$ did not vote in any ballot numbered less than $b$.
     </div>
 
     <div class="key-concept">

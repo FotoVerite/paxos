@@ -53,6 +53,18 @@ page_template!(
     "the_problem/assumptions.html"
 );
 
+page_template!(
+    synod_ballot_definition_handler,
+    SynodBallotDefinitionTemplate,
+    "synod/ballot_definition.html"
+);
+
+page_template!(
+    synod_ballot_handler,
+    SynodBallotTemplate,
+    "synod/ballot.html"
+);
+
 // Section 2
 page_template!(
     synod_overview_handler,
@@ -66,6 +78,48 @@ page_template!(
     "synod/decree_example.html"
 );
 
+page_template!(
+    synod_math_terms_handler,
+    SynodTerms,
+    "./synod/math_terms.html"
+);
+
+page_template!(
+    synod_votes_function_handler,
+    SynodVotesFunctionTemplate,
+    "./synod/votes_function.html"
+);
+
+page_template!(
+    synod_max_vote_quorum_handler,
+    SynodMax,
+    "./synod/max_vote_quorum.html"
+);
+
+page_template!(
+    synod_theorem_one_handler,
+    SynodTheoremOneTemplate,
+    "./synod/theorem_one.html"
+);
+
+page_template!(
+    synod_theorem_two_handler,
+    SynodTheoremTwoTemplate,
+    "./synod/theorem_two.html"
+);
+
+page_template!(
+    synod_recap_handler,
+    SynodR,
+    "./synod/recap.html"
+);
+
+//section 2.1-2.4
+page_template!(
+    protocol_preliminary_handler,
+    ProtocolPreliminaryTemp,
+    "./protocols/preliminary.html"
+);
 // Define pages
 page_template!(landing_handler, LandingTemplate, "landing.html");
 page_template!(leslie_handler, LeslieTemplate, "leslie.html");
@@ -87,14 +141,11 @@ page_template!(
     SynodConstraints,
     "./synod/constraints.html"
 );
-page_template!(
-    synod_definitions_handler,
-    SynodDefinitions,
-    "./synod/definitions.html"
-);
+
+
+
 
 page_template!(synod_lemma_handler, SynodLemma, "./synod/lemma.html");
-page_template!(synod_ballot_handler, SynodBallot, "./synod/ballot.html");
 page_template!(
     synod_ballot_number_handler,
     SynodBallotNumber,
@@ -136,9 +187,18 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
         //section-2
         .route("/synod/overview", get(synod_overview_handler))
         .route("/synod/decree-example", get(synod_decree_handler))
-        .route("/synod/definitions", get(synod_definitions_handler))
-
-
+        .route("/synod/ballot-definition", get(synod_ballot_definition_handler))
+        .route("/synod/math-terms", get(synod_math_terms_handler))
+        .route("/synod/ballot", get(synod_ballot_handler))
+        .route("/synod/ballot-number", get(synod_ballot_number_handler))
+        .route("/synod/votes-function-b", get(synod_votes_function_handler))
+        .route("/synod/max-vote", get(synod_max_vote_handler))
+        .route("/synod/max-vote-quorum", get(synod_max_vote_quorum_handler))
+        .route("/synod/theorem-one", get(synod_theorem_one_handler))
+        .route("/synod/theorem-two", get(synod_theorem_two_handler))
+        .route("/synod/recap", get(synod_recap_handler))
+        //section 2.1-2.4
+        .route("/protocols/preliminary-protocol", get(protocol_preliminary_handler))
 
         .route("/the_problem", get(the_problem_handler))
         .route("/decree", get(decree_handler))
@@ -147,10 +207,8 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
         //synod
         .route("/synod/constraints", get(synod_constraints_handler))
 
-        .route("/synod/ballot", get(synod_ballot_handler))
-        .route("/synod/ballot_number", get(synod_ballot_number_handler))
+
         .route("/synod/lemma", get(synod_lemma_handler))
-        .route("/synod/max_vote", get(synod_max_vote_handler))
         .route("/synod/quorum", get(synod_quorum_handler))
         .route("/api/propose", post(propose_handler))
         .fallback_service(static_files_service)

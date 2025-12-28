@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Section 2. Recap{% endblock %}
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="panel">
+        <h1>Section 2. Recap</h1>
+
+        <p>
+            Paxos uses the conceptual object called a <strong>Ballot</strong>, which contains:
+        </p>
+        <div class="key-concept">
+            <ul>
+                <li>a <em>ballot number</em> (unique identifier),</li>
+                <li>a <em>decree</em> (proposed value),</li>
+                <li>and <em>votes</em> from other nodes in the system.</li>
+            </ul>
+        </div>
+        <p>
+            Three constraints (B1–B3) and the ability to aggregate votes over a set of ballots ensure that:
+        </p>
+
+        <div class="key-concept">
+
+            <ul>
+                <li>once a value is chosen, all future ballots will agree on that value,</li>
+                <li>consistency (safety) is maintained across the distributed system.</li>
+            </ul>
+        </div>
+        <p>
+            Theorems One and Two formally prove that if the constraints are upheld, the protocol is safe.
+            Message passing between nodes, combined with ballot management, guarantees agreement even if multiple
+            ballots are active or nodes fail.
+        </p>
+
+        <div class="nav-links">
+            <div class="prev">
+                <a href="/synod/lemma">Prev - Theorem Two </a>
+            </div>
+            <div class="next">
+                <a href="/protocols/preliminary-protocol">Next - Preliminary Protocol </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (window.renderMathInElement) {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false },
+                ],
+            });
+        }
+    });
+</script>
+{% endblock %}
