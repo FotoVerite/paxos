@@ -214,8 +214,8 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
         .fallback_service(static_files_service)
         .with_state(app_state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Web server listening on http://0.0.0.0:3000");
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await.unwrap();
+    println!("Web server listening on http://0.0.0.0:3001");
     axum::serve(listener, app).await.unwrap();
 }
 
