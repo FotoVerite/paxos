@@ -123,6 +123,13 @@ impl Acceptor {
                         value: cmd.clone(),
                     });
 
+                    self.observer.on_event(Event::Accepted {
+                        decree_num,
+                        id: self.id,
+                        ballot: ballot.number,
+                        value: cmd.clone(),
+                    });
+
                     return Message::Accepted {
                         from: self.id,
                         decree_num,

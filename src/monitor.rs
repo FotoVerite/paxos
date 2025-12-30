@@ -21,6 +21,12 @@ pub enum Event {
         ballot: usize,
         value: PaxosCommand,
     },
+    Accepted {
+        id: usize,
+        decree_num: usize,
+        ballot: usize,
+        value: PaxosCommand,
+    },
     Learn {
         id: usize,
         decree_num: usize,

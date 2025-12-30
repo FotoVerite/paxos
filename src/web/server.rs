@@ -108,11 +108,7 @@ page_template!(
     "./synod/theorem_two.html"
 );
 
-page_template!(
-    synod_recap_handler,
-    SynodR,
-    "./synod/recap.html"
-);
+page_template!(synod_recap_handler, SynodR, "./synod/recap.html");
 
 //section 2.1-2.4
 page_template!(
@@ -120,6 +116,25 @@ page_template!(
     ProtocolPreliminaryTemp,
     "./protocols/preliminary.html"
 );
+
+page_template!(
+    preliminary_protocol_visualizer_handler,
+    PreliminaryProtocolVisualizerTemplate,
+    "preliminary-protocol-visualizer.html"
+);
+
+page_template!(
+    preliminary_protocol_demo_handler,
+    PreliminaryProtocolDemoTemplate,
+    "preliminary-protocol-demo.html"
+);
+
+page_template!(
+    protocol_basic_handler,
+    ProtocolBasicTemp,
+    "./protocols/basic.html"
+);
+
 // Define pages
 page_template!(landing_handler, LandingTemplate, "landing.html");
 page_template!(leslie_handler, LeslieTemplate, "leslie.html");
@@ -141,9 +156,6 @@ page_template!(
     SynodConstraints,
     "./synod/constraints.html"
 );
-
-
-
 
 page_template!(synod_lemma_handler, SynodLemma, "./synod/lemma.html");
 page_template!(
@@ -187,7 +199,10 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
         //section-2
         .route("/synod/overview", get(synod_overview_handler))
         .route("/synod/decree-example", get(synod_decree_handler))
-        .route("/synod/ballot-definition", get(synod_ballot_definition_handler))
+        .route(
+            "/synod/ballot-definition",
+            get(synod_ballot_definition_handler),
+        )
         .route("/synod/math-terms", get(synod_math_terms_handler))
         .route("/synod/ballot", get(synod_ballot_handler))
         .route("/synod/ballot-number", get(synod_ballot_number_handler))
@@ -198,16 +213,24 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
         .route("/synod/theorem-two", get(synod_theorem_two_handler))
         .route("/synod/recap", get(synod_recap_handler))
         //section 2.1-2.4
-        .route("/protocols/preliminary-protocol", get(protocol_preliminary_handler))
-
+        .route(
+            "/protocols/preliminary-protocol",
+            get(protocol_preliminary_handler),
+        )
+        .route(
+            "/protocols//preliminary-protocol-demo",
+            get(preliminary_protocol_demo_handler),
+        )
+        .route(
+            "/protocols/basic-protocol",
+            get(protocol_basic_handler),
+        )
         .route("/the_problem", get(the_problem_handler))
         .route("/decree", get(decree_handler))
         .route("/ws", get(websocket_handler))
         .route("/api/start-scenario", post(start_scenario_handler))
         //synod
         .route("/synod/constraints", get(synod_constraints_handler))
-
-
         .route("/synod/lemma", get(synod_lemma_handler))
         .route("/synod/quorum", get(synod_quorum_handler))
         .route("/api/propose", post(propose_handler))

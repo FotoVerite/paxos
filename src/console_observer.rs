@@ -15,6 +15,9 @@ impl PaxosObserver for ConsoleObserver {
             Event::Accept { id, decree_num, ballot, value } => {
                 println!("{}", format!("[ACCEPTOR {}] Accepting ballot {} for decree {}: {}", id, ballot, decree_num, value).yellow());
             }
+            Event::Accepted { id, decree_num, ballot, value } => {
+                println!("{}", format!("[ACCEPTOR {}] Voted on ballot {} for decree {}: {}", id, ballot, decree_num, value).green());
+            }
             Event::Learn { id, decree_num, value } => {
                 println!("{}", format!("[LEARNER {}] Learned value for decree {}: {}", id, decree_num, value).green());
             }
