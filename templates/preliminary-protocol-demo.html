@@ -1,482 +1,458 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block title %}Preliminary Protocol Demo - Paxos{%
+endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/senate.css" />
+{% endblock %} {% block content %}
+<div
+  style="
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 20px;
+    gap: 20px;
+  "
+>
+  <!-- Visualization -->
+  <div
+    style="
+      flex: 0 0 40%;
+      background: #0f172a;
+      border-radius: 8px;
+      overflow: hidden;
+    "
+  >
+    <svg id="demovSvg" style="width: 100%; height: 100%"></svg>
+  </div>
 
-{% block title %}Preliminary Protocol Demo - Paxos{% endblock %}
-
-{% block extra_stylesheets %}
-    <link rel="stylesheet" href="/senate.css">
-{% endblock %}
-
-{% block content %}
-    <div class="container">
-        <div class="visualization">
-            <svg id="demovSvg"></svg>
+  <!-- Controls -->
+  <div style="flex: 0 0 auto">
+    <div
+      style="
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+      "
+    >
+      <div>
+        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #cbd5e1">
+          Scenario
+        </h3>
+        <select
+          id="scenarioSelect"
+          style="
+            width: 100%;
+            padding: 8px;
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            border-radius: 4px;
+          "
+        >
+          <option value="success">A: Clean Success</option>
+          <option value="quorum_fail">B: Quorum Fails</option>
+          <option value="higher_ballot">C: Higher Ballot Success</option>
+          <option value="two_proposers">D: Two Proposers (Interleaving)</option>
+          <option value="livelock">E: Livelock (No Progress)</option>
+          <option value="multi_proposer_progress">
+            F: Multiple Proposers, Both Make Progress
+          </option>
+        </select>
+      </div>
+      <div>
+        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #cbd5e1">
+          Speed
+        </h3>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <input
+            type="range"
+            id="speed"
+            value="1"
+            min="0.25"
+            max="2"
+            step="0.25"
+            style="flex: 1"
+          />
+          <span id="speedValue" style="color: #94a3b8; min-width: 30px"
+            >1x</span
+          >
         </div>
-
-        <div class="control-panel">
-            <div>
-                <h2>Preliminary Protocol Demonstration</h2>
-            </div>
-
-            <div>
-                <div class="control-group">
-                    <label for="scenarioSelect">Scenario:</label>
-                    <select id="scenarioSelect">
-                        <option value="success">A: Clean Success (7 nodes)</option>
-                        <option value="quorum_fail">B: Quorum Fails (retry needed)</option>
-                        <option value="same_ballot_fail">C: Retry Same Ballot (fails again)</option>
-                        <option value="lower_ballot">D: Lower Ballot (B3 conflict)</option>
-                        <option value="higher_ballot">E: Higher Ballot (succeeds)</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <label for="speed">Speed:</label>
-                    <input type="range" id="speed" value="1" min="0.25" max="2" step="0.25">
-                    <small style="color: #94a3b8;" id="speedValue">1x</small>
-                </div>
-                <button id="playBtn" onclick="playScenario()">Play</button>
-                <button id="pauseBtn" onclick="pauseScenario()" disabled>Pause</button>
-                <button id="resetBtn" onclick="resetScenario()">Reset</button>
-            </div>
-
-            <div>
-                <h2>Phase</h2>
-                <div style="padding: 10px; background: #1e293b; border-radius: 4px; border-left: 3px solid #60a5fa;">
-                    <div id="phaseTitle" style="font-weight: bold; color: #60a5fa; margin-bottom: 5px;">Ready</div>
-                    <div id="phaseDescription" style="font-size: 12px; color: #cbd5e1;">Select a scenario and click Play</div>
-                </div>
-            </div>
-
-            <div>
-                <h2>Protocol Events</h2>
-                <div class="stats-group">
-                    <div class="stat-item">
-                        <div class="stat-value" id="nextBallotCount">0</div>
-                        <div class="stat-label">NextBallot(b)</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="lastVoteCount">0</div>
-                        <div class="stat-label">LastVote(b, v)</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="beginBallotCount">0</div>
-                        <div class="stat-label">BeginBallot(b, d)</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="votedCount">0</div>
-                        <div class="stat-label">Voted(b, q)</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="successCount">0</div>
-                        <div class="stat-label">Success(d)</div>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <h2>Events</h2>
-                <div class="event-log" id="eventLog"></div>
-            </div>
-        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: flex-end">
+        <button
+          id="playBtn"
+          onclick="playScenario()"
+          style="
+            flex: 1;
+            padding: 8px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+          "
+        >
+          Play
+        </button>
+        <button
+          id="pauseBtn"
+          onclick="pauseScenario()"
+          disabled
+          style="
+            flex: 1;
+            padding: 8px;
+            background: #64748b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+          "
+        >
+          Pause
+        </button>
+        <button
+          id="resetBtn"
+          onclick="resetScenario()"
+          style="
+            flex: 1;
+            padding: 8px;
+            background: #64748b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+          "
+        >
+          Reset
+        </button>
+      </div>
     </div>
-{% endblock %}
 
-{% block scripts %}
-    <script src="/paxos-visualizer.js"></script>
-    <script>
-        // Initialize visualizer
-        const visualizer = new PaxosVisualizer('demovSvg', {
-            nodeRadius: 150,
-            nodeCircleRadius: 20,
-            eventColors: {
-                nextballot: '#60a5fa',   // Blue
-                lastvote: '#ec4899',     // Pink
-                beginballot: '#f59e0b',  // Orange
-                voted: '#10b981',        // Green
-                success: '#6366f1'       // Indigo
-            }
-        });
+    <!-- Phase Info -->
+    <div
+      style="
+        padding: 12px;
+        background: #1e293b;
+        border-radius: 4px;
+        border-left: 3px solid #60a5fa;
+      "
+    >
+      <div
+        id="phaseTitle"
+        style="
+          font-weight: bold;
+          color: #60a5fa;
+          margin-bottom: 4px;
+          font-size: 14px;
+        "
+      >
+        Ready
+      </div>
+      <div id="phaseDescription" style="font-size: 12px; color: #cbd5e1">
+        Select a scenario and click Play
+      </div>
+    </div>
+  </div>
 
-        const eventLog = document.getElementById('eventLog');
-        const speedSlider = document.getElementById('speed');
-        const speedValue = document.getElementById('speedValue');
-        const scenarioSelect = document.getElementById('scenarioSelect');
-        const phaseTitle = document.getElementById('phaseTitle');
-        const phaseDescription = document.getElementById('phaseDescription');
-        const playBtn = document.getElementById('playBtn');
-        const pauseBtn = document.getElementById('pauseBtn');
-        const resetBtn = document.getElementById('resetBtn');
+  <!-- Stats -->
+  <div style="flex: 0 0 auto">
+    <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #cbd5e1">
+      Protocol Events
+    </h3>
+    <div
+      style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px"
+    >
+      <div
+        style="
+          background: #1e293b;
+          padding: 10px;
+          border-radius: 4px;
+          text-align: center;
+        "
+      >
+        <div
+          style="font-weight: bold; color: #60a5fa; font-size: 18px"
+          id="nextBallotCount"
+        >
+          0
+        </div>
+        <div style="font-size: 11px; color: #94a3b8">NextBallot(b)</div>
+      </div>
+      <div
+        style="
+          background: #1e293b;
+          padding: 10px;
+          border-radius: 4px;
+          text-align: center;
+        "
+      >
+        <div
+          style="font-weight: bold; color: #ec4899; font-size: 18px"
+          id="lastVoteCount"
+        >
+          0
+        </div>
+        <div style="font-size: 11px; color: #94a3b8">LastVote(b, v)</div>
+      </div>
+      <div
+        style="
+          background: #1e293b;
+          padding: 10px;
+          border-radius: 4px;
+          text-align: center;
+        "
+      >
+        <div
+          style="font-weight: bold; color: #f59e0b; font-size: 18px"
+          id="beginBallotCount"
+        >
+          0
+        </div>
+        <div style="font-size: 11px; color: #94a3b8">BeginBallot(b, d)</div>
+      </div>
+      <div
+        style="
+          background: #1e293b;
+          padding: 10px;
+          border-radius: 4px;
+          text-align: center;
+        "
+      >
+        <div
+          style="font-weight: bold; color: #10b981; font-size: 18px"
+          id="votedCount"
+        >
+          0
+        </div>
+        <div style="font-size: 11px; color: #94a3b8">Voted(b, q)</div>
+      </div>
+      <div
+        style="
+          background: #1e293b;
+          padding: 10px;
+          border-radius: 4px;
+          text-align: center;
+        "
+      >
+        <div
+          style="font-weight: bold; color: #6366f1; font-size: 18px"
+          id="successCount"
+        >
+          0
+        </div>
+        <div style="font-size: 11px; color: #94a3b8">Success(d)</div>
+      </div>
+    </div>
+  </div>
 
-        let isRunning = false;
-        let currentScenario = null;
-        let eventCounts = { nextballot: 0, lastvote: 0, beginballot: 0, voted: 0, success: 0 };
+  <!-- Event Log -->
+  <div
+    style="
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      max-height: 250px;
+    "
+  >
+    <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #cbd5e1">
+      Event Log
+    </h3>
+    <div
+      id="eventLog"
+      style="
+        flex: 1;
+        overflow-y: auto;
+        background: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 4px;
+        padding: 10px;
+      "
+    ></div>
+  </div>
 
-        // Update speed display
-        speedSlider.addEventListener('change', (e) => {
-            speedValue.textContent = parseFloat(e.target.value).toFixed(2) + 'x';
-        });
+   <div class="nav-links">
+      <div class="prev">
+        <a href="/protocols/preliminary-protocol">Prev - Section 2.2 Preliminary Protocol </a>
+      </div>
+      <div class="next">
+        <a href="/protocols/basic-protocol">Next - Section 2.3 Basic Protocol </a>
+      </div>
+    </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="/paxos-visualizer.js"></script>
+<script src="/scenarios/success.js"></script>
+<script src="/scenarios/quorum-fail.js"></script>
+<script src="/scenarios/higher-ballot.js"></script>
+<script src="/scenarios/two-proposers.js"></script>
+<script src="/scenarios/livelock.js"></script>
+<script src="/scenarios/multi-proposer-progress.js"></script>
+<script>
+  // Initialize visualizer (30% larger)
+  const eventColorsConfig = {
+    nextballot: "#60a5fa", // Blue
+    lastvote: "#ec4899", // Pink
+    beginballot: "#f59e0b", // Orange
+    voted: "#10b981", // Green
+    success: "#6366f1", // Indigo
+  };
 
-        // Define scenarios
-        const scenarios = {
-            success: {
-                name: 'Clean Success',
-                description: 'All nodes participate, quorum achieved on first try',
-                nodeCount: 7,
-                phases: [
-                    {
-                        title: 'Step 1: NextBallot(b)',
-                        description: 'Proposer (node 0) sends NextBallot with ballot number 100',
-                        action: async () => {
-                            visualizer.activateNode(0, '#60a5fa');
-                            addEvent('[NextBallot] Node 0 proposes ballot 100', '#60a5fa');
-                            eventCounts.nextballot++;
-                            updateCounts();
-                            await sleep(600);
-                        }
-                    },
-                    {
-                        title: 'Step 2: LastVote(b, v)',
-                        description: 'Acceptors (nodes 1-6) respond with their previous votes',
-                        action: async () => {
-                            for (let i = 1; i <= 6; i++) {
-                                visualizer.activateNode(i, '#ec4899');
-                                addEvent(`[LastVote] Node ${i} responds`, '#ec4899');
-                                eventCounts.lastvote++;
-                                visualizer.drawBeam(i, 0, '#ec4899');
-                                await sleep(150);
-                            }
-                            updateCounts();
-                        }
-                    },
-                    {
-                        title: 'Step 3: BeginBallot(b, d)',
-                        description: 'Proposer sends BeginBallot with decree to nodes 1-5 (quorum of 4)',
-                        action: async () => {
-                            visualizer.activateNode(0, '#f59e0b');
-                            addEvent('[BeginBallot] Node 0 sends decree to quorum', '#f59e0b');
-                            const quorum = [1, 2, 3, 4, 5];
-                            for (const node of quorum) {
-                                visualizer.drawBeam(0, node, '#f59e0b');
-                                await sleep(100);
-                            }
-                            eventCounts.beginballot++;
-                            updateCounts();
-                            await sleep(300);
-                        }
-                    },
-                    {
-                        title: 'Step 4: Voted(b, q)',
-                        description: 'Acceptors in quorum cast votes and respond',
-                        action: async () => {
-                            const quorum = [1, 2, 3, 4, 5];
-                            for (const node of quorum) {
-                                visualizer.activateNode(node, '#10b981');
-                                addEvent(`[Voted] Node ${node} votes`, '#10b981');
-                                eventCounts.voted++;
-                                visualizer.drawBeam(node, 0, '#10b981');
-                                await sleep(150);
-                            }
-                            updateCounts();
-                        }
-                    },
-                    {
-                        title: 'Step 5-6: Success(d)',
-                        description: 'Proposer received quorum of votes, decree is chosen',
-                        action: async () => {
-                            visualizer.activateNode(0, '#6366f1');
-                            addEvent('[Success] Decree is chosen!', '#6366f1');
-                            eventCounts.success++;
-                            updateCounts();
-                            await sleep(500);
-                        }
-                    }
-                ]
-            },
-            quorum_fail: {
-                name: 'Quorum Fails',
-                description: 'Only 3 nodes respond (not enough for quorum of 4)',
-                nodeCount: 7,
-                phases: [
-                    {
-                        title: 'Step 1: NextBallot(b)',
-                        description: 'Proposer sends NextBallot with ballot 101',
-                        action: async () => {
-                            visualizer.activateNode(0, '#60a5fa');
-                            addEvent('[NextBallot] Node 0 proposes ballot 101', '#60a5fa');
-                            eventCounts.nextballot++;
-                            updateCounts();
-                            await sleep(600);
-                        }
-                    },
-                    {
-                        title: 'Step 2: LastVote(b, v)',
-                        description: 'Only nodes 1, 2, 3 respond (network issues for others)',
-                        action: async () => {
-                            for (let i of [1, 2, 3]) {
-                                visualizer.activateNode(i, '#ec4899');
-                                addEvent(`[LastVote] Node ${i} responds`, '#ec4899');
-                                eventCounts.lastvote++;
-                                visualizer.drawBeam(i, 0, '#ec4899');
-                                await sleep(150);
-                            }
-                            // Others don't respond
-                            for (let i of [4, 5, 6]) {
-                                addEvent(`[Timeout] Node ${i} no response`, '#94a3b8');
-                            }
-                            updateCounts();
-                            await sleep(300);
-                        }
-                    },
-                    {
-                        title: 'Step 3: BeginBallot(b, d)',
-                        description: 'Proposer only has 3 LastVote responses, needs quorum of 4 - FAILS',
-                        action: async () => {
-                            addEvent('[Failure] Insufficient LastVote responses', '#ef4444');
-                            await sleep(800);
-                        }
-                    }
-                ]
-            },
-            same_ballot_fail: {
-                name: 'Retry Same Ballot',
-                description: 'Proposer retries with same ballot, still fails',
-                nodeCount: 7,
-                phases: [
-                    {
-                        title: 'Attempt 2: NextBallot(b)',
-                        description: 'Proposer tries again with same ballot 101',
-                        action: async () => {
-                            visualizer.activateNode(0, '#60a5fa');
-                            addEvent('[NextBallot] Node 0 tries ballot 101 again', '#60a5fa');
-                            eventCounts.nextballot++;
-                            updateCounts();
-                            await sleep(600);
-                        }
-                    },
-                    {
-                        title: 'Step 2: LastVote(b, v)',
-                        description: 'Same nodes respond (network still unreliable)',
-                        action: async () => {
-                            for (let i of [1, 2, 3]) {
-                                visualizer.activateNode(i, '#ec4899');
-                                addEvent(`[LastVote] Node ${i} responds`, '#ec4899');
-                                eventCounts.lastvote++;
-                                visualizer.drawBeam(i, 0, '#ec4899');
-                                await sleep(150);
-                            }
-                            updateCounts();
-                            await sleep(300);
-                        }
-                    },
-                    {
-                        title: 'Result: Still fails',
-                        description: 'Without progress guarantee, same ballot cannot make progress',
-                        action: async () => {
-                            addEvent('[Failure] Same ballot fails again - no progress', '#ef4444');
-                            await sleep(800);
-                        }
-                    }
-                ]
-            },
-            lower_ballot: {
-                name: 'Lower Ballot Attempt',
-                description: 'Proposer tries lower ballot number (violates B3)',
-                nodeCount: 7,
-                phases: [
-                    {
-                        title: 'Attempt 3: NextBallot(b)',
-                        description: 'Proposer tries ballot 50 (lower than previous attempts)',
-                        action: async () => {
-                            visualizer.activateNode(0, '#60a5fa');
-                            addEvent('[NextBallot] Node 0 proposes ballot 50 (lower!)', '#60a5fa');
-                            eventCounts.nextballot++;
-                            updateCounts();
-                            await sleep(600);
-                        }
-                    },
-                    {
-                        title: 'Step 2: LastVote(b, v)',
-                        description: 'Nodes 1-6 respond with their max voted ballot (101)',
-                        action: async () => {
-                            for (let i = 1; i <= 6; i++) {
-                                visualizer.activateNode(i, '#ec4899');
-                                addEvent(`[LastVote] Node ${i} has ballot 101 > 50`, '#ec4899');
-                                eventCounts.lastvote++;
-                                visualizer.drawBeam(i, 0, '#ec4899');
-                                await sleep(150);
-                            }
-                            updateCounts();
-                            await sleep(300);
-                        }
-                    },
-                    {
-                        title: 'Result: B3 Constraint Violation',
-                        description: 'By B3, must choose highest voted ballot (101), cannot use 50',
-                        action: async () => {
-                            addEvent('[Failure] Cannot use ballot 50, must use 101 (B3)', '#ef4444');
-                            await sleep(800);
-                        }
-                    }
-                ]
-            },
-            higher_ballot: {
-                name: 'Higher Ballot Success',
-                description: 'Proposer uses higher ballot number (102) and succeeds',
-                nodeCount: 7,
-                phases: [
-                    {
-                        title: 'Attempt 4: NextBallot(b)',
-                        description: 'Proposer uses ballot 102 (higher than all previous)',
-                        action: async () => {
-                            visualizer.activateNode(0, '#60a5fa');
-                            addEvent('[NextBallot] Node 0 proposes ballot 102', '#60a5fa');
-                            eventCounts.nextballot++;
-                            updateCounts();
-                            await sleep(600);
-                        }
-                    },
-                    {
-                        title: 'Step 2: LastVote(b, v)',
-                        description: 'All nodes respond',
-                        action: async () => {
-                            for (let i = 1; i <= 6; i++) {
-                                visualizer.activateNode(i, '#ec4899');
-                                addEvent(`[LastVote] Node ${i} responds`, '#ec4899');
-                                eventCounts.lastvote++;
-                                visualizer.drawBeam(i, 0, '#ec4899');
-                                await sleep(120);
-                            }
-                            updateCounts();
-                            await sleep(300);
-                        }
-                    },
-                    {
-                        title: 'Step 3: BeginBallot(b, d)',
-                        description: 'Proposer sends to nodes 1-5 (quorum)',
-                        action: async () => {
-                            visualizer.activateNode(0, '#f59e0b');
-                            addEvent('[BeginBallot] Node 0 sends decree', '#f59e0b');
-                            const quorum = [1, 2, 3, 4, 5];
-                            for (const node of quorum) {
-                                visualizer.drawBeam(0, node, '#f59e0b');
-                                await sleep(80);
-                            }
-                            eventCounts.beginballot++;
-                            updateCounts();
-                            await sleep(300);
-                        }
-                    },
-                    {
-                        title: 'Step 4: Voted(b, q)',
-                        description: 'All quorum members vote',
-                        action: async () => {
-                            const quorum = [1, 2, 3, 4, 5];
-                            for (const node of quorum) {
-                                visualizer.activateNode(node, '#10b981');
-                                addEvent(`[Voted] Node ${node} votes`, '#10b981');
-                                eventCounts.voted++;
-                                visualizer.drawBeam(node, 0, '#10b981');
-                                await sleep(120);
-                            }
-                            updateCounts();
-                        }
-                    },
-                    {
-                        title: 'Step 5-6: Success(d)',
-                        description: 'Quorum achieved! Decree is chosen.',
-                        action: async () => {
-                            visualizer.activateNode(0, '#6366f1');
-                            addEvent('[Success] Decree chosen with ballot 102!', '#6366f1');
-                            eventCounts.success++;
-                            updateCounts();
-                            await sleep(600);
-                        }
-                    }
-                ]
-            }
-        };
+  const visualizer = new PaxosVisualizer("demovSvg", {
+    nodeRadius: 195,
+    nodeCircleRadius: 26,
+    eventColors: eventColorsConfig,
+  });
 
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms / speedSlider.value));
-        }
+  const eventLog = document.getElementById("eventLog");
+  const speedSlider = document.getElementById("speed");
+  const speedValue = document.getElementById("speedValue");
+  const scenarioSelect = document.getElementById("scenarioSelect");
+  const phaseTitle = document.getElementById("phaseTitle");
+  const phaseDescription = document.getElementById("phaseDescription");
+  const playBtn = document.getElementById("playBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const resetBtn = document.getElementById("resetBtn");
 
-        function addEvent(text, color) {
-            const item = document.createElement('div');
-            item.className = 'event-item';
-            item.style.borderLeftColor = color;
-            item.textContent = text;
-            eventLog.insertBefore(item, eventLog.firstChild);
-            while (eventLog.children.length > 30) {
-                eventLog.removeChild(eventLog.lastChild);
-            }
-        }
+  let isRunning = false;
+  let currentScenario = null;
+  let eventCounts = {
+    nextballot: 0,
+    lastvote: 0,
+    beginballot: 0,
+    voted: 0,
+    success: 0,
+  };
 
-        function updateCounts() {
-            document.getElementById('nextBallotCount').textContent = eventCounts.nextballot;
-            document.getElementById('lastVoteCount').textContent = eventCounts.lastvote;
-            document.getElementById('beginBallotCount').textContent = eventCounts.beginballot;
-            document.getElementById('votedCount').textContent = eventCounts.voted;
-            document.getElementById('successCount').textContent = eventCounts.success;
-        }
+  // Update speed display
+  speedSlider.addEventListener("change", (e) => {
+    speedValue.textContent = parseFloat(e.target.value).toFixed(2) + "x";
+  });
 
-        function resetScenario() {
-            isRunning = false;
-            playBtn.disabled = false;
-            pauseBtn.disabled = true;
-            eventCounts = { nextballot: 0, lastvote: 0, beginballot: 0, voted: 0, success: 0 };
-            updateCounts();
-            eventLog.innerHTML = '';
-            phaseTitle.textContent = 'Ready';
-            phaseDescription.textContent = 'Select a scenario and click Play';
-            phaseTitle.style.color = '#60a5fa';
-            
-            const scenarioName = scenarioSelect.value;
-            const scenario = scenarios[scenarioName];
-            if (scenario) {
-                visualizer.render({ total_nodes: scenario.nodeCount });
-            }
-        }
+  // Helper functions
+  function sleep(ms) {
+    return new Promise((resolve) =>
+      setTimeout(resolve, ms / speedSlider.value)
+    );
+  }
 
-        async function playScenario() {
-            if (isRunning) return;
-            
-            const scenarioName = scenarioSelect.value;
-            currentScenario = scenarios[scenarioName];
-            
-            if (!currentScenario) return;
-            
-            isRunning = true;
-            playBtn.disabled = true;
-            pauseBtn.disabled = false;
-            scenarioSelect.disabled = true;
-            
-            visualizer.render({ total_nodes: currentScenario.nodeCount });
-            
-            for (const phase of currentScenario.phases) {
-                if (!isRunning) break;
-                
-                phaseTitle.textContent = phase.title;
-                phaseDescription.textContent = phase.description;
-                phaseTitle.style.color = '#60a5fa';
-                
-                await phase.action();
-            }
-            
-            isRunning = false;
-            playBtn.disabled = false;
-            pauseBtn.disabled = true;
-            scenarioSelect.disabled = false;
-            phaseTitle.textContent = 'Complete';
-            phaseTitle.style.color = '#34d399';
-        }
+  function addEvent(text, color) {
+    const item = document.createElement("div");
+    item.className = "event-item";
+    item.style.borderLeftColor = color;
+    item.textContent = text;
+    eventLog.insertBefore(item, eventLog.firstChild);
+    while (eventLog.children.length > 30) {
+      eventLog.removeChild(eventLog.lastChild);
+    }
+  }
 
-        function pauseScenario() {
-            isRunning = false;
-            playBtn.disabled = false;
-            pauseBtn.disabled = true;
-            scenarioSelect.disabled = false;
-        }
+  function updateCounts() {
+    document.getElementById("nextBallotCount").textContent =
+      eventCounts.nextballot;
+    document.getElementById("lastVoteCount").textContent = eventCounts.lastvote;
+    document.getElementById("beginBallotCount").textContent =
+      eventCounts.beginballot;
+    document.getElementById("votedCount").textContent = eventCounts.voted;
+    document.getElementById("successCount").textContent = eventCounts.success;
+  }
 
-        // Initialize
-        resetScenario();
-    </script>
+  // Build scenarios from imported definitions
+  const scenarioUtils = {
+    visualizer,
+    addEvent,
+    sleep,
+    eventCounts,
+    updateCounts,
+  };
+
+  const scenarios = {
+    success: Object.assign({}, scenarioSuccess, {
+      phases: scenarioSuccess.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    quorum_fail: Object.assign({}, scenarioQuorumFail, {
+      phases: scenarioQuorumFail.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    higher_ballot: Object.assign({}, scenarioHigherBallot, {
+      phases: scenarioHigherBallot.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    two_proposers: Object.assign({}, scenarioTwoProposers, {
+      phases: scenarioTwoProposers.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    livelock: Object.assign({}, scenarioLivelock, {
+      phases: scenarioLivelock.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    multi_proposer_progress: Object.assign({}, scenarioMultiProposerProgress, {
+      phases: scenarioMultiProposerProgress.getPhases(
+        eventColorsConfig,
+        scenarioUtils
+      ),
+    }),
+    };
+
+  function resetScenario() {
+    isRunning = false;
+    playBtn.disabled = false;
+    pauseBtn.disabled = true;
+    eventCounts = {
+      nextballot: 0,
+      lastvote: 0,
+      beginballot: 0,
+      voted: 0,
+      success: 0,
+    };
+    updateCounts();
+    eventLog.innerHTML = "";
+    phaseTitle.textContent = "Ready";
+    phaseDescription.textContent = "Select a scenario and click Play";
+    phaseTitle.style.color = "#60a5fa";
+
+    const scenarioName = scenarioSelect.value;
+    const scenario = scenarios[scenarioName];
+    if (scenario) {
+      visualizer.render({ total_nodes: scenario.nodeCount });
+    }
+  }
+
+  async function playScenario() {
+    if (isRunning) return;
+
+    const scenarioName = scenarioSelect.value;
+    currentScenario = scenarios[scenarioName];
+
+    if (!currentScenario) return;
+
+    isRunning = true;
+    playBtn.disabled = true;
+    pauseBtn.disabled = false;
+    scenarioSelect.disabled = true;
+
+    visualizer.render({ total_nodes: currentScenario.nodeCount });
+
+    for (const phase of currentScenario.phases) {
+      if (!isRunning) break;
+
+      phaseTitle.textContent = phase.title;
+      phaseDescription.textContent = phase.description;
+      phaseTitle.style.color = "#60a5fa";
+
+      await phase.action();
+    }
+
+    isRunning = false;
+    playBtn.disabled = false;
+    pauseBtn.disabled = true;
+    scenarioSelect.disabled = false;
+    phaseTitle.textContent = "Complete";
+    phaseTitle.style.color = "#34d399";
+  }
+
+  function pauseScenario() {
+    isRunning = false;
+    playBtn.disabled = false;
+    pauseBtn.disabled = true;
+    scenarioSelect.disabled = false;
+  }
+
+  // Initialize
+  resetScenario();
+</script>
 {% endblock %}

@@ -226,60 +226,99 @@ class PaxosVisualizer {
     }
 
     /**
+     * Set node color persistently
+     * @param {number} nodeId - Node ID to color
+     * @param {string} color - Color to set
+     */
+    setNodeColor(nodeId, color) {
+        console.log(`setNodeColor called: nodeId=${nodeId}, color=${color}`);
+        const element = this.nodeElements[nodeId];
+        console.log(`element found:`, element);
+        if (!element) {
+            console.log(`ERROR: no element for node ${nodeId}`);
+            return;
+        }
+
+        const circle = element.element.querySelector('.paxos-node-circle');
+        console.log(`circle found:`, circle);
+        if (circle) {
+            circle.style.fill = color;
+            console.log(`color set to ${color}`);
+        } else {
+            console.log(`ERROR: circle not found for node ${nodeId}`);
+        }
+    }
+
+    /**
      * Draw a beam (message) between two nodes
      * @param {number} fromId - Source node ID
      * @param {number} toId - Target node ID
      * @param {string} color - Beam color
      * @param {number} duration - Animation duration in ms (default 500)
+     * @param {string} pattern - Line pattern: 'solid', 'dashed', 'dotted' (default 'solid')
+     * @returns {Promise} - Resolves when animation completes
      */
-    drawBeam(fromId, toId, color, duration = 500) {
-        const from = this.nodeElements[fromId];
-        const to = this.nodeElements[toId];
-        if (!from || !to) return;
-
-        const beamsLayer = document.getElementById('paxos-beams');
-        
-        // Create animated line
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', from.x);
-        line.setAttribute('y1', from.y);
-        line.setAttribute('x2', from.x);
-        line.setAttribute('y2', from.y);
-        line.setAttribute('stroke', color);
-        line.setAttribute('stroke-width', '2.5');
-        line.setAttribute('opacity', '0.9');
-        line.setAttribute('filter', 'url(#paxos-glow)');
-        line.setAttribute('stroke-linecap', 'round');
-
-        beamsLayer.appendChild(line);
-
-        // Animate beam
-        let progress = 0;
-        const drawSpeed = 0.1;
-        const drawInterval = setInterval(() => {
-            progress += drawSpeed;
-            if (progress >= 1) {
-                progress = 1;
-                clearInterval(drawInterval);
-                // Fade out
-                setTimeout(() => {
-                    let opacity = 0.9;
-                    const fadeInterval = setInterval(() => {
-                        opacity -= 0.1;
-                        line.setAttribute('opacity', Math.max(0, opacity));
-                        if (opacity <= 0) {
-                            clearInterval(fadeInterval);
-                            line.remove();
-                        }
-                    }, 40);
-                }, 200);
-            } else {
-                const currentX = from.x + (to.x - from.x) * progress;
-                const currentY = from.y + (to.y - from.y) * progress;
-                line.setAttribute('x2', currentX);
-                line.setAttribute('y2', currentY);
+    drawBeam(fromId, toId, color, duration = 500, pattern = 'solid') {
+        return new Promise((resolve) => {
+            const from = this.nodeElements[fromId];
+            const to = this.nodeElements[toId];
+            if (!from || !to) {
+                resolve();
+                return;
             }
-        }, 30);
+
+            const beamsLayer = document.getElementById('paxos-beams');
+            
+            // Create animated line
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', from.x);
+            line.setAttribute('y1', from.y);
+            line.setAttribute('x2', from.x);
+            line.setAttribute('y2', from.y);
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', '2.5');
+            line.setAttribute('opacity', '0.9');
+            line.setAttribute('filter', 'url(#paxos-glow)');
+            line.setAttribute('stroke-linecap', 'round');
+
+            // Apply pattern
+            if (pattern === 'dashed') {
+                line.setAttribute('stroke-dasharray', '8,4');
+            } else if (pattern === 'dotted') {
+                line.setAttribute('stroke-dasharray', '2,3');
+            }
+
+            beamsLayer.appendChild(line);
+
+            // Animate beam
+            let progress = 0;
+            const drawSpeed = 0.1;
+            const drawInterval = setInterval(() => {
+                progress += drawSpeed;
+                if (progress >= 1) {
+                    progress = 1;
+                    clearInterval(drawInterval);
+                    // Fade out
+                    setTimeout(() => {
+                        let opacity = 0.9;
+                        const fadeInterval = setInterval(() => {
+                            opacity -= 0.1;
+                            line.setAttribute('opacity', Math.max(0, opacity));
+                            if (opacity <= 0) {
+                                clearInterval(fadeInterval);
+                                line.remove();
+                                resolve();
+                            }
+                        }, 40);
+                    }, 200);
+                } else {
+                    const currentX = from.x + (to.x - from.x) * progress;
+                    const currentY = from.y + (to.y - from.y) * progress;
+                    line.setAttribute('x2', currentX);
+                    line.setAttribute('y2', currentY);
+                }
+            }, 30);
+        });
     }
 
     /**
