@@ -218,7 +218,7 @@ pub async fn run_web_server(observer: Arc<WebSocketObserver>) {
             get(protocol_preliminary_handler),
         )
         .route(
-            "/protocols//preliminary-protocol-demo",
+            "/protocols/preliminary-protocol-demo",
             get(preliminary_protocol_demo_handler),
         )
         .route(

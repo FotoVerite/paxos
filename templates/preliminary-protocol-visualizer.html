@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Senate Visualizer - Paxos{% endblock %}
+{% block title %}Preliminary Protocol Visualizer - Paxos{% endblock %}
 
 {% block extra_stylesheets %}
     <link rel="stylesheet" href="/senate.css">
@@ -9,7 +9,7 @@
 {% block content %}
     <div class="container">
         <div class="visualization">
-            <svg id="senateSvg"></svg>
+            <svg id="preliminarySvg"></svg>
         </div>
 
         <div class="control-panel">
@@ -28,34 +28,33 @@
                 </div>
                 <div class="control-group">
                     <label for="duration">Duration (sec):</label>
-                    <input type="number" id="duration" value="120" min="10">
+                    <input type="number" id="duration" value="45" min="10">
                 </div>
-                <div class="control-group">
-                    <label for="randomness">Randomness:</label>
-                    <input type="range" id="randomness" value="0.3" min="0" max="1" step="0.1">
-                    <small style="color: #94a3b8;" id="randomnessValue">0.3</small>
-                </div>
-                <button id="startBtn" onclick="startScenario()">Start</button>
+                <button id="startBtn" onclick="startScenario()">Start Scenario</button>
             </div>
 
             <div>
-                <h2>Stats</h2>
+                <h2>Protocol Events</h2>
                 <div class="stats-group">
                     <div class="stat-item">
-                        <div class="stat-value" id="proposalCount">0</div>
-                        <div class="stat-label">Proposals</div>
+                        <div class="stat-value" id="nextBallotCount">0</div>
+                        <div class="stat-label">NextBallot(b)</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="promiseCount">0</div>
-                        <div class="stat-label">Promises</div>
+                        <div class="stat-value" id="lastVoteCount">0</div>
+                        <div class="stat-label">LastVote(b, v)</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="acceptCount">0</div>
-                        <div class="stat-label">Accepts</div>
+                        <div class="stat-value" id="beginBallotCount">0</div>
+                        <div class="stat-label">BeginBallot(b, d)</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value" id="learnCount">0</div>
-                        <div class="stat-label">Learned</div>
+                        <div class="stat-value" id="votedCount">0</div>
+                        <div class="stat-label">Voted(b, q)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="successCount">0</div>
+                        <div class="stat-label">Success(d)</div>
                     </div>
                 </div>
             </div>
@@ -71,28 +70,22 @@
 {% block scripts %}
     <script src="/paxos-visualizer.js"></script>
     <script>
-        // Initialize visualizer
-        const visualizer = new PaxosVisualizer('senateSvg', {
+        // Initialize visualizer with preliminary protocol colors
+        const visualizer = new PaxosVisualizer('preliminarySvg', {
             nodeRadius: 150,
             nodeCircleRadius: 20,
             eventColors: {
-                proposal: '#8b5cf6',  // Purple
-                promise: '#fbbf24',   // Amber
-                accept: '#f87171',    // Red
-                learn: '#34d399'      // Emerald
+                nextballot: '#60a5fa',   // Blue
+                lastvote: '#ec4899',     // Pink
+                beginballot: '#f59e0b',  // Orange
+                voted: '#10b981',        // Green
+                success: '#6366f1'       // Indigo
             }
         });
 
         const connectionStatus = document.getElementById('connectionStatus');
         const statusText = document.getElementById('statusText');
         const eventLog = document.getElementById('eventLog');
-        const randomnessSlider = document.getElementById('randomness');
-        const randomnessValue = document.getElementById('randomnessValue');
-
-        // UI event listeners
-        randomnessSlider.addEventListener('change', (e) => {
-            randomnessValue.textContent = parseFloat(e.target.value).toFixed(1);
-        });
 
         const ws = new WebSocket("ws://" + window.location.host + "/ws");
 
@@ -126,64 +119,69 @@
         function handleEvent(eventData) {
             let eventType = 'event';
             let nodeId = null;
-            let colorClass = 'proposal';
-            let color = '#8b5cf6';  // Purple default
+            let colorClass = 'event-item';
+            let color = '#60a5fa';
+            let messageType = 'Unknown';
 
+            // Map events to preliminary protocol steps
             if (eventData.Proposal) {
-                eventType = 'Proposal';
+                eventType = 'NextBallot';
+                messageType = 'NextBallot(b)';
                 nodeId = eventData.Proposal.id;
-                colorClass = 'proposal';
-                color = '#8b5cf6';
-                visualizer.incrementEventCount(nodeId, 'proposal');
+                color = '#60a5fa';  // Blue
+                visualizer.incrementEventCount(nodeId, 'nextballot');
             } else if (eventData.Promise) {
-                eventType = 'Promise';
+                eventType = 'LastVote';
+                messageType = 'LastVote(b, v)';
                 nodeId = eventData.Promise.id;
-                colorClass = 'promise';
-                color = '#fbbf24';
-                visualizer.incrementEventCount(nodeId, 'promise');
+                color = '#ec4899';  // Pink
+                visualizer.incrementEventCount(nodeId, 'lastvote');
             } else if (eventData.Accept) {
-                eventType = 'Accept';
+                eventType = 'BeginBallot';
+                messageType = 'BeginBallot(b, d)';
                 nodeId = eventData.Accept.id;
-                colorClass = 'accept';
-                color = '#f87171';
-                visualizer.incrementEventCount(nodeId, 'accept');
+                color = '#f59e0b';  // Orange
+                visualizer.incrementEventCount(nodeId, 'beginballot');
+            } else if (eventData.Accepted) {
+                eventType = 'Voted';
+                messageType = 'Voted(b, q)';
+                nodeId = eventData.Accepted.id;
+                color = '#10b981';  // Green
+                visualizer.incrementEventCount(nodeId, 'voted');
             } else if (eventData.Learn) {
-                eventType = 'Learn';
+                eventType = 'Success';
+                messageType = 'Success(d)';
                 nodeId = eventData.Learn.id;
-                colorClass = 'learn';
-                color = '#34d399';
-                visualizer.incrementEventCount(nodeId, 'learn');
+                color = '#6366f1';  // Indigo
+                visualizer.incrementEventCount(nodeId, 'success');
             }
 
             // Update counts in UI
-            document.getElementById('proposalCount').textContent = visualizer.getEventCount('proposal');
-            document.getElementById('promiseCount').textContent = visualizer.getEventCount('promise');
-            document.getElementById('acceptCount').textContent = visualizer.getEventCount('accept');
-            document.getElementById('learnCount').textContent = visualizer.getEventCount('learn');
+            document.getElementById('nextBallotCount').textContent = visualizer.getEventCount('nextballot');
+            document.getElementById('lastVoteCount').textContent = visualizer.getEventCount('lastvote');
+            document.getElementById('beginBallotCount').textContent = visualizer.getEventCount('beginballot');
+            document.getElementById('votedCount').textContent = visualizer.getEventCount('voted');
+            document.getElementById('successCount').textContent = visualizer.getEventCount('success');
 
             // Activate node
             if (nodeId !== null) {
                 visualizer.activateNode(nodeId, color);
                 
-                // Draw beam with randomness factor
-                const randomness = parseFloat(randomnessSlider.value);
-                if (Math.random() < 0.7 + randomness * 0.3) {
-                    const targetNode = Math.floor(Math.random() * visualizer.nodeCount);
-                    if (targetNode !== nodeId) {
-                        const delayMs = randomness > 0 ? Math.random() * randomness * 100 : 0;
-                        setTimeout(() => {
-                            visualizer.drawBeam(nodeId, targetNode, color);
-                        }, delayMs);
-                    }
-                }
+                // Draw beams between random nodes to show message traffic
+                // (deterministic based on event type for reproducibility)
+                const targetNode = (nodeId + Math.floor(visualizer.nodeCount / 3)) % visualizer.nodeCount;
+                setTimeout(() => {
+                    visualizer.drawBeam(nodeId, targetNode, color);
+                }, 50);
             }
 
             // Add to event log
             const item = document.createElement('div');
-            item.className = `event-item ${colorClass}`;
-            item.textContent = `[${eventType}] Node ${nodeId}`;
+            item.className = 'event-item';
+            item.style.borderLeftColor = color;
+            item.textContent = `[${messageType}] Node ${nodeId}`;
             eventLog.insertBefore(item, eventLog.firstChild);
-            while (eventLog.children.length > 20) {
+            while (eventLog.children.length > 30) {
                 eventLog.removeChild(eventLog.lastChild);
             }
         }
