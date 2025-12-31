@@ -18,10 +18,7 @@ const scenarioSuccess = {
             colors.nextballot
           );
           const acceptors = [1, 2, 3, 4, 5, 6];
-          for (const node of acceptors) {
-            visualizer.drawBeam(0, node, colors.nextballot);
-            await sleep(80);
-          }
+          await visualizer.drawBeamsTo(0, acceptors, colors.nextballot, 500, 'solid', 80);
           eventCounts.nextballot++;
           updateCounts();
           await sleep(300);
@@ -32,14 +29,14 @@ const scenarioSuccess = {
         description: "Acceptors (nodes 1-6) respond with their previous votes",
         action: async () => {
           visualizer.clearBeams();
+          const respondents = [1, 2, 3, 4, 5, 6];
           for (let i = 1; i <= 6; i++) {
             visualizer.setNodeState(i, "respond");
             visualizer.activateNode(i, colors.lastvote);
             addEvent(`[LastVote] Node ${i} responds`, colors.lastvote);
             eventCounts.lastvote++;
-            visualizer.drawBeam(i, 0, colors.lastvote);
-            await sleep(150);
           }
+          await visualizer.drawBeamsFrom(respondents, 0, colors.lastvote, 500, 'dashed', 150);
           updateCounts();
           await sleep(300);
         },
@@ -59,9 +56,8 @@ const scenarioSuccess = {
           const quorum = [1, 2, 3, 4, 5, 6];
           for (const node of quorum) {
             visualizer.setNodeState(node, "wait");
-            visualizer.drawBeam(0, node, colors.beginballot);
-            await sleep(100);
           }
+          await visualizer.drawBeamsTo(0, quorum, colors.beginballot, 500, 'solid', 100);
           eventCounts.beginballot++;
           updateCounts();
           await sleep(300);
@@ -78,9 +74,8 @@ const scenarioSuccess = {
             visualizer.activateNode(node, colors.voted);
             addEvent(`[Voted] Node ${node} votes`, colors.voted);
             eventCounts.voted++;
-            visualizer.drawBeam(node, 0, colors.voted);
-            await sleep(150);
           }
+          await visualizer.drawBeamsFrom(quorum, 0, colors.voted, 500, 'dotted', 150);
           updateCounts();
         },
       },

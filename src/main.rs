@@ -4,13 +4,40 @@ use paxos::{
     scenario::ScenarioBuilder,
     scenario_loader::ScenarioLoader,
     scenario_runner::ScenarioRunner,
-    web::{websocket_observer::WebSocketObserver, server::run_web_server},
+    web::server::run_web_server,
 };
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Create logs directory
+    std::fs::create_dir_all(".paxos/logs").ok();
+    
+    // Setup file appender (daily rotation)
+    let file_appender = tracing_appender::rolling::daily(".paxos/logs", "server.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    
+    // Initialize tracing with console and file output
+    // Enable DEBUG logging with: RUST_LOG=debug cargo run web
+    let level = if cfg!(debug_assertions) {
+        std::env::var("RUST_LOG")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(tracing::Level::INFO)
+    } else {
+        tracing::Level::INFO
+    };
+    
+    tracing_subscriber::fmt()
+        .with_ansi(true)
+        .with_max_level(level)
+        .with_writer(non_blocking)
+        .init();
+    
+    // Keep guard alive for the entire program
+    let _guard = _guard;
+    
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() > 1 && args[1] == "web" {
@@ -56,13 +83,10 @@ async fn run_json_scenario() -> anyhow::Result<()> {
 async fn run_with_web_server() -> anyhow::Result<()> {
     println!("Starting Paxos with Web Visualizer...\n");
     println!("Open http://localhost:3000 in your browser\n");
-
-    let observer = Arc::new(WebSocketObserver::new(500));
     
     // Start web server in a background task
-    let web_observer = Arc::clone(&observer);
     tokio::spawn(async move {
-        run_web_server(web_observer).await;
+        run_web_server().await;
     });
 
     // Give web server time to start

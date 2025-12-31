@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
+use tracing::{debug, warn};
 
 use crate::monitor::{Event, PaxosObserver};
 use crate::web::{ClusterInfo, VisualizerMessage};
@@ -43,15 +44,8 @@ impl WebSocketObserver {
     pub async fn subscribe(&self) -> broadcast::Receiver<String> {
         let receiver = self.sender.subscribe();
         
-        // Send cluster info to new client if available
-        let info = self.cluster_info.read().await;
-        if let Some(cluster_info) = info.clone() {
-            let msg = VisualizerMessage::ClusterInitialized(cluster_info);
-            if let Ok(json) = serde_json::to_string(&msg) {
-                let _ = self.sender.send(json);
-            }
-        }
-        drop(info);
+        // Don't send cluster info on subscribe - let set_cluster_info handle it
+        // This prevents duplicate messages when scenarios start
         
         receiver
     }
@@ -61,14 +55,25 @@ impl PaxosObserver for WebSocketObserver {
     /// Called when a Paxos event occurs.
     /// Serializes the event to JSON and broadcasts it to all subscribed clients.
     fn on_event(&self, event: Event) {
+        let event_debug = format!("{:?}", event);
+        let event_type = event_debug.split('(').next().unwrap_or("Unknown");
+        
         let event_json = serde_json::to_value(&event)
             .expect("Failed to convert Paxos event to JSON value");
         let msg = VisualizerMessage::Event(event_json);
         let json_event = serde_json::to_string(&msg)
             .expect("Failed to serialize visualizer message to JSON");
 
-        // Ignore errors if no clients are listening
-        let _ = self.sender.send(json_event);
+        // Broadcast to all subscribers
+        match self.sender.send(json_event) {
+            Ok(subscriber_count) => {
+                debug!("Broadcast {} event to {} subscribers", event_type, subscriber_count);
+            }
+            Err(e) => {
+                // This is expected when no clients are listening
+                debug!("No subscribers for {} event: {}", event_type, e);
+            }
+        }
     }
 }
 

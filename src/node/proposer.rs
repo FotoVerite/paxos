@@ -41,33 +41,33 @@ struct ProposedDecree {
 }
 
 impl Proposer {
-     pub async fn new(id: usize, quorum: usize, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
-         let state = Self::load_or_init(id).await?;
-         Ok(Self {
-             id,
-             quorum,
-             state,
-             observer,
-             highest_ballot_number: 0,
-         })
-     }
- 
-     #[allow(dead_code)]
-     fn state_path(&self) -> String {
+    pub async fn new(id: usize, quorum: usize, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
+        let state = Self::load_or_init(id).await?;
+        Ok(Self {
+            id,
+            quorum,
+            state,
+            observer,
+            highest_ballot_number: 0,
+        })
+    }
+
+    #[allow(dead_code)]
+    fn state_path(&self) -> String {
         format!("{}/proposer_state_{}.bin", DATA_DIR, self.id)
     }
 
     #[allow(dead_code)]
-     async fn ensure_dir_exists() -> Result<()> {
-         tokio::fs::create_dir_all(DATA_DIR).await?;
-         Ok(())
-     }
-    
-     /// Saves the current state of the Proposer to disk.
-     /// Only the persistent fields (`ProposedDecreeState`) are serialized,
-     /// omitting transient runtime data like the `votes` map.
-     #[allow(dead_code)]
-     async fn save(&self) -> Result<()> {
+    async fn ensure_dir_exists() -> Result<()> {
+        tokio::fs::create_dir_all(DATA_DIR).await?;
+        Ok(())
+    }
+
+    /// Saves the current state of the Proposer to disk.
+    /// Only the persistent fields (`ProposedDecreeState`) are serialized,
+    /// omitting transient runtime data like the `votes` map.
+    #[allow(dead_code)]
+    async fn save(&self) -> Result<()> {
         Self::ensure_dir_exists().await?;
         let state_to_save: HashMap<usize, ProposedDecreeState> = self
             .state
@@ -133,34 +133,69 @@ impl Proposer {
         accepted_value: PaxosCommand,
         from_node: usize,
     ) -> Message {
+        tracing::debug!(
+            "Proposer {} processing promise for decree {} from node {}, current votes: {:?}",
+            self.id,
+            decree_num,
+            from_node,
+            self.state.get(&decree_num).map(|d| d
+                .votes
+                .get(&ballot.number)
+                .map(|v| v.len())
+                .unwrap_or(0))
+        );
         if let Some(proposed_decree) = self.state.get_mut(&decree_num) {
             if ballot != proposed_decree.ballot {
                 // Out of sync, we've already sent a Promise
                 return Message::NACK;
             }
+            let votes = proposed_decree.votes.entry(ballot.number).or_default();
             if proposed_decree.chosen == true {
-                return Message::Accept {
-                    from: self.id,
-                    decree_num,
-                    ballot,
-                    value: proposed_decree.proposed_value.clone(),
-                };
+                if votes.contains(&from_node) {
+                    return Message::Accept {
+                        from: self.id,
+                        decree_num,
+                        ballot,
+                        value: proposed_decree.proposed_value.clone(),
+                        quorum: votes.clone(),
+                    };
+                } else {
+                    return Message::NACK;
+                }
             }
 
             if accepted_ballot > proposed_decree.highest_seen_ballot {
                 proposed_decree.highest_seen_ballot = accepted_ballot;
                 proposed_decree.proposed_value = accepted_value.clone();
             }
-            let votes = proposed_decree.votes.entry(ballot.number).or_default();
+
             votes.insert(from_node);
 
             if votes.len() >= self.quorum {
                 proposed_decree.chosen = true;
+
+                tracing::debug!(
+                    "Proposer {} reached quorum for decree {} with quorum: {:?}",
+                    self.id,
+                    decree_num,
+                    votes
+                );
+
+                self.observer.on_event(Event::Accept {
+                    decree_num,
+                    id: self.id,
+                    ballot: ballot.number,
+                    quorum: votes.clone(),
+                    value: proposed_decree.proposed_value.clone(),
+                    created_at: crate::monitor::current_timestamp_millis(),
+                });
+
                 return Message::Accept {
                     from: self.id,
                     decree_num,
                     ballot,
                     value: proposed_decree.proposed_value.clone(),
+                    quorum: votes.clone(),
                 };
             }
             return Message::NACK;
@@ -181,7 +216,10 @@ impl Proposer {
         let proposed_decree = ProposedDecree {
             ballot,
             chosen: false,
-            highest_seen_ballot: Ballot { number: 0, node_id: 0 }, // Initialize to default, not proposer's own ballot
+            highest_seen_ballot: Ballot {
+                number: 0,
+                node_id: 0,
+            }, // Initialize to default, not proposer's own ballot
             proposed_value: cmd.clone(),
             votes: HashMap::new(),
         };
@@ -191,6 +229,7 @@ impl Proposer {
             decree_num,
             id: self.id,
             value: cmd.clone(),
+            created_at: crate::monitor::current_timestamp_millis(),
         });
 
         Message::Prepare {

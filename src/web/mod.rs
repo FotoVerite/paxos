@@ -1,3 +1,4 @@
+pub mod handlers;
 pub mod server;
 pub mod websocket_observer;
 pub mod cluster_manager;
@@ -22,6 +23,8 @@ pub enum VisualizerMessage {
 pub struct ScenarioRequest {
     pub node_count: usize,
     pub duration_secs: u64,
+    #[serde(default)]
+    pub scenario_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

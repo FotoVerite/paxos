@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use tokio::sync::{
-    Mutex,
-    mpsc::{Receiver},
-};
+use tokio::sync::{Mutex, mpsc::Receiver};
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
@@ -40,7 +37,9 @@ impl PaxosState {
         match msg {
             Message::Promise { .. } => {
                 let reply = self.proposer.handle_message(msg).await;
-                self.peers.broadcast(reply).await;
+                if let Message::Accept { quorum, .. } = &reply {
+                    self.peers.broadcast_to(&reply, quorum).await;
+                }
             }
             Message::Prepare { from, .. } | Message::Accept { from, .. } => {
                 let reply = self.acceptor.handle_message(msg).await;
@@ -48,6 +47,9 @@ impl PaxosState {
             }
             Message::Accepted { .. } => {
                 self.learner.handle_message(msg, &mut self.ledger).await;
+            }
+            Message::Success {  .. } => {
+                self.learner.learn_decree(msg, &mut self.ledger).await;
             }
 
             _ => {}

@@ -2,5 +2,13 @@
     "cSpell.words": [
         "inditification",
         "Lamport"
-    ]
+    ],
+    "rust-analyzer.checkOnSave.enable": true,
+    "rust-analyzer.procMacro.enable": true,
+    "rust-analyzer.cargo.buildScripts.enable": false,
+    "rust-analyzer.inlayHints.enable": false,
+    "rust-analyzer.lens.enable": false,
+    "[rust]": {
+        "editor.formatOnSave": false
+    }
 }

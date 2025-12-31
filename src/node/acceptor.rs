@@ -48,24 +48,7 @@ impl Acceptor {
         });
     }
 
-    #[allow(dead_code)]
-    fn state_path(&self) -> String {
-        format!("{}/state_{}.bin", DATA_DIR, self.id)
-    }
 
-    #[allow(dead_code)]
-    async fn ensure_dir_exists() -> Result<()> {
-        tokio::fs::create_dir_all(DATA_DIR).await?;
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    async fn save(&self) -> Result<()> {
-        Self::ensure_dir_exists().await?;
-        let encoded = bincode::serialize(&self.state)?;
-        tokio::fs::write(self.state_path(), encoded).await?;
-        Ok(())
-    }
 
     async fn load_or_init(node_id: usize) -> Result<HashMap<usize, AcceptedDecree>> {
         let path_str = format!("{}/state_{}.bin", DATA_DIR, node_id);
@@ -83,7 +66,7 @@ impl Acceptor {
         Ok(bincode::deserialize(&data)?)
     }
 
-    fn prepare(&mut self, decree_num: usize, ballot: Ballot) -> Message {
+    fn prepare(&mut self, decree_num: usize, ballot: Ballot, from: usize) -> Message {
         let decree = self.state.entry(decree_num).or_default();
         if ballot > decree.min_ballot {
             decree.min_ballot = ballot;
@@ -91,7 +74,9 @@ impl Acceptor {
             self.observer.on_event(Event::Promise {
                 decree_num,
                 id: self.id,
+                from,  // Track who initiated the prepare
                 ballot: ballot.number,
+                created_at: crate::monitor::current_timestamp_millis(),
             });
             decree.min_ballot = ballot;
 
@@ -106,7 +91,7 @@ impl Acceptor {
         return Message::NACK;
     }
 
-    fn accept(&mut self, decree_num: usize, ballot: Ballot, cmd: PaxosCommand) -> Message {
+    fn accept(&mut self, decree_num: usize, ballot: Ballot, cmd: PaxosCommand, from: usize) -> Message {
         let decree = self.state.get_mut(&decree_num);
         match decree {
             Some(decree) => {
@@ -116,18 +101,13 @@ impl Acceptor {
                     decree.accepted_ballot = ballot;
                     decree.accepted_value = cmd.clone();
 
-                    self.observer.on_event(Event::Accept {
-                        decree_num,
-                        id: self.id,
-                        ballot: ballot.number,
-                        value: cmd.clone(),
-                    });
-
                     self.observer.on_event(Event::Accepted {
                         decree_num,
                         id: self.id,
+                        from,  // Track who initiated the accept
                         ballot: ballot.number,
                         value: cmd.clone(),
+                        created_at: crate::monitor::current_timestamp_millis(),
                     });
 
                     return Message::Accepted {
@@ -147,14 +127,14 @@ impl Acceptor {
     pub async fn handle_message(&mut self, msg: Message) -> Message {
         match msg {
             Message::Prepare {
-                decree_num, ballot, ..
-            } => return self.prepare(decree_num, ballot),
+                decree_num, ballot, from
+            } => return self.prepare(decree_num, ballot, from),
             Message::Accept {
                 decree_num,
                 ballot,
                 value,
-                ..
-            } => return self.accept(decree_num, ballot, value),
+                from, ..
+            } => return self.accept(decree_num, ballot, value, from),
             _ => Message::NACK,
         }
     }

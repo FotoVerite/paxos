@@ -105,4 +105,19 @@ impl NetworkSimulator {
             self.send(idx, msg.clone()).await;
         }
     }
+
+     pub async fn broadcast_to(&self, msg: &Message, peers: &HashSet<usize>)
+    where
+        Message: Clone,
+    {
+        if let Message::Accept { decree_num, .. } = msg {
+            tracing::debug!("Broadcasting Accept for decree {} to quorum: {:?}", decree_num, peers);
+        }
+        for idx in peers.into_iter() {
+            if *idx == self.me {
+                continue;
+            }
+            self.send(*idx, msg.clone()).await;
+        }
+    }
 }

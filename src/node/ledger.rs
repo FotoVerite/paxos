@@ -2,38 +2,27 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::Result;
+use serde::de::value;
 use tokio::sync::Mutex;
 
-use crate::{node::ballot::Ballot, paxos_command::PaxosCommand};
+use crate::{
+    node::ballot::Ballot,
+    paxos_command::{self, PaxosCommand},
+};
 
 const DATA_DIR: &str = ".paxos";
-
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
-struct Decree {
-    chosen: bool,
-    votes: HashMap<usize, HashMap<usize, PaxosCommand>>,
-}
-
-impl Decree {
-    fn default() -> Self {
-        return Self {
-            chosen: false,
-            votes: HashMap::new(),
-        };
-    }
-}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct LedgerState {
     log: Vec<PaxosCommand>,
-    decrees: HashMap<usize, Decree>,
+    decrees: Vec<Option<PaxosCommand>>,
 }
 
 impl LedgerState {
     fn init() -> Self {
         return Self {
             log: Vec::new(),
-            decrees: HashMap::<usize, Decree>::new(),
+            decrees: Vec::new(),
         };
     }
 }
@@ -46,7 +35,9 @@ pub struct Ledger {
 
 impl Ledger {
     pub async fn init(id: usize, quorum: usize) -> Result<Self> {
-        let state = Ledger::load_or_init(id).await.unwrap_or_else(|_| LedgerState::init());
+        let state = Ledger::load_or_init(id)
+            .await
+            .unwrap_or_else(|_| LedgerState::init());
         Ok(Self {
             id,
             quorum,
@@ -74,7 +65,7 @@ impl Ledger {
     async fn load_or_init(node_id: usize) -> Result<LedgerState> {
         let path_str = format!("{}/ledger_state_{}.bin", DATA_DIR, node_id);
         let path = Path::new(&path_str);
-        
+
         if !path.exists() {
             return Ok(LedgerState::init());
         }
@@ -87,70 +78,27 @@ impl Ledger {
         Ok(bincode::deserialize(&data)?)
     }
 
-    pub async fn next(&self) -> usize {
-        let state = self.state.lock().await;
-        
-        // Find the first decree that hasn't been chosen yet
-        let mut decree_num = 0;
-        loop {
-            match state.decrees.get(&decree_num) {
-                Some(decree) if decree.chosen => {
-                    // This decree is chosen, move to next
-                    decree_num += 1;
-                }
-                _ => {
-                    // Either not in decrees map (not chosen) or not chosen yet
-                    return decree_num;
-                }
-            }
+    pub async fn insert(&mut self, slot: usize, value: PaxosCommand) -> bool {
+        let mut state = self.state.lock().await;
+        if state.decrees.len() <= slot {
+            state.decrees.resize(slot + 1, None);
         }
+        if let Some(existing) = &state.decrees[slot] {
+            return false;
+        }
+        state.decrees[slot] = Some(value);
+        return true;
     }
 
-    pub async fn vote(
-        &self,
-        decree_num: usize,
-        ballot: Ballot,
-        cmd: PaxosCommand,
-        acceptor_id: usize,
-    ) -> Option<PaxosCommand> {
-        let mut state = self.state.lock().await;
+    pub async fn get(&self, slot: usize) -> Option<PaxosCommand> {
+        let state = self.state.lock().await;
+        state.decrees.get(slot).cloned().flatten()
+    }
 
-        if state.log.len() <= decree_num {
-            state.log.resize(decree_num + 1, PaxosCommand::NOOP);
-        }
+    pub async fn next(&self) -> usize {
+        let state = self.state.lock().await;
 
-        let decree = state.decrees.entry(decree_num).or_insert_with(Decree::default);
-
-        if decree.chosen {
-            return None; // Already chosen, this vote doesn't trigger a learn event
-        }
-
-        let ballot_votes = decree.votes.entry(ballot.number).or_default();
-
-        match ballot_votes.get(&acceptor_id) {
-            Some(existing) if existing != &cmd => {
-                // protocol violation — ignore or panic in debug
-                debug_assert!(
-                    existing == &cmd,
-                    "Ledger vote conflict: existing {:?} vs new {:?}",
-                    existing,
-                    cmd
-                );
-                return None;
-            }
-            _ => {
-                ballot_votes.insert(acceptor_id, cmd.clone());
-            }
-        }
-
-        if ballot_votes.len() >= self.quorum {
-            decree.chosen = true;
-            state.log[decree_num] = cmd.clone();
-            drop(state);
-            let _ = self.save().await;
-            return Some(cmd); // This vote caused the decree to be chosen
-        }
-
-        None
+        // Find the first decree that hasn't been chosen yet
+        return state.decrees.len();
     }
 }

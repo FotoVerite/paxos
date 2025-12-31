@@ -42,9 +42,13 @@ class PaxosVisualizer {
         // Create defs for reusable elements
         const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
 
-        // Glow filter
+        // Glow filter - with proper bounds to avoid clipping
         const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
         filter.setAttribute('id', 'paxos-glow');
+        filter.setAttribute('x', '-50%');
+        filter.setAttribute('y', '-50%');
+        filter.setAttribute('width', '200%');
+        filter.setAttribute('height', '200%');
         filter.innerHTML = `
             <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
             <feMerge>
@@ -74,6 +78,11 @@ class PaxosVisualizer {
         this.clusterInfo = clusterInfo;
         this.nodeCount = clusterInfo.total_nodes;
 
+        // Check if we already have the right number of nodes
+        if (Object.keys(this.nodeElements).length === this.nodeCount) {
+            return; // Already rendered, don't re-render and clear beams
+        }
+
         // Clear existing
         this.svg.innerHTML = '';
         this.nodeElements = {};
@@ -93,11 +102,11 @@ class PaxosVisualizer {
         bg.setAttribute('fill', '#0f172a');
         this.svg.appendChild(bg);
 
-        // Message beams layer
+        // Message beams layer (added BEFORE nodes so beams appear behind)
         const beamsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         beamsLayer.setAttribute('id', 'paxos-beams');
         this.svg.appendChild(beamsLayer);
-
+        
         // Ring (optional decorative circle)
         this.drawRing();
 
@@ -250,6 +259,62 @@ class PaxosVisualizer {
     }
 
     /**
+     * Draw beams to multiple target nodes in parallel
+     * @param {number} fromId - Source node ID
+     * @param {array} toIds - Array of target node IDs
+     * @param {string} color - Beam color
+     * @param {number} duration - Animation duration in ms (default 500)
+     * @param {string} pattern - Line pattern: 'solid', 'dashed', 'dotted' (default 'solid')
+     * @param {number} staggerMs - Stagger start time between beams in ms (0 for parallel, default 0)
+     * @returns {Promise} - Resolves when all beams complete
+     */
+    async drawBeamsTo(fromId, toIds, color, duration = 500, pattern = 'solid', staggerMs = 0) {
+        if (staggerMs === 0) {
+            // Draw all in parallel
+            const promises = toIds.map(toId => this.drawBeam(fromId, toId, color, duration, pattern));
+            await Promise.all(promises);
+        } else {
+            // Draw with staggered start times
+            const promises = toIds.map((toId, index) => {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        this.drawBeam(fromId, toId, color, duration, pattern).then(resolve);
+                    }, index * staggerMs);
+                });
+            });
+            await Promise.all(promises);
+        }
+    }
+
+    /**
+     * Draw beams from multiple source nodes to one target node in parallel
+     * @param {array} fromIds - Array of source node IDs
+     * @param {number} toId - Target node ID
+     * @param {string} color - Beam color
+     * @param {number} duration - Animation duration in ms (default 500)
+     * @param {string} pattern - Line pattern: 'solid', 'dashed', 'dotted' (default 'solid')
+     * @param {number} staggerMs - Stagger start time between beams in ms (0 for parallel, default 0)
+     * @returns {Promise} - Resolves when all beams complete
+     */
+    async drawBeamsFrom(fromIds, toId, color, duration = 500, pattern = 'solid', staggerMs = 0) {
+        if (staggerMs === 0) {
+            // Draw all in parallel
+            const promises = fromIds.map(fromId => this.drawBeam(fromId, toId, color, duration, pattern));
+            await Promise.all(promises);
+        } else {
+            // Draw with staggered start times
+            const promises = fromIds.map((fromId, index) => {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        this.drawBeam(fromId, toId, color, duration, pattern).then(resolve);
+                    }, index * staggerMs);
+                });
+            });
+            await Promise.all(promises);
+        }
+    }
+
+    /**
      * Draw a beam (message) between two nodes
      * @param {number} fromId - Source node ID
      * @param {number} toId - Target node ID
@@ -267,55 +332,86 @@ class PaxosVisualizer {
                 return;
             }
 
-            const beamsLayer = document.getElementById('paxos-beams');
+            let beamsLayer = document.getElementById('paxos-beams');
             
-            // Create animated line
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', from.x);
-            line.setAttribute('y1', from.y);
-            line.setAttribute('x2', from.x);
-            line.setAttribute('y2', from.y);
-            line.setAttribute('stroke', color);
-            line.setAttribute('stroke-width', '2.5');
-            line.setAttribute('opacity', '0.9');
-            line.setAttribute('filter', 'url(#paxos-glow)');
-            line.setAttribute('stroke-linecap', 'round');
+            // Create beams layer if it doesn't exist
+            if (!beamsLayer) {
+                beamsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                beamsLayer.setAttribute('id', 'paxos-beams');
+                // Insert after background but before nodes
+                const firstNode = this.svg.querySelector('[data-node-id]');
+                if (firstNode && firstNode.parentNode === this.svg) {
+                    this.svg.insertBefore(beamsLayer, firstNode);
+                } else {
+                    this.svg.appendChild(beamsLayer);
+                }
+            }
+            
+            // Calculate control point for bezier curve (offset perpendicular to line)
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const perpX = -dy / dist;
+            const perpY = dx / dist;
+            const curveOffset = 40 + ((fromId * 7 + toId * 11) % 30); // Varying curve for different beam pairs
+            const controlX = from.x + dx/2 + perpX * curveOffset;
+            const controlY = from.y + dy/2 + perpY * curveOffset;
+            
+            // Create animated path (quadratic bezier)
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('stroke', color);
+            path.setAttribute('stroke-width', '3');
+            path.setAttribute('opacity', '0.8');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('fill', 'none');
 
             // Apply pattern
             if (pattern === 'dashed') {
-                line.setAttribute('stroke-dasharray', '8,4');
+                path.setAttribute('stroke-dasharray', '8,4');
             } else if (pattern === 'dotted') {
-                line.setAttribute('stroke-dasharray', '2,3');
+                path.setAttribute('stroke-dasharray', '2,3');
             }
 
-            beamsLayer.appendChild(line);
+            // Set the full bezier path
+            path.setAttribute('d', `M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`);
+            
+            // Calculate path length for stroke-dasharray animation
+            const pathLength = path.getTotalLength();
+            path.setAttribute('stroke-dasharray', pathLength);
+            path.setAttribute('stroke-dashoffset', pathLength);
+            
+            beamsLayer.appendChild(path);
 
-            // Animate beam
+            // Animate beam with duration control
             let progress = 0;
-            const drawSpeed = 0.1;
-            const drawInterval = setInterval(() => {
-                progress += drawSpeed;
+            let timeElapsed = 0;
+            const animationInterval = setInterval(() => {
+                timeElapsed += 30;
+                progress = Math.min(1, timeElapsed / duration);
+                
                 if (progress >= 1) {
                     progress = 1;
-                    clearInterval(drawInterval);
-                    // Fade out
+                    clearInterval(animationInterval);
+                    path.setAttribute('stroke-dashoffset', 0);
+                    
+                    // Keep beam visible for a bit longer
                     setTimeout(() => {
+                        // Fade out
                         let opacity = 0.9;
                         const fadeInterval = setInterval(() => {
                             opacity -= 0.1;
-                            line.setAttribute('opacity', Math.max(0, opacity));
+                            path.setAttribute('opacity', Math.max(0, opacity));
                             if (opacity <= 0) {
                                 clearInterval(fadeInterval);
-                                line.remove();
+                                path.remove();
                                 resolve();
                             }
                         }, 40);
-                    }, 200);
+                    }, 300);
                 } else {
-                    const currentX = from.x + (to.x - from.x) * progress;
-                    const currentY = from.y + (to.y - from.y) * progress;
-                    line.setAttribute('x2', currentX);
-                    line.setAttribute('y2', currentY);
+                    // Animate stroke-dashoffset to reveal the path
+                    const dashOffset = pathLength * (1 - progress);
+                    path.setAttribute('stroke-dashoffset', dashOffset);
                 }
             }, 30);
         });

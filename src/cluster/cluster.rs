@@ -71,6 +71,12 @@ impl Cluster {
         }
     }
 
+    pub async fn propose_from(&mut self, node_id: usize, cmd: PaxosCommand) {
+        if let Some(node) = self.nodes.get_mut(node_id) {
+            node.propose(cmd).await;
+        }
+    }
+
     pub async fn enable_failures(&self) {
         for simulator in &self.simulators {
             simulator.set_enabled(true).await;
