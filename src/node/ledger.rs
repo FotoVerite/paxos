@@ -78,16 +78,23 @@ impl Ledger {
         Ok(bincode::deserialize(&data)?)
     }
 
-    pub async fn insert(&mut self, slot: usize, value: PaxosCommand) -> bool {
-        let mut state = self.state.lock().await;
-        if state.decrees.len() <= slot {
-            state.decrees.resize(slot + 1, None);
+    pub async fn insert(&self, slot: usize, value: PaxosCommand) -> bool {
+        let inserted = {
+            let mut state = self.state.lock().await;
+            if state.decrees.len() <= slot {
+                state.decrees.resize(slot + 1, None);
+            }
+            if state.decrees[slot].is_some() {
+                return false;
+            }
+            state.decrees[slot] = Some(value);
+            true
+        }; // Lock released here
+        
+        if inserted {
+            let _ = self.save().await;
         }
-        if let Some(existing) = &state.decrees[slot] {
-            return false;
-        }
-        state.decrees[slot] = Some(value);
-        return true;
+        inserted
     }
 
     pub async fn get(&self, slot: usize) -> Option<PaxosCommand> {

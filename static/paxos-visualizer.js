@@ -240,21 +240,33 @@ class PaxosVisualizer {
      * @param {string} color - Color to set
      */
     setNodeColor(nodeId, color) {
-        console.log(`setNodeColor called: nodeId=${nodeId}, color=${color}`);
         const element = this.nodeElements[nodeId];
-        console.log(`element found:`, element);
-        if (!element) {
-            console.log(`ERROR: no element for node ${nodeId}`);
-            return;
-        }
+        if (!element) return;
 
         const circle = element.element.querySelector('.paxos-node-circle');
-        console.log(`circle found:`, circle);
         if (circle) {
             circle.style.fill = color;
-            console.log(`color set to ${color}`);
+        }
+    }
+
+    /**
+     * Mark a node as partitioned (grey it out)
+     * @param {number} nodeId - Node ID to partition
+     */
+    setNodePartitioned(nodeId, partitioned = true) {
+        const element = this.nodeElements[nodeId];
+        if (!element) return;
+
+        const circle = element.element.querySelector('.paxos-node-circle');
+        const label = element.element.querySelector('.paxos-node-label');
+        if (partitioned) {
+            circle.setAttribute('fill', '#4b5563');
+            circle.style.opacity = '0.5';
+            if (label) label.style.opacity = '0.5';
         } else {
-            console.log(`ERROR: circle not found for node ${nodeId}`);
+            circle.setAttribute('fill', '#3b82f6');
+            circle.style.opacity = '1';
+            if (label) label.style.opacity = '1';
         }
     }
 
@@ -365,18 +377,15 @@ class PaxosVisualizer {
             path.setAttribute('stroke-linecap', 'round');
             path.setAttribute('fill', 'none');
 
-            // Apply pattern
-            if (pattern === 'dashed') {
-                path.setAttribute('stroke-dasharray', '8,4');
-            } else if (pattern === 'dotted') {
-                path.setAttribute('stroke-dasharray', '2,3');
-            }
-
             // Set the full bezier path
             path.setAttribute('d', `M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`);
             
             // Calculate path length for stroke-dasharray animation
             const pathLength = path.getTotalLength();
+            
+            // All patterns animate the same way (draw from source to target)
+            // Pattern styling applied after animation completes
+            path.dataset.pattern = pattern;
             path.setAttribute('stroke-dasharray', pathLength);
             path.setAttribute('stroke-dashoffset', pathLength);
             
@@ -393,6 +402,13 @@ class PaxosVisualizer {
                     progress = 1;
                     clearInterval(animationInterval);
                     path.setAttribute('stroke-dashoffset', 0);
+                    
+                    // Apply pattern styling after animation completes
+                    if (path.dataset.pattern === 'dashed') {
+                        path.setAttribute('stroke-dasharray', '8,4');
+                    } else if (path.dataset.pattern === 'dotted') {
+                        path.setAttribute('stroke-dasharray', '2,3');
+                    }
                     
                     // Keep beam visible for a bit longer
                     setTimeout(() => {

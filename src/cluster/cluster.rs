@@ -64,6 +64,10 @@ impl Cluster {
         return self.total_number / 2 + 1;
     }
 
+    pub fn get_simulator(&self, node_id: usize) -> Option<&Arc<NetworkSimulator>> {
+        self.simulators.get(node_id)
+    }
+
     pub async fn propose(&mut self, cmd: PaxosCommand) {
         let node_id = random_node_idx(self.total_number);
         if let Some(node) = self.nodes.get_mut(node_id) {

@@ -8,7 +8,8 @@ const eventColorMap = {
   Promise: { name: "LastVote", color: "#ec4899" },
   Accept: { name: "BeginBallot", color: "#f59e0b" },
   Accepted: { name: "Voted", color: "#10b981" },
-  Learn: { name: "Success", color: "#6366f1" },
+  Learn: { name: "Learn", color: "#34d399" },
+  Success: { name: "Success", color: "#6366f1" },
 };
 
 const visualizer = new PaxosVisualizer("basicProtocolSvg", {
@@ -35,12 +36,14 @@ const resetBtn = document.getElementById("resetBtn");
 
 let isRunning = false;
 let clusterInfo = null;
+let partitionedNodes = new Set(); // Track which nodes are partitioned
 let eventCounts = {
   Proposal: 0,
   Promise: 0,
   Accept: 0,
   Accepted: 0,
   Learn: 0,
+  Success: 0,
 };
 
 let ws = null;
@@ -55,6 +58,14 @@ speedSlider.addEventListener("change", (e) => {
 });
 
 // Helper functions
+function canCommunicate(from, to) {
+  // Check if both nodes are in same partition (both partitioned or both not partitioned)
+  const fromPartitioned = partitionedNodes.has(from);
+  const toPartitioned = partitionedNodes.has(to);
+  // Can communicate if both have same partition status
+  return fromPartitioned === toPartitioned;
+}
+
 function addEvent(text, color) {
   const item = document.createElement("div");
   item.className = "event-item";
@@ -72,7 +83,7 @@ function updateCounts() {
   document.getElementById("lastVoteCount").textContent = eventCounts.Promise;
   document.getElementById("beginBallotCount").textContent = eventCounts.Accept;
   document.getElementById("votedCount").textContent = eventCounts.Accepted;
-  document.getElementById("successCount").textContent = eventCounts.Learn;
+  document.getElementById("successCount").textContent = eventCounts.Learn + eventCounts.Success;
 }
 
 async function resetScenario() {
@@ -97,6 +108,7 @@ async function resetScenario() {
     Accept: 0,
     Accepted: 0,
     Learn: 0,
+    Success: 0,
   };
   updateCounts();
   eventLog.innerHTML = "";
@@ -107,7 +119,7 @@ async function resetScenario() {
   if (clusterInfo) {
     visualizer.render({ total_nodes: clusterInfo.total_nodes });
   }
-}
+  }
 
 function setupWebSocket() {
   if (ws) {
@@ -137,7 +149,27 @@ function setupWebSocket() {
         console.log("Ignoring duplicate ClusterInitialized message");
       }
     } else if (message.Event) {
-      handlePaxosEvent(message.Event);
+      const eventType = Object.keys(message.Event)[0];
+      
+      // Handle partition events
+      if (eventType === "PartitionCreated") {
+        const event = message.Event.PartitionCreated;
+        console.log("Network partitioned:", event);
+        for (const nodeId of event.partition_b) {
+          partitionedNodes.add(nodeId);
+          visualizer.setNodePartitioned(nodeId, true);
+        }
+        statusDescription.textContent = `Partition: A=${JSON.stringify(event.partition_a)}, B=${JSON.stringify(event.partition_b)}`;
+      } else if (eventType === "PartitionHealed") {
+        console.log("Network healed");
+        for (const nodeId of partitionedNodes) {
+          visualizer.setNodePartitioned(nodeId, false);
+        }
+        partitionedNodes.clear();
+        statusDescription.textContent = "Network healed - all nodes connected";
+      } else {
+        handlePaxosEvent(message.Event);
+      }
     }
   };
 
@@ -180,7 +212,7 @@ function handlePaxosEvent(eventData) {
 }
 
 async function processEventQueue() {
-  if (isProcessing || eventQueue.length === 0 || !isRunning) return;
+  if (isProcessing || eventQueue.length === 0) return;
   
   isProcessing = true;
   
@@ -218,6 +250,8 @@ async function processEventQueue() {
         return visualizeAccepted(event, colorInfo.color).catch(e => console.error("Error visualizing accepted:", e));
       case "Learn":
         return visualizeLearn(event, colorInfo.color).catch(e => console.error("Error visualizing learn:", e));
+      case "Success":
+        return visualizeSuccess(event, colorInfo.color).catch(e => console.error("Error visualizing success:", e));
       default:
         return Promise.resolve();
     }
@@ -225,12 +259,6 @@ async function processEventQueue() {
   
   await Promise.all(promises);
   updateCounts();
-  
-  // Check if still running before continuing
-  if (!isRunning) {
-    isProcessing = false;
-    return;
-  }
   
   // Delay before next batch based on speed
   const speed = parseFloat(speedSlider.value);
@@ -260,41 +288,46 @@ function formatEventLog(eventType, event) {
       return `[${name}] Node ${event.id} → Node ${event.from}: Voted on ballot ${event.ballot}`;
     case "Learn":
       return `[${name}] Node ${event.id}: Learned decree #${event.decree_num}`;
+    case "Success":
+      const proposerInfo = event.ballot_proposer !== undefined ? ` (proposed by node ${event.ballot_proposer})` : "";
+      return `[${name}] Node ${event.id}: Decree #${event.decree_num} chosen${proposerInfo}`;
     default:
       return JSON.stringify(event);
   }
 }
 
 async function visualizeProposal(event, color) {
-  visualizer.setNodeState(event.id, "propose");
-  visualizer.activateNode(event.id, color);
-  // When proposer proposes, it will send Prepare to all acceptors
-  // We visualize this by drawing beams to all other nodes
-  const speed = parseFloat(speedSlider.value);
-  const duration = Math.max(200, (500 / speed) * 0.67);
+   visualizer.setNodeState(event.id, "propose");
+   visualizer.activateNode(event.id, color);
+   // When proposer proposes, it will send Prepare to all acceptors
+   // We visualize this by drawing beams to all other nodes
+   const speed = parseFloat(speedSlider.value);
+   const duration = Math.max(200, (500 / speed) * 0.67);
   
-  // Draw beams to all other nodes to show broadcast
+  // Draw beams to all reachable nodes (skip partitioned targets and self)
   const beamPromises = [];
   for (let i = 0; i < clusterInfo.total_nodes; i++) {
-    if (i !== event.id) {
+    if (i !== event.id && canCommunicate(event.id, i)) {
       console.log(`Queue beam proposal: ${event.id} -> ${i}`);
       beamPromises.push(visualizer.drawBeam(event.id, i, color, duration, "solid"));
     }
   }
-  console.log(`Waiting for ${beamPromises.length} beams to complete`);
-  await Promise.all(beamPromises);
-  console.log(`All beams for proposal ${event.id} complete`);
+  if (beamPromises.length > 0) {
+    console.log(`Waiting for ${beamPromises.length} beams to complete`);
+    await Promise.all(beamPromises);
+    console.log(`All beams for proposal ${event.id} complete`);
+  }
 }
 
 async function visualizePromise(event, color) {
-  visualizer.setNodeState(event.id, "promise");
-  visualizer.activateNode(event.id, color);
-  // Promise is sent from acceptor (event.id) back to proposer (event.from)
-  if (event.from !== undefined) {
-    const speed = parseFloat(speedSlider.value);
-    const duration = Math.max(200, (500 / speed) * 0.67);
-    await visualizer.drawBeam(event.id, event.from, color, duration, "dashed");
-  }
+   visualizer.setNodeState(event.id, "promise");
+   visualizer.activateNode(event.id, color);
+   // Promise is sent from acceptor (event.id) back to proposer (event.from)
+   if (event.from !== undefined && event.from !== event.id) {
+     const speed = parseFloat(speedSlider.value);
+     const duration = Math.max(200, (500 / speed) * 0.67);
+     await visualizer.drawBeam(event.id, event.from, color, duration, "dashed");
+   }
 }
 
 async function visualizeAccept(event, color) {
@@ -319,7 +352,7 @@ async function visualizeAccepted(event, color) {
   visualizer.setNodeState(event.id, "voted");
   visualizer.activateNode(event.id, color);
   // Accepted is sent from acceptor (event.id) back to proposer/learner (event.from)
-  if (event.from !== undefined) {
+  if (event.from !== undefined && event.from !== event.id) {
     const speed = parseFloat(speedSlider.value);
     const duration = Math.max(200, (500 / speed) * 0.67);
     await visualizer.drawBeam(event.id, event.from, color, duration, "dotted");
@@ -332,6 +365,26 @@ async function visualizeLearn(event, color) {
   // Add a small delay for learn visualization
   await new Promise(resolve => setTimeout(resolve, 100));
 }
+
+async function visualizeSuccess(event, color) {
+   // Highlight the original proposer if different from the learner broadcasting
+   if (event.ballot_proposer !== undefined && event.ballot_proposer !== event.from) {
+     visualizer.activateNode(event.ballot_proposer, "#fbbf24"); // Highlight proposer in yellow
+   }
+   visualizer.activateNode(event.from, color);
+   
+   // Success: broadcast from the learner that reached quorum (event.from) to reachable nodes only
+   const speed = parseFloat(speedSlider.value);
+   const duration = Math.max(200, (500 / speed) * 0.67);
+   
+   const beamPromises = [];
+   for (let i = 0; i < clusterInfo.total_nodes; i++) {
+     if (i !== event.from && canCommunicate(event.from, i)) {
+       beamPromises.push(visualizer.drawBeam(event.from, i, color, duration, "dashed"));
+     }
+   }
+   await Promise.all(beamPromises);
+ }
 
 async function playScenario() {
   if (isRunning) return;
@@ -363,6 +416,8 @@ async function playScenario() {
       throw new Error("Failed to start scenario");
     }
 
+
+
     // Wait for scenario to complete
     await new Promise((resolve) => {
       scenarioTimeout = setTimeout(() => {
@@ -370,6 +425,15 @@ async function playScenario() {
         resolve();
       }, 30000); // 30 seconds
     });
+
+    // Wait for event queue to drain
+    statusTitle.textContent = "Processing";
+    statusDescription.textContent = "Waiting for all events to visualize...";
+    statusTitle.style.color = "#f59e0b";
+    
+    while (eventQueue.length > 0 || isProcessing) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   } catch (error) {
     console.error("Error starting scenario:", error);
     statusTitle.style.color = "#ef4444";
@@ -383,7 +447,7 @@ async function playScenario() {
   scenarioSelect.disabled = false;
   statusTitle.textContent = "Complete";
   statusTitle.style.color = "#34d399";
-  statusDescription.textContent = "Scenario finished";
+  statusDescription.textContent = `Scenario finished - ${eventCounts.Proposal + eventCounts.Promise + eventCounts.Accept + eventCounts.Accepted + eventCounts.Learn + eventCounts.Success} total events visualized`;
 }
 
 function pauseScenario() {

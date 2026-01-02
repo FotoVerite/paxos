@@ -1,10 +1,6 @@
 mod test_helpers;
 
-use paxos::{
-    message::Message,
-    node::ballot::Ballot,
-    paxos_command::PaxosCommand,
-};
+use std::collections::HashSet;
 use test_helpers::NodeBuilder;
 
 // ============================================================================
@@ -14,161 +10,177 @@ use test_helpers::NodeBuilder;
 #[tokio::test]
 async fn acceptor_rejects_lower_ballot_prepare() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b_high = Ballot::new(5, 1);
     let b_low = Ballot::new(3, 1);
 
-    let resp1 = acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b_high,
-    })
-    .await;
+    let resp1 = acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b_high,
+        })
+        .await;
     assert!(matches!(resp1, Message::Promise { ballot, .. } if ballot == b_high));
 
-    let resp2 = acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b_low,
-    })
-    .await;
+    let resp2 = acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b_low,
+        })
+        .await;
     assert!(matches!(resp2, Message::NACK));
 }
 
 #[tokio::test]
 async fn acceptor_accepts_higher_ballot_prepare() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b5 = Ballot::new(5, 1);
     let b7 = Ballot::new(7, 1);
 
-    let resp1 = acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b5,
-    })
-    .await;
+    let resp1 = acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b5,
+        })
+        .await;
     assert!(matches!(resp1, Message::Promise { ballot, .. } if ballot == b5));
 
-    let resp2 = acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b7,
-    })
-    .await;
+    let resp2 = acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b7,
+        })
+        .await;
     assert!(matches!(resp2, Message::Promise { ballot, .. } if ballot == b7));
 }
 
 #[tokio::test]
 async fn acceptor_rejects_accept_below_min_ballot() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b5 = Ballot::new(5, 1);
     let b3 = Ballot::new(3, 1);
 
-    acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b5,
-    })
-    .await;
+    acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b5,
+        })
+        .await;
 
-    let resp = acceptor.handle_message(Message::Accept {
-        from: 1,
-        decree_num: 0,
-        ballot: b3,
-        value: PaxosCommand::NOOP,
-    })
-    .await;
+    let resp = acceptor
+        .handle_message(Message::Accept {
+            from: 1,
+            decree_num: 0,
+            ballot: b3,
+            value: PaxosCommand::NOOP,
+            quorum: HashSet::new(),
+        })
+        .await;
     assert!(matches!(resp, Message::NACK));
 }
 
 #[tokio::test]
 async fn acceptor_accepts_accept_at_min_ballot() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b5 = Ballot::new(5, 1);
 
-    acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b5,
-    })
-    .await;
+    acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b5,
+        })
+        .await;
 
-    let resp = acceptor.handle_message(Message::Accept {
-        from: 1,
-        decree_num: 0,
-        ballot: b5,
-        value: PaxosCommand::NOOP,
-    })
-    .await;
-    assert!(matches!(
-        resp,
-        Message::Accepted { ballot, value, .. } if value == PaxosCommand::NOOP && ballot == b5
-    ));
+    let resp = acceptor
+        .handle_message(Message::Accept {
+            from: 1,
+            decree_num: 0,
+            ballot: b5,
+            value: PaxosCommand::NOOP,
+            quorum: HashSet::new(),
+        })
+        .await;
+    assert!(
+        matches!(resp, Message::Accepted { ballot, value, .. } if value == PaxosCommand::NOOP && ballot == b5)
+    );
 }
 
 #[tokio::test]
 async fn acceptor_accepts_accept_above_min_ballot() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b5 = Ballot::new(5, 1);
     let b7 = Ballot::new(7, 1);
 
-    acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b5,
-    })
-    .await;
+    acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b5,
+        })
+        .await;
 
-    let resp = acceptor.handle_message(Message::Accept {
-        from: 1,
-        decree_num: 0,
-        ballot: b7,
-        value: PaxosCommand::NOOP,
-    })
-    .await;
+    let resp = acceptor
+        .handle_message(Message::Accept {
+            from: 1,
+            decree_num: 0,
+            ballot: b7,
+            value: PaxosCommand::NOOP,
+            quorum: HashSet::new(),
+        })
+        .await;
     assert!(matches!(resp, Message::Accepted { ballot, .. } if ballot == b7));
 }
 
 #[tokio::test]
 async fn acceptor_returns_previous_accepted_value() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b1 = Ballot::new(1, 1);
     let b3 = Ballot::new(3, 1);
 
-    acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b1,
-    })
-    .await;
-    acceptor.handle_message(Message::Accept {
-        from: 1,
-        decree_num: 0,
-        ballot: b1,
-        value: PaxosCommand::PUT {
-            key: "original".to_string(),
-            version: 1,
-        },
-    })
-    .await;
+    acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b1,
+        })
+        .await;
+    acceptor
+        .handle_message(Message::Accept {
+            from: 1,
+            decree_num: 0,
+            ballot: b1,
+            value: PaxosCommand::PUT {
+                key: "original".to_string(),
+                version: 1,
+            },
+            quorum: HashSet::new(),
+        })
+        .await;
 
-    let resp = acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b3,
-    })
-    .await;
+    let resp = acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b3,
+        })
+        .await;
 
     if let Message::Promise {
         ballot,
@@ -194,22 +206,25 @@ async fn acceptor_returns_previous_accepted_value() {
 #[tokio::test]
 async fn acceptor_handles_equal_ballot_prepare() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b5 = Ballot::new(5, 1);
 
-    acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b5,
-    })
-    .await;
+    acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b5,
+        })
+        .await;
 
-    let resp = acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: b5,
-    })
-    .await;
+    let resp = acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b5,
+        })
+        .await;
     assert!(matches!(resp, Message::NACK));
 }
+

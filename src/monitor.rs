@@ -69,6 +69,15 @@ pub enum Event {
         to: usize,
         message_type: String,
     },
+    // Network partition events
+    PartitionCreated {
+        partition_a: Vec<usize>,
+        partition_b: Vec<usize>,
+        created_at: u64,
+    },
+    PartitionHealed {
+        created_at: u64,
+    },
 }
 
 pub trait PaxosObserver: Send + Sync {

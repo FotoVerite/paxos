@@ -28,3 +28,12 @@ impl Ord for Ballot {
         }
     }
 }
+
+impl Default for Ballot {
+    fn default() -> Ballot {
+        Ballot {
+          number: 0, 
+          node_id: 0
+        }
+    }
+}

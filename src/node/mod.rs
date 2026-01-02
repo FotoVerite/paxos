@@ -4,3 +4,4 @@ pub mod learner;
 pub mod ledger;
 pub mod paxos_node;
 pub mod proposer;
+pub mod decree_notes;

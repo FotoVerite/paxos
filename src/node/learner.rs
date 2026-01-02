@@ -1,22 +1,51 @@
-use std::sync::Arc;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+
+use tokio::sync::Mutex;
 
 use crate::{
     message::Message,
     monitor::{Event, PaxosObserver},
-    node::ledger::Ledger,
+    node::{
+        ballot::Ballot,
+        decree_notes::{DecreeNote, DecreeNotes},
+        ledger::Ledger,
+    },
 };
 
 pub struct Learner {
     id: usize,
+    quorum_number: usize,
+    decree_notes: Arc<Mutex<DecreeNotes>>,
+    state: Mutex<HashMap<usize, Quorum>>,
+
     observer: Arc<dyn PaxosObserver>,
 }
 
+struct Quorum {
+    votes: HashSet<usize>,
+    cached_last_tried: Ballot,
+}
+
 impl Learner {
-    pub fn new(id: usize, observer: Arc<dyn PaxosObserver>) -> Self {
-        Self { id: id, observer }
+    pub fn new(
+        id: usize,
+        quorum_number: usize,
+        decree_notes: Arc<Mutex<DecreeNotes>>,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> Self {
+        Self {
+            id: id,
+            decree_notes,
+            state: Mutex::new(HashMap::new()),
+            quorum_number,
+            observer,
+        }
     }
 
-    pub async fn handle_message(&mut self, msg: Message, ledger: &mut Ledger) {
+    pub async fn handle_message(&self, msg: Message, ledger: &Ledger) -> Message {
         match msg {
             Message::Accepted {
                 from,
@@ -24,34 +53,77 @@ impl Learner {
                 ballot,
                 value,
             } => {
-                if let Some(chosen_value) = ledger.vote(decree_num, ballot, value, from).await {
-                    self.observer.on_event(Event::Learn {
-                        decree_num,
-                        id: self.id,
-                        value: chosen_value,
-                        created_at: crate::monitor::current_timestamp_millis(),
-                    });
+                let mut decree_notes = self.decree_notes.lock().await;
+                let notes = decree_notes
+                    .state
+                    .entry(decree_num)
+                    .or_insert(DecreeNote::new(self.id));
+                if ballot != notes.last_tried {
+                    return Message::NACK;
                 }
+                // Extract proposer_id from the actual ballot in the Accepted message
+                // This is the true proposer that won the round, not just who we're tracking
+                let proposer_id = ballot.node_id;
+                drop(decree_notes);
+
+                let mut state = self.state.lock().await;
+                let quorum = state.entry(decree_num).or_insert_with(|| Quorum {
+                    votes: HashSet::new(),
+                    cached_last_tried: ballot,
+                });
+                if quorum.cached_last_tried != ballot {
+                    quorum.votes.clear();
+                    quorum.cached_last_tried = ballot;
+                }
+                quorum.votes.insert(from);
+                if quorum.votes.len() >= self.quorum_number {
+                    if ledger.insert(decree_num, value.clone()).await {
+                        tracing::info!(
+                            "[Node {}] Learner reached quorum for decree {}: {:?} from proposer {} (votes: {:?})",
+                            self.id,
+                            decree_num,
+                            value,
+                            proposer_id,
+                            quorum.votes
+                        );
+                        return Message::Success {
+                            from: self.id,
+                            decree_num,
+                            value: value.clone(),
+                            ballot_proposer: proposer_id,
+                        };
+                    }
+                }
+                return Message::NACK;
             }
-            _ => {}
+            _ => return Message::NACK,
         }
     }
-    pub async fn learn_decree(&mut self, msg: Message, ledger: &mut Ledger) {
+    pub async fn learn_decree(&self, msg: Message, ledger: &Ledger) {
         match msg {
             Message::Success {
                 from,
                 decree_num,
                 value,
+                ballot_proposer,
             } => {
-                
+                // Fire Learn event when locally reaching quorum, Success event when receiving broadcast
                 if ledger.insert(decree_num, value.clone()).await {
-                    self.observer.on_event(Event::Success {
+                    if self.id != from {
+                        self.observer.on_event(Event::Success {
+                            decree_num,
+                            from,
+                            id: self.id,
+                            value: value.clone(),
+                            created_at: crate::monitor::current_timestamp_millis(),
+                        });
+                    }
+                    tracing::info!(
+                        "[Node {}] Learned decree {} with value from proposer {}",
+                        self.id,
                         decree_num,
-                        from,
-                        id: self.id,
-                        value: value,
-                        created_at: crate::monitor::current_timestamp_millis(),
-                    });
+                        ballot_proposer
+                    );
                 }
             }
             _ => {}

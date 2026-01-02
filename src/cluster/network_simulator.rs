@@ -73,10 +73,6 @@ impl NetworkSimulator {
     }
 
     pub async fn send(&self, to: usize, msg: Message) {
-        if to == self.me {
-            return;
-        }
-
         let enabled = *self.enabled.lock().await;
         if !enabled {
             let _ = self.peers[to].send(msg).await;
@@ -99,9 +95,6 @@ impl NetworkSimulator {
         Message: Clone,
     {
         for (idx, _) in self.peers.iter().enumerate() {
-            if idx == self.me {
-                continue;
-            }
             self.send(idx, msg.clone()).await;
         }
     }
@@ -114,9 +107,6 @@ impl NetworkSimulator {
             tracing::debug!("Broadcasting Accept for decree {} to quorum: {:?}", decree_num, peers);
         }
         for idx in peers.into_iter() {
-            if *idx == self.me {
-                continue;
-            }
             self.send(*idx, msg.clone()).await;
         }
     }

@@ -6,34 +6,36 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 const DATA_DIR: &str = ".paxos";
 
 pub struct Acceptor {
     id: usize,
-    state: HashMap<usize, AcceptedDecree>,
+    state: Mutex<HashMap<usize, AcceptedDecree>>,
     observer: Arc<dyn PaxosObserver>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct AcceptedDecree {
-    min_ballot: Ballot,
-    accepted_ballot: Ballot,
-    accepted_value: PaxosCommand,
+    next_bal: Ballot,
+    prev_vote: (Ballot, PaxosCommand),
 }
 
 impl Default for AcceptedDecree {
     fn default() -> AcceptedDecree {
         AcceptedDecree {
-            min_ballot: Ballot {
+            next_bal: Ballot {
                 number: usize::MIN,
                 node_id: 0,
             },
-            accepted_ballot: Ballot {
-                number: usize::MIN,
-                node_id: 0,
-            },
-            accepted_value: PaxosCommand::BLANK,
+            prev_vote: (
+                Ballot {
+                    number: usize::MIN,
+                    node_id: 0,
+                },
+                PaxosCommand::BLANK,
+            ),
         }
     }
 }
@@ -43,12 +45,10 @@ impl Acceptor {
         let state = Acceptor::load_or_init(id).await?;
         return Ok(Self {
             id,
-            state,
+            state: Mutex::new(state),
             observer,
         });
     }
-
-
 
     async fn load_or_init(node_id: usize) -> Result<HashMap<usize, AcceptedDecree>> {
         let path_str = format!("{}/state_{}.bin", DATA_DIR, node_id);
@@ -66,75 +66,87 @@ impl Acceptor {
         Ok(bincode::deserialize(&data)?)
     }
 
-    fn prepare(&mut self, decree_num: usize, ballot: Ballot, from: usize) -> Message {
-        let decree = self.state.entry(decree_num).or_default();
-        if ballot > decree.min_ballot {
-            decree.min_ballot = ballot;
+    async fn prepare(&self, decree_num: usize, ballot: Ballot, from: usize) -> Message {
+        let mut state = self.state.lock().await;
+
+        let decree = state.entry(decree_num).or_default();
+        if ballot > decree.next_bal {
+            tracing::info!("[Node {}] Prepare: ballot ({}, {}) > next_bal ({}, {}) - PROMISE", 
+                self.id, ballot.number, ballot.node_id, decree.next_bal.number, decree.next_bal.node_id);
+            decree.next_bal = ballot;
 
             self.observer.on_event(Event::Promise {
                 decree_num,
                 id: self.id,
-                from,  // Track who initiated the prepare
+                from, // Track who initiated the prepare
                 ballot: ballot.number,
                 created_at: crate::monitor::current_timestamp_millis(),
             });
-            decree.min_ballot = ballot;
 
+            let (b, v) = &decree.prev_vote;
             return Message::Promise {
                 from: self.id,
                 decree_num,
                 ballot,
-                accepted_ballot: decree.accepted_ballot,
-                accepted_value: decree.accepted_value.clone(),
+                accepted_ballot: b.clone(),
+                accepted_value: v.clone(),
             };
         }
+        tracing::info!("[Node {}] Prepare: ballot ({}, {}) <= next_bal ({}, {}) - NACK", 
+            self.id, ballot.number, ballot.node_id, decree.next_bal.number, decree.next_bal.node_id);
         return Message::NACK;
     }
 
-    fn accept(&mut self, decree_num: usize, ballot: Ballot, cmd: PaxosCommand, from: usize) -> Message {
-        let decree = self.state.get_mut(&decree_num);
-        match decree {
-            Some(decree) => {
+    async fn accept(
+        &self,
+        decree_num: usize,
+        ballot: Ballot,
+        cmd: PaxosCommand,
+        from: usize,
+    ) -> Message {
+        let mut state = self.state.lock().await;
+        let decree = state.entry(decree_num).or_default();
+        if ballot == decree.next_bal {
+            decree.prev_vote = (ballot, cmd.clone());
 
-                if ballot >= decree.min_ballot {
-                    decree.min_ballot = ballot;
-                    decree.accepted_ballot = ballot;
-                    decree.accepted_value = cmd.clone();
+            tracing::info!("[Node {}] Accept: ballot ({}, {}) == next_bal - ACCEPTED decree {} from node {}: {:?}", 
+                self.id, ballot.number, ballot.node_id, decree_num, from, cmd);
 
-                    self.observer.on_event(Event::Accepted {
-                        decree_num,
-                        id: self.id,
-                        from,  // Track who initiated the accept
-                        ballot: ballot.number,
-                        value: cmd.clone(),
-                        created_at: crate::monitor::current_timestamp_millis(),
-                    });
+            self.observer.on_event(Event::Accepted {
+                decree_num,
+                id: self.id,
+                from, // Track who initiated the accept
+                ballot: ballot.number,
+                value: cmd.clone(),
+                created_at: crate::monitor::current_timestamp_millis(),
+            });
 
-                    return Message::Accepted {
-                        from: self.id,
-                        decree_num,
-                        ballot,
-                        value: cmd,
-                    };
-                }
-                return Message::NACK;
-            }
-
-            None => return Message::NACK,
+            return Message::Accepted {
+                from: self.id,
+                decree_num,
+                ballot,
+                value: cmd,
+            };
         }
+        tracing::info!("[Node {}] Accept: ballot ({}, {}) != next_bal ({}, {}) - NACK", 
+            self.id, ballot.number, ballot.node_id, decree.next_bal.number, decree.next_bal.node_id);
+        return Message::NACK;
     }
 
-    pub async fn handle_message(&mut self, msg: Message) -> Message {
+    pub async fn handle_message(&self, msg: Message) -> Message {
         match msg {
             Message::Prepare {
-                decree_num, ballot, from
-            } => return self.prepare(decree_num, ballot, from),
+                decree_num,
+                ballot,
+                from,
+            } => return self.prepare(decree_num, ballot, from).await,
             Message::Accept {
                 decree_num,
                 ballot,
                 value,
-                from, ..
-            } => return self.accept(decree_num, ballot, value, from),
+                from,
+                ..
+            } => return self.accept(decree_num, ballot, value, from).await,
             _ => Message::NACK,
         }
     }

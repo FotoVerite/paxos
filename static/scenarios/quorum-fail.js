@@ -17,10 +17,7 @@ const scenarioQuorumFail = {
             colors.nextballot
           );
           const acceptors = [1, 2, 3, 4, 5, 6];
-          for (const node of acceptors) {
-            visualizer.drawBeam(0, node, colors.nextballot);
-            await sleep(80);
-          }
+          await visualizer.drawBeamsTo(0, acceptors, colors.nextballot, 500, 'solid', 80);
           eventCounts.nextballot++;
           updateCounts();
           await sleep(300);
@@ -37,7 +34,7 @@ const scenarioQuorumFail = {
             visualizer.activateNode(i, colors.lastvote);
             addEvent(`[LastVote] Node ${i} responds`, colors.lastvote);
             eventCounts.lastvote++;
-            visualizer.drawBeam(i, 0, colors.lastvote);
+            visualizer.drawBeam(i, 0, colors.lastvote, 500);
             await sleep(150);
           }
           // Others don't respond
@@ -55,7 +52,6 @@ const scenarioQuorumFail = {
         description:
           "Proposer only has 3 LastVote responses, needs quorum of 4 - FAILS",
         action: async () => {
-          visualizer.clearBeams();
           visualizer.setNodeState(0, "fail");
           addEvent(
             "[Failure] Insufficient LastVote responses",

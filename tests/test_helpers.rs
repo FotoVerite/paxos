@@ -1,11 +1,13 @@
 /// Test helpers and builders for complex Paxos scenarios
 /// Makes it easy to set up multi-node clusters, simulations, and partition scenarios
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
 use paxos::{
     message::Message,
     monitor::{Event, PaxosObserver},
-    node::{acceptor::Acceptor, learner::Learner, proposer::Proposer, ledger::Ledger},
+    node::{acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, proposer::Proposer, ledger::Ledger},
     paxos_command::PaxosCommand,
 };
 
@@ -37,16 +39,16 @@ impl RecordingObserver {
     }
 
     #[allow(dead_code)]
-    pub fn get_events(&self) -> Vec<Event> {
-        self.events.lock().unwrap().clone()
+    pub async fn get_events(&self) -> Vec<Event> {
+        self.events.lock().await.clone()
     }
 
     #[allow(dead_code)]
-    pub fn clear(&self) {
-        self.events.lock().unwrap().clear();
+    pub async fn clear(&self) {
+        self.events.lock().await.clear();
     }
 
-    /// For compatibility with async observer. This version is synchronous 
+    /// For compatibility with async observer. This version is synchronous
     /// (events are recorded immediately), so no waiting needed.
     #[allow(dead_code)]
     pub async fn wait_for_events(&self) {
@@ -57,20 +59,20 @@ impl RecordingObserver {
         Arc::new(self.clone())
     }
 
-    pub fn proposals(&self) -> Vec<Event> {
+    pub async fn proposals(&self) -> Vec<Event> {
         self.events
             .lock()
-            .unwrap()
+            .await
             .iter()
             .filter(|e| matches!(e, Event::Proposal { .. }))
             .cloned()
             .collect()
     }
 
-    pub fn promises(&self) -> Vec<Event> {
+    pub async fn promises(&self) -> Vec<Event> {
         self.events
             .lock()
-            .unwrap()
+            .await
             .iter()
             .filter(|e| matches!(e, Event::Promise { .. }))
             .cloned()
@@ -78,10 +80,10 @@ impl RecordingObserver {
     }
 
     #[allow(dead_code)]
-    pub fn accepts(&self) -> Vec<Event> {
+    pub async fn accepts(&self) -> Vec<Event> {
         self.events
             .lock()
-            .unwrap()
+            .await
             .iter()
             .filter(|e| matches!(e, Event::Accept { .. }))
             .cloned()
@@ -89,24 +91,27 @@ impl RecordingObserver {
     }
 
     #[allow(dead_code)]
-    pub fn learns(&self) -> Vec<Event> {
+    pub async fn learns(&self) -> Vec<Event> {
         self.events
             .lock()
-            .unwrap()
+            .await
             .iter()
             .filter(|e| matches!(e, Event::Learn { .. }))
             .cloned()
             .collect()
     }
 
-    pub fn event_count(&self) -> usize {
-        self.events.lock().unwrap().len()
+    pub async fn event_count(&self) -> usize {
+        self.events.lock().await.len()
     }
 }
 
 impl PaxosObserver for RecordingObserver {
     fn on_event(&self, event: Event) {
-        self.events.lock().unwrap().push(event);
+        let events = self.events.clone();
+        tokio::spawn(async move {
+            events.lock().await.push(event);
+        });
     }
 }
 
@@ -125,30 +130,46 @@ use paxos::monitor::NoOpObserver;
 /// Builder for creating proposer/acceptor/learner with consistent setup
 pub struct NodeBuilder {
     observer: Arc<dyn PaxosObserver>,
+    decree_notes: Arc<Mutex<DecreeNotes>>,
 }
 
 impl NodeBuilder {
     pub fn new() -> Self {
         Self {
             observer: Arc::new(NoOpObserver),
+            decree_notes: Arc::new(Mutex::new(DecreeNotes::new())),
         }
     }
 
     #[allow(dead_code)]
     pub fn with_observer(observer: Arc<dyn PaxosObserver>) -> Self {
-        Self { observer }
+        Self {
+            observer,
+            decree_notes: Arc::new(Mutex::new(DecreeNotes::new())),
+        }
     }
 
     pub async fn proposer(&self, id: usize, quorum: usize) -> anyhow::Result<Proposer> {
-        Proposer::new(id, quorum, Arc::clone(&self.observer)).await
+        Proposer::new(
+            id,
+            quorum,
+            Arc::clone(&self.decree_notes),
+            Arc::clone(&self.observer),
+        )
+        .await
     }
 
     pub async fn acceptor(&self, id: usize) -> anyhow::Result<Acceptor> {
         Acceptor::new(id, Arc::clone(&self.observer)).await
     }
 
-    pub fn learner(&self, id: usize) -> Learner {
-        Learner::new(id, Arc::clone(&self.observer))
+    pub fn learner(&self, id: usize, quorum: usize) -> Learner {
+        Learner::new(
+            id,
+            quorum,
+            Arc::clone(&self.decree_notes),
+            Arc::clone(&self.observer),
+        )
     }
 
     #[allow(dead_code)]
@@ -342,6 +363,7 @@ pub fn assert_message_type(msg: &Message, expected: &str) {
         Message::Accept { .. } => "Accept",
         Message::Accepted { .. } => "Accepted",
         Message::NACK => "NACK",
+        Message::Success { .. } => "Success",
     };
     assert_eq!(actual, expected, "Expected {}, got {}", expected, actual);
 }
@@ -357,6 +379,7 @@ pub fn assert_ballot_number(msg: &Message, expected_number: usize, expected_id: 
             assert_eq!(ballot.node_id, expected_id);
         }
         Message::NACK => panic!("Cannot extract ballot from NACK"),
+        Message::Success { .. } => panic!("Cannot extract ballot from Success message"),
     }
 }
 
@@ -378,18 +401,21 @@ mod tests {
         assert!(!QuorumCalc::can_lose_nodes(5, 3)); // Can't lose 3 of 5, left with 2 < 3
     }
 
-    #[test]
-    fn test_recording_observer() {
+    #[tokio::test]
+    async fn test_recording_observer() {
         let obs = RecordingObserver::new();
         obs.on_event(Event::Proposal {
             id: 1,
             decree_num: 0,
             value: PaxosCommand::NOOP,
+            created_at: 0,
         });
+        // Add a small delay to allow the spawned task to run
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
-        assert_eq!(obs.event_count(), 1);
-        assert_eq!(obs.proposals().len(), 1);
-        assert_eq!(obs.promises().len(), 0);
+        assert_eq!(obs.event_count().await, 1);
+        assert_eq!(obs.proposals().await.len(), 1);
+        assert_eq!(obs.promises().await.len(), 0);
     }
 
     #[test]
@@ -408,9 +434,9 @@ mod tests {
     #[tokio::test]
     async fn test_node_builder() {
         let builder = NodeBuilder::new();
-        let _proposer = builder.proposer(1, 1).await.unwrap();
+        let _proposer = builder.proposer(1, 3).await.unwrap();
         let _acceptor = builder.acceptor(1).await.unwrap();
-        let _learner = builder.learner(1);
+        let _learner = builder.learner(1, 3);
         // Just verify they construct without panic
     }
 }

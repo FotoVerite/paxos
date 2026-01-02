@@ -87,28 +87,45 @@ impl PaxosObserver for RecordingObserver {
 
         tokio::spawn(async move {
             match event {
-                Event::Proposal { id, decree_num, value: _ } => {
+                Event::Proposal {
+                    id,
+                    decree_num,
+                    ..
+                } => {
                     events.lock().await.push(RecordedEvent {
                         event_type: "Proposal".to_string(),
                         node_id: id,
                         decree_num,
                     });
                 }
-                Event::Promise { id, decree_num, ballot: _ } => {
+                Event::Promise {
+                    id,
+                    decree_num,
+                    ..
+                } => {
                     events.lock().await.push(RecordedEvent {
                         event_type: "Promise".to_string(),
                         node_id: id,
                         decree_num,
                     });
                 }
-                Event::Accept { id, decree_num, ballot: _, value: _ } => {
+                Event::Accept {
+                    id,
+                    decree_num,
+                    ..
+                } => {
                     events.lock().await.push(RecordedEvent {
                         event_type: "Accept".to_string(),
                         node_id: id,
                         decree_num,
                     });
                 }
-                Event::Learn { id, decree_num, value } => {
+                Event::Learn {
+                    id,
+                    decree_num,
+                    value,
+                    ..
+                } => {
                     events.lock().await.push(RecordedEvent {
                         event_type: "Learn".to_string(),
                         node_id: id,
@@ -116,8 +133,8 @@ impl PaxosObserver for RecordingObserver {
                     });
                     learned.lock().await.insert(decree_num, value.to_string());
                 }
-                Event::NodeState { id: _, role: _, ballot: _, learned_count: _ } => {
-                    // NodeState events are internal and don't need recording
+                _ => {
+                    // Other events are not recorded
                 }
             }
             // Decrement pending task counter when done
@@ -129,6 +146,8 @@ impl PaxosObserver for RecordingObserver {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use paxos::paxos_command::PaxosCommand;
+    use std::collections::HashSet;
 
     #[tokio::test]
     async fn test_recording_observer() {
@@ -138,19 +157,32 @@ mod tests {
         observer.on_event(Event::Proposal {
             id: 0,
             decree_num: 1,
-            value: paxos::paxos_command::PaxosCommand::NOOP,
+            value: PaxosCommand::NOOP,
+            created_at: 0,
         });
 
         observer.on_event(Event::Promise {
             id: 1,
+            from: 0,
             decree_num: 1,
             ballot: 1,
+            created_at: 0,
+        });
+
+        observer.on_event(Event::Accept {
+            id: 0,
+            decree_num: 1,
+            ballot: 1,
+            value: PaxosCommand::NOOP,
+            quorum: HashSet::new(),
+            created_at: 0,
         });
 
         // Wait for events to be recorded
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        observer.wait_for_events().await;
 
-        assert!(observer.count_events("Proposal").await > 0);
-        assert!(observer.count_events("Promise").await > 0);
+        assert_eq!(observer.count_events("Proposal").await, 1);
+        assert_eq!(observer.count_events("Promise").await, 1);
+        assert_eq!(observer.count_events("Accept").await, 1);
     }
 }

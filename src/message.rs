@@ -34,5 +34,6 @@ pub enum Message {
         from: usize,
         decree_num: usize,
         value: PaxosCommand,
+        ballot_proposer: usize,  // Track which node originated this proposal
     },
 }

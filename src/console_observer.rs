@@ -120,6 +120,23 @@ impl PaxosObserver for ConsoleObserver {
                     .magenta()
                 );
             }
+            Event::PartitionCreated {
+                partition_a,
+                partition_b,
+                created_at,
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[NETWORK] Partition created: A={:?}, B={:?}",
+                        partition_a, partition_b
+                    )
+                    .red()
+                );
+            }
+            Event::PartitionHealed { created_at } => {
+                println!("{}", "[NETWORK] Partition healed".green());
+            }
         }
     }
 }

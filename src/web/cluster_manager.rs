@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use rand::Rng;
 use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, sleep};
 
@@ -21,7 +22,7 @@ impl ClusterManager {
         }
     }
     pub fn get_observer(&self) -> Arc<WebSocketObserver> {
-        return Arc::clone(&self.observer)
+        return Arc::clone(&self.observer);
     }
 
     pub async fn start_scenario(
@@ -50,6 +51,9 @@ impl ClusterManager {
             .set_cluster_info(node_count, cluster.quorum_size())
             .await;
 
+        // Enable network simulator for failure injection
+        cluster.enable_failures().await;
+
         // Start all nodes
         for i in 0..node_count {
             cluster.nodes[i].start();
@@ -69,6 +73,7 @@ impl ClusterManager {
         let cluster_for_runner = cluster_arc.clone();
         let mut stop_rx = stop_tx.subscribe();
         let scenario_type = scenario_type.to_string();
+        let observer_for_runner = self.observer.clone();
 
         tokio::spawn(async move {
             let start = std::time::Instant::now();
@@ -94,7 +99,7 @@ impl ClusterManager {
                             let cluster0 = cluster_for_runner.clone();
                             let cluster1 = cluster_for_runner.clone();
                             let attempt = proposal_count / 2;
-                            
+
                             // Spawn both proposals concurrently
                             let p0 = tokio::spawn(async move {
                                 let mut cluster = cluster0.lock().await;
@@ -102,9 +107,10 @@ impl ClusterManager {
                                     author: "Proposer 0".to_string(),
                                     law: format!("Value from proposer 0 (attempt #{})", attempt),
                                 };
-                                cluster.propose_from(0, cmd).await;
+                                let pick = [0, 2, 3, 4][rand::rng().random_range(0..4)];
+                                cluster.propose_from(pick, cmd).await;
                             });
-                            
+
                             let p1 = tokio::spawn(async move {
                                 let mut cluster = cluster1.lock().await;
                                 let cmd = PaxosCommand::EnactDecree {
@@ -113,10 +119,80 @@ impl ClusterManager {
                                 };
                                 cluster.propose_from(1, cmd).await;
                             });
-                            
+
                             // Wait for both to complete
                             let _ = tokio::join!(p0, p1);
                         }
+                    }
+                    "network_partition" => {
+                        // Network partition scenario
+                        // Proposal 2: Create partition (nodes 0,1,2 vs 3,4)
+                        if proposal_count == 0 {
+                            println!("Creating network partition at proposal {}", proposal_count);
+                            let cluster = cluster_for_runner.lock().await;
+
+                            // Partition A: nodes 0,1,2 (quorum)
+                            let partition_a: std::collections::HashSet<usize> =
+                                [0, 1, 2].iter().copied().collect();
+                            let partition_a_vec = vec![0, 1, 2];
+                            // Partition B: nodes 3,4 (no quorum)
+                            let partition_b: std::collections::HashSet<usize> =
+                                [3, 4].iter().copied().collect();
+                            let partition_b_vec = vec![3, 4];
+
+                            // For each node in partition A: block messages to partition B
+                            for i in [0, 1, 2] {
+                                for target in [3, 4] {
+                                    if let Some(sim) = cluster.get_simulator(i) {
+                                        sim.set_failure(target, crate::cluster::network_simulator::NetworkFailure::Partition { nodes: partition_a.clone() }).await;
+                                    }
+                                }
+                            }
+
+                            // For each node in partition B: block messages to partition A
+                            for i in [3, 4] {
+                                for target in [0, 1, 2] {
+                                    if let Some(sim) = cluster.get_simulator(i) {
+                                        sim.set_failure(target, crate::cluster::network_simulator::NetworkFailure::Partition { nodes: partition_b.clone() }).await;
+                                    }
+                                }
+                            }
+
+                            // Emit partition created event
+                            let observer: &dyn crate::monitor::PaxosObserver =
+                                &*observer_for_runner;
+                            observer.on_event(crate::monitor::Event::PartitionCreated {
+                                partition_a: partition_a_vec,
+                                partition_b: partition_b_vec,
+                                created_at: crate::monitor::current_timestamp_millis(),
+                            });
+                        }
+
+                        // Proposal 5: Heal partition
+                        if proposal_count == 5 {
+                            println!("Healing network partition at proposal {}", proposal_count);
+                            let cluster = cluster_for_runner.lock().await;
+                            for i in 0..node_count {
+                                if let Some(sim) = cluster.get_simulator(i) {
+                                    sim.clear_all_failures().await;
+                                }
+                            }
+
+                            // Emit partition healed event
+                            let observer: &dyn crate::monitor::PaxosObserver =
+                                &*observer_for_runner;
+                            observer.on_event(crate::monitor::Event::PartitionHealed {
+                                created_at: crate::monitor::current_timestamp_millis(),
+                            });
+                        }
+
+                        // Proposals every 5 iterations
+                        let mut cluster = cluster_for_runner.lock().await;
+                        let cmd = PaxosCommand::EnactDecree {
+                            author: format!("Proposer {}", proposal_count % 3),
+                            law: format!("Proposal #{}", proposal_count / 5),
+                        };
+                        cluster.propose(cmd).await;
                     }
                     _ => {
                         // Default "happy_path": proposals every 2 seconds
@@ -132,7 +208,7 @@ impl ClusterManager {
                 }
 
                 proposal_count += 1;
-                sleep(Duration::from_micros(100)).await;
+                sleep(Duration::from_millis(5000)).await;
             }
         });
 
