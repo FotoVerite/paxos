@@ -22,68 +22,73 @@ block extra_stylesheets %}
 
     <p>
       The key line here is "he performed the first two steps of the protocol
-      once". To cut down on message passaging once a ballot was promised, if
-      there are no other competing nodes steps 3-6 will not be contested under
-      most circumstances. With that Lamport expands with. 
+      once". To cut down on message passing once a ballot was promised, if there
+      are no other competing nodes steps 3-6 are unlikely to be contested when a
+      stable leader exists.
     </p>
 
     <blockquote>
-   e key to derivingthe parliamentary protocol is the observation that, in the
-Synod protocol, the president does not choose the decree or the quorum until step 3.
-A newly elected president p can send to some set of legislators a single message that
-serves as the NextBallot(b) message for all instances of the Synod protocol. (There
-are an infinite number of instances—one for each decree number.) A legislator q
-can reply with a single message that serves as the LastVote messages for step 2 of
-all instances of the Synod protocol. This message contains only a finite amount of
-information, since q can have voted in only a finite number of instances.
-When the new president has received a reply from every member of a majority
-set, he is ready to perform step 3 for every instance of the Synod protocol. For
-some finite number of instances (decree numbers), the choice of decree in step 3 will
-be determined by B3. The president immediately performs step 3 for each of those
-instances to try passingthese decrees. Then, whenever he receives a request to pass
-a decree, he chooses the lowest-numbered decree that he is still free to choose, and
-he performs step 3 for that decree number (instance of the Synod protocol) to try
-to pass the decree.
+      A newly elected president $p$ can send to some set of legislators a single
+      message that serves as the $NextBallot(b)$ message for all instances of
+      the Synod protocol. (There are an infinite number of instances—one for
+      each decree number.) A legislator $q$ can reply with a single message that
+      serves as the $LastVote$ messages for step 2 of all instances of the Synod
+      protocol. This message contains only a finite amount of information, since
+      q can have voted in only a finite number of instances. When the new
+      president has received a reply from every member of a majority set, he is
+      ready to perform step 3 for every instance of the Synod protocol. For some
+      finite number of instances (decree numbers), the choice of decree in step
+      3 will be determined by B3. The president immediately performs step 3 for
+      each of those instances to try passing these decrees. Then, whenever he
+      receives a request to pass a decree, he chooses the lowest-numbered decree
+      that he is still free to choose, and he performs step 3 for that decree
+      number (instance of the Synod protocol) to try to pass the decree.
     </blockquote>
 
     <p>
-      he remainder of the section approaches the problem indirectly, using the
-      parliamentary metaphor and a long discussion of time measured in minutes.
-      If this feels unsatisfying, that reaction is reasonable. The paper fixates
-      on delays and timing rules without providing a usable method for choosing
-      them.
+      Instead of the message containing a single decree promise, the node can
+      send a batch message to get a promise for each future $BeginBallot(d,b)$
+      message that will be sent for the same current ballot. No matter the size
+      of the range that is asked the message will be of finite size since
+      accepted decrees will be of a finite size. The batch can be of range 10 or
+      range 124-$/infty$
     </p>
 
     <blockquote>
-      Still assuming that $p$ was the only priest initiating ballots, suppose
-      that he were required to initiate a new ballot iff (i) he had not executed
-      step 3 or step 5 within the previous 22 minutes, or (ii) he learned that
-      another priest had initiated a higher-numbered ballot. If the Chamber
-      doors were locked with $p$ and a majority set of priests inside, then a
-      decree would be passed and recorded in the ledgers of all priests in the
-      Chamber within 99 minutes. (It could take 22 minutes for p to start the
-      next ballot, 22 more minutes to learn that another priest had initiated a
-      larger-numbered ballot, then 55 minutes to complete steps 1–6 for a
-      successful ballot.) Thus, the progress condition would be met if only a
-      single priest, who did not leave the chamber, were initiating ballots.
+      There is no reason to go through the Synod protocol for a decree number
+      whose outcome is already known. Therefore, if a newly elected president
+      $p$ has all decrees with numbers less than or equal to $n$ written in his
+      ledger, then he sends a $NextBallot(b)$ message that serves as a
+      $NextBallot(b)$ message in all instances of the Synod protocol for decree
+      numbers larger than n. In his response to this message, legislator $q$
+      informs p of all decrees numbered greater than n that already appear in
+      $q$’s ledger (in addition to sending the usual $LastVote$ information for
+      decrees not in his ledger), and he asks $p$ to send him any decrees
+      numbered $n$ or less that are not in his ledger.
     </blockquote>
 
     <p>
-      The specific numbers here do not matter, and the paper is not claiming
-      that a system can or should measure time this way. The addition to the
-      spec is simply this
+      For the batch call, the leader can claim all lastVoted(p) information for
+      multiple instances using the same ballot number. Each legislator’s reply
+      contains all votes they have cast in the past for those instances,
+      enabling both the leader and other nodes to catch up. The leader can get
+      any unknown decrees further along in its' $NextBallot$ call and other
+      nodes can get previous decrees it might be missing.
     </p>
 
-    <p class="highlight-box">
-      If no one entered or left the Chamber, then after T minutes exactly one
-      priest in the Chamber would consider himself to be the president.
-    </p>
+    <p>Lamport also brings up the idea of a No-OP to fill gaps.</p>
+
+    <blockquote>
+      The ides of February is national olive day a traditional decree that made
+      absolutely no difference to anyone in Paxos. In general, a new president
+      would fill any gaps in his ledger by passing the “olive day” decree.
+    </blockquote>
 
     <p>
-      The purpose of this section is not to define timeouts. It is to show that
-      without leadership, the protocol can live lock, even though it remains
-      safe. And how through leadership churn is diminished and progress is more
-      assured.
+      When new leaders are elected, gaps may exist in the ledger that were never
+      filled or were lost during transitions. These gaps are filled with a
+      No-Op, a value chosen by consensus that has no operational effect, to
+      ensure the sequence of instances remains consistent.
     </p>
 
     <div class="nav-links">
