@@ -1,0 +1,60 @@
+{% extends "base.html" %} {% block title %}3.3.2 Long Ledgers{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <h1>Section 3.3.2 Long Ledgers</h1>
+
+    <p>
+      Even though ledgers are finite, they grow over time and can become unwieldy without careful management.
+    </p>
+
+
+    <blockquote>
+      As the years progressed and Parliament passed more and more decrees,
+      Paxons had to pore over an ever longer list of decrees to find the current
+      olive tax or what color goat could be sold. A legislator who returned to
+      the Chamber after an extended voyage had to do quite a bit of copying to
+      bring his ledger up to date. Eventually, the legislators were forced to
+      convert their ledgers from lists of decrees into law books that contained
+      only the current state of the law and the number of the last decree whose
+      passage was reflected in that state.
+    </blockquote>
+
+    <p>
+      Lamport is describing what we now call a <strong>snapshot</strong>. Instead of keeping the full ledger indefinitely, a node can record the current state of the system along with the last applied decree. Snapshots drastically reduce storage requirements and speed up recovery and replication in distributed systems.
+    </p>
+    
+    <p>Nodes can also buffer recent decrees to apply them in order, allowing incremental updates without scanning the entire ledger.</p>
+
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/synod/recap">Prev - Basic Demo </a>
+      </div>
+      <div class="next">
+        <a href="/protocols/preliminary-protocol-demo"> </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+{% endblock %}

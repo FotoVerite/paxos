@@ -80,7 +80,7 @@ impl PaxosNode {
         peers: Arc<NetworkSimulator>,
         quorum: usize,
     ) -> anyhow::Result<Self> {
-        let ledger = Ledger::init(id, quorum).await?;
+        let ledger = Ledger::init(id).await?;
         let decree_notes = Arc::new(Mutex::new(DecreeNotes::new()));
         let acceptor = Acceptor::new(id, Arc::clone(&observer)).await?;
         let state = Arc::new(PaxosState {

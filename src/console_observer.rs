@@ -109,7 +109,7 @@ impl PaxosObserver for ConsoleObserver {
                 from,
                 decree_num,
                 value,
-                created_at,
+                ..
             } => {
                 println!(
                     "{}",
@@ -123,7 +123,7 @@ impl PaxosObserver for ConsoleObserver {
             Event::PartitionCreated {
                 partition_a,
                 partition_b,
-                created_at,
+                ..
             } => {
                 println!(
                     "{}",
@@ -134,7 +134,7 @@ impl PaxosObserver for ConsoleObserver {
                     .red()
                 );
             }
-            Event::PartitionHealed { created_at } => {
+            Event::PartitionHealed { .. } => {
                 println!("{}", "[NETWORK] Partition healed".green());
             }
         }
