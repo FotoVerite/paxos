@@ -1,7 +1,12 @@
 mod test_helpers;
 
-use paxos::{message::Message, node::ballot::Ballot, paxos_command::PaxosCommand};
+use paxos::{
+    message::Message,
+    node::ballot::Ballot,
+    paxos_command::PaxosCommand,
+};
 use test_helpers::NodeBuilder;
+use std::collections::HashSet;
 
 // ============================================================================
 // TIE-BREAKING TESTS
@@ -10,7 +15,7 @@ use test_helpers::NodeBuilder;
 #[tokio::test]
 async fn tie_breaking_same_round_higher_node_id_wins() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b_node1 = Ballot::new(5, 1); // ballot (5, 1)
     let b_node2 = Ballot::new(5, 2); // ballot (5, 2) - higher node_id
@@ -38,7 +43,7 @@ async fn tie_breaking_same_round_higher_node_id_wins() {
 #[tokio::test]
 async fn tie_breaking_lower_node_id_rejected_same_round() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b_node2 = Ballot::new(5, 2);
     let b_node1 = Ballot::new(5, 1); // Lower node_id
@@ -89,13 +94,13 @@ async fn ballot_ordering_complete_comparisons() {
 async fn proposer_ballot_ordering_from_proposer_perspective() {
     let builder = NodeBuilder::new();
 
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
     };
 
-    let msg = proposer.propose(0, cmd.clone());
+    let msg = proposer.propose(0, cmd.clone()).await;
 
     if let Message::Prepare { ballot, .. } = msg {
         // Proposer 1 should create ballot (1, 1)
@@ -106,8 +111,8 @@ async fn proposer_ballot_ordering_from_proposer_perspective() {
     }
 
     // Now proposer 2 with same quorum
-    let mut proposer2 = builder.proposer(2, 1).await.unwrap();
-    let msg2 = proposer2.propose(0, cmd);
+    let proposer2 = builder.proposer(2, 1).await.unwrap();
+    let msg2 = proposer2.propose(0, cmd).await;
 
     if let Message::Prepare { ballot: b2, .. } = msg2 {
         // Proposer 2 should create ballot (1, 2)
@@ -117,13 +122,15 @@ async fn proposer_ballot_ordering_from_proposer_perspective() {
         if let Message::Prepare { ballot: b1, .. } = msg {
             assert!(b1 < b2);
         }
+    } else {
+        panic!("Expected Prepare message");
     }
 }
 
 #[tokio::test]
 async fn acceptor_rejects_lower_node_id_when_already_promised_to_higher() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b_higher_node = Ballot::new(5, 2);
     let b_lower_node = Ballot::new(5, 1);
@@ -152,7 +159,7 @@ async fn acceptor_rejects_lower_node_id_when_already_promised_to_higher() {
 #[tokio::test]
 async fn tie_breaking_affects_accept_phase() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b_node1 = Ballot::new(5, 1);
     let b_node2 = Ballot::new(5, 2); // Higher due to node_id
@@ -182,6 +189,7 @@ async fn tie_breaking_affects_accept_phase() {
             decree_num: 0,
             ballot: b_node1,
             value: PaxosCommand::NOOP,
+            quorum: HashSet::new(),
         })
         .await;
     assert!(matches!(resp, Message::NACK));
@@ -193,6 +201,7 @@ async fn tie_breaking_affects_accept_phase() {
             decree_num: 0,
             ballot: b_node2,
             value: PaxosCommand::NOOP,
+            quorum: HashSet::new(),
         })
         .await;
     assert!(matches!(resp2, Message::Accepted { .. }));

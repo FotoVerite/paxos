@@ -1,5 +1,10 @@
 mod test_helpers;
 
+use paxos::{
+    message::Message,
+    node::ballot::Ballot,
+    paxos_command::PaxosCommand,
+};
 use std::collections::HashSet;
 use test_helpers::NodeBuilder;
 

@@ -14,14 +14,14 @@ use test_helpers::NodeBuilder;
 #[tokio::test]
 async fn proposer_issues_prepare_with_correct_ballot() {
     let builder = NodeBuilder::new();
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
 
     let msg = proposer.propose(
         0,
         PaxosCommand::GET {
             key: "key".to_string(),
         },
-    );
+    ).await;
 
     if let Message::Prepare { ballot, .. } = msg {
         assert_eq!(ballot.number, 1);
@@ -34,12 +34,16 @@ async fn proposer_issues_prepare_with_correct_ballot() {
 #[tokio::test]
 async fn proposer_sends_accept_on_promise() {
     let builder = NodeBuilder::new();
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
     let cmd = PaxosCommand::GET {
         key: "mykey".to_string(),
     };
 
-    proposer.propose(0, cmd.clone());
+    // Note: The proposer's internal state needs to be updated with the proposal
+    // before it can process a promise for it. This means `propose` must be called
+    // first, and its side effects (updating proposer's state) relied upon.
+    // The actual Prepare message returned by `propose` is what would be sent to acceptors.
+    proposer.propose(0, cmd.clone()).await; 
 
     let promise = Message::Promise {
         from: 2,
@@ -61,7 +65,7 @@ async fn proposer_sends_accept_on_promise() {
 #[tokio::test]
 async fn proposer_adopts_previously_accepted_value() {
     let builder = NodeBuilder::new();
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
     let proposed_cmd = PaxosCommand::GET {
         key: "newkey".to_string(),
     };
@@ -70,7 +74,7 @@ async fn proposer_adopts_previously_accepted_value() {
         version: 1,
     };
 
-    proposer.propose(0, proposed_cmd);
+    proposer.propose(0, proposed_cmd.clone()).await; // Call propose to set up internal state
 
     let promise = Message::Promise {
         from: 2,
@@ -92,19 +96,19 @@ async fn proposer_adopts_previously_accepted_value() {
 #[tokio::test]
 async fn proposer_ignores_promise_for_wrong_ballot() {
     let builder = NodeBuilder::new();
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
 
     proposer.propose(
         0,
         PaxosCommand::GET {
             key: "key".to_string(),
         },
-    );
+    ).await; // Call propose to set up internal state
 
     let promise = Message::Promise {
         from: 2,
         decree_num: 0,
-        ballot: Ballot::new(2, 1),
+        ballot: Ballot::new(2, 1), // This ballot number will cause a NACK
         accepted_ballot: Ballot::new(0, 0),
         accepted_value: PaxosCommand::NOOP,
     };
@@ -117,12 +121,12 @@ async fn proposer_ignores_promise_for_wrong_ballot() {
 #[tokio::test]
 async fn proposer_picks_highest_accepted_ballot() {
     let builder = NodeBuilder::new();
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
     let proposed_cmd = PaxosCommand::GET {
         key: "key".to_string(),
     };
 
-    proposer.propose(0, proposed_cmd);
+    proposer.propose(0, proposed_cmd).await; // Call propose to set up internal state
 
     let value_from_5 = PaxosCommand::PUT {
         key: "ballot5".to_string(),

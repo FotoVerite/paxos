@@ -7,6 +7,7 @@ use paxos::{
     paxos_command::PaxosCommand,
 };
 use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
+use std::collections::HashSet;
 
 // ============================================================================
 // EDGE CASE TESTS
@@ -14,9 +15,7 @@ use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
 
 /// Edge case: Promise arrives after Accept has been sent (out of order)
 #[tokio::test]
-async fn out_of_order_promise_after_accept() {
-    let builder = NodeBuilder::new();
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -63,7 +62,7 @@ async fn out_of_order_promise_after_accept() {
 #[tokio::test]
 async fn accept_before_prepare_same_decree() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b = Ballot::new(5, 1);
 
@@ -86,9 +85,7 @@ async fn accept_before_prepare_same_decree() {
 
 /// Edge case: Duplicate Prepare messages from same proposer
 #[tokio::test]
-async fn duplicate_prepare_messages() {
-    let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b = Ballot::new(5, 1);
 
@@ -120,7 +117,7 @@ async fn duplicate_prepare_messages() {
 #[tokio::test]
 async fn duplicate_accept_messages() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b = Ballot::new(5, 1);
     let value = PaxosCommand::PUT {
@@ -176,8 +173,8 @@ async fn learner_out_of_order_accepted() {
     
     let observer = RecordingObserver::new();
     let builder = NodeBuilder::with_observer(observer.as_arc());
-    let mut learner = builder.learner(1);
-    let mut ledger = paxos::node::ledger::Ledger::init(2, 1).await.unwrap(); // quorum of 1
+    let learner = builder.learner(1, 1); // Quorum of 1
+    let ledger = paxos::node::ledger::Ledger::init(2, 1).await.unwrap();
 
     let b = Ballot::new(1, 1);
     let cmd0 = PaxosCommand::GET {
@@ -188,28 +185,30 @@ async fn learner_out_of_order_accepted() {
     };
 
     // Receive Accepted for decree 1 first
-    learner.handle_message(
-        Message::Accepted {
-            from: 2,
-            decree_num: 1,
-            ballot: b,
-            value: cmd1.clone(),
-        },
-        &mut ledger,
-    )
-    .await;
+    learner
+        .handle_message(
+            Message::Accepted {
+                from: 2,
+                decree_num: 1,
+                ballot: b,
+                value: cmd1.clone(),
+            },
+            &ledger,
+        )
+        .await;
 
     // Then Accepted for decree 0
-    learner.handle_message(
-        Message::Accepted {
-            from: 2,
-            decree_num: 0,
-            ballot: b,
-            value: cmd0.clone(),
-        },
-        &mut ledger,
-    )
-    .await;
+    learner
+        .handle_message(
+            Message::Accepted {
+                from: 2,
+                decree_num: 0,
+                ballot: b,
+                value: cmd0.clone(),
+            },
+            &ledger,
+        )
+        .await;
 
     // Both should be learned despite order
     let learns = observer
@@ -224,7 +223,7 @@ async fn learner_out_of_order_accepted() {
 #[tokio::test]
 async fn proposer_with_insufficient_promises() {
     let builder = NodeBuilder::new();
-    let mut proposer = builder.proposer(1, 3).await.unwrap(); // Needs 3 promises (5-node cluster)
+    let proposer = builder.proposer(1, 3).await.unwrap(); // Needs 3 promises (5-node cluster)
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -293,7 +292,7 @@ async fn proposer_with_insufficient_promises() {
 #[tokio::test]
 async fn large_ballot_numbers() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b_huge = Ballot::new(999999, 1);
     let b_higher = Ballot::new(1000000, 1);
@@ -326,7 +325,7 @@ async fn large_ballot_numbers() {
 #[tokio::test]
 async fn proposer_promise_from_itself() {
     let builder = NodeBuilder::new();
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -362,7 +361,7 @@ async fn proposer_promise_from_itself() {
 #[tokio::test]
 async fn multiple_concurrent_proposals_same_decree() {
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     let b1_1 = Ballot::new(1, 1); // Proposer 1
     let b1_2 = Ballot::new(1, 2); // Proposer 2
