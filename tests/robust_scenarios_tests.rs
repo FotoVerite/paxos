@@ -5,28 +5,29 @@
 /// - Higher message volume
 /// - Complex failure patterns
 /// - Recovery scenarios
-mod recording_observer;
+mod test_helpers;
 
 use paxos::{
     cluster::cluster::Cluster,
     paxos_command::PaxosCommand,
 };
 use std::sync::Arc;
-use tokio::time::{sleep, Duration};
-use recording_observer::RecordingObserver;
+use tokio::time::Duration;
+use test_helpers::RecordingObserver;
 
 /// Test consensus with 7 nodes and sustained normal operation
 /// MIT style: Multiple proposals with reliable network
 #[tokio::test]
 async fn test_seven_node_consensus_sustained() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 7, observer.clone()).await.unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // High message volume: 10 consecutive proposals
@@ -36,14 +37,10 @@ async fn test_seven_node_consensus_sustained() {
             law: format!("Law number {}", i),
         };
         cluster.propose(cmd).await;
-        sleep(Duration::from_millis(300)).await;
+        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
     }
 
-    sleep(Duration::from_secs(1)).await;
-
-    // Wait for all event recording tasks to complete
     observer.wait_for_events().await;
-    sleep(Duration::from_millis(500)).await;
 
     // Verify: Most proposals should have been learned (allow for timing variance)
     let learned = observer.count_decrees_learned().await;
@@ -59,13 +56,14 @@ async fn test_seven_node_consensus_sustained() {
 #[tokio::test]
 async fn test_nine_node_consensus() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 9, observer.clone()).await.unwrap();
 
     for i in 0..9 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // Propose with 9-node cluster (quorum = 5)
@@ -75,14 +73,10 @@ async fn test_nine_node_consensus() {
             term_length_years: 10,
         };
         cluster.propose(cmd).await;
-        sleep(Duration::from_millis(400)).await;
+        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
     }
 
-    sleep(Duration::from_millis(500)).await;
-
-    // Wait for all event recording tasks to complete and give system time to settle
     observer.wait_for_events().await;
-    sleep(Duration::from_millis(500)).await;
 
     // Verify: Most proposals should be learned in 9-node cluster (allow some margin for timing)
     let learned = observer.count_decrees_learned().await;
@@ -98,13 +92,14 @@ async fn test_nine_node_consensus() {
 #[tokio::test]
 async fn test_minority_partition_seven_nodes() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 7, observer.clone()).await.unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // Normal operation first
@@ -114,7 +109,7 @@ async fn test_minority_partition_seven_nodes() {
             law: "Initial law".to_string(),
         })
         .await;
-    sleep(Duration::from_millis(500)).await;
+    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
 
     let initial_learned = observer.count_decrees_learned().await;
     assert!(initial_learned > 0, "Should learn initial decree before partition");
@@ -125,7 +120,7 @@ async fn test_minority_partition_seven_nodes() {
             cluster.partition(i, j).await;
         }
     }
-    sleep(Duration::from_millis(200)).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
 
     // Try to propose from minority partition
     cluster
@@ -133,7 +128,7 @@ async fn test_minority_partition_seven_nodes() {
             citizen: "Test".to_string(),
         })
         .await;
-    sleep(Duration::from_millis(1000)).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     let during_partition = observer.count_decrees_learned().await;
 
@@ -143,7 +138,7 @@ async fn test_minority_partition_seven_nodes() {
             cluster.heal_partition(i, j).await;
         }
     }
-    sleep(Duration::from_millis(800)).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Now majority should be able to reach consensus again
     cluster
@@ -152,9 +147,8 @@ async fn test_minority_partition_seven_nodes() {
             architect: "AfterRecovery".to_string(),
         })
         .await;
-    sleep(Duration::from_millis(1000)).await;
+    let _ = barrier.wait_for_learned(2, Duration::from_secs(5)).await;
 
-    // Wait for all event recording tasks to complete
     observer.wait_for_events().await;
 
     let after_recovery = observer.count_decrees_learned().await;
@@ -173,13 +167,14 @@ async fn test_minority_partition_seven_nodes() {
 #[tokio::test]
 async fn test_extended_partition_five_nodes() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 5, observer.clone()).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // Normal operation
@@ -189,7 +184,7 @@ async fn test_extended_partition_five_nodes() {
             law: "Setup".to_string(),
         })
         .await;
-    sleep(Duration::from_millis(300)).await;
+    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
 
     // Extended partition: node 0 isolated for 2 seconds
     cluster.partition(0, 1).await;
@@ -205,17 +200,17 @@ async fn test_extended_partition_five_nodes() {
                 term_length_years: 5,
             })
             .await;
-        sleep(Duration::from_millis(400)).await;
+        let _ = barrier.wait_for_learned(i + 1, Duration::from_secs(5)).await;
     }
 
     // Let partition run longer (2 seconds total)
-    sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Heal partition - minority node should catch up
     for i in 1..5 {
         cluster.heal_partition(0, i).await;
     }
-    sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Verify system is responsive after healing
     cluster
@@ -224,9 +219,8 @@ async fn test_extended_partition_five_nodes() {
             architect: "PostHealing".to_string(),
         })
         .await;
-    sleep(Duration::from_millis(500)).await;
+    let _ = barrier.wait_for_learned(4, Duration::from_secs(5)).await;
 
-    // Wait for all event recording tasks to complete
     observer.wait_for_events().await;
 
     // After recovery, should have learned most of the proposals (allow for timing variance)
@@ -243,16 +237,18 @@ async fn test_extended_partition_five_nodes() {
 #[tokio::test]
 async fn test_rolling_failures_seven_nodes() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 7, observer.clone()).await.unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // Simulate rolling failures: isolate one node at a time
+    let mut decree_num = 0;
     for failed_node in 0..7 {
         // Isolate node from rest
         for other in 0..7 {
@@ -261,7 +257,7 @@ async fn test_rolling_failures_seven_nodes() {
             }
         }
 
-        sleep(Duration::from_millis(300)).await;
+        tokio::time::sleep(Duration::from_millis(300)).await;
 
         // Propose during this partial failure
         cluster
@@ -271,7 +267,8 @@ async fn test_rolling_failures_seven_nodes() {
             })
             .await;
 
-        sleep(Duration::from_millis(300)).await;
+        let _ = barrier.wait_for_learned(decree_num, Duration::from_secs(5)).await;
+        decree_num += 1;
 
         // Recover the node
         for other in 0..7 {
@@ -280,8 +277,10 @@ async fn test_rolling_failures_seven_nodes() {
             }
         }
 
-        sleep(Duration::from_millis(200)).await;
+        tokio::time::sleep(Duration::from_millis(200)).await;
     }
+
+    observer.wait_for_events().await;
 }
 
 /// Test: Multiple overlapping partitions (complex network state)
@@ -289,13 +288,14 @@ async fn test_rolling_failures_seven_nodes() {
 #[tokio::test]
 async fn test_multiple_overlapping_partitions() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 7, observer.clone()).await.unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // Create initial partition: 0,1 split from 2,3,4,5,6
@@ -304,7 +304,7 @@ async fn test_multiple_overlapping_partitions() {
             cluster.partition(i, j).await;
         }
     }
-    sleep(Duration::from_millis(300)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
 
     // Propose in majority side
     cluster
@@ -312,7 +312,7 @@ async fn test_multiple_overlapping_partitions() {
             citizen: "Minority".to_string(),
         })
         .await;
-    sleep(Duration::from_millis(400)).await;
+    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
 
     // Add another partition: further split the majority
     // Now we have: [0,1] | [2,3] [4,5,6]
@@ -323,7 +323,7 @@ async fn test_multiple_overlapping_partitions() {
     cluster.partition(3, 5).await;
     cluster.partition(3, 6).await;
 
-    sleep(Duration::from_millis(300)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
 
     // Propose: [4,5,6] is largest connected partition with quorum
     cluster
@@ -332,7 +332,7 @@ async fn test_multiple_overlapping_partitions() {
             term_length_years: 7,
         })
         .await;
-    sleep(Duration::from_millis(400)).await;
+    let _ = barrier.wait_for_learned(1, Duration::from_secs(5)).await;
 
     // Gradually heal in reverse order
     for i in 0..2 {
@@ -340,14 +340,14 @@ async fn test_multiple_overlapping_partitions() {
             cluster.heal_partition(i, j).await;
         }
     }
-    sleep(Duration::from_millis(300)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
 
     for i in 2..4 {
         for j in 4..7 {
             cluster.heal_partition(i, j).await;
         }
     }
-    sleep(Duration::from_millis(300)).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
 
     // Verify full recovery
     cluster
@@ -356,7 +356,9 @@ async fn test_multiple_overlapping_partitions() {
             architect: "FullRecovery".to_string(),
         })
         .await;
-    sleep(Duration::from_millis(500)).await;
+    let _ = barrier.wait_for_learned(2, Duration::from_secs(5)).await;
+
+    observer.wait_for_events().await;
 }
 
 /// Test: High latency with proposals (slow network)
@@ -364,13 +366,14 @@ async fn test_multiple_overlapping_partitions() {
 #[tokio::test]
 async fn test_high_latency_seven_nodes() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 7, observer.clone()).await.unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // Add 300ms latency between all nodes
@@ -384,7 +387,7 @@ async fn test_high_latency_seven_nodes() {
         }
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Despite latency, consensus should still happen
     for i in 0..5 {
@@ -394,8 +397,10 @@ async fn test_high_latency_seven_nodes() {
                 law: "During high latency".to_string(),
             })
             .await;
-        sleep(Duration::from_millis(800)).await; // Need longer waits for slow network
+        let _ = barrier.wait_for_learned(i, Duration::from_secs(10)).await;  // Longer timeout for latency
     }
+
+    observer.wait_for_events().await;
 }
 
 /// Test: Asymmetric failures (one-way latency)
@@ -403,13 +408,14 @@ async fn test_high_latency_seven_nodes() {
 #[tokio::test]
 async fn test_asymmetric_latency() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 5, observer.clone()).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // Add one-way latency: 0 -> 1,2 have 500ms delay
@@ -421,7 +427,7 @@ async fn test_asymmetric_latency() {
         .add_delay(0, 2, Duration::from_millis(500))
         .await;
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Propose multiple times
     for i in 0..4 {
@@ -431,8 +437,10 @@ async fn test_asymmetric_latency() {
                 term_length_years: 5,
             })
             .await;
-        sleep(Duration::from_millis(600)).await;
+        let _ = barrier.wait_for_learned(i, Duration::from_secs(8)).await;
     }
+
+    observer.wait_for_events().await;
 }
 
 /// Test: Transient failures (intermittent packet loss)
@@ -440,13 +448,14 @@ async fn test_asymmetric_latency() {
 #[tokio::test]
 async fn test_transient_packet_loss() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 7, observer.clone()).await.unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // Add 30% packet loss from node 0 to others
@@ -461,8 +470,10 @@ async fn test_transient_packet_loss() {
                 citizen: format!("Candidate {}", i),
             })
             .await;
-        sleep(Duration::from_millis(400)).await;
+        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
     }
+
+    observer.wait_for_events().await;
 }
 
 /// Test: Recovery from extended offline period
@@ -470,13 +481,14 @@ async fn test_transient_packet_loss() {
 #[tokio::test]
 async fn test_recovery_from_extended_offline() {
     let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
     let mut cluster = Cluster::new(0, 5, observer.clone()).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
     }
 
-    sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
     cluster.enable_failures().await;
 
     // Propose before isolation
@@ -486,7 +498,7 @@ async fn test_recovery_from_extended_offline() {
             law: "Before isolation".to_string(),
         })
         .await;
-    sleep(Duration::from_millis(400)).await;
+    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
 
     // Isolate node 0 for extended period
     for i in 1..5 {
@@ -494,6 +506,7 @@ async fn test_recovery_from_extended_offline() {
     }
 
     // Continue proposals in majority while node 0 is isolated
+    let mut decree_num = 1;
     for cycle in 0..4 {
         cluster
             .propose(PaxosCommand::BuildAcropolis {
@@ -501,17 +514,18 @@ async fn test_recovery_from_extended_offline() {
                 architect: "During Isolation".to_string(),
             })
             .await;
-        sleep(Duration::from_millis(500)).await;
+        let _ = barrier.wait_for_learned(decree_num, Duration::from_secs(5)).await;
+        decree_num += 1;
     }
 
     // Extended offline period
-    sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Heal partition - node 0 should catch up with all committed entries
     for i in 1..5 {
         cluster.heal_partition(0, i).await;
     }
-    sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Verify system still works
     cluster
@@ -520,5 +534,7 @@ async fn test_recovery_from_extended_offline() {
             term_length_years: 8,
         })
         .await;
-    sleep(Duration::from_millis(500)).await;
+    let _ = barrier.wait_for_learned(5, Duration::from_secs(5)).await;
+
+    observer.wait_for_events().await;
 }

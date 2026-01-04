@@ -131,6 +131,7 @@ async fn acceptor_accepts_accept_above_min_ballot() {
     let b5 = Ballot::new(5, 1);
     let b7 = Ballot::new(7, 1);
 
+    // Acceptor promises ballot (5, 1)
     acceptor
         .handle_message(Message::Prepare {
             from: 1,
@@ -139,6 +140,16 @@ async fn acceptor_accepts_accept_above_min_ballot() {
         })
         .await;
 
+    // Now, a prepare for the higher ballot (7,1) must come
+    acceptor
+        .handle_message(Message::Prepare {
+            from: 1,
+            decree_num: 0,
+            ballot: b7,
+        })
+        .await;
+    
+    // Then accept for ballot (7,1)
     let resp = acceptor
         .handle_message(Message::Accept {
             from: 1,

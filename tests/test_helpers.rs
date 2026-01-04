@@ -1,15 +1,156 @@
 /// Test helpers and builders for complex Paxos scenarios
 /// Makes it easy to set up multi-node clusters, simulations, and partition scenarios
 
+use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 use paxos::{
     message::Message,
     monitor::{Event, PaxosObserver},
     node::{acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, proposer::Proposer, ledger::Ledger},
     paxos_command::PaxosCommand,
+    cluster::cluster::Cluster,
+    console_observer::ConsoleObserver,
 };
+
+// ============================================================================
+// EVENT BARRIER - Synchronization primitive for event-driven testing
+// ============================================================================
+
+/// EventBarrier waits for specific events to be recorded, allowing tests to
+/// synchronize on event emission rather than arbitrary sleep durations.
+///
+/// This is used by tests to wait deterministically for Paxos protocol events
+/// (e.g., "wait until decree N is learned") without timing-based sleeps.
+#[derive(Clone)]
+pub struct EventBarrier {
+    events: Arc<Mutex<Vec<Event>>>,
+    notifier: Arc<Notify>,
+}
+
+impl EventBarrier {
+    /// Create a new empty EventBarrier
+    pub fn new() -> Self {
+        Self {
+            events: Arc::new(Mutex::new(Vec::new())),
+            notifier: Arc::new(Notify::new()),
+        }
+    }
+
+    /// Record an event and notify any waiters
+    pub async fn record(&self, event: Event) {
+        self.events.lock().await.push(event);
+        self.notifier.notify_one();
+    }
+
+    /// Wait for N events matching a predicate, with timeout
+    ///
+    /// Returns the matching events if found before timeout, or an error string if timeout occurs.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let learned = barrier.wait_for(
+    ///     |e| matches!(e, Event::LearnedValue { .. }),
+    ///     1,
+    ///     Duration::from_secs(5),
+    /// ).await?;
+    /// ```
+    pub async fn wait_for<F>(
+        &self,
+        predicate: F,
+        count: usize,
+        timeout: Duration,
+    ) -> Result<Vec<Event>, String>
+    where
+        F: Fn(&Event) -> bool + Copy,
+    {
+        let deadline = std::time::Instant::now() + timeout;
+
+        loop {
+            let events = self.events.lock().await;
+            let matching: Vec<_> = events
+                .iter()
+                .filter(|e| predicate(e))
+                .cloned()
+                .collect();
+
+            if matching.len() >= count {
+                return Ok(matching);
+            }
+            drop(events);
+
+            // Check if timeout exceeded
+            if std::time::Instant::now() > deadline {
+                let events = self.events.lock().await;
+                let current_count = events
+                    .iter()
+                    .filter(|e| predicate(e))
+                    .count();
+                return Err(format!(
+                    "Timeout waiting for {} events matching predicate, got {}",
+                    count, current_count
+                ));
+            }
+
+            // Wait for notification with timeout
+            let remaining = deadline - std::time::Instant::now();
+            let _ = tokio::time::timeout(remaining, self.notifier.notified()).await;
+        }
+    }
+
+    /// Convenience method to wait for a specific decree to be learned
+    ///
+    /// # Example
+    /// ```ignore
+    /// let cmd = barrier.wait_for_learned(0, Duration::from_secs(5)).await?;
+    /// assert_eq!(cmd, expected_command);
+    /// ```
+    pub async fn wait_for_learned(
+        &self,
+        decree_num: usize,
+        timeout: Duration,
+    ) -> Result<PaxosCommand, String> {
+        let events = self
+            .wait_for(
+                |e| matches!(e, Event::LearnedValue { decree_num: dn, .. } if *dn == decree_num),
+                1,
+                timeout,
+            )
+            .await?;
+
+        if let Event::LearnedValue { value, .. } = &events[0] {
+            Ok(value.clone())
+        } else {
+            Err("Expected LearnedValue event".to_string())
+        }
+    }
+
+    /// Get all recorded events
+    pub async fn get_events(&self) -> Vec<Event> {
+        self.events.lock().await.clone()
+    }
+
+    /// Clear all recorded events
+    pub async fn clear(&self) {
+        self.events.lock().await.clear();
+    }
+
+    /// Get count of events matching a predicate
+    pub async fn count_matching<F>(&self, predicate: F) -> usize
+    where
+        F: Fn(&Event) -> bool,
+    {
+        self.events
+            .lock()
+            .await
+            .iter()
+            .filter(|e| predicate(e))
+            .count()
+    }
+}
 
 // ============================================================================
 // CLEANUP HELPERS
@@ -19,6 +160,7 @@ use paxos::{
 #[allow(dead_code)]
 pub fn cleanup_persisted_state() {
     let _ = std::fs::remove_dir_all(".paxos");
+    let _ = std::fs::create_dir_all(".paxos"); // Ensure directory exists
 }
 
 // ============================================================================
@@ -29,13 +171,23 @@ pub fn cleanup_persisted_state() {
 #[derive(Clone)]
 pub struct RecordingObserver {
     pub events: Arc<Mutex<Vec<Event>>>,
+    pub learned_values: Arc<Mutex<HashMap<usize, PaxosCommand>>>, // Changed type to PaxosCommand
+    pending_tasks: Arc<AtomicUsize>, // Track spawned tasks waiting to complete
+    pub barrier: Arc<EventBarrier>, // Event barrier for deterministic test synchronization
 }
 
 impl RecordingObserver {
     pub fn new() -> Self {
         Self {
             events: Arc::new(Mutex::new(Vec::new())),
+            learned_values: Arc::new(Mutex::new(HashMap::new())), // Initialized this field
+            pending_tasks: Arc::new(AtomicUsize::new(0)),
+            barrier: Arc::new(EventBarrier::new()),
         }
+    }
+
+    pub fn arc(self) -> Arc<Self> {
+        Arc::new(self)
     }
 
     #[allow(dead_code)]
@@ -44,19 +196,29 @@ impl RecordingObserver {
     }
 
     #[allow(dead_code)]
+    pub async fn get_learned_values(&self) -> HashMap<usize, PaxosCommand> {
+        self.learned_values.lock().await.clone()
+    }
+
+    #[allow(dead_code)]
     pub async fn clear(&self) {
         self.events.lock().await.clear();
+        self.learned_values.lock().await.clear(); // Clear learned values too
     }
 
-    /// For compatibility with async observer. This version is synchronous
-    /// (events are recorded immediately), so no waiting needed.
+    /// Wait for all pending event recording tasks to complete.
+    /// This is necessary because on_event() spawns async tasks that may not
+    /// complete immediately. Call this before asserting on event counts.
     #[allow(dead_code)]
     pub async fn wait_for_events(&self) {
-        // Sync version records immediately, no waiting needed
-    }
-
-    pub fn as_arc(&self) -> Arc<dyn PaxosObserver> {
-        Arc::new(self.clone())
+        loop {
+            if self.pending_tasks.load(Ordering::Acquire) == 0 {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+        // Add a small sleep to ensure all spawned tasks have a chance to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
     }
 
     pub async fn proposals(&self) -> Vec<Event> {
@@ -101,27 +263,75 @@ impl RecordingObserver {
             .collect()
     }
 
+    #[allow(dead_code)]
+    pub async fn accepted(&self) -> Vec<Event> {
+        self.events
+            .lock()
+            .await
+            .iter()
+            .filter(|e| matches!(e, Event::Accepted { .. }))
+            .cloned()
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    pub async fn success(&self) -> Vec<Event> {
+        self.events
+            .lock()
+            .await
+            .iter()
+            .filter(|e| matches!(e, Event::Success { .. }))
+            .cloned()
+            .collect()
+    }
+
+
     pub async fn event_count(&self) -> usize {
         self.events.lock().await.len()
+    }
+
+    #[allow(dead_code)]
+    pub async fn count_decrees_learned(&self) -> usize {
+        self.learned_values.lock().await.len()
     }
 }
 
 impl PaxosObserver for RecordingObserver {
     fn on_event(&self, event: Event) {
         let events = self.events.clone();
+        let pending = self.pending_tasks.clone();
+        let learned_values = self.learned_values.clone(); // Clone for learned_values
+        let barrier = self.barrier.clone(); // Clone barrier
+
+        // Increment pending task counter before spawning
+        pending.fetch_add(1, Ordering::Release);
+
         tokio::spawn(async move {
-            events.lock().await.push(event);
+            if let Event::LearnedValue { decree_num, value, .. } = &event { // Changed to LearnedValue
+                learned_values.lock().await.insert(*decree_num, value.clone());
+            }
+            events.lock().await.push(event.clone());
+            barrier.record(event).await; // Record event to barrier
+            // Decrement pending task counter when done
+            pending.fetch_sub(1, Ordering::Release);
         });
     }
 }
 
 // ============================================================================
-// NODE BUILDER
+// CLUSTER HELPER
 // ============================================================================
 
-use paxos::monitor::NoOpObserver;
-
-// ... (keep the rest of the file as is)
+/// Helper to create a cluster with an observer (for edge case and scenario tests)
+/// Note: Currently ignores the observer parameter and uses ConsoleObserver.
+/// The cluster integration tests rely on timing rather than observer callbacks.
+/// TODO: Wire up observer properly when cluster refactoring is complete.
+pub async fn create_cluster(
+    node_count: usize,
+    observer: Arc<RecordingObserver>,
+) -> anyhow::Result<Cluster> {
+    Cluster::new(0, node_count, observer).await
+}
 
 // ============================================================================
 // NODE BUILDER
@@ -129,24 +339,29 @@ use paxos::monitor::NoOpObserver;
 
 /// Builder for creating proposer/acceptor/learner with consistent setup
 pub struct NodeBuilder {
-    observer: Arc<dyn PaxosObserver>,
+    pub observer: Arc<RecordingObserver>, // Changed type to Arc<RecordingObserver>
     decree_notes: Arc<Mutex<DecreeNotes>>,
 }
 
 impl NodeBuilder {
     pub fn new() -> Self {
         Self {
-            observer: Arc::new(NoOpObserver),
+            observer: RecordingObserver::new().arc(), // Initialized as Arc<RecordingObserver>
             decree_notes: Arc::new(Mutex::new(DecreeNotes::new())),
         }
     }
 
     #[allow(dead_code)]
-    pub fn with_observer(observer: Arc<dyn PaxosObserver>) -> Self {
+    pub fn with_observer(observer: Arc<RecordingObserver>) -> Self {
         Self {
             observer,
             decree_notes: Arc::new(Mutex::new(DecreeNotes::new())),
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn decree_notes(&self) -> Arc<Mutex<DecreeNotes>> {
+        Arc::clone(&self.decree_notes)
     }
 
     pub async fn proposer(&self, id: usize, quorum: usize) -> anyhow::Result<Proposer> {
@@ -154,13 +369,13 @@ impl NodeBuilder {
             id,
             quorum,
             Arc::clone(&self.decree_notes),
-            Arc::clone(&self.observer),
+            Arc::clone(&self.observer) as Arc<dyn PaxosObserver>, // Cast to trait object
         )
         .await
     }
 
     pub async fn acceptor(&self, id: usize) -> anyhow::Result<Acceptor> {
-        Acceptor::new(id, Arc::clone(&self.observer)).await
+        Acceptor::new(id, Arc::clone(&self.observer) as Arc<dyn PaxosObserver>).await // Cast to trait object
     }
 
     pub fn learner(&self, id: usize, quorum: usize) -> Learner {
@@ -168,7 +383,7 @@ impl NodeBuilder {
             id,
             quorum,
             Arc::clone(&self.decree_notes),
-            Arc::clone(&self.observer),
+            Arc::clone(&self.observer) as Arc<dyn PaxosObserver>, // Cast to trait object
         )
     }
 
@@ -273,6 +488,7 @@ impl MessageSimulator {
     }
 
     /// Deliver messages in random order
+    #[allow(dead_code)]
     pub fn deliver_shuffled(&mut self) -> usize {
         use rand::seq::SliceRandom;
         let count = self.messages.len();
@@ -283,6 +499,7 @@ impl MessageSimulator {
     }
 
     /// Drop a random message (simulating loss)
+    #[allow(dead_code)]
     pub fn drop_random_message(&mut self) {
         if !self.messages.is_empty() {
             use rand::Rng;
@@ -300,30 +517,7 @@ impl MessageSimulator {
 // ============================================================================
 // PAYLOAD HELPERS
 // ============================================================================
-
-/// Factory for common test values
-#[allow(dead_code)]
-pub struct PayloadFactory;
-
-#[allow(dead_code)]
-impl PayloadFactory {
-    pub fn noop() -> PaxosCommand {
-        PaxosCommand::NOOP
-    }
-
-    pub fn get(key: &str) -> PaxosCommand {
-        PaxosCommand::GET {
-            key: key.to_string(),
-        }
-    }
-
-    pub fn put(key: &str, version: usize) -> PaxosCommand {
-        PaxosCommand::PUT {
-            key: key.to_string(),
-            version,
-        }
-    }
-}
+// NOTE: Removed PayloadFactory - not used in tests. Tests create commands inline.
 
 // ============================================================================
 // QUORUM CALCULATOR
@@ -403,7 +597,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_recording_observer() {
-        let obs = RecordingObserver::new();
+        let obs = RecordingObserver::new().arc();
         obs.on_event(Event::Proposal {
             id: 1,
             decree_num: 0,
@@ -438,5 +632,155 @@ mod tests {
         let _acceptor = builder.acceptor(1).await.unwrap();
         let _learner = builder.learner(1, 3);
         // Just verify they construct without panic
+    }
+
+    // ========================================================================
+    // EventBarrier Tests
+    // ========================================================================
+
+    #[tokio::test]
+    async fn test_event_barrier_wait_for_learned() {
+        let barrier = EventBarrier::new();
+
+        // Spawn a task that records a LearnedValue event after 50ms
+        let barrier_clone = barrier.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            barrier_clone
+                .record(Event::LearnedValue {
+                    id: 1,
+                    decree_num: 0,
+                    value: PaxosCommand::NOOP,
+                    created_at: 0,
+                })
+                .await;
+        });
+
+        // Wait for the event
+        let start = std::time::Instant::now();
+        let result = barrier
+            .wait_for_learned(0, Duration::from_secs(5))
+            .await;
+        let elapsed = start.elapsed();
+
+        // Should have received the event quickly (not full 5 seconds)
+        assert!(result.is_ok());
+        assert!(elapsed < Duration::from_secs(1));
+    }
+
+    #[tokio::test]
+    async fn test_event_barrier_timeout() {
+        let barrier = EventBarrier::new();
+
+        // Wait for event that never comes
+        let result = barrier
+            .wait_for_learned(999, Duration::from_millis(100))
+            .await;
+
+        // Should timeout
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Timeout"));
+    }
+
+    #[tokio::test]
+    async fn test_event_barrier_multiple_events() {
+        let barrier = EventBarrier::new();
+
+        // Record multiple events
+        barrier
+            .record(Event::Proposal {
+                id: 1,
+                decree_num: 0,
+                value: PaxosCommand::NOOP,
+                created_at: 0,
+            })
+            .await;
+        barrier
+            .record(Event::Promise {
+                id: 1,
+                from: 2,
+                decree_num: 0,
+                ballot: 1,
+                created_at: 0,
+            })
+            .await;
+
+        // Wait for proposals
+        let proposals = barrier
+            .wait_for(
+                |e| matches!(e, Event::Proposal { .. }),
+                1,
+                Duration::from_secs(1),
+            )
+            .await;
+
+        assert!(proposals.is_ok());
+        assert_eq!(proposals.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_event_barrier_count_matching() {
+        let barrier = EventBarrier::new();
+
+        // Record multiple learned values
+        for i in 0..3 {
+            barrier
+                .record(Event::LearnedValue {
+                    id: 1,
+                    decree_num: i,
+                    value: PaxosCommand::NOOP,
+                    created_at: 0,
+                })
+                .await;
+        }
+
+        // Count learned events
+        let count = barrier
+            .count_matching(|e| matches!(e, Event::LearnedValue { .. }))
+            .await;
+
+        assert_eq!(count, 3);
+    }
+
+    #[tokio::test]
+    async fn test_event_barrier_clear() {
+        let barrier = EventBarrier::new();
+
+        barrier
+            .record(Event::Proposal {
+                id: 1,
+                decree_num: 0,
+                value: PaxosCommand::NOOP,
+                created_at: 0,
+            })
+            .await;
+
+        assert_eq!(barrier.get_events().await.len(), 1);
+
+        barrier.clear().await;
+
+        assert_eq!(barrier.get_events().await.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_recording_observer_with_barrier() {
+        let obs = RecordingObserver::new().arc();
+        let barrier = obs.barrier.clone();
+
+        // Record an event through observer
+        obs.on_event(Event::LearnedValue {
+            id: 1,
+            decree_num: 0,
+            value: PaxosCommand::NOOP,
+            created_at: 0,
+        });
+
+        // Wait for it in the barrier
+        let result = barrier
+            .wait_for_learned(0, Duration::from_secs(1))
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), PaxosCommand::NOOP);
     }
 }

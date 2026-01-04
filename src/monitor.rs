@@ -57,6 +57,12 @@ pub enum Event {
         value: PaxosCommand,
         created_at: u64,
     },
+    LearnedValue { // New event for local learning
+        id: usize,
+        decree_num: usize,
+        value: PaxosCommand,
+        created_at: u64,
+    },
     NodeState {
         id: usize,
         role: String,

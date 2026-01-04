@@ -5,18 +5,19 @@ use paxos::{
     paxos_command::PaxosCommand,
 };
 use test_helpers::{cleanup_persisted_state, NodeBuilder};
+use std::collections::HashSet;
 
 #[tokio::test]
 async fn test_basic_paxos_flow() {
     cleanup_persisted_state();
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
 
     let value = PaxosCommand::GET {
         key: "test_key".to_string(),
     };
-    let msg = proposer.propose(0, value.clone());
+    let msg = proposer.propose(0, value.clone()).await;
 
     let response = acceptor.handle_message(msg).await;
 
@@ -28,7 +29,7 @@ async fn test_basic_paxos_flow() {
     let accept_request = proposer.handle_message(response).await;
 
     assert!(
-        matches!(accept_request, Message::Accept { ballot, value: v, .. } if ballot.number == 1 && v == value),
+        matches!(accept_request, Message::Accept { ballot, value: v, quorum, .. } if ballot.number == 1 && v == value && quorum == HashSet::from([1])),
         "Proposer should have sent Accept with correct ballot and value"
     );
 }
@@ -37,7 +38,7 @@ async fn test_basic_paxos_flow() {
 async fn test_acceptor_rejects_lower_ballot() {
     cleanup_persisted_state();
     let builder = NodeBuilder::new();
-    let mut acceptor = builder.acceptor(1).await.unwrap();
+    let acceptor = builder.acceptor(1).await.unwrap();
 
     // First prepare with ballot 5
     let msg1 = Message::Prepare {
@@ -62,7 +63,7 @@ async fn test_acceptor_rejects_lower_ballot() {
 async fn test_proposer_adopts_previous_value() {
     cleanup_persisted_state();
     let builder = NodeBuilder::new();
-    let mut proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap();
 
     let cmd1 = PaxosCommand::GET {
         key: "key1".to_string(),
@@ -72,7 +73,7 @@ async fn test_proposer_adopts_previous_value() {
     };
 
     // Propose first value
-    proposer.propose(0, cmd1);
+    proposer.propose(0, cmd1.clone()).await;
 
     // Receive promise that reports a previously accepted value
     let promise = Message::Promise {
@@ -86,6 +87,6 @@ async fn test_proposer_adopts_previous_value() {
     let accept_msg = proposer.handle_message(promise).await;
 
     // Should adopt the previous value
-    assert!(matches!(accept_msg, Message::Accept { value, .. } if value == cmd2));
+    assert!(matches!(accept_msg, Message::Accept { value, quorum, .. } if value == cmd2 && quorum == HashSet::from([2])));
 }
 

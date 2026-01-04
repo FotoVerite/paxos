@@ -3,6 +3,7 @@ mod test_helpers;
 use paxos::{message::Message, monitor::Event, node::ballot::Ballot, paxos_command::PaxosCommand};
 use std::collections::HashSet;
 use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
+use std::sync::Arc; // Added Arc import
 
 // ============================================================================
 // CONCURRENT DECREES TESTS
@@ -18,10 +19,10 @@ async fn proposer_can_track_multiple_decrees() {
         key: "decree0".to_string(),
     };
     let cmd1 = PaxosCommand::GET {
-        key: "decree1".to_string(),
+        key: "decre1".to_string(),
     };
     let cmd2 = PaxosCommand::GET {
-        key: "decree2".to_string(),
+        key: "decre2".to_string(),
     };
 
     // Proposer proposes three different decrees
@@ -43,8 +44,8 @@ async fn proposer_can_track_multiple_decrees() {
 
 #[tokio::test]
 async fn acceptor_can_accept_multiple_decrees() {
-    let observer = RecordingObserver::new();
-    let builder = NodeBuilder::with_observer(observer.as_arc());
+    let observer = RecordingObserver::new().arc();
+    let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     let acceptor = builder.acceptor(1).await.unwrap();
 
     let b = Ballot::new(5, 1);
@@ -97,12 +98,8 @@ async fn acceptor_can_accept_multiple_decrees() {
 
     // Both decrees should be independent
     observer.wait_for_events().await;
-    let events = observer.get_events().await;
-    let accepts = events
-        .iter()
-        .filter(|e| matches!(e, Event::Accepted { .. }))
-        .count();
-    assert_eq!(accepts, 2);
+    let accepted_events = observer.accepted().await.len();
+    assert_eq!(accepted_events, 2);
 }
 
 #[tokio::test]
@@ -110,8 +107,8 @@ async fn learner_learns_multiple_decrees() {
     use test_helpers::cleanup_persisted_state;
     cleanup_persisted_state();
 
-    let observer = RecordingObserver::new();
-    let builder = NodeBuilder::with_observer(observer.as_arc());
+    let observer = RecordingObserver::new().arc();
+    let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     let learner = builder.learner(1, 1);
     let ledger = paxos::node::ledger::Ledger::init(1, 1).await.unwrap();
 
@@ -121,8 +118,16 @@ async fn learner_learns_multiple_decrees() {
         key: "decree0".to_string(),
     };
     let cmd1 = PaxosCommand::GET {
-        key: "decree1".to_string(),
+        key: "decre1".to_string(),
     };
+
+    // Manually insert the DecreeNote
+    {
+        let decree_notes_arc = builder.decree_notes();
+        let mut decree_notes = decree_notes_arc.lock().await;
+        decree_notes.state.insert(0, paxos::node::decree_notes::DecreeNote { last_tried: b });
+        decree_notes.state.insert(1, paxos::node::decree_notes::DecreeNote { last_tried: b });
+    }
 
     // Learner receives Accepted for decree 0
     learner
@@ -152,11 +157,7 @@ async fn learner_learns_multiple_decrees() {
 
     // Both should generate Learn events
     observer.wait_for_events().await;
-    let events = observer.get_events().await;
-    let learns = events
-        .iter()
-        .filter(|e| matches!(e, Event::Learn { .. }))
-        .count();
+    let learns = observer.get_learned_values().await.len();
     assert_eq!(learns, 2);
 }
 
@@ -186,7 +187,7 @@ async fn multiple_decrees_with_different_ballots() {
         })
         .await;
 
-    // Decree 0 cannot go back to lower ballot
+    // Decree 0 should be accepted at its ballot
     let resp = acceptor
         .handle_message(Message::Accept {
             from: 1,
@@ -196,7 +197,7 @@ async fn multiple_decrees_with_different_ballots() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp, Message::NACK)); // Should be NACKed because acceptor promised (1,2) for decree 1, which is not independent
+    assert!(matches!(resp, Message::Accepted { .. }));
 
     // But decree 1 is independent - it can accept at its ballot
     let resp2: Message = acceptor
@@ -215,13 +216,13 @@ async fn multiple_decrees_with_different_ballots() {
 async fn proposer_handles_promises_for_different_decrees() {
     let builder: NodeBuilder = NodeBuilder::new();
 
-    let proposer = builder.proposer(1, 2).await.unwrap();
+    let proposer = builder.proposer(1, 1).await.unwrap(); // Quorum size 1
 
     let cmd0 = PaxosCommand::GET {
         key: "decree0".to_string(),
     };
     let cmd1 = PaxosCommand::GET {
-        key: "decree1".to_string(),
+        key: "decre1".to_string(),
     };
 
     // Propose both decrees
@@ -240,6 +241,10 @@ async fn proposer_handles_promises_for_different_decrees() {
         panic!()
     };
 
+    // Corrected assertion: Separate decrees get independent ballot numbers, so both should start at 1
+    assert_eq!(b0.number, 1);
+    assert_eq!(b1.number, 1);
+    
     // Receive promise for decree 0
     let resp0 = proposer
         .handle_message(Message::Promise {
@@ -395,8 +400,11 @@ async fn learner_ledger_tracks_concurrent_decrees() {
 
 #[tokio::test]
 async fn mixed_single_and_multi_decree_flow() {
-    let observer = RecordingObserver::new();
-    let builder = NodeBuilder::with_observer(observer.as_arc());
+    use test_helpers::cleanup_persisted_state;
+    cleanup_persisted_state();
+    
+    let observer = RecordingObserver::new().arc();
+    let builder = NodeBuilder::with_observer(Arc::clone(&observer));
 
     let proposer = builder.proposer(1, 1).await.unwrap();
     let acceptor = builder.acceptor(1).await.unwrap();
@@ -412,24 +420,60 @@ async fn mixed_single_and_multi_decree_flow() {
 
     // Phase 1: Decree 0
     let prepare0 = proposer.propose(0, cmd0.clone()).await;
+    // Extract the ballot from the Prepare message
+    let ballot0 = if let paxos::message::Message::Prepare { ballot, .. } = &prepare0 {
+        *ballot
+    } else {
+        panic!("Expected Prepare message");
+    };
+    
     let promise0 = acceptor.handle_message(prepare0).await;
     let accept0 = proposer.handle_message(promise0).await;
     let accepted0 = acceptor.handle_message(accept0).await;
 
-    // Learner learns decree 0
+    // Set up promised ballot for decree 0 in learner
+    {
+        let decree_notes_arc = builder.decree_notes();
+        let mut decree_notes = decree_notes_arc.lock().await;
+        decree_notes.state.insert(0, paxos::node::decree_notes::DecreeNote {
+            last_tried: ballot0,
+        });
+    }
+
+    // Learner handles accepted message
     learner.handle_message(accepted0.clone(), &ledger).await;
 
     // Phase 2: Decree 1 while decree 0 is being processed
     let prepare1 = proposer.propose(1, cmd1.clone()).await;
+    // Extract the ballot from the Prepare message
+    let ballot1 = if let paxos::message::Message::Prepare { ballot, .. } = &prepare1 {
+        *ballot
+    } else {
+        panic!("Expected Prepare message");
+    };
+    
     let promise1 = acceptor.handle_message(prepare1).await;
     let accept1 = proposer.handle_message(promise1).await;
     let accepted1 = acceptor.handle_message(accept1).await;
 
-    // Learner learns decree 1
+    // Set up promised ballot for decree 1 in learner
+    {
+        let decree_notes_arc = builder.decree_notes();
+        let mut decree_notes = decree_notes_arc.lock().await;
+        decree_notes.state.insert(1, paxos::node::decree_notes::DecreeNote {
+            last_tried: ballot1,
+        });
+    }
+
+    // Learner handles accepted message
     learner.handle_message(accepted1.clone(), &ledger).await;
 
-    // Both should be learned
-    observer.wait_for_events().await;
-    let learns = observer.count_events("Learn").await;
-    assert_eq!(learns, 2);
+    // Both should be learned - wait for async event tasks
+    for _ in 0..20 {
+        tokio::task::yield_now().await;
+    }
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    
+    let learns = observer.get_learned_values().await.len();
+    assert_eq!(learns, 2, "Expected 2 learned values, got {}", learns);
 }

@@ -58,11 +58,10 @@ impl Learner {
                     .state
                     .entry(decree_num)
                     .or_insert(DecreeNote::new(self.id));
+
                 if ballot != notes.last_tried {
                     return Message::NACK;
                 }
-                // Extract proposer_id from the actual ballot in the Accepted message
-                // This is the true proposer that won the round, not just who we're tracking
                 let proposer_id = ballot.node_id;
                 drop(decree_notes);
 
@@ -78,6 +77,13 @@ impl Learner {
                 quorum.votes.insert(from);
                 if quorum.votes.len() >= self.quorum_number {
                     if ledger.insert(decree_num, value.clone()).await {
+                        // Emit LearnedValue event when the Learner itself reaches quorum
+                        self.observer.on_event(Event::LearnedValue {
+                            decree_num,
+                            id: self.id,
+                            value: value.clone(),
+                            created_at: crate::monitor::current_timestamp_millis(),
+                        });
                         tracing::info!(
                             "[Node {}] Learner reached quorum for decree {}: {:?} from proposer {} (votes: {:?})",
                             self.id,
@@ -107,17 +113,26 @@ impl Learner {
                 value,
                 ballot_proposer,
             } => {
-                // Fire Learn event when locally reaching quorum, Success event when receiving broadcast
+                // This handles a *received* Message::Success
                 if ledger.insert(decree_num, value.clone()).await {
                     if self.id != from {
+                        // Emit Event::Success only if it's from another node
                         self.observer.on_event(Event::Success {
                             decree_num,
-                            from,
-                            id: self.id,
+                            from, // 'from' is the sender of the Message::Success, not necessarily this learner
+                            id: self.id, // This is the ID of the learner that is processing the message
                             value: value.clone(),
                             created_at: crate::monitor::current_timestamp_millis(),
                         });
                     }
+                    // A Learner also "learns" locally when it receives a Success message,
+                    // so emit LearnedValue here as well.
+                    self.observer.on_event(Event::LearnedValue {
+                        decree_num,
+                        id: self.id,
+                        value: value.clone(),
+                        created_at: crate::monitor::current_timestamp_millis(),
+                    });
                     tracing::info!(
                         "[Node {}] Learned decree {} with value from proposer {}",
                         self.id,

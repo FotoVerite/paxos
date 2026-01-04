@@ -92,7 +92,8 @@ impl Ledger {
         }; // Lock released here
         
         if inserted {
-            let _ = self.save().await;
+            // Handle Result from save()
+            return self.save().await.is_ok();
         }
         inserted
     }

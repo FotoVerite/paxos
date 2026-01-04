@@ -2,6 +2,7 @@ mod test_helpers;
 
 use paxos::{message::Message, monitor::Event, node::ballot::Ballot, paxos_command::PaxosCommand};
 use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
+use std::sync::Arc; // Added Arc import
 
 // ============================================================================
 // LEARNER TESTS
@@ -11,8 +12,8 @@ use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
 async fn learner_receives_accepted_values() {
     cleanup_persisted_state();
 
-    let observer = RecordingObserver::new();
-    let builder = NodeBuilder::with_observer(observer.as_arc());
+    let observer = RecordingObserver::new().arc();
+    let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     let learner = builder.learner(1, 2);
     let ledger = paxos::node::ledger::Ledger::init(1, 2).await.unwrap();
 
@@ -20,43 +21,61 @@ async fn learner_receives_accepted_values() {
         key: "key1".to_string(),
     };
 
+    // First: learner must promise a ballot before accepting
+    let ballot = Ballot::new(1, 1);
+    let decree_notes_arc = builder.decree_notes();
+    let mut decree_notes = decree_notes_arc.lock().await;
+    decree_notes.state.insert(0, paxos::node::decree_notes::DecreeNote {
+        last_tried: ballot,
+    });
+    drop(decree_notes);
+
     // Two acceptors vote for decree 0 (quorum = 2, so decree is chosen after 2 votes)
-    learner
+    let resp1 = learner
         .handle_message(
             Message::Accepted {
                 from: 2,
                 decree_num: 0,
-                ballot: Ballot::new(1, 1),
+                ballot,
                 value: cmd1.clone(),
             },
             &ledger,
         )
         .await;
-    learner
+    eprintln!("Response 1: {:?}", resp1);
+    
+    let resp2 = learner
         .handle_message(
             Message::Accepted {
                 from: 3,
                 decree_num: 0,
-                ballot: Ballot::new(1, 1),
+                ballot,
                 value: cmd1.clone(), // Same value for consensus
             },
             &ledger,
         )
         .await;
+    eprintln!("Response 2: {:?}", resp2);
 
-    observer.wait_for_events().await;
+    // Give spawned event tasks time to complete
+    for _ in 0..20 {
+        tokio::task::yield_now().await;
+    }
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    
     let events = observer.get_events().await;
+    eprintln!("Total events: {}", events.len());
     let learns = events
         .iter()
-        .filter(|e| matches!(e, Event::Learn { .. }))
+        .filter(|e| matches!(e, Event::LearnedValue { .. }))
         .count();
-    assert_eq!(learns, 1); // One decree chosen, one Learn event
+    assert_eq!(learns, 1, "Expected 1 LearnedValue event, got {} events", events.len());
 }
 
 #[tokio::test]
 async fn learner_ignores_non_accepted_messages() {
-    let observer = RecordingObserver::new();
-    let builder = NodeBuilder::with_observer(observer.as_arc());
+    let observer = RecordingObserver::new().arc();
+    let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     let _learner = builder.learner(1, 2);
     let _ledger = paxos::node::ledger::Ledger::init(1, 2).await.unwrap();
 
@@ -73,8 +92,8 @@ async fn learner_ignores_non_accepted_messages() {
 async fn learner_learns_multiple_decrees() {
     cleanup_persisted_state();
 
-    let observer = RecordingObserver::new();
-    let builder = NodeBuilder::with_observer(observer.as_arc());
+    let observer = RecordingObserver::new().arc();
+    let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     let learner = builder.learner(1, 1);
     let ledger = paxos::node::ledger::Ledger::init(1, 1).await.unwrap();
 
@@ -86,6 +105,17 @@ async fn learner_learns_multiple_decrees() {
     let cmd1 = PaxosCommand::GET {
         key: "decree1".to_string(),
     };
+
+    // Set up promised ballots for both decrees
+    let decree_notes_arc = builder.decree_notes();
+    let mut decree_notes = decree_notes_arc.lock().await;
+    decree_notes.state.insert(0, paxos::node::decree_notes::DecreeNote {
+        last_tried: b,
+    });
+    decree_notes.state.insert(1, paxos::node::decree_notes::DecreeNote {
+        last_tried: b,
+    });
+    drop(decree_notes);
 
     // Learner receives Accepted for decree 0
     learner
@@ -113,12 +143,16 @@ async fn learner_learns_multiple_decrees() {
         )
         .await;
 
-    // Both should generate Learn events
-    observer.wait_for_events().await;
+    // Both should generate LearnedValue events
+    for _ in 0..20 {
+        tokio::task::yield_now().await;
+    }
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    
     let events = observer.get_events().await;
     let learns = events
         .iter()
-        .filter(|e| matches!(e, Event::Learn { .. }))
+        .filter(|e| matches!(e, Event::LearnedValue { .. }))
         .count();
-    assert_eq!(learns, 2);
+    assert_eq!(learns, 2, "Expected 2 LearnedValue events, got {}", learns);
 }

@@ -79,6 +79,22 @@ impl PaxosObserver for ConsoleObserver {
                     .green()
                 );
             }
+
+            Event::LearnedValue {
+                id,
+                decree_num,
+                value,
+                created_at,
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[LEARNER {}] Learned value for decree {}: {} ({}ms)",
+                        id, decree_num, value, created_at
+                    )
+                    .green()
+                );
+            }
             Event::NodeState {
                 id,
                 role,
