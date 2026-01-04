@@ -1,13 +1,10 @@
-use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::Result;
-use serde::de::value;
 use tokio::sync::Mutex;
 
 use crate::{
-    node::ballot::Ballot,
-    paxos_command::{self, PaxosCommand},
+    paxos_command::{PaxosCommand},
 };
 
 const DATA_DIR: &str = ".paxos";
@@ -29,18 +26,16 @@ impl LedgerState {
 
 pub struct Ledger {
     id: usize,
-    quorum: usize,
     state: Mutex<LedgerState>,
 }
 
 impl Ledger {
-    pub async fn init(id: usize, quorum: usize) -> Result<Self> {
+    pub async fn init(id: usize) -> Result<Self> {
         let state = Ledger::load_or_init(id)
             .await
             .unwrap_or_else(|_| LedgerState::init());
         Ok(Self {
             id,
-            quorum,
             state: Mutex::new(state),
         })
     }
