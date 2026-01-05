@@ -154,7 +154,7 @@ impl PaxosObserver for ConsoleObserver {
             }
             Event::InitialDecree {
                ..
-            } => todo!(),
+            } => {},
         }
     }
 }
