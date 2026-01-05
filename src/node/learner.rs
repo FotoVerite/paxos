@@ -58,8 +58,7 @@ impl Learner {
                     .state
                     .entry(decree_num)
                     .or_insert(DecreeNote::new(self.id));
-
-                if ballot != notes.last_tried {
+                  if ballot != notes.last_tried {
                     return Message::NACK;
                 }
                 let proposer_id = ballot.node_id;
@@ -115,8 +114,7 @@ impl Learner {
             } => {
                 // This handles a *received* Message::Success
                 if ledger.insert(decree_num, value.clone()).await {
-                    if self.id != from {
-                        // Emit Event::Success only if it's from another node
+                    if self.id != from { // Emit Event::Success only if it's from another node
                         self.observer.on_event(Event::Success {
                             decree_num,
                             from, // 'from' is the sender of the Message::Success, not necessarily this learner

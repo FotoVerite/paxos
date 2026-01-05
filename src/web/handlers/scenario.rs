@@ -94,7 +94,7 @@ pub async fn stop_scenario_handler(
 
     let cm = get_cm(state, addr, headers).await;
     let cm = cm.lock().await;
-    match cm.stop_scenario().await {
+    match cm.reset().await {
         Ok(_) => {
             info!("Scenario stopped for {}", ip);
             (axum::http::StatusCode::OK, "Scenario stopped".to_string())

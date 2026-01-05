@@ -46,6 +46,11 @@ let eventCounts = {
   Success: 0,
 };
 
+// Per-node proposal tracking
+let proposalCounts = {}; // node_id -> count
+let nodeDecrees = {}; // node_id -> { decree: string, ballot: number, timestamp: number }
+let selectedNodeId = null; // Currently selected node for decree display
+
 let ws = null;
 let scenarioTimeout = null;
 let eventQueue = [];
@@ -84,6 +89,55 @@ function updateCounts() {
   document.getElementById("beginBallotCount").textContent = eventCounts.Accept;
   document.getElementById("votedCount").textContent = eventCounts.Accepted;
   document.getElementById("successCount").textContent = eventCounts.Learn + eventCounts.Success;
+  updateProposalStats();
+}
+
+function updateProposalStats() {
+  const statsContainer = document.getElementById("proposalStatsContainer");
+  if (!statsContainer) return;
+  
+  let html = "<div class='proposal-stats'>";
+  for (let nodeId = 0; nodeId < clusterInfo.total_nodes; nodeId++) {
+    const count = proposalCounts[nodeId] || 0;
+    const isSelected = selectedNodeId === nodeId;
+    const selectClass = isSelected ? "selected" : "";
+    html += `<div class='proposal-stat-item ${selectClass}' data-node-id='${nodeId}' onclick='selectNode(${nodeId})'><span class='node-id'>N${nodeId}:</span> ${count}</div>`;
+  }
+  html += "</div>";
+  statsContainer.innerHTML = html;
+  
+  // Update decree display
+  updateDecreeDisplay();
+}
+
+function selectNode(nodeId) {
+  selectedNodeId = selectedNodeId === nodeId ? null : nodeId;
+  updateProposalStats();
+}
+
+function updateDecreeDisplay() {
+  const decreePanel = document.getElementById("decreePanel");
+  if (!decreePanel) return;
+  
+  if (selectedNodeId === null) {
+    decreePanel.innerHTML = "<p class='decree-hint'>Click a node to view its proposed decree</p>";
+    return;
+  }
+  
+  const nodeInfo = nodeDecrees[selectedNodeId];
+  if (!nodeInfo) {
+    decreePanel.innerHTML = `<p class='decree-hint'>Node ${selectedNodeId} has no proposals yet</p>`;
+    return;
+  }
+  
+  const html = `
+    <div class='decree-content'>
+      <div class='decree-node-label'>Node ${selectedNodeId}</div>
+      <div class='decree-text'>"${nodeInfo.decree}"</div>
+      <div class='decree-meta'>Ballot: ${nodeInfo.ballot}</div>
+    </div>
+  `;
+  decreePanel.innerHTML = html;
 }
 
 async function resetScenario() {
@@ -93,7 +147,7 @@ async function resetScenario() {
     clearTimeout(scenarioTimeout);
   }
   
-  // Stop the scenario on the server
+  // Stop the scenario on the server (which also deletes persisted state)
   try {
     await fetch("/api/stop-scenario", { method: "POST" });
   } catch (error) {
@@ -102,6 +156,7 @@ async function resetScenario() {
   
   playBtn.disabled = false;
   pauseBtn.disabled = true;
+  scenarioSelect.disabled = false;
   eventCounts = {
     Proposal: 0,
     Promise: 0,
@@ -110,6 +165,14 @@ async function resetScenario() {
     Learn: 0,
     Success: 0,
   };
+  proposalCounts = {};
+  nodeDecrees = {};
+  selectedNodeId = null;
+  if (clusterInfo) {
+    for (let i = 0; i < clusterInfo.total_nodes; i++) {
+      proposalCounts[i] = 0;
+    }
+  }
   updateCounts();
   eventLog.innerHTML = "";
   statusTitle.textContent = "Ready";
@@ -241,6 +304,12 @@ async function processEventQueue() {
     // Visualize based on event type
     switch (eventType) {
       case "Proposal":
+        proposalCounts[event.id] = (proposalCounts[event.id] || 0) + 1;
+        nodeDecrees[event.id] = {
+          decree: formatDecree(event),
+          ballot: event.ballot || 0,
+          timestamp: event.created_at
+        };
         return visualizeProposal(event, colorInfo.color).catch(e => console.error("Error visualizing proposal:", e));
       case "Promise":
         return visualizePromise(event, colorInfo.color).catch(e => console.error("Error visualizing promise:", e));
@@ -273,13 +342,22 @@ async function processEventQueue() {
   }
 }
 
+function formatDecree(event) {
+  // Extract decree description from the value field
+  if (event.value && typeof event.value === 'object' && event.value.EnactDecree) {
+    return event.value.EnactDecree.law;
+  }
+  return `Decree #${event.decree_num}`;
+}
+
 function formatEventLog(eventType, event) {
   const colorInfo = eventColorMap[eventType];
   const name = colorInfo.name;
 
   switch (eventType) {
     case "Proposal":
-      return `[${name}] Node ${event.id}: Ballot for decree #${event.decree_num}`;
+      const decree = formatDecree(event);
+      return `[${name}] Node ${event.id}: "${decree}"`;
     case "Promise":
       return `[${name}] Node ${event.id} → Node ${event.from}: Ballot ${event.ballot}`;
     case "Accept":
@@ -373,17 +451,12 @@ async function visualizeSuccess(event, color) {
    }
    visualizer.activateNode(event.from, color);
    
-   // Success: broadcast from the learner that reached quorum (event.from) to reachable nodes only
-   const speed = parseFloat(speedSlider.value);
-   const duration = Math.max(200, (500 / speed) * 0.67);
-   
-   const beamPromises = [];
-   for (let i = 0; i < clusterInfo.total_nodes; i++) {
-     if (i !== event.from && canCommunicate(event.from, i)) {
-       beamPromises.push(visualizer.drawBeam(event.from, i, color, duration, "dashed"));
-     }
+   // Success: broadcast from the learner that reached quorum (event.from) to reachable nodes only   
+    if (event.from !== undefined  && canCommunicate(event.from, event.id)) {
+     const speed = parseFloat(speedSlider.value);
+     const duration = Math.max(200, (500 / speed) * 0.67);
+     await visualizer.drawBeam(event.from, event.id, color, duration, "dashed");
    }
-   await Promise.all(beamPromises);
  }
 
 async function playScenario() {
@@ -461,6 +534,11 @@ function pauseScenario() {
   statusTitle.textContent = "Paused";
   statusTitle.style.color = "#f59e0b";
 }
+
+// Button event listeners
+playBtn.addEventListener("click", playScenario);
+pauseBtn.addEventListener("click", pauseScenario);
+resetBtn.addEventListener("click", resetScenario);
 
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {

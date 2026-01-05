@@ -7,11 +7,13 @@ use tokio::time::{Duration, sleep};
 use crate::cluster::cluster::Cluster;
 use crate::paxos_command::PaxosCommand;
 use crate::web::websocket_observer::WebSocketObserver;
+use crate::decree_generator::DecreeGenerator;
 
 pub struct ClusterManager {
     cluster: Mutex<Option<Arc<Mutex<Cluster>>>>,
     observer: Arc<WebSocketObserver>,
     stop_tx: Mutex<Option<broadcast::Sender<()>>>,
+    decree_generator: Mutex<DecreeGenerator>,
 }
 
 impl ClusterManager {
@@ -20,6 +22,7 @@ impl ClusterManager {
             cluster: Mutex::new(None),
             observer: Arc::new(WebSocketObserver::new(500)),
             stop_tx: Mutex::new(None),
+            decree_generator: Mutex::new(DecreeGenerator::new()),
         }
     }
     pub fn get_observer(&self) -> Arc<WebSocketObserver> {
@@ -76,6 +79,7 @@ impl ClusterManager {
         let mut stop_rx = stop_tx.subscribe();
         let scenario_type = scenario_type.to_string();
         let observer_for_runner = self.observer.clone();
+        let mut decree_gen = self.decree_generator.lock().await.clone();
 
         tokio::spawn(async move {
             let start = std::time::Instant::now();
@@ -100,14 +104,17 @@ impl ClusterManager {
                         if proposal_count % 2 == 0 {
                             let cluster0 = cluster_for_runner.clone();
                             let cluster1 = cluster_for_runner.clone();
-                            let attempt = proposal_count / 2;
+
+                            // Get decrees for each proposer
+                            let decree0 = decree_gen.next();
+                            let decree1 = decree_gen.next();
 
                             // Spawn both proposals concurrently
                             let p0 = tokio::spawn(async move {
                                 let mut cluster = cluster0.lock().await;
                                 let cmd = PaxosCommand::EnactDecree {
                                     author: "Proposer 0".to_string(),
-                                    law: format!("Value from proposer 0 (attempt #{})", attempt),
+                                    law: decree0,
                                 };
                                 let pick = [0, 2, 3, 4][rand::rng().random_range(0..4)];
                                 cluster.propose_from(pick, cmd).await;
@@ -117,7 +124,7 @@ impl ClusterManager {
                                 let mut cluster = cluster1.lock().await;
                                 let cmd = PaxosCommand::EnactDecree {
                                     author: "Proposer 1".to_string(),
-                                    law: format!("Value from proposer 1 (attempt #{})", attempt),
+                                    law: decree1,
                                 };
                                 cluster.propose_from(1, cmd).await;
                             });
@@ -190,9 +197,10 @@ impl ClusterManager {
 
                         // Proposals every 5 iterations
                         let mut cluster = cluster_for_runner.lock().await;
+                        let decree = decree_gen.next();
                         let cmd = PaxosCommand::EnactDecree {
                             author: format!("Proposer {}", proposal_count % 3),
-                            law: format!("Proposal #{}", proposal_count / 5),
+                            law: decree,
                         };
                         cluster.propose(cmd).await;
                     }
@@ -200,9 +208,10 @@ impl ClusterManager {
                         // Default "happy_path": proposals every 2 seconds
                         if proposal_count % 20 == 0 {
                             let mut cluster = cluster_for_runner.lock().await;
+                            let decree = decree_gen.next();
                             let cmd = PaxosCommand::EnactDecree {
                                 author: format!("Web User {}", proposal_count / 20),
-                                law: format!("Proposal #{}", proposal_count / 20),
+                                law: decree,
                             };
                             cluster.propose(cmd).await;
                         }
@@ -241,6 +250,45 @@ impl ClusterManager {
         let mut current = self.cluster.lock().await;
         *current = None;
         println!("Scenario stopped");
+        Ok(())
+    }
+
+    pub async fn reset(&self) -> anyhow::Result<()> {
+        // Get node UUIDs BEFORE stopping scenario (which clears the cluster)
+        let mut uuids = Vec::new();
+        {
+            let mut current = self.cluster.lock().await;
+            if let Some(cluster_arc) = current.as_ref() {
+                let cluster = cluster_arc.lock().await;
+                uuids = cluster.get_node_uuids();
+            }
+            // Clear the cluster reference
+            *current = None;
+        }
+
+        // Signal the scenario task to stop (without clearing cluster again)
+        {
+            let mut tx = self.stop_tx.lock().await;
+            if let Some(stop_tx) = tx.take() {
+                let _ = stop_tx.send(());
+            }
+        }
+
+        // Delete .bin files for each node
+        for uuid in uuids {
+            let ledger_path = format!(".paxos/ledger_{}.bin", uuid);
+            let acceptor_path = format!(".paxos/acceptor_{}.bin", uuid);
+            
+            let _ = std::fs::remove_file(&ledger_path);
+            let _ = std::fs::remove_file(&acceptor_path);
+            
+            println!("Deleted state files for node {}", uuid);
+        }
+
+        // Clear the observer state
+        self.observer.clear().await;
+        
+        println!("Reset complete - ready for new scenario selection");
         Ok(())
     }
 }

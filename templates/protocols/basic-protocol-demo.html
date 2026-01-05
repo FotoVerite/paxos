@@ -1,62 +1,29 @@
-{% extends "base.html" %} {% block title %}Basic Protocol Demo - Paxos{% endblock %} {% block extra_stylesheets %}
+{% extends "base.html" %}
+{% block title %}Basic Protocol Demo - Paxos{% endblock %}
+{% block extra_stylesheets %}
 <link rel="stylesheet" href="/basic-protocol.css" />
-{% endblock %} {% block content %}
-<div
-  style="
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    padding: 20px;
-    gap: 20px;
-  "
->
+{% endblock %}
+{% block content %}
+<div class="demo-container">
   <!-- Visualization -->
-  <div
-    style="
-      flex: 0 0 40%;
-      background: #0f172a;
-      border-radius: 8px;
-      overflow: hidden;
-    "
-  >
-    <svg id="basicProtocolSvg" style="width: 100%; height: 100%"></svg>
+  <div class="visualization">
+    <svg id="basicProtocolSvg"></svg>
   </div>
 
   <!-- Controls -->
-  <div style="flex: 0 0 auto">
-    <div
-      style="
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
-        margin-bottom: 15px;
-      "
-    >
-      <div>
-        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #cbd5e1">
-          Scenario
-        </h3>
-        <select
-           id="scenarioSelect"
-           style="
-             width: 100%;
-             padding: 8px;
-             background: #1e293b;
-             color: #e2e8f0;
-             border: 1px solid #334155;
-             border-radius: 4px;
-           "
-         >
-           <option value="happy_path">Happy Path (5 nodes)</option>
-           <option value="competing_proposers">Competing Proposers (5 nodes)</option>
-           <option value="network_partition">Network Partition (5 nodes)</option>
-         </select>
+  <div class="controls-section">
+    <div class="control-grid">
+      <div class="control-group">
+        <h3>Scenario</h3>
+        <select id="scenarioSelect">
+          <option value="happy_path">Happy Path (5 nodes)</option>
+          <option value="competing_proposers">Competing Proposers (5 nodes)</option>
+          <option value="network_partition">Network Partition (5 nodes)</option>
+        </select>
       </div>
-      <div>
-        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #cbd5e1">
-          Speed
-        </h3>
-        <div style="display: flex; gap: 8px; align-items: center">
+      <div class="control-group">
+        <h3>Speed</h3>
+        <div class="speed-control">
           <input
             type="range"
             id="speed"
@@ -64,206 +31,66 @@
             min="0.25"
             max="2"
             step="0.25"
-            style="flex: 1"
           />
-          <span id="speedValue" style="color: #94a3b8; min-width: 30px"
-            >0.5x</span
-          >
+          <span id="speedValue">0.5x</span>
         </div>
       </div>
-      <div style="display: flex; gap: 8px; align-items: flex-end">
-        <button
-          id="playBtn"
-          onclick="playScenario()"
-          style="
-            flex: 1;
-            padding: 8px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-          "
-        >
-          Play
-        </button>
-        <button
-          id="pauseBtn"
-          onclick="pauseScenario()"
-          disabled
-          style="
-            flex: 1;
-            padding: 8px;
-            background: #64748b;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-          "
-        >
-          Pause
-        </button>
-        <button
-          id="resetBtn"
-          onclick="resetScenario()"
-          style="
-            flex: 1;
-            padding: 8px;
-            background: #64748b;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-          "
-        >
-          Reset
-        </button>
+      <div class="button-group">
+        <button id="playBtn" onclick="playScenario()">Play</button>
+        <button id="pauseBtn" onclick="pauseScenario()" disabled>Pause</button>
+        <button id="resetBtn" onclick="resetScenario()">Reset</button>
       </div>
     </div>
 
     <!-- Status Info -->
-    <div
-      style="
-        padding: 12px;
-        background: #1e293b;
-        border-radius: 4px;
-        border-left: 3px solid #60a5fa;
-      "
-    >
-      <div
-        id="statusTitle"
-        style="
-          font-weight: bold;
-          color: #60a5fa;
-          margin-bottom: 4px;
-          font-size: 14px;
-        "
-      >
-        Ready
-      </div>
-      <div id="statusDescription" style="font-size: 12px; color: #cbd5e1">
-        Click Play to start the demonstration
-      </div>
+    <div class="status-info">
+      <div id="statusTitle">Ready</div>
+      <div id="statusDescription">Click Play to start the demonstration</div>
     </div>
   </div>
 
   <!-- Stats -->
-  <div style="flex: 0 0 auto">
-    <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #cbd5e1">
-      Protocol Events
-    </h3>
-    <div
-      style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px"
-    >
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #60a5fa; font-size: 18px"
-          id="nextBallotCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">NextBallot(b)</div>
+  <div class="stats-section">
+    <h3>Protocol Events</h3>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="nextBallotCount">0</div>
+        <div class="stat-label">NextBallot(b)</div>
       </div>
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #ec4899; font-size: 18px"
-          id="lastVoteCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">LastVote(b, v)</div>
+      <div class="stat-card">
+        <div class="stat-value" id="lastVoteCount">0</div>
+        <div class="stat-label">LastVote(b, v)</div>
       </div>
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #f59e0b; font-size: 18px"
-          id="beginBallotCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">BeginBallot(b, d)</div>
+      <div class="stat-card">
+        <div class="stat-value" id="beginBallotCount">0</div>
+        <div class="stat-label">BeginBallot(b, d)</div>
       </div>
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #10b981; font-size: 18px"
-          id="votedCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">Voted(b, q)</div>
+      <div class="stat-card">
+        <div class="stat-value" id="votedCount">0</div>
+        <div class="stat-label">Voted(b, q)</div>
       </div>
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #6366f1; font-size: 18px"
-          id="successCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">Success(d)</div>
+      <div class="stat-card">
+        <div class="stat-value" id="successCount">0</div>
+        <div class="stat-label">Success(d)</div>
       </div>
     </div>
   </div>
 
   <!-- Event Log -->
-  <div
-    style="
-      flex: 0 0 auto;
-      display: flex;
-      flex-direction: column;
-      max-height: 250px;
-    "
-  >
-    <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #cbd5e1">
-      Event Log
-    </h3>
-    <div
-      id="eventLog"
-      style="
-        flex: 1;
-        overflow-y: auto;
-        background: #0f172a;
-        border: 1px solid #334155;
-        border-radius: 4px;
-        padding: 10px;
-      "
-    ></div>
+  <div class="event-log-section">
+    <h3>Event Log</h3>
+    <div id="eventLog"></div>
   </div>
 </div>
-{% endblock %} {% block scripts %}
+
+<!-- Proposal Stats (Fixed Top-Right) -->
+<div id="proposalStatsContainer"></div>
+
+<!-- Decree Panel (Fixed Bottom-Right) -->
+<div id="decreePanel"></div>
+
+{% endblock %}
+{% block scripts %}
 <script src="/paxos-visualizer.js"></script>
 <script src="/basic-protocol-demo.js"></script>
 {% endblock %}

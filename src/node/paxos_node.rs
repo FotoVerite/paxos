@@ -16,7 +16,7 @@ use crate::{
 
 pub struct PaxosNode {
     _id: usize,
-    _uuid: Uuid,
+    pub uuid: Uuid,
     rx: Option<Receiver<Message>>,
     state: Arc<PaxosState>,
 }
@@ -109,7 +109,7 @@ impl PaxosNode {
         });
         Ok(Self {
             _id: id,
-            _uuid: uuid,
+            uuid,
             rx: Some(rx),
             state,
         })

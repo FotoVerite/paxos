@@ -49,6 +49,12 @@ impl WebSocketObserver {
         
         receiver
     }
+
+    /// Clears the cluster info and prepares for a new scenario
+    pub async fn clear(&self) {
+        let mut info = self.cluster_info.write().await;
+        *info = None;
+    }
 }
 
 impl PaxosObserver for WebSocketObserver {

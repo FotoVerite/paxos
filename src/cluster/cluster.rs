@@ -72,6 +72,10 @@ impl Cluster {
         self.simulators.get(node_id)
     }
 
+    pub fn get_node_uuids(&self) -> Vec<Uuid> {
+        self.nodes.iter().map(|node| node.uuid).collect()
+    }
+
     pub async fn propose(&mut self, cmd: PaxosCommand) {
         let node_id = random_node_idx(self.total_number);
         if let Some(node) = self.nodes.get_mut(node_id) {
