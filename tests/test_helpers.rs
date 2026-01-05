@@ -377,8 +377,10 @@ impl NodeBuilder {
     }
 
     pub async fn proposer(&self, id: usize, quorum: usize) -> anyhow::Result<Proposer> {
+        let uuid = self.generate_uuid(id);
         Proposer::new(
             id,
+            uuid,
             quorum,
             Arc::clone(&self.decree_notes),
             Arc::clone(&self.observer) as Arc<dyn PaxosObserver>, // Cast to trait object

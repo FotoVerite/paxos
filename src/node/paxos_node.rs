@@ -107,13 +107,13 @@ impl PaxosNode {
             });
         }
         
-        let decree_notes = Arc::new(Mutex::new(DecreeNotes::new()));
+        let decree_notes = Arc::new(Mutex::new(DecreeNotes::load_or_init(uuid).await?));
         let acceptor = Acceptor::new(id, uuid, Arc::clone(&observer)).await?;
         let state = Arc::new(PaxosState {
             id,
             _uuid: uuid,
             peers,
-            proposer: Proposer::new(id, quorum, Arc::clone(&decree_notes), Arc::clone(&observer))
+            proposer: Proposer::new(id, uuid, quorum, Arc::clone(&decree_notes), Arc::clone(&observer))
                 .await?,
             acceptor,
             learner: Learner::new(id, quorum, Arc::clone(&decree_notes), Arc::clone(&observer)),

@@ -1,3 +1,4 @@
+pub mod common;
 pub mod cluster;
 pub mod message;
 pub mod monitor;

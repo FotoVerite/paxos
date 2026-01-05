@@ -8,9 +8,11 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{Mutex, Notify};
+use uuid::Uuid;
 
 pub struct Proposer {
     id: usize,
+    uuid: Uuid,
     quorum_size: usize,
     decree_notes: Arc<Mutex<DecreeNotes>>,
     state: Mutex<HashMap<usize, ProposedDecree>>,
@@ -24,7 +26,7 @@ struct ProposedDecree {
     proposed_value: PaxosCommand,
     quorum: Quorum,
     #[allow(dead_code)]
-    promise_notifier: Arc<Notify>
+    promise_notifier: Arc<Notify>,
 }
 
 struct Quorum {
@@ -48,40 +50,43 @@ impl Default for ProposedDecree {
 impl Proposer {
     pub async fn new(
         id: usize,
+        uuid: Uuid,
         quorum_size: usize,
         decree_notes: Arc<Mutex<DecreeNotes>>,
         observer: Arc<dyn PaxosObserver>,
     ) -> Result<Self> {
-        let state = Self::load_or_init(id).await?;
         Ok(Self {
             id,
+            uuid,
             quorum_size,
             decree_notes,
-            state: Mutex::new(state),
+            state: Mutex::new(HashMap::new()),
             observer,
         })
-    }
-
-    /// Loads the Proposer's state from disk or initializes it if no state is found.
-    /// When loading, it reconstructs the in-memory `ProposedDecree` from the
-    /// `ProposedDecreeState`, re-initializing transient fields (like `votes`) to their default
-    /// or empty values, as they are not persisted.
-    async fn load_or_init(_node_id: usize) -> Result<HashMap<usize, ProposedDecree>> {
-        return Ok(HashMap::new());
     }
 
     pub async fn propose(&self, decree_num: usize, cmd: PaxosCommand) -> Message {
         // Increment the ballot number for every new proposal attempt.
         let mut state = self.state.lock().await;
+
+        let entry = state.entry(decree_num).or_default();
+        let highest_accepted = entry.quorum.highest_accepted.number;
+
         let mut decree_notes = self.decree_notes.lock().await;
         let notes = decree_notes
             .state
             .entry(decree_num)
             .or_insert(DecreeNote::new(self.id));
-
-        let entry = state.entry(decree_num).or_default();
-        let highest_accepted = entry.quorum.highest_accepted.number;
         let next_ballot = notes.next_ballot(highest_accepted);
+        
+        // Persist the updated ballot number
+        #[cfg(feature = "persistence")]
+        {
+            if let Err(e) = decree_notes.save(self.uuid).await {
+                tracing::error!("[Node {}] Failed to persist decree notes: {}", self.id, e);
+            }
+        }
+        
         entry.quorum.promises.clear();
         if entry.proposed_value == PaxosCommand::BLANK {
             entry.proposed_value = cmd
