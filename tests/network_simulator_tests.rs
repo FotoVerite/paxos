@@ -1,15 +1,15 @@
 use paxos::{
-    cluster::cluster::Cluster,
-    console_observer::ConsoleObserver,
-    paxos_command::PaxosCommand,
+    cluster::cluster::Cluster, console_observer::ConsoleObserver, paxos_command::PaxosCommand,
 };
 use std::sync::Arc;
-use tokio::time::{sleep, Duration};
+use std::net::IpAddr;
+use tokio::time::{Duration, sleep};
 
 #[tokio::test]
 async fn test_normal_operation_no_failures() {
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, 3, observer).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -27,7 +27,8 @@ async fn test_normal_operation_no_failures() {
 #[tokio::test]
 async fn test_failures_disabled_by_default() {
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, 3, observer).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -47,7 +48,8 @@ async fn test_failures_disabled_by_default() {
 #[tokio::test]
 async fn test_enable_failures_flag() {
     let observer = Arc::new(ConsoleObserver);
-    let cluster = Cluster::new(0, 3, observer).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
 
     // Failures should be disabled by default
     cluster.disable_failures().await;
@@ -58,7 +60,8 @@ async fn test_enable_failures_flag() {
 #[tokio::test]
 async fn test_partition_and_heal() {
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, 3, observer).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -79,7 +82,8 @@ async fn test_partition_and_heal() {
 #[tokio::test]
 async fn test_multiple_partitions() {
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, 5, observer).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 5, observer).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -110,7 +114,8 @@ async fn test_multiple_partitions() {
 #[tokio::test]
 async fn test_add_delay() {
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, 3, observer).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -120,9 +125,7 @@ async fn test_add_delay() {
     cluster.enable_failures().await;
 
     // Add 100ms delay from node 0 to node 1
-    cluster
-        .add_delay(0, 1, Duration::from_millis(100))
-        .await;
+    cluster.add_delay(0, 1, Duration::from_millis(100)).await;
 
     sleep(Duration::from_millis(200)).await;
 }
@@ -130,7 +133,8 @@ async fn test_add_delay() {
 #[tokio::test]
 async fn test_add_packet_loss() {
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, 3, observer).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -148,7 +152,8 @@ async fn test_add_packet_loss() {
 #[tokio::test]
 async fn test_partition_isolates_single_node() {
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, 5, observer).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 5, observer).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -181,7 +186,8 @@ async fn test_partition_isolates_single_node() {
 #[tokio::test]
 async fn test_toggle_failures_on_off() {
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, 3, observer).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();

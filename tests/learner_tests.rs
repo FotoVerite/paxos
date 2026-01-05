@@ -1,7 +1,7 @@
 mod test_helpers;
 
 use paxos::{message::Message, monitor::Event, node::ballot::Ballot, paxos_command::PaxosCommand};
-use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
+use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver, create_ledger};
 use std::sync::Arc; // Added Arc import
 
 // ============================================================================
@@ -15,7 +15,7 @@ async fn learner_receives_accepted_values() {
     let observer = RecordingObserver::new().arc();
     let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     let learner = builder.learner(1, 2);
-    let ledger = paxos::node::ledger::Ledger::init(1, 2).await.unwrap();
+    let ledger = create_ledger();
 
     let cmd1 = PaxosCommand::GET {
         key: "key1".to_string(),
@@ -77,7 +77,7 @@ async fn learner_ignores_non_accepted_messages() {
     let observer = RecordingObserver::new().arc();
     let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     let _learner = builder.learner(1, 2);
-    let _ledger = paxos::node::ledger::Ledger::init(1, 2).await.unwrap();
+    let _ledger = create_ledger();
 
     // The learner's handle_message function is now specific to Accepted messages.
     // To test that it ignores other messages, we would need to call the node's top-level
@@ -95,7 +95,7 @@ async fn learner_learns_multiple_decrees() {
     let observer = RecordingObserver::new().arc();
     let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     let learner = builder.learner(1, 1);
-    let ledger = paxos::node::ledger::Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     let b = Ballot::new(1, 1);
 

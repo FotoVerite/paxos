@@ -1,5 +1,6 @@
-use std::sync::Arc;
 use rand::Rng;
+use std::net::IpAddr;
+use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, sleep};
 
@@ -27,6 +28,7 @@ impl ClusterManager {
 
     pub async fn start_scenario(
         &self,
+        ip: IpAddr,
         node_count: usize,
         duration_secs: u64,
         scenario_type: &str,
@@ -44,7 +46,7 @@ impl ClusterManager {
         }
 
         // Create new cluster
-        let mut cluster = Cluster::new(0, node_count, self.observer.clone()).await?;
+        let mut cluster = Cluster::new(0, ip, node_count, self.observer.clone()).await?;
 
         // Send cluster info to visualizer
         self.observer

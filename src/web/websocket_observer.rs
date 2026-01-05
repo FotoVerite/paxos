@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
-use tracing::{debug, warn};
+use tracing::{debug};
 
 use crate::monitor::{Event, PaxosObserver};
 use crate::web::{ClusterInfo, VisualizerMessage};

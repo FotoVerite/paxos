@@ -1,5 +1,7 @@
 use rand::Rng;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+use uuid::Uuid;
+use std::net::IpAddr;
 
 use std::sync::Arc;
 use std::collections::HashSet;
@@ -11,17 +13,15 @@ use crate::{
 };
 
 pub struct Cluster {
-    #[allow(dead_code)]
-    id: usize,
+    _id: usize,
     total_number: usize,
     pub nodes: Vec<PaxosNode>,
-    #[allow(dead_code)]
-    observer: Arc<dyn PaxosObserver>,
+    _observer: Arc<dyn PaxosObserver>,
     simulators: Vec<Arc<NetworkSimulator>>,
 }
 
 impl Cluster {
-    pub async fn new(id: usize, total_number: usize, observer: Arc<dyn PaxosObserver>) -> anyhow::Result<Self> {
+    pub async fn new(id: usize, ip: IpAddr, total_number: usize, observer: Arc<dyn PaxosObserver>) -> anyhow::Result<Self> {
         let mut peers = Vec::<Sender<Message>>::with_capacity(total_number);
         let mut receivers = Vec::<Receiver<Message>>::with_capacity(total_number);
         for _ in 0..total_number {
@@ -37,8 +37,12 @@ impl Cluster {
             let simulator = Arc::new(NetworkSimulator::new(i, peers.clone()));
             simulators.push(Arc::clone(&simulator));
             
+            // Generate deterministic UUID for this node
+            let node_uuid = Self::node_uuid(ip, i);
+            
             let node = PaxosNode::new(
                 i,
+                node_uuid,
                 rx,
                 Arc::clone(&observer),
                 simulator,   
@@ -48,10 +52,10 @@ impl Cluster {
         }
 
         Ok(Self {
-            id,
+            _id: id,
             total_number,
             nodes,
-            observer: Arc::clone(&observer),
+            _observer: Arc::clone(&observer),
             simulators,
         })
     }
@@ -126,6 +130,11 @@ impl Cluster {
         }
     }
 
+    fn node_uuid(ip: IpAddr, node_id: usize) -> Uuid {
+        let namespace = Uuid::NAMESPACE_DNS;
+        let name = format!("{}:{}", ip, node_id);
+        Uuid::new_v5(&namespace, name.as_bytes())
+    }
 
 }
 fn random_node_idx(n: usize) -> usize {

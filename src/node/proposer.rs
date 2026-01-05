@@ -7,7 +7,7 @@ use anyhow::Result;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify};
 
 pub struct Proposer {
     id: usize,
@@ -23,6 +23,8 @@ pub struct Proposer {
 struct ProposedDecree {
     proposed_value: PaxosCommand,
     quorum: Quorum,
+    #[allow(dead_code)]
+    promise_notifier: Arc<Notify>
 }
 
 struct Quorum {
@@ -34,6 +36,7 @@ impl Default for ProposedDecree {
     fn default() -> ProposedDecree {
         ProposedDecree {
             proposed_value: PaxosCommand::BLANK,
+            promise_notifier: Arc::new(Notify::new()),
             quorum: Quorum {
                 promises: HashSet::new(),
                 highest_accepted: Ballot::default(),
@@ -84,8 +87,14 @@ impl Proposer {
             entry.proposed_value = cmd
         }
 
-        tracing::info!("[Node {}] Proposing decree {} with ballot ({}, {}) value: {:?}", 
-            self.id, decree_num, next_ballot.number, next_ballot.node_id, entry.proposed_value);
+        tracing::info!(
+            "[Node {}] Proposing decree {} with ballot ({}, {}) value: {:?}",
+            self.id,
+            decree_num,
+            next_ballot.number,
+            next_ballot.node_id,
+            entry.proposed_value
+        );
 
         self.observer.on_event(Event::Proposal {
             decree_num,
@@ -101,6 +110,39 @@ impl Proposer {
         }
     }
 
+    // pub async fn propose_with_retry(
+    //     &self,
+    //     decree_num: usize,
+    //     cmd: PaxosCommand,
+    // ) -> Result<(), String> {
+    //     let max_retries = 3;
+    //     let mut delay_ms = 100;
+
+    //     for attempt in 0..max_retries {
+    //         // Send prepare
+    //         let msg = self.propose(decree_num, cmd.clone()).await;
+    //         self.peers.broadcast(msg).await;
+
+    //         // Wait for quorum of promises (with timeout)
+    //         let promise_count = self
+    //             .wait_for_promises(decree_num, Duration::from_millis(delay_ms))
+    //             .await;
+
+    //         if promise_count >= self.quorum_size {
+    //             return Ok(()); // Success
+    //         }
+
+    //         if attempt < max_retries - 1 {
+    //             tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+    //             delay_ms *= 2; // Exponential backoff: 100, 200, 400
+    //         }
+    //     }
+
+    //     Err("Failed to reach quorum after retries".to_string())
+    // }
+
+    
+
     pub async fn promise(
         &self,
         decree_num: usize,
@@ -110,10 +152,9 @@ impl Proposer {
         from_node: usize,
     ) -> Message {
         let mut state = self.state.lock().await;
-        if !state.contains_key(&decree_num) {
+        let Some(entry) = state.get_mut(&decree_num) else {
             return Message::NACK;
-        }
-        let state = state.get_mut(&decree_num).unwrap();
+        };
         let mut decree_notes = self.decree_notes.lock().await;
         let notes = decree_notes
             .state
@@ -131,7 +172,7 @@ impl Proposer {
             Ordering::Equal => {
                 return self
                     .prepare(
-                        state,
+                        entry,
                         decree_num,
                         ballot,
                         accepted_ballot,

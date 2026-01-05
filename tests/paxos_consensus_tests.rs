@@ -3,6 +3,7 @@ use paxos::{
     paxos_command::PaxosCommand,
 };
 use std::sync::Arc;
+use std::net::IpAddr;
 use tokio::time::Duration;
 use test_helpers::RecordingObserver;
 
@@ -12,7 +13,8 @@ mod test_helpers;
 async fn test_consensus_without_failures() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
-    let mut cluster = Cluster::new(0, 3, observer.clone()).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer.clone()).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -39,7 +41,8 @@ async fn test_consensus_without_failures() {
 async fn test_consensus_with_partition_recovery() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
-    let mut cluster = Cluster::new(0, 5, observer.clone()).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 5, observer.clone()).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -88,7 +91,8 @@ async fn test_consensus_with_partition_recovery() {
 async fn test_consensus_survives_packet_loss() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
-    let mut cluster = Cluster::new(0, 5, observer.clone()).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 5, observer.clone()).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -116,7 +120,8 @@ async fn test_consensus_survives_packet_loss() {
 async fn test_consensus_with_high_latency() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
-    let mut cluster = Cluster::new(0, 3, observer.clone()).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer.clone()).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -144,7 +149,8 @@ async fn test_consensus_with_high_latency() {
 async fn test_quorum_still_achievable_with_partition() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
-    let mut cluster = Cluster::new(0, 7, observer.clone()).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 7, observer.clone()).await.unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
@@ -179,7 +185,8 @@ async fn test_quorum_still_achievable_with_partition() {
 async fn test_repeated_partition_heal_cycles() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
-    let mut cluster = Cluster::new(0, 5, observer.clone()).await.unwrap();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 5, observer.clone()).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();

@@ -2,13 +2,12 @@ mod test_helpers;
 
 use paxos::{
     message::Message,
-    monitor::Event,
     node::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
 use std::collections::HashSet;
-use std::sync::Arc; // Added Arc import
+use std::sync::Arc;
 
 // ============================================================================
 // EDGE CASE TESTS

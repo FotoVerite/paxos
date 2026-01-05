@@ -1,4 +1,5 @@
 use std::path::Path;
+use uuid::Uuid;
 
 use anyhow::Result;
 use tokio::sync::Mutex;
@@ -26,22 +27,38 @@ impl LedgerState {
 
 pub struct Ledger {
     id: usize,
+    uuid: Uuid,
     state: Mutex<LedgerState>,
 }
 
 impl Ledger {
-    pub async fn init(id: usize) -> Result<Self> {
-        let state = Ledger::load_or_init(id)
+    pub async fn init(id: usize, uuid: Uuid) -> Result<Self> {
+        #[cfg(feature = "persistence")]
+        let state = Ledger::load_or_init(uuid)
             .await
             .unwrap_or_else(|_| LedgerState::init());
+        
+        #[cfg(not(feature = "persistence"))]
+        let state = LedgerState::init();
+        
         Ok(Self {
             id,
+            uuid,
             state: Mutex::new(state),
         })
     }
 
+    /// Create a ledger with fresh empty state (for tests)
+    pub fn new(id: usize, uuid: Uuid) -> Self {
+        Self {
+            id,
+            uuid,
+            state: Mutex::new(LedgerState::init()),
+        }
+    }
+
     fn state_path(&self) -> String {
-        format!("{}/ledger_state_{}.bin", DATA_DIR, self.id)
+        format!("{}/ledger_{}.bin", DATA_DIR, self.uuid)
     }
 
     async fn ensure_dir_exists() -> Result<()> {
@@ -49,16 +66,28 @@ impl Ledger {
         Ok(())
     }
 
+    /// Atomically save ledger state using temp file + rename pattern
+    /// This ensures the file is never left in a corrupted state if process crashes mid-write
     async fn save(&self) -> Result<()> {
         Self::ensure_dir_exists().await?;
+        
         let state = self.state.lock().await;
         let encoded = bincode::serialize(&*state)?;
-        tokio::fs::write(self.state_path(), encoded).await?;
+        
+        let path = self.state_path();
+        let temp_path = format!("{}.tmp", path);
+        
+        // Write to temp file (safe to be incomplete if crash)
+        tokio::fs::write(&temp_path, encoded).await?;
+        
+        // Atomic rename (either completes fully or fails, no partial state)
+        tokio::fs::rename(&temp_path, &path).await?;
+        
         Ok(())
     }
 
-    async fn load_or_init(node_id: usize) -> Result<LedgerState> {
-        let path_str = format!("{}/ledger_state_{}.bin", DATA_DIR, node_id);
+    async fn load_or_init(uuid: Uuid) -> Result<LedgerState> {
+        let path_str = format!("{}/ledger_{}.bin", DATA_DIR, uuid);
         let path = Path::new(&path_str);
 
         if !path.exists() {
@@ -87,8 +116,15 @@ impl Ledger {
         }; // Lock released here
         
         if inserted {
-            // Handle Result from save()
-            return self.save().await.is_ok();
+            // Persist the ledger (if persistence is enabled)
+            #[cfg(feature = "persistence")]
+            {
+                return self.save().await.is_ok();
+            }
+            #[cfg(not(feature = "persistence"))]
+            {
+                return true;  // In tests without persistence, always succeed
+            }
         }
         inserted
     }

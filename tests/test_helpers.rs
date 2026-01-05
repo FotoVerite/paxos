@@ -6,6 +6,8 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, Notify};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+use std::net::IpAddr;
+use uuid::Uuid;
 
 use paxos::{
     message::Message,
@@ -13,8 +15,15 @@ use paxos::{
     node::{acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, proposer::Proposer, ledger::Ledger},
     paxos_command::PaxosCommand,
     cluster::cluster::Cluster,
-    console_observer::ConsoleObserver,
 };
+
+/// Helper to create a Ledger for tests with fresh state
+/// Always creates empty state, never loads from disk
+pub fn create_ledger() -> Ledger {
+    let uuid = Uuid::new_v4();
+    let id = uuid.as_u64_pair().0 as usize;  // Use uuid as ID for uniqueness
+    Ledger::new(id, uuid)
+}
 
 // ============================================================================
 // EVENT BARRIER - Synchronization primitive for event-driven testing
@@ -324,13 +333,14 @@ impl PaxosObserver for RecordingObserver {
 
 /// Helper to create a cluster with an observer (for edge case and scenario tests)
 /// Note: Currently ignores the observer parameter and uses ConsoleObserver.
-/// The cluster integration tests rely on timing rather than observer callbacks.
-/// TODO: Wire up observer properly when cluster refactoring is complete.
+/// Create a cluster with a standard test IP address
+/// This is a convenience helper for tests to avoid repeating IP setup
 pub async fn create_cluster(
     node_count: usize,
     observer: Arc<RecordingObserver>,
 ) -> anyhow::Result<Cluster> {
-    Cluster::new(0, node_count, observer).await
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    Cluster::new(0, ip, node_count, observer).await
 }
 
 // ============================================================================
@@ -339,14 +349,16 @@ pub async fn create_cluster(
 
 /// Builder for creating proposer/acceptor/learner with consistent setup
 pub struct NodeBuilder {
-    pub observer: Arc<RecordingObserver>, // Changed type to Arc<RecordingObserver>
+    pub observer: Arc<RecordingObserver>,
     decree_notes: Arc<Mutex<DecreeNotes>>,
 }
 
 impl NodeBuilder {
+    /// Create a new builder with randomized UUIDs (test isolation)
+    /// All node UUIDs are random v4, ensuring each test run is isolated
     pub fn new() -> Self {
         Self {
-            observer: RecordingObserver::new().arc(), // Initialized as Arc<RecordingObserver>
+            observer: RecordingObserver::new().arc(),
             decree_notes: Arc::new(Mutex::new(DecreeNotes::new())),
         }
     }
@@ -375,7 +387,13 @@ impl NodeBuilder {
     }
 
     pub async fn acceptor(&self, id: usize) -> anyhow::Result<Acceptor> {
-        Acceptor::new(id, Arc::clone(&self.observer) as Arc<dyn PaxosObserver>).await // Cast to trait object
+        let uuid = self.generate_uuid(id);
+        Acceptor::new(id, uuid, Arc::clone(&self.observer) as Arc<dyn PaxosObserver>).await // Cast to trait object
+    }
+
+    /// Generate a random UUID for test isolation
+    fn generate_uuid(&self, _id: usize) -> Uuid {
+        Uuid::new_v4()  // Random - each test run is isolated
     }
 
     pub fn learner(&self, id: usize, quorum: usize) -> Learner {
@@ -388,8 +406,9 @@ impl NodeBuilder {
     }
 
     #[allow(dead_code)]
-    pub async fn ledger(&self, id: usize, quorum: usize) -> anyhow::Result<Ledger> {
-        Ledger::init(id, quorum).await
+    pub async fn ledger(&self, id: usize) -> anyhow::Result<Ledger> {
+        let uuid = self.generate_uuid(id);
+        Ledger::init(id, uuid).await
     }
 }
 

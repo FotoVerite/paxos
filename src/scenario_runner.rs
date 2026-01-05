@@ -73,13 +73,15 @@ mod tests {
     use crate::console_observer::ConsoleObserver;
     use crate::paxos_command::PaxosCommand;
     use crate::scenario::ScenarioBuilder;
+    use std::net::IpAddr;
     use std::sync::Arc;
     use tokio::time::Duration;
 
     #[tokio::test]
     async fn test_scenario_runner_basic() {
         let observer = Arc::new(ConsoleObserver);
-        let mut cluster = Cluster::new(0, 3, observer).await.unwrap();
+        let ip = IpAddr::V4([127, 0, 0, 1].into());
+        let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
 
         for i in 0..3 {
             cluster.nodes[i].start();

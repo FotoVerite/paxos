@@ -1,9 +1,9 @@
 mod test_helpers;
 
-use paxos::{message::Message, monitor::Event, node::ballot::Ballot, paxos_command::PaxosCommand};
+use paxos::{message::Message, node::ballot::Ballot, paxos_command::PaxosCommand};
 use std::collections::HashSet;
-use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
-use std::sync::Arc; // Added Arc import
+use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver, create_ledger};
+use std::sync::Arc;
 
 // ============================================================================
 // CONCURRENT DECREES TESTS
@@ -104,13 +104,10 @@ async fn acceptor_can_accept_multiple_decrees() {
 
 #[tokio::test]
 async fn learner_learns_multiple_decrees() {
-    use test_helpers::cleanup_persisted_state;
-    cleanup_persisted_state();
-
     let observer = RecordingObserver::new().arc();
     let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     let learner = builder.learner(1, 1);
-    let ledger = paxos::node::ledger::Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     let b = Ballot::new(1, 1);
 
@@ -363,7 +360,7 @@ async fn sequential_decrees_same_proposer() {
 #[tokio::test]
 async fn learner_ledger_tracks_concurrent_decrees() {
     cleanup_persisted_state();
-    let ledger = paxos::node::ledger::Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     // Insert decrees for different slots
     ledger
@@ -400,16 +397,13 @@ async fn learner_ledger_tracks_concurrent_decrees() {
 
 #[tokio::test]
 async fn mixed_single_and_multi_decree_flow() {
-    use test_helpers::cleanup_persisted_state;
-    cleanup_persisted_state();
-    
     let observer = RecordingObserver::new().arc();
     let builder = NodeBuilder::with_observer(Arc::clone(&observer));
 
     let proposer = builder.proposer(1, 1).await.unwrap();
     let acceptor = builder.acceptor(1).await.unwrap();
     let learner = builder.learner(1, 1);
-    let ledger = paxos::node::ledger::Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     let cmd0 = PaxosCommand::GET {
         key: "cmd0".to_string(),

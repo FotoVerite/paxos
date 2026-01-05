@@ -34,7 +34,7 @@ pub async fn start_scenario_handler(
     let cm = get_cm(state, addr, headers).await;
     let cm = cm.lock().await;
     match cm
-        .start_scenario(req.node_count, req.duration_secs, scenario_type)
+        .start_scenario(ip, req.node_count, req.duration_secs, scenario_type)
         .await
     {
         Ok(_) => {

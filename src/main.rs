@@ -6,7 +6,7 @@ use paxos::{
     scenario_runner::ScenarioRunner,
     web::server::run_web_server,
 };
-use std::sync::Arc;
+use std::{net::IpAddr, sync::Arc};
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]
@@ -61,10 +61,11 @@ async fn run_json_scenario() -> anyhow::Result<()> {
 
     for (filename, scenario) in scenarios {
         println!("Loaded: {}", filename);
+        let ip = IpAddr::V4([127, 0, 0, 1].into());
 
         let node_count = scenario.node_count;
         let observer = Arc::new(ConsoleObserver);
-        let mut cluster = Cluster::new(0, node_count, observer).await?;
+        let mut cluster = Cluster::new(0, ip, node_count, observer).await?;
 
         for i in 0..node_count {
             cluster.nodes[i].start();
@@ -100,11 +101,12 @@ async fn run_with_web_server() -> anyhow::Result<()> {
 }
 
 async fn run_builtin_scenario() -> anyhow::Result<()> {
-    println!("Starting Paxos cluster with programmatic scenario...\n");
+     println!("Starting Paxos cluster with programmatic scenario...\n");
+         let ip = IpAddr::V4([127, 0, 0, 1].into());
 
-    let node_count = 5;
-    let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, node_count, observer).await?;
+     let node_count = 5;
+     let observer = Arc::new(ConsoleObserver);
+     let mut cluster = Cluster::new(0, ip, node_count, observer).await?;
 
     for i in 0..node_count {
         cluster.nodes[i].start();

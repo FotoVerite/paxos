@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use uuid::Uuid;
 
 use tokio::sync::{Mutex, mpsc::Receiver};
 
@@ -14,14 +15,15 @@ use crate::{
 };
 
 pub struct PaxosNode {
-    #[allow(dead_code)]
-    id: usize,
+    _id: usize,
+    _uuid: Uuid,
     rx: Option<Receiver<Message>>,
     state: Arc<PaxosState>,
 }
 
 pub struct PaxosState {
     id: usize,
+    _uuid: Uuid,
     peers: Arc<NetworkSimulator>, // Track the highest accepted_ballot from Promises
     proposer: Proposer,
     acceptor: Acceptor,
@@ -41,20 +43,31 @@ impl PaxosState {
                 }
             }
             Message::Prepare { from, .. } | Message::Accept { from, .. } => {
-                tracing::debug!("[Node {}] Handling Prepare/Accept from node {}", self.id, from);
+                tracing::debug!(
+                    "[Node {}] Handling Prepare/Accept from node {}",
+                    self.id,
+                    from
+                );
                 let reply = self.acceptor.handle_message(msg).await;
                 if let Message::Accepted { .. } = &reply {
-                    tracing::debug!("[Node {}] Acceptor replied with Accepted, sending back to {}", self.id, from);
+                    tracing::debug!(
+                        "[Node {}] Acceptor replied with Accepted, sending back to {}",
+                        self.id,
+                        from
+                    );
                 } else {
                     tracing::debug!("[Node {}] Acceptor replied with NACK", self.id);
                 }
-                self.peers.send(from, reply).await;               
+                self.peers.send(from, reply).await;
             }
             Message::Accepted { .. } => {
                 tracing::debug!("[Node {}] Handling Accepted message", self.id);
                 let reply = self.learner.handle_message(msg, &self.ledger).await;
                 if let Message::Success { .. } = &reply {
-                    tracing::debug!("[Node {}] Learner reached quorum, broadcasting Success", self.id);
+                    tracing::debug!(
+                        "[Node {}] Learner reached quorum, broadcasting Success",
+                        self.id
+                    );
                     self.peers.broadcast(reply).await;
                 } else {
                     tracing::debug!("[Node {}] Learner did not reach quorum yet", self.id);
@@ -75,16 +88,18 @@ impl PaxosState {
 impl PaxosNode {
     pub async fn new(
         id: usize,
+        uuid: Uuid,
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
         quorum: usize,
     ) -> anyhow::Result<Self> {
-        let ledger = Ledger::init(id).await?;
+        let ledger = Ledger::init(id, uuid).await?;
         let decree_notes = Arc::new(Mutex::new(DecreeNotes::new()));
-        let acceptor = Acceptor::new(id, Arc::clone(&observer)).await?;
+        let acceptor = Acceptor::new(id, uuid, Arc::clone(&observer)).await?;
         let state = Arc::new(PaxosState {
             id,
+            _uuid: uuid,
             peers,
             proposer: Proposer::new(id, quorum, Arc::clone(&decree_notes), Arc::clone(&observer))
                 .await?,
@@ -93,7 +108,8 @@ impl PaxosNode {
             ledger,
         });
         Ok(Self {
-            id,
+            _id: id,
+            _uuid: uuid,
             rx: Some(rx),
             state,
         })

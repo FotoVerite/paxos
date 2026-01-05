@@ -1,11 +1,9 @@
 use paxos::{
-    node::ballot::Ballot,
-    node::ledger::Ledger,
     paxos_command::PaxosCommand,
 };
 
 mod test_helpers;
-use test_helpers::cleanup_persisted_state;
+use test_helpers::{cleanup_persisted_state, create_ledger};
 
 // ============================================================================
 // LEDGER GAP HANDLING TESTS
@@ -18,7 +16,7 @@ use test_helpers::cleanup_persisted_state;
 #[tokio::test]
 async fn ledger_finds_first_gap_simple() {
     cleanup_persisted_state();
-    let ledger = Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     let cmd0 = PaxosCommand::GET {
         key: "decree0".to_string(),
@@ -46,7 +44,7 @@ async fn ledger_finds_first_gap_simple() {
 #[tokio::test]
 async fn ledger_finds_gap_after_multiple_chosen() {
     cleanup_persisted_state();
-    let ledger = Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     let cmd = PaxosCommand::NOOP;
 
@@ -66,7 +64,7 @@ async fn ledger_finds_gap_after_multiple_chosen() {
 #[tokio::test]
 async fn ledger_next_with_all_gaps() {
     cleanup_persisted_state();
-    let ledger = Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     // No decrees chosen
     let next = ledger.next().await;
@@ -76,7 +74,7 @@ async fn ledger_next_with_all_gaps() {
 #[tokio::test]
 async fn ledger_next_skips_to_first_unchosen() {
     cleanup_persisted_state();
-    let ledger = Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     let cmd = PaxosCommand::NOOP;
 
@@ -94,7 +92,7 @@ async fn ledger_next_skips_to_first_unchosen() {
 #[tokio::test]
 async fn ledger_large_gap_in_middle() {
     cleanup_persisted_state();
-    let ledger = Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     let cmd = PaxosCommand::NOOP;
 
@@ -115,7 +113,7 @@ async fn ledger_large_gap_in_middle() {
 #[tokio::test]
 async fn ledger_gap_consistency_after_vote() {
     cleanup_persisted_state();
-    let ledger = Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     let cmd = PaxosCommand::NOOP;
 
@@ -133,7 +131,7 @@ async fn ledger_gap_consistency_after_vote() {
 #[tokio::test]
 async fn ledger_interleaved_proposals() {
     cleanup_persisted_state();
-    let ledger = Ledger::init(1, 1).await.unwrap();
+    let ledger = create_ledger();
 
     let cmd = PaxosCommand::NOOP;
 
@@ -170,7 +168,7 @@ async fn ledger_interleaved_proposals() {
 #[tokio::test]
 async fn ledger_chosen_state_independent_of_gaps() {
     cleanup_persisted_state();
-    let ledger = Ledger::init(1, 2).await.unwrap(); // Quorum of 2
+    let ledger = create_ledger(); // Quorum of 2
 
     let cmd = PaxosCommand::NOOP;
 
@@ -208,7 +206,7 @@ async fn ledger_chosen_state_independent_of_gaps() {
 #[tokio::test]
 async fn ledger_detects_chosen_values_at_quorum() {
     cleanup_persisted_state();
-    let ledger = Ledger::init(1, 2).await.unwrap();
+    let ledger = create_ledger();
 
     let cmd = PaxosCommand::PUT {
         key: "test".to_string(),

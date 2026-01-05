@@ -104,7 +104,7 @@ async fn ballot_comparison_ensures_safety() {
     assert!(matches!(promise2, Message::Promise { .. }));
 
     // Proposer 1 tries to accept - should fail (acceptor now requires ballot >= 1,2)
-    let accept1 = proposer1.handle_message(promise1).await;
+    let _accept1 = proposer1.handle_message(promise1).await;
     let resp1 = acceptor
         .handle_message(Message::Accept {
             from: 1,

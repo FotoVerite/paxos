@@ -7,11 +7,13 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 const DATA_DIR: &str = ".paxos";
 
 pub struct Acceptor {
     id: usize,
+    uuid: Uuid,
     state: Mutex<HashMap<usize, AcceptedDecree>>,
     observer: Arc<dyn PaxosObserver>,
 }
@@ -41,17 +43,23 @@ impl Default for AcceptedDecree {
 }
 
 impl Acceptor {
-    pub async fn new(id: usize, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
-        let state = Acceptor::load_or_init(id).await?;
+    pub async fn new(id: usize, uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
+        #[cfg(feature = "persistence")]
+        let state = Acceptor::load_or_init(uuid).await?;
+        
+        #[cfg(not(feature = "persistence"))]
+        let state = HashMap::new();
+        
         return Ok(Self {
             id,
+            uuid,
             state: Mutex::new(state),
             observer,
         });
     }
 
-    async fn load_or_init(node_id: usize) -> Result<HashMap<usize, AcceptedDecree>> {
-        let path_str = format!("{}/state_{}.bin", DATA_DIR, node_id);
+    async fn load_or_init(uuid: Uuid) -> Result<HashMap<usize, AcceptedDecree>> {
+        let path_str = format!("{}/acceptor_{}.bin", DATA_DIR, uuid);
         let path = Path::new(&path_str);
 
         if !path.exists() {
@@ -64,6 +72,28 @@ impl Acceptor {
         }
 
         Ok(bincode::deserialize(&data)?)
+    }
+
+    /// Atomically save acceptor state using temp file + rename pattern
+    /// This ensures the file is never left in a corrupted state if process crashes mid-write
+    async fn save(&self) -> Result<()> {
+        let path = format!("{}/acceptor_{}.bin", DATA_DIR, self.uuid);
+        let temp_path = format!("{}.tmp", path);
+
+        // Ensure directory exists
+        tokio::fs::create_dir_all(DATA_DIR).await?;
+
+        // Serialize state
+        let state = self.state.lock().await;
+        let encoded = bincode::serialize(&*state)?;
+
+        // Write to temp file (safe to be incomplete if crash)
+        tokio::fs::write(&temp_path, encoded).await?;
+
+        // Atomic rename (either completes fully or fails, no partial state)
+        tokio::fs::rename(&temp_path, &path).await?;
+
+        Ok(())
     }
 
     async fn prepare(&self, decree_num: usize, ballot: Ballot, from: usize) -> Message {
@@ -120,6 +150,19 @@ impl Acceptor {
                 value: cmd.clone(),
                 created_at: crate::monitor::current_timestamp_millis(),
             });
+
+            // Release lock before saving to avoid holding it during I/O
+            drop(state);
+
+            // Persist the updated state atomically (if persistence is enabled)
+            #[cfg(feature = "persistence")]
+            {
+                if let Err(e) = self.save().await {
+                    tracing::error!("[Node {}] Failed to persist acceptor state: {}", self.id, e);
+                    // In production, might want to crash here to ensure durability
+                    // For now, continue (data will be lost on crash)
+                }
+            }
 
             return Message::Accepted {
                 from: self.id,
