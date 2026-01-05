@@ -2,6 +2,7 @@ pub mod handlers;
 pub mod server;
 pub mod websocket_observer;
 pub mod cluster_manager;
+pub mod scenarios;
 
 use serde::{Deserialize, Serialize};
 
