@@ -8,6 +8,8 @@ use crate::cluster::cluster::Cluster;
 use crate::paxos_command::PaxosCommand;
 use crate::web::websocket_observer::WebSocketObserver;
 use crate::decree_generator::DecreeGenerator;
+use crate::node::ledger::Ledger;
+use crate::node::acceptor::Acceptor;
 
 pub struct ClusterManager {
     cluster: Mutex<Option<Arc<Mutex<Cluster>>>>,
@@ -29,6 +31,75 @@ impl ClusterManager {
         return Arc::clone(&self.observer);
     }
 
+    async fn setup_catch_up_scenario(&self, ip: IpAddr, node_count: usize) -> anyhow::Result<()> {
+        // Pre-populate ledger with decrees 0-5 for all nodes
+        let full_ledger = vec![
+            PaxosCommand::EnactDecree {
+                author: "Setup".to_string(),
+                law: "First decree".to_string(),
+            },
+            PaxosCommand::EnactDecree {
+                author: "Setup".to_string(),
+                law: "Second decree".to_string(),
+            },
+            PaxosCommand::EnactDecree {
+                author: "Setup".to_string(),
+                law: "Third decree".to_string(),
+            },
+            PaxosCommand::EnactDecree {
+                author: "Setup".to_string(),
+                law: "Fourth decree".to_string(),
+            },
+            PaxosCommand::EnactDecree {
+                author: "Setup".to_string(),
+                law: "Fifth decree".to_string(),
+            },
+            PaxosCommand::EnactDecree {
+                author: "Setup".to_string(),
+                law: "Sixth decree".to_string(),
+            },
+        ];
+
+        // Node 0 knows only decrees at positions [2, 4, 5], missing [0, 1, 3]
+        let catching_up_ledger = vec![
+            None, // [0] - missing
+            None, // [1] - missing
+            Some(full_ledger[2].clone()), // [2]
+            None, // [3] - missing
+            Some(full_ledger[4].clone()), // [4]
+            Some(full_ledger[5].clone()), // [5]
+        ];
+
+        // Pre-populate ledger and acceptor state before cluster starts
+        for node_id in 0..node_count {
+            let node_uuid = Cluster::node_uuid(ip, node_id);
+            let ledger: Vec<Option<PaxosCommand>> = if node_id == 0 {
+                // Node 0: partial ledger with gaps
+                catching_up_ledger
+                    .iter()
+                    .map(|opt| opt.clone())
+                    .collect()
+            } else {
+                // Other nodes: full ledger
+                full_ledger.iter().map(|cmd| Some(cmd.clone())).collect()
+            };
+            
+            // Prepopulate ledger
+            Ledger::prepopulate(node_uuid, ledger.clone()).await?;
+            
+            // Prepopulate acceptor with the same decrees
+            // Convert Option<PaxosCommand> to (usize, PaxosCommand) for initial votes
+            let initial_decrees: Vec<(usize, PaxosCommand)> = ledger
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, opt)| opt.as_ref().map(|cmd| (idx, cmd.clone())))
+                .collect();
+            Acceptor::prepopulate(node_uuid, initial_decrees).await?;
+        }
+
+        Ok(())
+        }
+
     pub async fn start_scenario(
         &self,
         ip: IpAddr,
@@ -40,6 +111,11 @@ impl ClusterManager {
             "Starting new scenario '{}' with {} nodes for {} seconds",
             scenario_type, node_count, duration_secs
         );
+
+        // Setup catch-up scenario ledger state
+        if scenario_type == "catch_up" {
+            self.setup_catch_up_scenario(ip, node_count).await?;
+        }
 
         // Create cancellation channel
         let (stop_tx, _) = broadcast::channel(1);
@@ -204,6 +280,30 @@ impl ClusterManager {
                         };
                         cluster.propose(cmd).await;
                     }
+                    "catch_up" => {
+                         // Catch-up scenario: Node 0 proposes to catch up
+                         // Node 0 starts with partial ledger [2, 4, 5], missing [0, 1, 3]
+                         // Node 0 scans for gaps and proposes to fill them
+                         
+                         // Get the node's ledger to find gaps
+                         let gap_decree_num = {
+                             let cluster = cluster_for_runner.lock().await;
+                             if let Some(node) = cluster.nodes.get(0) {
+                                 node.get_next_gap().await
+                             } else {
+                                 None
+                             }
+                         };
+                         
+                         if gap_decree_num.is_some() {
+                              let mut cluster = cluster_for_runner.lock().await;
+                              let cmd = PaxosCommand::EnactDecree {
+                                  author: "Olive Day".to_string(),
+                                  law: "The ides of February is national olive day".to_string(),
+                              };
+                              cluster.propose_from_with_decree_num(0, gap_decree_num, cmd).await;
+                          }
+                     }
                     _ => {
                         // Default "happy_path": proposals every 2 seconds
                         if proposal_count % 20 == 0 {

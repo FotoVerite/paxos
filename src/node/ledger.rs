@@ -140,4 +140,53 @@ impl Ledger {
         // Find the first decree that hasn't been chosen yet
         return state.decrees.len();
     }
+
+    pub async fn next_gap(&self) -> Option<usize> {
+        let state = self.state.lock().await;
+
+        // Find the first slot with a gap (None value)
+        for (idx, cmd_opt) in state.decrees.iter().enumerate() {
+            if cmd_opt.is_none() {
+                return Some(idx);
+            }
+        }
+        
+        // If there are no gaps but there are Some values, return the length to extend
+        if state.decrees.iter().any(|c| c.is_some()) && state.decrees.iter().all(|c| c.is_some()) {
+            return Some(state.decrees.len());
+        }
+        
+        None
+    }
+
+    pub async fn get_initial_decrees(&self) -> Vec<(usize, PaxosCommand)> {
+         let state = self.state.lock().await;
+         state.decrees
+             .iter()
+             .enumerate()
+             .filter_map(|(idx, cmd_opt)| cmd_opt.as_ref().map(|cmd| (idx, cmd.clone())))
+             .collect()
+     }
+
+    /// Pre-populate a ledger file with initial decrees (used for scenario setup)
+    pub async fn prepopulate(uuid: Uuid, decrees: Vec<Option<PaxosCommand>>) -> Result<()> {
+        Self::ensure_dir_exists().await?;
+        
+        let state = LedgerState {
+            log: Vec::new(),
+            decrees,
+        };
+        
+        let encoded = bincode::serialize(&state)?;
+        let path = format!("{}/ledger_{}.bin", DATA_DIR, uuid);
+        let temp_path = format!("{}.tmp", path);
+        
+        // Write to temp file
+        tokio::fs::write(&temp_path, encoded).await?;
+        
+        // Atomic rename
+        tokio::fs::rename(&temp_path, &path).await?;
+        
+        Ok(())
+    }
 }

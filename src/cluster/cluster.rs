@@ -84,8 +84,12 @@ impl Cluster {
     }
 
     pub async fn propose_from(&mut self, node_id: usize, cmd: PaxosCommand) {
+        self.propose_from_with_decree_num(node_id, None, cmd).await;
+    }
+
+    pub async fn propose_from_with_decree_num(&mut self, node_id: usize, decree_num: Option<usize>, cmd: PaxosCommand) {
         if let Some(node) = self.nodes.get_mut(node_id) {
-            node.propose(cmd).await;
+            node.propose_with_decree_num(decree_num, cmd).await;
         }
     }
 
@@ -134,7 +138,7 @@ impl Cluster {
         }
     }
 
-    fn node_uuid(ip: IpAddr, node_id: usize) -> Uuid {
+    pub fn node_uuid(ip: IpAddr, node_id: usize) -> Uuid {
         let namespace = Uuid::NAMESPACE_DNS;
         let name = format!("{}:{}", ip, node_id);
         Uuid::new_v5(&namespace, name.as_bytes())

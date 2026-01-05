@@ -6,7 +6,7 @@ use tokio::sync::{Mutex, mpsc::Receiver};
 use crate::{
     cluster::network_simulator::NetworkSimulator,
     message::Message,
-    monitor::PaxosObserver,
+    monitor::{PaxosObserver, Event, current_timestamp_millis},
     node::{
         acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, ledger::Ledger,
         proposer::Proposer,
@@ -15,21 +15,21 @@ use crate::{
 };
 
 pub struct PaxosNode {
-    _id: usize,
-    pub uuid: Uuid,
-    rx: Option<Receiver<Message>>,
-    state: Arc<PaxosState>,
-}
+     _id: usize,
+     pub uuid: Uuid,
+     rx: Option<Receiver<Message>>,
+     state: Arc<PaxosState>,
+ }
 
-pub struct PaxosState {
-    id: usize,
-    _uuid: Uuid,
-    peers: Arc<NetworkSimulator>, // Track the highest accepted_ballot from Promises
-    proposer: Proposer,
-    acceptor: Acceptor,
-    learner: Learner,
-    ledger: Ledger,
-}
+ pub struct PaxosState {
+     id: usize,
+     _uuid: Uuid,
+     peers: Arc<NetworkSimulator>, // Track the highest accepted_ballot from Promises
+     proposer: Proposer,
+     acceptor: Acceptor,
+     learner: Learner,
+     ledger: Ledger,
+ }
 
 impl PaxosState {
     pub async fn handle_message(&self, msg: Message) {
@@ -95,6 +95,18 @@ impl PaxosNode {
         quorum: usize,
     ) -> anyhow::Result<Self> {
         let ledger = Ledger::init(id, uuid).await?;
+        
+        // Emit InitialDecree events for any pre-populated decrees
+        let initial_decrees = ledger.get_initial_decrees().await;
+        for (decree_num, value) in initial_decrees {
+            observer.on_event(Event::InitialDecree {
+                id,
+                decree_num,
+                value,
+                created_at: current_timestamp_millis(),
+            });
+        }
+        
         let decree_notes = Arc::new(Mutex::new(DecreeNotes::new()));
         let acceptor = Acceptor::new(id, uuid, Arc::clone(&observer)).await?;
         let state = Arc::new(PaxosState {
@@ -116,9 +128,16 @@ impl PaxosNode {
     }
 
     pub async fn propose(&mut self, cmd: PaxosCommand) {
+        self.propose_with_decree_num(None, cmd).await;
+    }
+
+    pub async fn propose_with_decree_num(&mut self, decree_num: Option<usize>, cmd: PaxosCommand) {
         let state = self.state.clone();
-        let decree_num = state.ledger.next().await;
-        let msg = state.proposer.propose(decree_num, cmd).await;
+        let num = match decree_num {
+            Some(num) => num,
+            None => state.ledger.next().await,
+        };
+        let msg = state.proposer.propose(num, cmd).await;
         state.peers.broadcast(msg).await;
     }
 
@@ -132,4 +151,8 @@ impl PaxosNode {
             }
         });
     }
-}
+
+    pub async fn get_next_gap(&self) -> Option<usize> {
+        self.state.ledger.next_gap().await
+    }
+    }

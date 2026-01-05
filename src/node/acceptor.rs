@@ -46,10 +46,10 @@ impl Acceptor {
     pub async fn new(id: usize, uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
         #[cfg(feature = "persistence")]
         let state = Acceptor::load_or_init(uuid).await?;
-        
+
         #[cfg(not(feature = "persistence"))]
         let state = HashMap::new();
-        
+
         return Ok(Self {
             id,
             uuid,
@@ -101,8 +101,14 @@ impl Acceptor {
 
         let decree = state.entry(decree_num).or_default();
         if ballot > decree.next_bal {
-            tracing::info!("[Node {}] Prepare: ballot ({}, {}) > next_bal ({}, {}) - PROMISE", 
-                self.id, ballot.number, ballot.node_id, decree.next_bal.number, decree.next_bal.node_id);
+            tracing::info!(
+                "[Node {}] Prepare: ballot ({}, {}) > next_bal ({}, {}) - PROMISE",
+                self.id,
+                ballot.number,
+                ballot.node_id,
+                decree.next_bal.number,
+                decree.next_bal.node_id
+            );
             decree.next_bal = ballot;
 
             self.observer.on_event(Event::Promise {
@@ -122,8 +128,14 @@ impl Acceptor {
                 accepted_value: v.clone(),
             };
         }
-        tracing::info!("[Node {}] Prepare: ballot ({}, {}) <= next_bal ({}, {}) - NACK", 
-            self.id, ballot.number, ballot.node_id, decree.next_bal.number, decree.next_bal.node_id);
+        tracing::info!(
+            "[Node {}] Prepare: ballot ({}, {}) <= next_bal ({}, {}) - NACK",
+            self.id,
+            ballot.number,
+            ballot.node_id,
+            decree.next_bal.number,
+            decree.next_bal.node_id
+        );
         return Message::NACK;
     }
 
@@ -139,8 +151,15 @@ impl Acceptor {
         if ballot == decree.next_bal {
             decree.prev_vote = (ballot, cmd.clone());
 
-            tracing::info!("[Node {}] Accept: ballot ({}, {}) == next_bal - ACCEPTED decree {} from node {}: {:?}", 
-                self.id, ballot.number, ballot.node_id, decree_num, from, cmd);
+            tracing::info!(
+                "[Node {}] Accept: ballot ({}, {}) == next_bal - ACCEPTED decree {} from node {}: {:?}",
+                self.id,
+                ballot.number,
+                ballot.node_id,
+                decree_num,
+                from,
+                cmd
+            );
 
             self.observer.on_event(Event::Accepted {
                 decree_num,
@@ -171,8 +190,14 @@ impl Acceptor {
                 value: cmd,
             };
         }
-        tracing::info!("[Node {}] Accept: ballot ({}, {}) != next_bal ({}, {}) - NACK", 
-            self.id, ballot.number, ballot.node_id, decree.next_bal.number, decree.next_bal.node_id);
+        tracing::info!(
+            "[Node {}] Accept: ballot ({}, {}) != next_bal ({}, {}) - NACK",
+            self.id,
+            ballot.number,
+            ballot.node_id,
+            decree.next_bal.number,
+            decree.next_bal.node_id
+        );
         return Message::NACK;
     }
 
@@ -192,5 +217,46 @@ impl Acceptor {
             } => return self.accept(decree_num, ballot, value, from).await,
             _ => Message::NACK,
         }
+    }
+
+    /// Pre-populate acceptor state with initial votes (for scenario setup)
+    pub async fn prepopulate(
+        uuid: Uuid,
+        initial_decrees: Vec<(usize, PaxosCommand)>,
+    ) -> Result<()> {
+        let mut state = HashMap::new();
+
+        // For each initial decree, create an AcceptedDecree with a high ballot number
+        // This simulates that these decrees were previously accepted in a high ballot
+        let high_ballot = Ballot {
+            number: 1,
+            node_id: 0,
+        };
+
+        for (decree_num, cmd) in initial_decrees {
+            state.insert(
+                decree_num,
+                AcceptedDecree {
+                    next_bal: high_ballot.clone(),
+                    prev_vote: (high_ballot.clone(), cmd),
+                },
+            );
+        }
+
+        let path = format!("{}/acceptor_{}.bin", DATA_DIR, uuid);
+        let temp_path = format!("{}.tmp", path);
+
+        // Ensure directory exists
+        tokio::fs::create_dir_all(DATA_DIR).await?;
+
+        let encoded = bincode::serialize(&state)?;
+
+        // Write to temp file
+        tokio::fs::write(&temp_path, encoded).await?;
+
+        // Atomic rename
+        tokio::fs::rename(&temp_path, &path).await?;
+
+        Ok(())
     }
 }

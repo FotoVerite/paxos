@@ -63,6 +63,12 @@ pub enum Event {
         value: PaxosCommand,
         created_at: u64,
     },
+    InitialDecree { // Event for pre-populated ledger decrees at node startup
+        id: usize,
+        decree_num: usize,
+        value: PaxosCommand,
+        created_at: u64,
+    },
     NodeState {
         id: usize,
         role: String,

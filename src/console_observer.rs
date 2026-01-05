@@ -79,7 +79,6 @@ impl PaxosObserver for ConsoleObserver {
                     .green()
                 );
             }
-
             Event::LearnedValue {
                 id,
                 decree_num,
@@ -153,6 +152,9 @@ impl PaxosObserver for ConsoleObserver {
             Event::PartitionHealed { .. } => {
                 println!("{}", "[NETWORK] Partition healed".green());
             }
+            Event::InitialDecree {
+               ..
+            } => todo!(),
         }
     }
 }

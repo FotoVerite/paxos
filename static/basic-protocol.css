@@ -13,10 +13,135 @@
   background: #0f172a;
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
 
   svg {
     width: 100%;
     height: 100%;
+  }
+
+  .decree-viewer {
+    position:absolute;
+
+  }
+}
+
+/* Proposal Stats Container */
+#proposalStatsContainer {
+   position: absolute;
+   top: 10px;
+   right: 10px;
+   background: rgba(30, 30, 46, 0.95);
+   border: 1px solid #444;
+   border-radius: 8px;
+   padding: 12px;
+   font-family: monospace;
+   font-size: 12px;
+   z-index: 100;
+   max-width: 140px;
+   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+   backdrop-filter: blur(10px);
+
+  .proposal-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 4px;
+
+    .proposal-stat-item {
+      padding: 6px 8px;
+      border-radius: 4px;
+      background: #1f2937;
+      border: 1px solid #444;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+
+      .node-id {
+        font-weight: bold;
+        margin-right: 3px;
+        color: #60a5fa;
+      }
+
+      &:hover {
+        background: #374151;
+        border-color: #60a5fa;
+      }
+
+      &.selected {
+        background: #0f3460;
+        border-color: #60a5fa;
+        box-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+      }
+    }
+  }
+}
+
+/* Decree Panel */
+#decreePanel {
+   position: absolute;
+   top:20px;
+   right: 150px;
+   background: rgba(30, 30, 46, 0.98);
+   border: 2px solid #60a5fa;
+   border-radius: 8px;
+   padding: 16px;
+   max-width: 400px;
+   min-width: 300px;
+   max-height: 350px;
+   z-index: 100;
+   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+   backdrop-filter: blur(10px);
+   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+     sans-serif;
+   display: none;
+ }
+
+ #decreePanel:not(:empty) {
+   display: flex;
+
+  .decree-hint {
+    color: #9ca3af;
+    font-style: italic;
+    margin: 0;
+    font-size: 13px;
+  }
+
+  .decree-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+
+    .decree-node-label {
+      font-size: 11px;
+      color: #60a5fa;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .decree-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .decree-item {
+      flex-shrink: 0;
+
+      .decree-text {
+        font-size: 13px;
+        color: #e5e7eb;
+        line-height: 1.4;
+        font-style: italic;
+        border-left: 3px solid #f59e0b;
+        padding-left: 12px;
+        margin: 0;
+      }
+    }
   }
 }
 
@@ -133,18 +258,18 @@
 
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
 
     .stat-card {
       background: #1e293b;
-      padding: 10px;
+      padding: 8px;
       border-radius: 4px;
       text-align: center;
 
       .stat-value {
         font-weight: bold;
-        font-size: 18px;
+        font-size: 16px;
 
         &#nextBallotCount {
           color: #60a5fa;
@@ -162,14 +287,19 @@
           color: #10b981;
         }
 
+        &#learnedCount {
+          color: #34d399;
+        }
+
         &#successCount {
           color: #6366f1;
         }
       }
 
       .stat-label {
-        font-size: 11px;
+        font-size: 10px;
         color: #94a3b8;
+        line-height: 1.2;
       }
     }
   }
@@ -211,105 +341,108 @@
   word-break: break-word;
 }
 
-/* Proposal Stats Container */
-#proposalStatsContainer {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  background: rgba(30, 30, 46, 0.95);
-  border: 1px solid #444;
-  border-radius: 8px;
-  padding: 12px;
-  font-family: monospace;
-  font-size: 12px;
-  z-index: 100;
-  max-width: 140px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
+/* Responsive - Smaller viewport heights (1080px and below) */
+@media (max-height: 1080px) {
+  /* Main container */
+  .demo-container {
+    padding: 12px;
+    gap: 10px;
+  }
 
-  .proposal-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-    gap: 4px;
+  /* Visualization */
+  .visualization {
+    flex: 0 0 40%;
+  }
 
-    .proposal-stat-item {
-      padding: 6px 8px;
-      border-radius: 4px;
-      background: #1f2937;
-      border: 1px solid #444;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      user-select: none;
+  /* Controls section */
+  .controls-section {
+    .control-grid {
+      gap: 10px;
+      margin-bottom: 10px;
 
-      .node-id {
-        font-weight: bold;
-        margin-right: 3px;
-        color: #60a5fa;
+      .control-group h3 {
+        margin: 0 0 4px 0;
+        font-size: 12px;
       }
 
-      &:hover {
-        background: #374151;
-        border-color: #60a5fa;
+      select {
+        padding: 6px;
+        font-size: 12px;
       }
 
-      &.selected {
-        background: #0f3460;
-        border-color: #60a5fa;
-        box-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+      .speed-control {
+        gap: 6px;
+        #speedValue {
+          font-size: 11px;
+        }
+      }
+
+      .button-group {
+        gap: 6px;
+        button {
+          padding: 6px;
+          font-size: 12px;
+        }
+      }
+    }
+
+    .status-info {
+      padding: 8px;
+      #statusTitle {
+        font-size: 12px;
+        margin-bottom: 2px;
+      }
+      #statusDescription {
+        font-size: 11px;
       }
     }
   }
-}
 
-/* Decree Panel */
-#decreePanel {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: rgba(30, 30, 46, 0.98);
-  border: 2px solid #60a5fa;
-  border-radius: 8px;
-  padding: 16px;
-  max-width: 400px;
-  min-width: 300px;
-  z-index: 100;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+  /* Stats section */
+  .stats-section {
+    flex: 0 0 auto;
 
-  .decree-hint {
-    color: #9ca3af;
-    font-style: italic;
-    margin: 0;
-    font-size: 13px;
+    h3 {
+      margin: 0 0 6px 0;
+      font-size: 11px;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(6, 1fr);
+      gap: 5px;
+
+      .stat-card {
+        padding: 5px 3px;
+
+        .stat-value {
+          font-size: 13px;
+        }
+
+        .stat-label {
+          font-size: 8px;
+          line-height: 1.1;
+        }
+      }
+    }
   }
 
-  .decree-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  /* Event log */
+  .event-log-section {
+    max-height: 150px;
 
-    .decree-node-label {
-      font-size: 11px;
-      color: #60a5fa;
-      font-weight: bold;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    h3 {
+      margin: 0 0 8px 0;
+      font-size: 12px;
     }
 
-    .decree-text {
-      font-size: 14px;
-      color: #e5e7eb;
-      line-height: 1.4;
-      font-style: italic;
-      border-left: 3px solid #f59e0b;
-      padding-left: 12px;
+    #eventLog {
+      padding: 8px;
     }
+  }
 
-    .decree-meta {
-      font-size: 11px;
-      color: #6b7280;
-    }
+  .event-item {
+    padding: 6px;
+    margin: 1px 0;
+    font-size: 11px;
   }
 }

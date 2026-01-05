@@ -1,12 +1,15 @@
-{% extends "base.html" %}
-{% block title %}Basic Protocol Demo - Paxos{% endblock %}
-{% block extra_stylesheets %}
+{% extends "base.html" %} {% block title %}Basic Protocol Demo - Paxos{%
+endblock %} {% block extra_stylesheets %}
 <link rel="stylesheet" href="/basic-protocol.css" />
-{% endblock %}
-{% block content %}
+{% endblock %} {% block content %}
 <div class="demo-container">
   <!-- Visualization -->
   <div class="visualization">
+    <div id="decree-viewer">
+      <div id="proposalStatsContainer"></div>
+      <div id="decreePanel"></div>
+    </div>
+
     <svg id="basicProtocolSvg"></svg>
   </div>
 
@@ -17,8 +20,11 @@
         <h3>Scenario</h3>
         <select id="scenarioSelect">
           <option value="happy_path">Happy Path (5 nodes)</option>
-          <option value="competing_proposers">Competing Proposers (5 nodes)</option>
+          <option value="competing_proposers">
+            Competing Proposers (5 nodes)
+          </option>
           <option value="network_partition">Network Partition (5 nodes)</option>
+          <option value="catch_up">Catch-up Scenario (5 nodes)</option>
         </select>
       </div>
       <div class="control-group">
@@ -70,6 +76,10 @@
         <div class="stat-label">Voted(b, q)</div>
       </div>
       <div class="stat-card">
+        <div class="stat-value" id="learnedCount">0</div>
+        <div class="stat-label">Learned</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-value" id="successCount">0</div>
         <div class="stat-label">Success(d)</div>
       </div>
@@ -83,14 +93,7 @@
   </div>
 </div>
 
-<!-- Proposal Stats (Fixed Top-Right) -->
-<div id="proposalStatsContainer"></div>
-
-<!-- Decree Panel (Fixed Bottom-Right) -->
-<div id="decreePanel"></div>
-
-{% endblock %}
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script src="/paxos-visualizer.js"></script>
 <script src="/basic-protocol-demo.js"></script>
 {% endblock %}
