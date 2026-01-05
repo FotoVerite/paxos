@@ -626,7 +626,8 @@ async function playScenario() {
     eventCounts.Promise +
     eventCounts.Accept +
     eventCounts.Accepted +
-    eventCounts.Learn +
+    eventCounts.LearnedValue +
+    eventCounts.InitialDecree +
     eventCounts.Success
   } total events visualized`;
 }

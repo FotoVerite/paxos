@@ -116,6 +116,14 @@ page_template!(
     "./protocols/basic-protocol-demo.html"
 );
 
+page_template!(
+    complete_protocol_handler,
+    CompleteProtocolHandler,
+    "./protocols/complete-protocol.html"
+);
+
+//section 3
+
 // Define pages
 page_template!(landing_handler, LandingTemplate, "landing.html");
 page_template!(leslie_handler, LeslieTemplate, "leslie.html");

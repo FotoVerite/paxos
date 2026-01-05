@@ -1,12 +1,14 @@
-use std::net::SocketAddr;
 use axum::{
     Router,
     routing::{get, post},
 };
+use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 use tracing::info;
 
-use super::handlers::{AppState, page::*, websocket::websocket_handler, scenario::*};
+use super::handlers::{
+    AppState, multi_paxos::*, page::*, scenario::*, websocket::websocket_handler,
+};
 
 /// Run the web server on 0.0.0.0:3001
 pub async fn run_web_server() {
@@ -56,6 +58,45 @@ pub async fn run_web_server() {
             "/protocols/basic-protocol-demo",
             get(basic_protocol_demo_handler),
         )
+        .route(
+            "/protocols/complete-protocol",
+            get(complete_protocol_handler),
+        )
+        //section 3
+        .route("/multi-decree-parliament/overview", get(m_p_overview))
+        .route("/multi-decree-parliament/protocol", get(m_p_protocol))
+        .route(
+            "/multi-decree-parliament/presidential-problems",
+            get(m_p_president),
+        )
+        .route(
+            "/multi-decree-parliament/optimizations",
+            get(m_p_optimizations),
+        )
+        .route(
+            "/further-developments/picking-a-president",
+            get(f_d_picking_a_president),
+        )
+        .route(
+            "/further-developments/long-ledgers",
+            get(f_d_long_ledgers),
+        )
+        .route(
+            "/further-developments/bureaucrats",
+            get(f_d_bureaucrats),
+        )
+
+        .route(
+            "/further-developments/learning-the-law",
+            get(f_d_learning_the_law),
+        )
+        .route(
+            "/further-developments/dishonest-legislators",
+            get(f_d_dishonest_legislators),
+        )
+
+
+
         .route("/the_problem", get(the_problem_handler))
         .route("/decree", get(decree_handler))
         .route("/ws", get(websocket_handler))

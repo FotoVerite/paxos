@@ -1,4 +1,8 @@
-
+{% extends "base.html" %} {% block title %}Section 3 Overview{% endblock %} {%
+block content %}
+<div class="container">
+  <div class="panel">
+    <h1 class="panel-title">Section 3 Overview</h1>
     <p>
       Little Secret, the demos we've used throughout the site already are using
       multiple paxos in the abstract. Not very interesting seeing one decree
@@ -10,3 +14,17 @@
       it serve. But that leads to difficult questions about the higher layer of
       ordering, timings and availability that will be discussed in this section.
     </p>
+
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/protocols/complete-protocol">Prev - 2.4 Complete Protocol</a>
+      </div>
+      <div class="next">
+        <a href="/multi-decree-parliament/protocol"
+          >Next - 3.1 The Protocol (Again)
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endblock %}
+</div>
