@@ -22,6 +22,12 @@ struct AcceptedDecree {
     prev_vote: (Ballot, PaxosCommand),
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct PromiseInfo {
+    next_bal: Ballot,
+    prev_vote: (Ballot, PaxosCommand),
+}
+
 impl Default for AcceptedDecree {
     fn default() -> AcceptedDecree {
         AcceptedDecree {

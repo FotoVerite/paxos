@@ -9,7 +9,6 @@ use crate::{
     monitor::{PaxosObserver, Event, current_timestamp_millis},
     node::{
         acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, ledger::Ledger,
-        proposer::Proposer,
     },
     paxos_command::PaxosCommand,
 };

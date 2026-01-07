@@ -95,9 +95,7 @@ async fn run_with_web_server() -> anyhow::Result<()> {
 
     // Keep the server running, waiting for clients to start scenarios
     println!("Waiting for client connections...");
-    sleep(Duration::from_secs(3600)).await;  // Run for 1 hour
-
-    Ok(())
+    std::future::pending().await
 }
 
 async fn run_builtin_scenario() -> anyhow::Result<()> {

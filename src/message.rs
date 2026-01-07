@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{node::ballot::Ballot, paxos_command::PaxosCommand};
+use crate::{node::{acceptor::PromiseInfo, ballot::Ballot}, paxos_command::PaxosCommand};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -36,4 +36,14 @@ pub enum Message {
         value: PaxosCommand,
         ballot_proposer: usize,  // Track which node originated this proposal
     },
+
+    PrepareBatch {
+        from: usize,
+        decrees_to: usize,
+        ballot: Ballot,
+    },
+    PromiseBatch {
+        from: usize,
+        promises:  Vec<PromiseInfo>
+    }
 }

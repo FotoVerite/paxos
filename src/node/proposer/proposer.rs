@@ -19,34 +19,6 @@ pub struct Proposer {
     observer: Arc<dyn PaxosObserver>,
 }
 
-/// Represents the full in-memory runtime state of a proposed decree managed by the Proposer.
-/// The `votes` field is transient and not persisted, as it represents promises received
-/// during a specific proposal round which become invalid upon a Proposer restart.
-struct ProposedDecree {
-    proposed_value: PaxosCommand,
-    quorum: Quorum,
-    #[allow(dead_code)]
-    promise_notifier: Arc<Notify>,
-}
-
-struct Quorum {
-    promises: HashSet<usize>,
-    highest_accepted: Ballot,
-}
-
-impl Default for ProposedDecree {
-    fn default() -> ProposedDecree {
-        ProposedDecree {
-            proposed_value: PaxosCommand::BLANK,
-            promise_notifier: Arc::new(Notify::new()),
-            quorum: Quorum {
-                promises: HashSet::new(),
-                highest_accepted: Ballot::default(),
-            },
-        }
-    }
-}
-
 impl Proposer {
     pub async fn new(
         id: usize,
@@ -78,7 +50,7 @@ impl Proposer {
             .entry(decree_num)
             .or_insert(DecreeNote::new(self.id));
         let next_ballot = notes.next_ballot(highest_accepted);
-        
+
         // Persist the updated ballot number
         #[cfg(feature = "persistence")]
         {
@@ -86,7 +58,7 @@ impl Proposer {
                 tracing::error!("[Node {}] Failed to persist decree notes: {}", self.id, e);
             }
         }
-        
+
         entry.quorum.promises.clear();
         if entry.proposed_value == PaxosCommand::BLANK {
             entry.proposed_value = cmd
@@ -114,39 +86,6 @@ impl Proposer {
             ballot: next_ballot,
         }
     }
-
-    // pub async fn propose_with_retry(
-    //     &self,
-    //     decree_num: usize,
-    //     cmd: PaxosCommand,
-    // ) -> Result<(), String> {
-    //     let max_retries = 3;
-    //     let mut delay_ms = 100;
-
-    //     for attempt in 0..max_retries {
-    //         // Send prepare
-    //         let msg = self.propose(decree_num, cmd.clone()).await;
-    //         self.peers.broadcast(msg).await;
-
-    //         // Wait for quorum of promises (with timeout)
-    //         let promise_count = self
-    //             .wait_for_promises(decree_num, Duration::from_millis(delay_ms))
-    //             .await;
-
-    //         if promise_count >= self.quorum_size {
-    //             return Ok(()); // Success
-    //         }
-
-    //         if attempt < max_retries - 1 {
-    //             tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-    //             delay_ms *= 2; // Exponential backoff: 100, 200, 400
-    //         }
-    //     }
-
-    //     Err("Failed to reach quorum after retries".to_string())
-    // }
-
-    
 
     pub async fn promise(
         &self,
