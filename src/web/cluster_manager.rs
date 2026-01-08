@@ -44,6 +44,15 @@ impl ClusterManager {
             scenario_type, node_count, duration_secs
         );
 
+        // Clear any previous cluster state
+        {
+            let mut current = self.cluster.lock().await;
+            *current = None;
+        }
+
+        // Clear the observer to reset visualizer state
+        self.observer.clear().await;
+
         // Setup scenario-specific initial state
         if scenario_type == "catch_up" {
             CatchUpScenario::setup(ip, node_count).await?;

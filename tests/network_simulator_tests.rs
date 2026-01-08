@@ -1,9 +1,12 @@
+mod test_helpers;
+
 use paxos::{
     cluster::cluster::Cluster, console_observer::ConsoleObserver, paxos_command::PaxosCommand,
 };
 use std::sync::Arc;
 use std::net::IpAddr;
 use tokio::time::{Duration, sleep};
+use test_helpers::RecordingObserver;
 
 #[tokio::test]
 async fn test_normal_operation_no_failures() {
@@ -212,4 +215,56 @@ async fn test_toggle_failures_on_off() {
     cluster.disable_failures().await;
     cluster.propose(cmd).await;
     sleep(Duration::from_millis(200)).await;
+}
+
+#[tokio::test]
+async fn test_retry_mechanism_succeeds_under_normal_conditions() {
+    // Verify that spawn_retry() doesn't break the normal proposal flow
+    // when there are no failures. The retry mechanism should be transparent.
+    // TODO: For more thorough retry testing under incomplete quorum, see partition_failure_tests.rs
+    let observer = RecordingObserver::new().arc();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, Arc::clone(&observer) as Arc<dyn paxos::monitor::PaxosObserver>).await.unwrap();
+
+    for i in 0..3 {
+        cluster.nodes[i].start();
+    }
+
+    sleep(Duration::from_millis(100)).await;
+    observer.clear().await;
+
+    // Propose a value - should succeed normally  
+    let cmd = PaxosCommand::PUT {
+        key: "test".to_string(),
+        version: 1,
+    };
+    cluster.propose(cmd.clone()).await;
+
+    // Wait for it to be learned
+    sleep(Duration::from_millis(500)).await;
+    observer.wait_for_events().await;
+    let events = observer.get_events().await;
+
+    // Verify proposal events exist
+    let proposal_count = events
+        .iter()
+        .filter(|e| matches!(e, paxos::monitor::Event::Proposal { value, .. } if value == &cmd))
+        .count();
+
+    assert!(
+        proposal_count >= 1,
+        "Should have at least 1 Proposal event, got {}",
+        proposal_count
+    );
+
+    // Most importantly: verify the value WAS learned (end-to-end success)
+    let learned = events
+        .iter()
+        .filter(|e| matches!(e, paxos::monitor::Event::LearnedValue { value, .. } if value == &cmd))
+        .count();
+
+    assert!(
+        learned > 0,
+        "Proposal should be learned despite retries firing"
+    );
 }

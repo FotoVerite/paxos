@@ -41,36 +41,36 @@ impl NetworkPartitionScenario {
         let cluster_lock = cluster.lock().await;
 
         // Partition A: nodes 0,1,2 (quorum)
-        let partition_a: HashSet<usize> = [0, 1, 2].iter().copied().collect();
         let partition_a_vec = vec![0, 1, 2];
         // Partition B: nodes 3,4 (no quorum)
-        let partition_b: HashSet<usize> = [3, 4].iter().copied().collect();
         let partition_b_vec = vec![3, 4];
 
-        // For each node in partition A: block messages to partition B
-        for i in [0, 1, 2] {
-            for target in [3, 4] {
+        // For each node in partition A: block messages TO partition B
+        // When A sends to B, block it by specifying B as unreachable
+        for i in partition_a_vec.iter().copied() {
+            for target in partition_b_vec.iter().copied() {
                 if let Some(sim) = cluster_lock.get_simulator(i) {
+                    let mut blocked = HashSet::new();
+                    blocked.insert(target);
                     sim.set_failure(
                         target,
-                        NetworkFailure::Partition {
-                            nodes: partition_a.clone(),
-                        },
+                        NetworkFailure::Partition { nodes: blocked },
                     )
                     .await;
                 }
             }
         }
 
-        // For each node in partition B: block messages to partition A
-        for i in [3, 4] {
-            for target in [0, 1, 2] {
+        // For each node in partition B: block messages TO partition A
+        // When B sends to A, block it by specifying A as unreachable
+        for i in partition_b_vec.iter().copied() {
+            for target in partition_a_vec.iter().copied() {
                 if let Some(sim) = cluster_lock.get_simulator(i) {
+                    let mut blocked = HashSet::new();
+                    blocked.insert(target);
                     sim.set_failure(
                         target,
-                        NetworkFailure::Partition {
-                            nodes: partition_b.clone(),
-                        },
+                        NetworkFailure::Partition { nodes: blocked },
                     )
                     .await;
                 }

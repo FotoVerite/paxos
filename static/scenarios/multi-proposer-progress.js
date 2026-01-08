@@ -12,14 +12,18 @@ const scenarioMultiProposerProgress = {
         description:
           "Proposer A (node 0) initiates first ballot (empty ledgers)",
         action: async () => {
+          // Reset all nodes to default state
+          for (let i = 0; i < 7; i++) {
+            visualizer.setNodeState(i, '--');
+            visualizer.setNodeColor(i, '#3b82f6');
+          }
+          visualizer.clearBeams();
+          
           visualizer.setNodeState(0, "propose");
           visualizer.activateNode(0, colors.nextballot);
           addEvent("[NextBallot] Proposer A sends ballot 100", colors.nextballot);
           const acceptors = [1, 2, 3, 4, 5, 6];
-          for (const node of acceptors) {
-            visualizer.drawBeam(0, node, colors.nextballot);
-            await sleep(80);
-          }
+          await visualizer.drawBeamsTo(0, acceptors, colors.nextballot, 500, 'solid', 80);
           eventCounts.nextballot++;
           updateCounts();
           await sleep(300);
@@ -39,9 +43,8 @@ const scenarioMultiProposerProgress = {
               colors.lastvote
             );
             eventCounts.lastvote++;
-            visualizer.drawBeam(i, 0, colors.lastvote);
-            await sleep(100);
           }
+          await visualizer.drawBeamsFrom([1, 2, 3, 4, 5, 6], 0, colors.lastvote, 500, 'dashed', 80);
           updateCounts();
           await sleep(200);
         },
@@ -61,9 +64,8 @@ const scenarioMultiProposerProgress = {
           const quorum = [1, 2, 3, 4, 5];
           for (const node of quorum) {
             visualizer.setNodeState(node, "wait");
-            visualizer.drawBeam(0, node, colors.beginballot);
-            await sleep(100);
           }
+          await visualizer.drawBeamsTo(0, quorum, colors.beginballot, 500, 'solid', 100);
           eventCounts.beginballot++;
           updateCounts();
           await sleep(300);
@@ -84,9 +86,8 @@ const scenarioMultiProposerProgress = {
               colors.voted
             );
             eventCounts.voted++;
-            visualizer.drawBeam(node, 0, colors.voted);
-            await sleep(100);
           }
+          await visualizer.drawBeamsFrom(quorum, 0, colors.voted, 500, 'dotted', 150);
           updateCounts();
           await sleep(200);
         },
@@ -103,7 +104,11 @@ const scenarioMultiProposerProgress = {
             '[Success] Proposer A: "Decree X" chosen in ballot 100!',
             colors.success
           );
-          eventCounts.success++;
+          // Draw success beams from proposer A to all nodes
+          const acceptors = [1, 2, 3, 4, 5, 6];
+          await visualizer.drawBeamsTo(0, acceptors, colors.success, 500, 'solid', 80);
+          eventCounts.success += acceptors.length;
+          eventCounts.learned += acceptors.length;
           updateCounts();
           await sleep(500);
         },
@@ -119,10 +124,7 @@ const scenarioMultiProposerProgress = {
             "#a78bfa"
           );
           const acceptors = [1, 2, 3, 4, 5, 6];
-          for (const node of acceptors) {
-            visualizer.drawBeam(1, node, colors.nextballot);
-            await sleep(80);
-          }
+          await visualizer.drawBeamsTo(1, acceptors, colors.nextballot, 500, 'solid', 80);
           eventCounts.nextballot++;
           updateCounts();
           await sleep(300);
@@ -142,9 +144,8 @@ const scenarioMultiProposerProgress = {
               colors.lastvote
             );
             eventCounts.lastvote++;
-            visualizer.drawBeam(i, 1, colors.lastvote);
-            await sleep(100);
           }
+          await visualizer.drawBeamsFrom([1, 2, 3, 4, 5, 6], 1, colors.lastvote, 500, 'dashed', 80);
           updateCounts();
           await sleep(200);
         },
@@ -164,9 +165,8 @@ const scenarioMultiProposerProgress = {
           const quorum = [1, 2, 3, 4, 5];
           for (const node of quorum) {
             visualizer.setNodeState(node, "wait");
-            visualizer.drawBeam(1, node, colors.beginballot);
-            await sleep(100);
           }
+          await visualizer.drawBeamsTo(1, quorum, colors.beginballot, 500, 'solid', 100);
           eventCounts.beginballot++;
           updateCounts();
           await sleep(300);
@@ -187,9 +187,8 @@ const scenarioMultiProposerProgress = {
               colors.voted
             );
             eventCounts.voted++;
-            visualizer.drawBeam(node, 1, colors.voted);
-            await sleep(100);
           }
+          await visualizer.drawBeamsFrom(quorum, 1, colors.voted, 500, 'dotted', 150);
           updateCounts();
           await sleep(200);
         },
@@ -206,7 +205,11 @@ const scenarioMultiProposerProgress = {
             '[Success] Proposer B: "Decree X" chosen in ballot 101!',
             colors.success
           );
-          eventCounts.success++;
+          // Draw success beams from proposer B to all nodes
+          const acceptors = [1, 2, 3, 4, 5, 6];
+          await visualizer.drawBeamsTo(1, acceptors, colors.success, 500, 'solid', 80);
+          eventCounts.success += acceptors.length;
+          eventCounts.learned += acceptors.length;
           updateCounts();
           await sleep(500);
         },

@@ -221,6 +221,14 @@ async function resetScenario() {
     }
   }
 
+  // Reset partition state for all nodes
+  partitionedNodes.clear();
+  if (clusterInfo) {
+    for (let i = 0; i < clusterInfo.total_nodes; i++) {
+      visualizer.setNodePartitioned(i, false);
+    }
+  }
+
   selectedNodeId = null;
   updateCounts();
   eventLog.innerHTML = "";
@@ -575,6 +583,14 @@ async function playScenario() {
   statusTitle.textContent = "Running";
   statusDescription.textContent = "Scenario in progress...";
   statusTitle.style.color = "#60a5fa";
+
+  // Reset partition state before starting new scenario
+  partitionedNodes.clear();
+  if (clusterInfo) {
+    for (let i = 0; i < clusterInfo.total_nodes; i++) {
+      visualizer.setNodePartitioned(i, false);
+    }
+  }
 
   try {
     // Start the scenario on the backend

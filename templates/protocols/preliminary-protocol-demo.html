@@ -1,53 +1,19 @@
 {% extends "base.html" %} {% block title %}Preliminary Protocol Demo - Paxos{%
 endblock %} {% block extra_stylesheets %}
-<link rel="stylesheet" href="/senate.css" />
+<link rel="stylesheet" href="/basic-protocol.css" />
 {% endblock %} {% block content %}
-<div
-  style="
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    padding: 20px;
-    gap: 20px;
-  "
->
+<div class="demo-container">
   <!-- Visualization -->
-  <div
-    style="
-      flex: 0 0 40%;
-      background: #0f172a;
-      border-radius: 8px;
-      overflow: hidden;
-    "
-  >
-    <svg id="demovSvg" style="width: 100%; height: 100%"></svg>
+  <div class="visualization">
+    <svg id="demovSvg"></svg>
   </div>
 
   <!-- Controls -->
-  <div style="flex: 0 0 auto">
-    <div
-      style="
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
-        margin-bottom: 15px;
-      "
-    >
-      <div>
-        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #cbd5e1">
-          Scenario
-        </h3>
-        <select
-          id="scenarioSelect"
-          style="
-            width: 100%;
-            padding: 8px;
-            background: #1e293b;
-            color: #e2e8f0;
-            border: 1px solid #334155;
-            border-radius: 4px;
-          "
-        >
+  <div class="controls-section">
+    <div class="control-grid">
+      <div class="control-group">
+        <h3>Scenario</h3>
+        <select id="scenarioSelect">
           <option value="success">A: Clean Success</option>
           <option value="quorum_fail">B: Quorum Fails</option>
           <option value="higher_ballot">C: Higher Ballot Success</option>
@@ -58,11 +24,9 @@ endblock %} {% block extra_stylesheets %}
           </option>
         </select>
       </div>
-      <div>
-        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #cbd5e1">
-          Speed
-        </h3>
-        <div style="display: flex; gap: 8px; align-items: center">
+      <div class="control-group">
+        <h3>Speed</h3>
+        <div class="speed-control">
           <input
             type="range"
             id="speed"
@@ -70,203 +34,59 @@ endblock %} {% block extra_stylesheets %}
             min="0.25"
             max="2"
             step="0.25"
-            style="flex: 1"
           />
-          <span id="speedValue" style="color: #94a3b8; min-width: 30px"
-            >1x</span
-          >
+          <span id="speedValue">1x</span>
         </div>
       </div>
-      <div style="display: flex; gap: 8px; align-items: flex-end">
-        <button
-          id="playBtn"
-          onclick="playScenario()"
-          style="
-            flex: 1;
-            padding: 8px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-          "
-        >
-          Play
-        </button>
-        <button
-          id="pauseBtn"
-          onclick="pauseScenario()"
-          disabled
-          style="
-            flex: 1;
-            padding: 8px;
-            background: #64748b;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-          "
-        >
-          Pause
-        </button>
-        <button
-          id="resetBtn"
-          onclick="resetScenario()"
-          style="
-            flex: 1;
-            padding: 8px;
-            background: #64748b;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-          "
-        >
-          Reset
-        </button>
+      <div class="button-group">
+        <button id="playBtn" onclick="playScenario()">Play</button>
+        <button id="pauseBtn" onclick="pauseScenario()" disabled>Pause</button>
+        <button id="resetBtn" onclick="resetScenario()">Reset</button>
       </div>
     </div>
 
-    <!-- Phase Info -->
-    <div
-      style="
-        padding: 12px;
-        background: #1e293b;
-        border-radius: 4px;
-        border-left: 3px solid #60a5fa;
-      "
-    >
-      <div
-        id="phaseTitle"
-        style="
-          font-weight: bold;
-          color: #60a5fa;
-          margin-bottom: 4px;
-          font-size: 14px;
-        "
-      >
-        Ready
-      </div>
-      <div id="phaseDescription" style="font-size: 12px; color: #cbd5e1">
-        Select a scenario and click Play
-      </div>
+    <!-- Status Info -->
+    <div class="status-info">
+      <div id="phaseTitle">Ready</div>
+      <div id="phaseDescription">Select a scenario and click Play</div>
     </div>
   </div>
 
   <!-- Stats -->
-  <div style="flex: 0 0 auto">
-    <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #cbd5e1">
-      Protocol Events
-    </h3>
-    <div
-      style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px"
-    >
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #60a5fa; font-size: 18px"
-          id="nextBallotCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">NextBallot(b)</div>
+  <div class="stats-section">
+    <h3>Protocol Events</h3>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="nextBallotCount">0</div>
+        <div class="stat-label">NextBallot(b)</div>
       </div>
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #ec4899; font-size: 18px"
-          id="lastVoteCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">LastVote(b, v)</div>
+      <div class="stat-card">
+        <div class="stat-value" id="lastVoteCount">0</div>
+        <div class="stat-label">LastVote(b, v)</div>
       </div>
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #f59e0b; font-size: 18px"
-          id="beginBallotCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">BeginBallot(b, d)</div>
+      <div class="stat-card">
+        <div class="stat-value" id="beginBallotCount">0</div>
+        <div class="stat-label">BeginBallot(b, d)</div>
       </div>
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #10b981; font-size: 18px"
-          id="votedCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">Voted(b, q)</div>
+      <div class="stat-card">
+        <div class="stat-value" id="votedCount">0</div>
+        <div class="stat-label">Voted(b, q)</div>
       </div>
-      <div
-        style="
-          background: #1e293b;
-          padding: 10px;
-          border-radius: 4px;
-          text-align: center;
-        "
-      >
-        <div
-          style="font-weight: bold; color: #6366f1; font-size: 18px"
-          id="successCount"
-        >
-          0
-        </div>
-        <div style="font-size: 11px; color: #94a3b8">Success(d)</div>
+      <div class="stat-card">
+        <div class="stat-value" id="learnedCount">0</div>
+        <div class="stat-label">Learned</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="successCount">0</div>
+        <div class="stat-label">Success(d)</div>
       </div>
     </div>
   </div>
 
   <!-- Event Log -->
-  <div
-    style="
-      flex: 0 0 auto;
-      display: flex;
-      flex-direction: column;
-      max-height: 250px;
-    "
-  >
-    <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #cbd5e1">
-      Event Log
-    </h3>
-    <div
-      id="eventLog"
-      style="
-        flex: 1;
-        overflow-y: auto;
-        background: #0f172a;
-        border: 1px solid #334155;
-        border-radius: 4px;
-        padding: 10px;
-      "
-    ></div>
+  <div class="event-log-section">
+    <h3>Event Log</h3>
+    <div id="eventLog"></div>
   </div>
 
    <div class="nav-links">
@@ -287,7 +107,25 @@ endblock %} {% block extra_stylesheets %}
 <script src="/scenarios/livelock.js"></script>
 <script src="/scenarios/multi-proposer-progress.js"></script>
 <script>
-  // Initialize visualizer (30% larger)
+  // Adjust nodeRadius based on viewport
+  function adjustNodeRadiusForViewport() {
+    const svgContainer = document.getElementById("demovSvg");
+    if (!svgContainer) return;
+
+    const rect = svgContainer.getBoundingClientRect();
+    const containerHeight = rect.height;
+
+    // Adjust radius based on container height - leave padding
+    if (containerHeight < 300) {
+      return 80;
+    } else if (containerHeight < 400) {
+      return 120;
+    } else {
+      return 195;
+    }
+  }
+
+  // Initialize visualizer with responsive sizing
   const eventColorsConfig = {
     nextballot: "#60a5fa", // Blue
     lastvote: "#ec4899", // Pink
@@ -297,7 +135,7 @@ endblock %} {% block extra_stylesheets %}
   };
 
   const visualizer = new PaxosVisualizer("demovSvg", {
-    nodeRadius: 195,
+    nodeRadius: adjustNodeRadiusForViewport(),
     nodeCircleRadius: 26,
     eventColors: eventColorsConfig,
   });
@@ -319,6 +157,7 @@ endblock %} {% block extra_stylesheets %}
     lastvote: 0,
     beginballot: 0,
     voted: 0,
+    learned: 0,
     success: 0,
   };
 
@@ -352,6 +191,7 @@ endblock %} {% block extra_stylesheets %}
     document.getElementById("beginBallotCount").textContent =
       eventCounts.beginballot;
     document.getElementById("votedCount").textContent = eventCounts.voted;
+    document.getElementById("learnedCount").textContent = eventCounts.learned;
     document.getElementById("successCount").textContent = eventCounts.success;
   }
 
@@ -392,13 +232,13 @@ endblock %} {% block extra_stylesheets %}
     isRunning = false;
     playBtn.disabled = false;
     pauseBtn.disabled = true;
-    eventCounts = {
-      nextballot: 0,
-      lastvote: 0,
-      beginballot: 0,
-      voted: 0,
-      success: 0,
-    };
+    // Reset properties instead of reassigning to preserve object reference
+    eventCounts.nextballot = 0;
+    eventCounts.lastvote = 0;
+    eventCounts.beginballot = 0;
+    eventCounts.voted = 0;
+    eventCounts.learned = 0;
+    eventCounts.success = 0;
     updateCounts();
     eventLog.innerHTML = "";
     phaseTitle.textContent = "Ready";
@@ -408,7 +248,14 @@ endblock %} {% block extra_stylesheets %}
     const scenarioName = scenarioSelect.value;
     const scenario = scenarios[scenarioName];
     if (scenario) {
+      visualizer.nodeRadius = adjustNodeRadiusForViewport();
       visualizer.render({ total_nodes: scenario.nodeCount });
+      // Clear beams and reset all node states to default
+      visualizer.clearBeams();
+      for (let i = 0; i < scenario.nodeCount; i++) {
+        visualizer.setNodeState(i, '--');
+        visualizer.setNodeColor(i, '#3b82f6');
+      }
     }
   }
 
@@ -425,6 +272,7 @@ endblock %} {% block extra_stylesheets %}
     pauseBtn.disabled = false;
     scenarioSelect.disabled = true;
 
+    visualizer.nodeRadius = adjustNodeRadiusForViewport();
     visualizer.render({ total_nodes: currentScenario.nodeCount });
 
     for (const phase of currentScenario.phases) {

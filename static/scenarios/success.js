@@ -11,6 +11,13 @@ const scenarioSuccess = {
         description:
           "Proposer (node 0) sends NextBallot with ballot number 100",
         action: async () => {
+          // Reset all nodes to default state
+          for (let i = 0; i < 7; i++) {
+            visualizer.setNodeState(i, '--');
+            visualizer.setNodeColor(i, '#3b82f6');
+          }
+          visualizer.clearBeams();
+          
           visualizer.setNodeState(0, "propose");
           visualizer.activateNode(0, colors.nextballot);
           addEvent(
@@ -88,7 +95,11 @@ const scenarioSuccess = {
           visualizer.setNodeState(0, "learn");
           visualizer.activateNode(0, colors.success);
           addEvent("[Success] Decree is chosen!", colors.success);
-          eventCounts.success++;
+          // Draw success beams from proposer to all nodes
+          const acceptors = [1, 2, 3, 4, 5, 6];
+          await visualizer.drawBeamsTo(0, acceptors, colors.success, 500, 'solid', 80);
+          eventCounts.success += acceptors.length;
+          eventCounts.learned += acceptors.length;
           updateCounts();
           await sleep(500);
         },

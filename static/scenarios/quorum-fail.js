@@ -10,6 +10,13 @@ const scenarioQuorumFail = {
         title: "Step 1: NextBallot(b)",
         description: "Proposer sends NextBallot with ballot 101",
         action: async () => {
+          // Reset all nodes to default state
+          for (let i = 0; i < 7; i++) {
+            visualizer.setNodeState(i, '--');
+            visualizer.setNodeColor(i, '#3b82f6');
+          }
+          visualizer.clearBeams();
+          
           visualizer.setNodeState(0, "propose");
           visualizer.activateNode(0, colors.nextballot);
           addEvent(
@@ -37,7 +44,7 @@ const scenarioQuorumFail = {
             visualizer.drawBeam(i, 0, colors.lastvote, 500);
             await sleep(150);
           }
-          // Others don't respond
+          // Others don't respond - timeout
           for (let i of [4, 5, 6]) {
             visualizer.setNodeState(i, "timeout");
             visualizer.setNodeColor(i, "#64748b");

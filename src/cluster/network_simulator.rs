@@ -52,7 +52,7 @@ impl NetworkSimulator {
         
         match failures.get(&target) {
             Some(NetworkFailure::None) => false,
-            Some(NetworkFailure::Partition { nodes }) => nodes.contains(&self.me),
+            Some(NetworkFailure::Partition { nodes }) => nodes.contains(&target),
             Some(NetworkFailure::PacketLoss { drop_rate }) => {
                 let mut rng = rand::rng();
                 use rand::Rng;

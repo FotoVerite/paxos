@@ -12,6 +12,13 @@ const scenarioTwoProposers = {
         description:
           "Proposer 0 queries acceptors for highest votes below ballot 100",
         action: async () => {
+          // Reset all nodes to default state
+          for (let i = 0; i < 7; i++) {
+            visualizer.setNodeState(i, '--');
+            visualizer.setNodeColor(i, '#3b82f6');
+          }
+          visualizer.clearBeams();
+          
           visualizer.setNodeState(0, "propose");
           visualizer.activateNode(0, colors.nextballot);
           addEvent(
@@ -207,7 +214,11 @@ const scenarioTwoProposers = {
             "[Success] Decree chosen in ballot 101",
             colors.success
           );
-          eventCounts.success++;
+          // Draw success beams from proposer 1 to all nodes
+          const acceptors = [1, 2, 3, 4, 5, 6];
+          await visualizer.drawBeamsTo(1, acceptors, colors.success, 500, 'solid', 80);
+          eventCounts.success += acceptors.length;
+          eventCounts.learned += acceptors.length;
           updateCounts();
           await sleep(500);
         },
@@ -215,7 +226,7 @@ const scenarioTwoProposers = {
       {
         title: "Key: Gap Constraints",
         description:
-          "Each NextBallot response creates a promise about a gap of ballots",
+          "Each NextBallot response creates a promise: a gap of ballot numbers no votes are allowed in",
         action: async () => {
           addEvent(
             "[Gap Semantics] LastVote(b, v) promises: no vote < b except v",
