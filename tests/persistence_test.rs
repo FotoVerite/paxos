@@ -1,5 +1,5 @@
 use paxos::{
-    node::{decree_notes::DecreeNotes, proposer::Proposer},
+    node::paxos_state::{decree_notes::DecreeNotes, proposer::Proposer},
     paxos_command::PaxosCommand,
     console_observer::ConsoleObserver,
 };
@@ -28,7 +28,7 @@ async fn test_proposer_persistence() -> anyhow::Result<()> {
         assert!(notes.state.is_empty());
     }
 
-    let proposer = Proposer::new(id, uuid, 3, Arc::clone(&decree_notes), observer.clone()).await?;
+    let proposer = Proposer::new(id, uuid, 3, Arc::clone(&decree_notes), observer.clone());
 
     // 2. Propose a value -> should bump ballot to (1, 1) and save
     proposer.propose(0, PaxosCommand::NOOP).await;

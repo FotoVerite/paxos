@@ -2,7 +2,7 @@ mod test_helpers;
 
 use paxos::{
     message::Message,
-    node::ballot::Ballot,
+    node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
@@ -17,7 +17,7 @@ use std::sync::Arc;
 #[tokio::test]
 async fn out_of_order_promise_after_accept() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -215,7 +215,7 @@ async fn learner_out_of_order_accepted() {
 #[tokio::test]
 async fn proposer_with_insufficient_promises() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 3).await.unwrap(); // Needs 3 promises (5-node cluster)
+    let proposer = builder.proposer(1, 3).unwrap(); // Needs 3 promises (5-node cluster)
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -317,7 +317,7 @@ async fn large_ballot_numbers() {
 #[tokio::test]
 async fn proposer_promise_from_itself() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -529,7 +529,7 @@ async fn learner_consensus_from_all_acceptors() {
 #[tokio::test]
 async fn promise_reports_higher_accepted_ballot() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),

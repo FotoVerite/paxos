@@ -2,7 +2,7 @@ mod test_helpers;
 
 use paxos::{
     message::Message,
-    node::ballot::Ballot,
+    node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 use test_helpers::NodeBuilder;
@@ -14,7 +14,7 @@ use test_helpers::NodeBuilder;
 #[tokio::test]
 async fn proposer_issues_prepare_with_correct_ballot() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let msg = proposer.propose(
         0,
@@ -34,7 +34,7 @@ async fn proposer_issues_prepare_with_correct_ballot() {
 #[tokio::test]
 async fn proposer_sends_accept_on_promise() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
     let cmd = PaxosCommand::GET {
         key: "mykey".to_string(),
     };
@@ -65,7 +65,7 @@ async fn proposer_sends_accept_on_promise() {
 #[tokio::test]
 async fn proposer_adopts_previously_accepted_value() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
     let proposed_cmd = PaxosCommand::GET {
         key: "newkey".to_string(),
     };
@@ -96,7 +96,7 @@ async fn proposer_adopts_previously_accepted_value() {
 #[tokio::test]
 async fn proposer_ignores_promise_for_wrong_ballot() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     proposer.propose(
         0,
@@ -121,7 +121,7 @@ async fn proposer_ignores_promise_for_wrong_ballot() {
 #[tokio::test]
 async fn proposer_picks_highest_accepted_ballot() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
     let proposed_cmd = PaxosCommand::GET {
         key: "key".to_string(),
     };

@@ -7,9 +7,8 @@ use std::sync::Arc;
 use std::collections::HashSet;
 
 use crate::{
-    cluster::network_simulator::{NetworkSimulator, NetworkFailure},
-    message::Message, monitor::PaxosObserver,
-    node::{paxos_node::PaxosNode}, paxos_command::PaxosCommand,
+    cluster::network_simulator::{NetworkFailure, NetworkSimulator},
+    message::Message, monitor::PaxosObserver, node::paxos_node::PaxosNode, paxos_command::PaxosCommand,
 };
 
 pub struct Cluster {
@@ -79,7 +78,7 @@ impl Cluster {
     pub async fn propose(&mut self, cmd: PaxosCommand) {
         let node_id = random_node_idx(self.total_number);
         if let Some(node) = self.nodes.get_mut(node_id) {
-            node.propose(cmd).await;
+            node.propose(cmd, None).await;
         }
     }
 
@@ -89,7 +88,7 @@ impl Cluster {
 
     pub async fn propose_from_with_decree_num(&mut self, node_id: usize, decree_num: Option<usize>, cmd: PaxosCommand) {
         if let Some(node) = self.nodes.get_mut(node_id) {
-            node.propose_with_decree_num(decree_num, cmd).await;
+            node.propose(cmd, decree_num).await;
         }
     }
 

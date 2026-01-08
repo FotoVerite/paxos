@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use crate::{node::{acceptor::PromiseInfo, ballot::Ballot}, paxos_command::PaxosCommand};
+use crate::{node::paxos_state::{acceptor::PromiseInfo, ballot::Ballot}, paxos_command::PaxosCommand};
+
 
 #[derive(Debug, Clone)]
 pub enum Message {

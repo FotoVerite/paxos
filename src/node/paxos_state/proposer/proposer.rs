@@ -1,14 +1,15 @@
-use crate::message::Message;
-use crate::monitor::{Event, PaxosObserver};
-use crate::node::ballot::Ballot;
-use crate::node::decree_notes::{DecreeNote, DecreeNotes};
-use crate::paxos_command::PaxosCommand;
-use anyhow::Result;
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{Mutex, Notify};
+use tokio::sync::Mutex;
 use uuid::Uuid;
+
+use crate::message::Message;
+use crate::monitor::PaxosObserver;
+use crate::node::paxos_state::ballot::Ballot;
+use crate::node::paxos_state::decree_notes::{DecreeNote, DecreeNotes};
+use crate::node::paxos_state::proposer::proposed_decree::ProposedDecree;
+use crate::paxos_command::PaxosCommand;
 
 pub struct Proposer {
     id: usize,
@@ -20,29 +21,35 @@ pub struct Proposer {
 }
 
 impl Proposer {
-    pub async fn new(
+    pub fn new(
         id: usize,
         uuid: Uuid,
         quorum_size: usize,
         decree_notes: Arc<Mutex<DecreeNotes>>,
         observer: Arc<dyn PaxosObserver>,
-    ) -> Result<Self> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             id,
             uuid,
             quorum_size,
             decree_notes,
             state: Mutex::new(HashMap::new()),
             observer,
-        })
+        }
     }
 
     pub async fn propose(&self, decree_num: usize, cmd: PaxosCommand) -> Message {
         // Increment the ballot number for every new proposal attempt.
         let mut state = self.state.lock().await;
 
-        let entry = state.entry(decree_num).or_default();
-        let highest_accepted = entry.quorum.highest_accepted.number;
+        let entry = state.entry(decree_num).or_insert(ProposedDecree::init(
+            self.id,
+            decree_num,
+            self.quorum_size,
+            &cmd,
+            Arc::clone(&self.observer),
+        ));
+        let highest_accepted = entry.highest_accepted().number;
 
         let mut decree_notes = self.decree_notes.lock().await;
         let notes = decree_notes
@@ -59,32 +66,21 @@ impl Proposer {
             }
         }
 
-        entry.quorum.promises.clear();
-        if entry.proposed_value == PaxosCommand::BLANK {
-            entry.proposed_value = cmd
+        if entry.update_ballot(next_ballot, &cmd) {
+            let msg = entry.create_prepare_msg();
+
+            tracing::info!(
+                "[Node {}] Proposing decree {} with ballot ({}, {}) value: {:?}",
+                self.id,
+                decree_num,
+                next_ballot.number,
+                next_ballot.node_id,
+                entry.proposed_value()
+            );
+
+            return msg;
         }
-
-        tracing::info!(
-            "[Node {}] Proposing decree {} with ballot ({}, {}) value: {:?}",
-            self.id,
-            decree_num,
-            next_ballot.number,
-            next_ballot.node_id,
-            entry.proposed_value
-        );
-
-        self.observer.on_event(Event::Proposal {
-            decree_num,
-            id: self.id,
-            value: entry.proposed_value.clone(),
-            created_at: crate::monitor::current_timestamp_millis(),
-        });
-
-        Message::Prepare {
-            from: self.id,
-            decree_num,
-            ballot: next_ballot,
-        }
+        return Message::NACK;
     }
 
     pub async fn promise(
@@ -115,14 +111,7 @@ impl Proposer {
             }
             Ordering::Equal => {
                 return self
-                    .prepare(
-                        entry,
-                        decree_num,
-                        ballot,
-                        accepted_ballot,
-                        accepted_value,
-                        from_node,
-                    )
+                    .prepare(from_node, entry, accepted_ballot, accepted_value)
                     .await;
             }
         }
@@ -130,39 +119,15 @@ impl Proposer {
 
     async fn prepare(
         &self,
+        from_node: usize,
         proposed_decree: &mut ProposedDecree,
-        decree_num: usize,
-        ballot: Ballot,
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,
-        from_node: usize,
     ) -> Message {
-        let quorum = &mut proposed_decree.quorum;
+        proposed_decree.update_quorum(from_node, accepted_ballot, &accepted_value);
 
-        if accepted_ballot > quorum.highest_accepted {
-            quorum.highest_accepted = accepted_ballot;
-            proposed_decree.proposed_value = accepted_value.clone();
-        }
-
-        quorum.promises.insert(from_node);
-
-        if quorum.promises.len() >= self.quorum_size {
-            self.observer.on_event(Event::Accept {
-                decree_num,
-                id: self.id,
-                ballot: ballot.number,
-                quorum: quorum.promises.clone(),
-                value: proposed_decree.proposed_value.clone(),
-                created_at: crate::monitor::current_timestamp_millis(),
-            });
-
-            return Message::Accept {
-                from: self.id,
-                decree_num,
-                ballot,
-                value: proposed_decree.proposed_value.clone(),
-                quorum: quorum.promises.clone(),
-            };
+        if proposed_decree.has_met_quorum() {
+            return proposed_decree.create_accept_msg();
         }
         return Message::NACK;
     }

@@ -1,7 +1,7 @@
 use crate::common::persistence::Persistence;
 use crate::message::Message;
 use crate::monitor::{Event, PaxosObserver};
-use crate::node::ballot::Ballot;
+use crate::node::paxos_state::ballot::Ballot;
 use crate::paxos_command::PaxosCommand;
 use anyhow::Result;
 use std::collections::HashMap;

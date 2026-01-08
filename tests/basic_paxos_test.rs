@@ -1,7 +1,7 @@
 mod test_helpers;
 use paxos::{
     message::Message,
-    node::ballot::Ballot,
+    node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 use test_helpers::{cleanup_persisted_state, NodeBuilder};
@@ -12,7 +12,7 @@ async fn test_basic_paxos_flow() {
     cleanup_persisted_state();
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let value = PaxosCommand::GET {
         key: "test_key".to_string(),
@@ -63,7 +63,7 @@ async fn test_acceptor_rejects_lower_ballot() {
 async fn test_proposer_adopts_previous_value() {
     cleanup_persisted_state();
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let cmd1 = PaxosCommand::GET {
         key: "key1".to_string(),

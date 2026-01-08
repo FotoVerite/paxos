@@ -2,7 +2,7 @@ mod test_helpers;
 
 use paxos::{
     message::Message,
-    node::ballot::Ballot,
+    node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 use std::collections::HashSet;

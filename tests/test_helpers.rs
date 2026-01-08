@@ -12,7 +12,7 @@ use uuid::Uuid;
 use paxos::{
     message::Message,
     monitor::{Event, PaxosObserver},
-    node::{acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, proposer::Proposer, ledger::Ledger},
+    node::paxos_state::{acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, proposer::Proposer, ledger::Ledger},
     paxos_command::PaxosCommand,
     cluster::cluster::Cluster,
 };
@@ -376,16 +376,15 @@ impl NodeBuilder {
         Arc::clone(&self.decree_notes)
     }
 
-    pub async fn proposer(&self, id: usize, quorum: usize) -> anyhow::Result<Proposer> {
+    pub fn proposer(&self, id: usize, quorum: usize) -> anyhow::Result<Proposer> {
         let uuid = self.generate_uuid(id);
-        Proposer::new(
+        Ok(Proposer::new(
             id,
             uuid,
             quorum,
             Arc::clone(&self.decree_notes),
             Arc::clone(&self.observer) as Arc<dyn PaxosObserver>, // Cast to trait object
-        )
-        .await
+        ))
     }
 
     pub async fn acceptor(&self, id: usize) -> anyhow::Result<Acceptor> {
@@ -574,7 +573,9 @@ impl QuorumCalc {
 pub fn assert_message_type(msg: &Message, expected: &str) {
     let actual = match msg {
         Message::Prepare { .. } => "Prepare",
+        Message::PrepareBatch { .. } => "PrepareBatch",
         Message::Promise { .. } => "Promise",
+        Message::PromiseBatch { .. } => "PromiseBatch",
         Message::Accept { .. } => "Accept",
         Message::Accepted { .. } => "Accepted",
         Message::NACK => "NACK",
@@ -587,12 +588,14 @@ pub fn assert_message_type(msg: &Message, expected: &str) {
 pub fn assert_ballot_number(msg: &Message, expected_number: usize, expected_id: usize) {
     match msg {
         Message::Prepare { ballot, .. }
+        | Message::PrepareBatch { ballot, .. }
         | Message::Promise { ballot, .. }
         | Message::Accept { ballot, .. }
         | Message::Accepted { ballot, .. } => {
             assert_eq!(ballot.number, expected_number);
             assert_eq!(ballot.node_id, expected_id);
         }
+        Message::PromiseBatch { .. } => panic!("Cannot extract ballot from PromiseBatch"),
         Message::NACK => panic!("Cannot extract ballot from NACK"),
         Message::Success { .. } => panic!("Cannot extract ballot from Success message"),
     }
@@ -649,7 +652,7 @@ mod tests {
     #[tokio::test]
     async fn test_node_builder() {
         let builder = NodeBuilder::new();
-        let _proposer = builder.proposer(1, 3).await.unwrap();
+        let _proposer = builder.proposer(1, 3).unwrap();
         let _acceptor = builder.acceptor(1).await.unwrap();
         let _learner = builder.learner(1, 3);
         // Just verify they construct without panic

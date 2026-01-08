@@ -3,7 +3,7 @@ use test_helpers::create_ledger;
 
 #[tokio::test]
 async fn test_ledger_vote_returns_value() {
-    use paxos::node::ballot::Ballot;
+    use paxos::node::paxos_state::ballot::Ballot;
     use paxos::paxos_command::PaxosCommand;
 
     // Clean up any previous state

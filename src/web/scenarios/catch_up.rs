@@ -1,8 +1,8 @@
 use std::net::IpAddr;
 use crate::cluster::cluster::Cluster;
+use crate::node::paxos_state::acceptor::Acceptor;
+use crate::node::paxos_state::ledger::Ledger;
 use crate::paxos_command::PaxosCommand;
-use crate::node::ledger::Ledger;
-use crate::node::acceptor::Acceptor;
 
 pub struct CatchUpScenario;
 

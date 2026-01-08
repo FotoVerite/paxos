@@ -2,7 +2,7 @@ mod test_helpers;
 
 use paxos::{
     message::Message,
-    node::ballot::Ballot,
+    node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 use test_helpers::NodeBuilder;
@@ -96,7 +96,7 @@ async fn proposer_ballot_ordering_from_proposer_perspective() {
     cleanup_persisted_state();
     
     let builder1 = NodeBuilder::new();
-    let proposer = builder1.proposer(1, 1).await.unwrap();
+    let proposer = builder1.proposer(1, 1).unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -114,7 +114,7 @@ async fn proposer_ballot_ordering_from_proposer_perspective() {
 
     // Now proposer 2 with separate builder (separate state)
     let builder2 = NodeBuilder::new();
-    let proposer2 = builder2.proposer(2, 1).await.unwrap();
+    let proposer2 = builder2.proposer(2, 1).unwrap();
     let msg2 = proposer2.propose(0, cmd).await;
 
     if let Message::Prepare { ballot: b2, .. } = msg2 {

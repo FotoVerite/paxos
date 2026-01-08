@@ -1,5 +1,4 @@
-use crate::common::persistence::Persistence;
-use crate::paxos_command::PaxosCommand;
+use crate::{common::persistence::Persistence, paxos_command::PaxosCommand};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;

@@ -3,7 +3,7 @@ mod test_helpers;
 use paxos::{
     message::Message,
     monitor::Event,
-    node::ballot::Ballot,
+    node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 use test_helpers::{NodeBuilder, RecordingObserver};
@@ -22,7 +22,7 @@ async fn basic_proposer_acceptor_interaction() {
     let builder = NodeBuilder::with_observer(Arc::clone(&observer));
     
     // Use quorum=1 for this unit test (1 proposer + 1 acceptor)
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
     let acceptor = builder.acceptor(1).await.unwrap();
 
     let cmd = PaxosCommand::GET {
@@ -78,10 +78,10 @@ async fn ballot_comparison_ensures_safety() {
     
     // Create separate builders so proposers don't share state
     let builder1 = NodeBuilder::new();
-    let proposer1 = builder1.proposer(1, 1).await.unwrap();
+    let proposer1 = builder1.proposer(1, 1).unwrap();
     
     let builder2 = NodeBuilder::new();
-    let proposer2 = builder2.proposer(2, 1).await.unwrap();
+    let proposer2 = builder2.proposer(2, 1).unwrap();
     
     let builder3 = NodeBuilder::new();
     let acceptor = builder3.acceptor(1).await.unwrap();
@@ -138,7 +138,7 @@ async fn observer_captures_full_protocol() {
     let observer = RecordingObserver::new().arc();
     let builder = NodeBuilder::with_observer(Arc::clone(&observer));
 
-    let proposer = builder.proposer(0, 1).await.unwrap();
+    let proposer = builder.proposer(0, 1).unwrap();
     let acceptor = builder.acceptor(0).await.unwrap();
 
     let cmd = PaxosCommand::PUT {
@@ -214,7 +214,7 @@ async fn proposer_adopts_accepted_values() {
         .await;
 
     // New proposer comes with higher ballot
-    let proposer2 = builder.proposer(2, 1).await.unwrap();
+    let proposer2 = builder.proposer(2, 1).unwrap();
     let new_cmd = PaxosCommand::GET {
         key: "new".to_string(),
     };

@@ -1,6 +1,6 @@
 mod test_helpers;
 
-use paxos::{message::Message, node::ballot::Ballot, paxos_command::PaxosCommand};
+use paxos::{message::Message, node::paxos_state::ballot::Ballot, paxos_command::PaxosCommand};
 use std::collections::HashSet;
 use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver, create_ledger};
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use std::sync::Arc;
 async fn proposer_can_track_multiple_decrees() {
     let builder: NodeBuilder = NodeBuilder::new();
 
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let cmd0 = PaxosCommand::GET {
         key: "decree0".to_string(),
@@ -122,8 +122,8 @@ async fn learner_learns_multiple_decrees() {
     {
         let decree_notes_arc = builder.decree_notes();
         let mut decree_notes = decree_notes_arc.lock().await;
-        decree_notes.state.insert(0, paxos::node::decree_notes::DecreeNote { last_tried: b });
-        decree_notes.state.insert(1, paxos::node::decree_notes::DecreeNote { last_tried: b });
+        decree_notes.state.insert(0, paxos::node::paxos_state::decree_notes::DecreeNote { last_tried: b });
+        decree_notes.state.insert(1, paxos::node::paxos_state::decree_notes::DecreeNote { last_tried: b });
     }
 
     // Learner receives Accepted for decree 0
@@ -213,7 +213,7 @@ async fn multiple_decrees_with_different_ballots() {
 async fn proposer_handles_promises_for_different_decrees() {
     let builder: NodeBuilder = NodeBuilder::new();
 
-    let proposer = builder.proposer(1, 1).await.unwrap(); // Quorum size 1
+    let proposer = builder.proposer(1, 1).unwrap(); // Quorum size 1
 
     let cmd0 = PaxosCommand::GET {
         key: "decree0".to_string(),
@@ -325,7 +325,7 @@ async fn concurrent_decrees_dont_interfere() {
 async fn sequential_decrees_same_proposer() {
     let builder: NodeBuilder = NodeBuilder::new();
 
-    let proposer = builder.proposer(1, 2).await.unwrap();
+    let proposer = builder.proposer(1, 2).unwrap();
 
     let _acceptor1 = builder.acceptor(1).await.unwrap();
     let _acceptor2 = builder.acceptor(2).await.unwrap();
@@ -400,7 +400,7 @@ async fn mixed_single_and_multi_decree_flow() {
     let observer = RecordingObserver::new().arc();
     let builder = NodeBuilder::with_observer(Arc::clone(&observer));
 
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
     let acceptor = builder.acceptor(1).await.unwrap();
     let learner = builder.learner(1, 1);
     let ledger = create_ledger();
@@ -429,7 +429,7 @@ async fn mixed_single_and_multi_decree_flow() {
     {
         let decree_notes_arc = builder.decree_notes();
         let mut decree_notes = decree_notes_arc.lock().await;
-        decree_notes.state.insert(0, paxos::node::decree_notes::DecreeNote {
+        decree_notes.state.insert(0, paxos::node::paxos_state::decree_notes::DecreeNote {
             last_tried: ballot0,
         });
     }
@@ -454,7 +454,7 @@ async fn mixed_single_and_multi_decree_flow() {
     {
         let decree_notes_arc = builder.decree_notes();
         let mut decree_notes = decree_notes_arc.lock().await;
-        decree_notes.state.insert(1, paxos::node::decree_notes::DecreeNote {
+        decree_notes.state.insert(1, paxos::node::paxos_state::decree_notes::DecreeNote {
             last_tried: ballot1,
         });
     }

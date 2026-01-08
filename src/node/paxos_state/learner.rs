@@ -7,12 +7,8 @@ use tokio::sync::Mutex;
 
 use crate::{
     message::Message,
-    monitor::{Event, PaxosObserver},
-    node::{
-        ballot::Ballot,
-        decree_notes::{DecreeNote, DecreeNotes},
-        ledger::Ledger,
-    },
+    monitor::{Event, PaxosObserver}, node::paxos_state::{ballot::Ballot, decree_notes::{DecreeNote, DecreeNotes}, ledger::Ledger},
+   
 };
 
 pub struct Learner {

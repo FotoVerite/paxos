@@ -2,7 +2,7 @@ mod test_helpers;
 
 use paxos::{
     message::Message,
-    node::ballot::Ballot,
+    node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 use test_helpers::NodeBuilder;
@@ -172,7 +172,7 @@ async fn acceptor_decree_independence_for_ballots() {
 #[tokio::test]
 async fn proposer_ballot_monotonicity_per_decree() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),
@@ -211,7 +211,7 @@ async fn proposer_ballot_monotonicity_per_decree() {
 #[tokio::test]
 async fn proposer_same_ballot_different_decrees() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let cmd0 = PaxosCommand::GET {
         key: "decree0".to_string(),
@@ -285,7 +285,7 @@ async fn acceptor_never_leaks_value_on_nack() {
 #[tokio::test]
 async fn proposer_value_adoption_invariant() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let new_value = PaxosCommand::GET {
         key: "new".to_string(),
@@ -349,7 +349,7 @@ async fn proposer_value_adoption_invariant() {
 #[tokio::test]
 async fn proposer_accept_ballot_matches_promise() {
     let builder = NodeBuilder::new();
-    let proposer = builder.proposer(1, 1).await.unwrap();
+    let proposer = builder.proposer(1, 1).unwrap();
 
     let cmd = PaxosCommand::GET {
         key: "test".to_string(),

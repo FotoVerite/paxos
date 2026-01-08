@@ -1,5 +1,4 @@
-use crate::common::persistence::Persistence;
-use crate::node::ballot::Ballot;
+use crate::{common::persistence::Persistence, node::paxos_state::ballot::Ballot};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{cmp::max, collections::HashMap};

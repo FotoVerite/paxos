@@ -1,6 +1,6 @@
 mod test_helpers;
 
-use paxos::{message::Message, monitor::Event, node::ballot::Ballot, paxos_command::PaxosCommand};
+use paxos::{message::Message, monitor::Event, node::paxos_state::ballot::Ballot, paxos_command::PaxosCommand};
 use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver, create_ledger};
 use std::sync::Arc; // Added Arc import
 
@@ -25,7 +25,7 @@ async fn learner_receives_accepted_values() {
     let ballot = Ballot::new(1, 1);
     let decree_notes_arc = builder.decree_notes();
     let mut decree_notes = decree_notes_arc.lock().await;
-    decree_notes.state.insert(0, paxos::node::decree_notes::DecreeNote {
+    decree_notes.state.insert(0, paxos::node::paxos_state::decree_notes::DecreeNote {
         last_tried: ballot,
     });
     drop(decree_notes);
@@ -109,10 +109,10 @@ async fn learner_learns_multiple_decrees() {
     // Set up promised ballots for both decrees
     let decree_notes_arc = builder.decree_notes();
     let mut decree_notes = decree_notes_arc.lock().await;
-    decree_notes.state.insert(0, paxos::node::decree_notes::DecreeNote {
+    decree_notes.state.insert(0, paxos::node::paxos_state::decree_notes::DecreeNote {
         last_tried: b,
     });
-    decree_notes.state.insert(1, paxos::node::decree_notes::DecreeNote {
+    decree_notes.state.insert(1, paxos::node::paxos_state::decree_notes::DecreeNote {
         last_tried: b,
     });
     drop(decree_notes);
