@@ -69,6 +69,7 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="/websocket-helper.js"></script>
     <script src="/paxos-visualizer.js"></script>
     <script>
         // Initialize visualizer
@@ -94,7 +95,7 @@
             randomnessValue.textContent = parseFloat(e.target.value).toFixed(1);
         });
 
-        const ws = new WebSocket("ws://" + window.location.host + "/ws");
+        const ws = new WebSocket(getWebSocketURL("/ws"));
 
         ws.onopen = function() {
             connectionStatus.classList.add('connected');

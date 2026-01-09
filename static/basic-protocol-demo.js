@@ -238,11 +238,11 @@ async function resetScenario() {
 }
 
 function setupWebSocket() {
-  if (ws) {
-    ws.close();
-  }
+   if (ws) {
+     ws.close();
+   }
 
-  ws = new WebSocket("ws://localhost:3001/ws");
+   ws = new WebSocket(getWebSocketURL("/ws"));
 
   ws.onopen = () => {
     console.log("WebSocket connected");

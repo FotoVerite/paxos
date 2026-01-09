@@ -85,6 +85,7 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="/websocket-helper.js"></script>
     <script>
         const connectionStatus = document.getElementById('connectionStatus');
         const statusText = document.getElementById('statusText');
@@ -104,7 +105,7 @@
         
         let learnedCounts = {};  // Track how many values each node has learned
 
-        const ws = new WebSocket("ws://" + window.location.host + "/ws");
+        const ws = new WebSocket(getWebSocketURL("/ws"));
 
         ws.onopen = function() {
             connectionStatus.classList.add('connected');

@@ -68,6 +68,7 @@
 {% endblock %}
 
 {% block scripts %}
+    <script src="/websocket-helper.js"></script>
     <script src="/paxos-visualizer.js"></script>
     <script>
         // Initialize visualizer with preliminary protocol colors
@@ -87,7 +88,7 @@
         const statusText = document.getElementById('statusText');
         const eventLog = document.getElementById('eventLog');
 
-        const ws = new WebSocket("ws://" + window.location.host + "/ws");
+        const ws = new WebSocket(getWebSocketURL("/ws"));
 
         ws.onopen = function() {
             connectionStatus.classList.add('connected');
