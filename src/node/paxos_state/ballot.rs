@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::{self, write}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Ballot {
@@ -35,5 +35,12 @@ impl Default for Ballot {
           number: 0, 
           node_id: 0
         }
+    }
+}
+
+
+impl fmt::Display for Ballot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{{}-{} }}", self.node_id, self.number)
     }
 }

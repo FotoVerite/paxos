@@ -1,28 +1,27 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+mod decrees;
+mod learner_quorum;
+
+use std::{sync::Arc};
 
 use tokio::sync::Mutex;
 
 use crate::{
     message::Message,
-    monitor::{Event, PaxosObserver}, node::paxos_state::{ballot::Ballot, decree_notes::{DecreeNote, DecreeNotes}, ledger::Ledger},
-   
+    monitor::{Event, PaxosObserver},
+    node::paxos_state::{
+        decree_notes::{DecreeNote, DecreeNotes},
+        learner::decrees::Decrees,
+        ledger::Ledger,
+    },
 };
 
 pub struct Learner {
     id: usize,
     quorum_number: usize,
     decree_notes: Arc<Mutex<DecreeNotes>>,
-    state: Mutex<HashMap<usize, Quorum>>,
+    state: Decrees,
 
     observer: Arc<dyn PaxosObserver>,
-}
-
-struct Quorum {
-    votes: HashSet<usize>,
-    cached_last_tried: Ballot,
 }
 
 impl Learner {
@@ -35,7 +34,7 @@ impl Learner {
         Self {
             id: id,
             decree_notes,
-            state: Mutex::new(HashMap::new()),
+            state: Decrees::init(),
             quorum_number,
             observer,
         }
@@ -54,48 +53,23 @@ impl Learner {
                     .state
                     .entry(decree_num)
                     .or_insert(DecreeNote::new(self.id));
-                  if ballot != notes.last_tried {
+                if ballot != notes.last_tried {
                     return Message::NACK;
                 }
-                let proposer_id = ballot.node_id;
                 drop(decree_notes);
 
-                let mut state = self.state.lock().await;
-                let quorum = state.entry(decree_num).or_insert_with(|| Quorum {
-                    votes: HashSet::new(),
-                    cached_last_tried: ballot,
-                });
-                if quorum.cached_last_tried != ballot {
-                    quorum.votes.clear();
-                    quorum.cached_last_tried = ballot;
-                }
-                quorum.votes.insert(from);
-                if quorum.votes.len() >= self.quorum_number {
-                    if ledger.insert(decree_num, value.clone()).await {
-                        // Emit LearnedValue event when the Learner itself reaches quorum
-                        self.observer.on_event(Event::LearnedValue {
-                            decree_num,
-                            id: self.id,
-                            value: value.clone(),
-                            created_at: crate::monitor::current_timestamp_millis(),
-                        });
-                        tracing::info!(
-                            "[Node {}] Learner reached quorum for decree {}: {:?} from proposer {} (votes: {:?})",
-                            self.id,
-                            decree_num,
-                            value,
-                            proposer_id,
-                            quorum.votes
-                        );
-                        return Message::Success {
-                            from: self.id,
-                            decree_num,
-                            value: value.clone(),
-                            ballot_proposer: proposer_id,
-                        };
-                    }
-                }
-                return Message::NACK;
+                return self
+                    .state
+                    .add_vote(
+                        self.id,
+                        from,
+                        decree_num,
+                        ballot,
+                        self.quorum_number,
+                        Arc::clone(&self.observer),
+                        value,
+                    )
+                    .await;
             }
             _ => return Message::NACK,
         }
@@ -110,7 +84,8 @@ impl Learner {
             } => {
                 // This handles a *received* Message::Success
                 if ledger.insert(decree_num, value.clone()).await {
-                    if self.id != from { // Emit Event::Success only if it's from another node
+                    if self.id != from {
+                        // Emit Event::Success only if it's from another node
                         self.observer.on_event(Event::Success {
                             decree_num,
                             from, // 'from' is the sender of the Message::Success, not necessarily this learner

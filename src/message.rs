@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{node::paxos_state::{acceptor::PromiseInfo, ballot::Ballot}, paxos_command::PaxosCommand};
-
+use crate::{node::paxos_state::ballot::Ballot, paxos_command::PaxosCommand};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -43,8 +42,4 @@ pub enum Message {
         decrees_to: usize,
         ballot: Ballot,
     },
-    PromiseBatch {
-        from: usize,
-        promises:  Vec<PromiseInfo>
-    }
 }

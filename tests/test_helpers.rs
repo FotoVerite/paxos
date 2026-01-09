@@ -575,7 +575,7 @@ pub fn assert_message_type(msg: &Message, expected: &str) {
         Message::Prepare { .. } => "Prepare",
         Message::PrepareBatch { .. } => "PrepareBatch",
         Message::Promise { .. } => "Promise",
-        Message::PromiseBatch { .. } => "PromiseBatch",
+        //Message::PromiseBatch { .. } => "PromiseBatch",
         Message::Accept { .. } => "Accept",
         Message::Accepted { .. } => "Accepted",
         Message::NACK => "NACK",
@@ -595,7 +595,7 @@ pub fn assert_ballot_number(msg: &Message, expected_number: usize, expected_id: 
             assert_eq!(ballot.number, expected_number);
             assert_eq!(ballot.node_id, expected_id);
         }
-        Message::PromiseBatch { .. } => panic!("Cannot extract ballot from PromiseBatch"),
+        //Message::PromiseBatch { .. } => panic!("Cannot extract ballot from PromiseBatch"),
         Message::NACK => panic!("Cannot extract ballot from NACK"),
         Message::Success { .. } => panic!("Cannot extract ballot from Success message"),
     }

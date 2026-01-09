@@ -1,6 +1,10 @@
+mod accepted_decree;
+mod accepted_decrees;
+mod prev_vote;
 use crate::common::persistence::Persistence;
 use crate::message::Message;
 use crate::monitor::{Event, PaxosObserver};
+use crate::node::paxos_state::acceptor::accepted_decrees::AcceptedDecrees;
 use crate::node::paxos_state::ballot::Ballot;
 use crate::paxos_command::PaxosCommand;
 use anyhow::Result;
@@ -12,47 +16,16 @@ use uuid::Uuid;
 pub struct Acceptor {
     id: usize,
     uuid: Uuid,
-    state: Mutex<HashMap<usize, AcceptedDecree>>,
+    state: Mutex<AcceptedDecrees>,
     observer: Arc<dyn PaxosObserver>,
 }
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct AcceptedDecree {
-    next_bal: Ballot,
-    prev_vote: (Ballot, PaxosCommand),
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-pub struct PromiseInfo {
-    next_bal: Ballot,
-    prev_vote: (Ballot, PaxosCommand),
-}
-
-impl Default for AcceptedDecree {
-    fn default() -> AcceptedDecree {
-        AcceptedDecree {
-            next_bal: Ballot {
-                number: 0,
-                node_id: 0,
-            },
-            prev_vote: (
-                Ballot {
-                    number: 0,
-                    node_id: 0,
-                },
-                PaxosCommand::BLANK,
-            ),
-        }
-    }
-}
-
 impl Acceptor {
     pub async fn new(id: usize, uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
         #[cfg(feature = "persistence")]
         let state = Persistence::load(&format!("acceptor_{}.bin", uuid)).await?;
 
         #[cfg(not(feature = "persistence"))]
-        let state = HashMap::new();
+        let state = AcceptedDecrees::init();
 
         Ok(Self {
             id,
@@ -69,46 +42,23 @@ impl Acceptor {
 
     async fn prepare(&self, decree_num: usize, ballot: Ballot, from: usize) -> Message {
         let mut state = self.state.lock().await;
+        let msg = state.promise(
+            self.id,
+            from,
+            decree_num,
+            ballot,
+            Arc::clone(&self.observer),
+        );
 
-        let decree = state.entry(decree_num).or_default();
-        if ballot > decree.next_bal {
-            tracing::info!(
-                "[Node {}] Prepare: ballot ({}, {}) > next_bal ({}, {}) - PROMISE",
-                self.id,
-                ballot.number,
-                ballot.node_id,
-                decree.next_bal.number,
-                decree.next_bal.node_id
-            );
-            decree.next_bal = ballot;
+        drop(state);
 
-            self.observer.on_event(Event::Promise {
-                decree_num,
-                id: self.id,
-                from,
-                ballot: ballot.number,
-                created_at: crate::monitor::current_timestamp_millis(),
-            });
-
-            let (b, v) = &decree.prev_vote;
-            Message::Promise {
-                from: self.id,
-                decree_num,
-                ballot,
-                accepted_ballot: b.clone(),
-                accepted_value: v.clone(),
+        #[cfg(feature = "persistence")]
+        {
+            if let Err(e) = self.save().await {
+                tracing::error!("[Node {}] Failed to persist acceptor state: {}", self.id, e);
             }
-        } else {
-            tracing::info!(
-                "[Node {}] Prepare: ballot ({}, {}) <= next_bal ({}, {}) - NACK",
-                self.id,
-                ballot.number,
-                ballot.node_id,
-                decree.next_bal.number,
-                decree.next_bal.node_id
-            );
-            Message::NACK
         }
+        msg
     }
 
     async fn accept(
@@ -119,56 +69,24 @@ impl Acceptor {
         from: usize,
     ) -> Message {
         let mut state = self.state.lock().await;
-        let decree = state.entry(decree_num).or_default();
-        if ballot == decree.next_bal {
-            decree.prev_vote = (ballot, cmd.clone());
+        let msg = state.accept(
+            self.id,
+            from,
+            decree_num,
+            ballot,
+            cmd,
+            Arc::clone(&self.observer),
+        );
 
-            tracing::info!(
-                "[Node {}] Accept: ballot ({}, {}) == next_bal - ACCEPTED decree {} from node {}: {:?}",
-                self.id,
-                ballot.number,
-                ballot.node_id,
-                decree_num,
-                from,
-                cmd
-            );
+        drop(state);
 
-            self.observer.on_event(Event::Accepted {
-                decree_num,
-                id: self.id,
-                from,
-                ballot: ballot.number,
-                value: cmd.clone(),
-                created_at: crate::monitor::current_timestamp_millis(),
-            });
-
-            // Release lock before saving to avoid holding it during I/O
-            drop(state);
-
-            #[cfg(feature = "persistence")]
-            {
-                if let Err(e) = self.save().await {
-                    tracing::error!("[Node {}] Failed to persist acceptor state: {}", self.id, e);
-                }
+        #[cfg(feature = "persistence")]
+        {
+            if let Err(e) = self.save().await {
+                tracing::error!("[Node {}] Failed to persist acceptor state: {}", self.id, e);
             }
-
-            Message::Accepted {
-                from: self.id,
-                decree_num,
-                ballot,
-                value: cmd,
-            }
-        } else {
-            tracing::info!(
-                "[Node {}] Accept: ballot ({}, {}) != next_bal ({}, {}) - NACK",
-                self.id,
-                ballot.number,
-                ballot.node_id,
-                decree.next_bal.number,
-                decree.next_bal.node_id
-            );
-            Message::NACK
         }
+        msg
     }
 
     pub async fn handle_message(&self, msg: Message) -> Message {
@@ -192,25 +110,7 @@ impl Acceptor {
     pub async fn prepopulate(
         uuid: Uuid,
         initial_decrees: Vec<(usize, PaxosCommand)>,
-    ) -> Result<()> {
-        let mut state = HashMap::new();
-
-        let high_ballot = Ballot {
-            number: 1,
-            node_id: 0,
-        };
-
-        for (decree_num, cmd) in initial_decrees {
-            state.insert(
-                decree_num,
-                AcceptedDecree {
-                    next_bal: high_ballot.clone(),
-                    prev_vote: (high_ballot.clone(), cmd),
-                },
-            );
-        }
-
-        Persistence::save(&format!("acceptor_{}.bin", uuid), &state).await
+    ) -> anyhow::Result<()> {
+        AcceptedDecrees::prepopulate(uuid, initial_decrees).await
     }
 }
-
