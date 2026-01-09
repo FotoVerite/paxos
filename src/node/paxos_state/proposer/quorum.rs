@@ -1,10 +1,10 @@
 use std::{collections::HashSet, usize::MAX};
 
-use crate::node::paxos_state::ballot::Ballot;
+use crate::{common::types::NodeId, node::paxos_state::ballot::Ballot};
 
 
 pub struct Quorum {
-    promises: HashSet<usize>,
+    promises: HashSet<NodeId>,
     highest_accepted: Ballot,
     pub quorum_size: usize,
 }
@@ -28,18 +28,6 @@ impl Quorum {
         }
     }
 
-    pub fn update_promises(&mut self, node_id: usize) {
-        self.promises.insert(node_id);
-    }
-
-    pub fn redo(&self, highest_accepted: Ballot) -> Self {
-        Self {
-            promises: HashSet::new(),
-            highest_accepted,
-            quorum_size: self.quorum_size,
-        }
-    }
-
     pub fn reset(&mut self) {
         self.promises.clear();
     }
@@ -52,7 +40,7 @@ impl Quorum {
         self.highest_accepted
     }
 
-    pub fn update(&mut self, id: usize, ballot: Ballot) -> bool {
+    pub fn update(&mut self, id: NodeId, ballot: Ballot) -> bool {
         self.promises.insert(id);
         if self.highest_accepted >= ballot {
             return false;
@@ -60,7 +48,7 @@ impl Quorum {
         self.highest_accepted = ballot;
         return true;
     }
-    pub fn quorum_set(&self) -> HashSet<usize> {
+    pub fn quorum_set(&self) -> HashSet<NodeId> {
         self.promises.clone()
     }
 }

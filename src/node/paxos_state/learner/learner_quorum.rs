@@ -1,9 +1,9 @@
 use std::{collections::HashSet, usize::MAX};
 
-use crate::node::paxos_state::ballot::{Ballot};
+use crate::{common::types::NodeId, node::paxos_state::ballot::Ballot};
 
 pub struct LearnerQuorum {
-    votes: HashSet<usize>,
+    votes: HashSet<NodeId>,
     quorum_size: usize,
     cached_last_tried: Ballot,
 }
@@ -27,7 +27,7 @@ impl LearnerQuorum {
         }
     }
 
-    pub fn add_vote(&mut self, node_id: usize, cached_last_tried: Ballot) {
+    pub fn add_vote(&mut self, node_id: NodeId, cached_last_tried: Ballot) {
         if self.cached_last_tried != cached_last_tried {
             self.clear();
         }
@@ -43,7 +43,7 @@ impl LearnerQuorum {
         self.votes.len() >= self.quorum_size
     }
 
-    pub fn quorum_set(&self) -> HashSet<usize> {
+    pub fn quorum_set(&self) -> HashSet<NodeId> {
         self.votes.clone()
     }
 }

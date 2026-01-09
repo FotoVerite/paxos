@@ -6,6 +6,7 @@ use std::{sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::{
+    common::types::{NodeId},
     message::Message,
     monitor::{Event, PaxosObserver},
     node::paxos_state::{
@@ -16,7 +17,7 @@ use crate::{
 };
 
 pub struct Learner {
-    id: usize,
+    id: NodeId,
     quorum_number: usize,
     decree_notes: Arc<Mutex<DecreeNotes>>,
     state: Decrees,
@@ -26,7 +27,7 @@ pub struct Learner {
 
 impl Learner {
     pub fn new(
-        id: usize,
+        id: NodeId,
         quorum_number: usize,
         decree_notes: Arc<Mutex<DecreeNotes>>,
         observer: Arc<dyn PaxosObserver>,
@@ -40,7 +41,7 @@ impl Learner {
         }
     }
 
-    pub async fn handle_message(&self, msg: Message, ledger: &Ledger) -> Message {
+    pub async fn handle_message(&self, msg: Message, _ledger: &Ledger) -> Message {
         match msg {
             Message::Accepted {
                 from,

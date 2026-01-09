@@ -3,6 +3,7 @@ use paxos::{
     message::Message,
     node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
+    common::types::{NodeId, DecreeId},
 };
 use test_helpers::{cleanup_persisted_state, NodeBuilder};
 use std::collections::HashSet;
@@ -17,7 +18,7 @@ async fn test_basic_paxos_flow() {
     let value = PaxosCommand::GET {
         key: "test_key".to_string(),
     };
-    let msg = proposer.propose(0, value.clone()).await;
+    let msg = proposer.propose(DecreeId(0), value.clone()).await;
 
     let response = acceptor.handle_message(msg).await;
 
@@ -29,7 +30,7 @@ async fn test_basic_paxos_flow() {
     let accept_request = proposer.handle_message(response).await;
 
     assert!(
-        matches!(accept_request, Message::Accept { ballot, value: v, quorum, .. } if ballot.number == 1 && v == value && quorum == HashSet::from([1])),
+        matches!(accept_request, Message::Accept { ballot, value: v, quorum, .. } if ballot.number == 1 && v == value && quorum == HashSet::from([NodeId(1)])),
         "Proposer should have sent Accept with correct ballot and value"
     );
 }
@@ -42,18 +43,18 @@ async fn test_acceptor_rejects_lower_ballot() {
 
     // First prepare with ballot 5
     let msg1 = Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: Ballot::new(5, 1),
+        from: NodeId(1),
+        decree_num: DecreeId(0),
+        ballot: Ballot::new(5, NodeId(1)),
     };
     let resp1 = acceptor.handle_message(msg1).await;
     assert!(matches!(resp1, Message::Promise { ballot, .. } if ballot.number == 5));
 
     // Second prepare with lower ballot 3 should be rejected
     let msg2 = Message::Prepare {
-        from: 1,
-        decree_num: 0,
-        ballot: Ballot::new(3, 1),
+        from: NodeId(1),
+        decree_num: DecreeId(0),
+        ballot: Ballot::new(3, NodeId(1)),
     };
     let resp2 = acceptor.handle_message(msg2).await;
     assert!(matches!(resp2, Message::NACK));
@@ -73,20 +74,19 @@ async fn test_proposer_adopts_previous_value() {
     };
 
     // Propose first value
-    proposer.propose(0, cmd1.clone()).await;
+    proposer.propose(DecreeId(0), cmd1.clone()).await;
 
     // Receive promise that reports a previously accepted value
     let promise = Message::Promise {
-        from: 2,
-        decree_num: 0,
-        ballot: Ballot::new(1, 1),
-        accepted_ballot: Ballot::new(5, 1),
+        from: NodeId(2),
+        decree_num: DecreeId(0),
+        ballot: Ballot::new(1, NodeId(1)),
+        accepted_ballot: Ballot::new(5, NodeId(1)),
         accepted_value: cmd2.clone(),
     };
 
     let accept_msg = proposer.handle_message(promise).await;
 
     // Should adopt the previous value
-    assert!(matches!(accept_msg, Message::Accept { value, quorum, .. } if value == cmd2 && quorum == HashSet::from([2])));
+    assert!(matches!(accept_msg, Message::Accept { value, quorum, .. } if value == cmd2 && quorum == HashSet::from([NodeId(2)])));
 }
-

@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::{
+    common::types::{DecreeId, NodeId},
     message::Message,
     monitor::{Event, PaxosObserver},
     node::paxos_state::{ballot::Ballot, learner::learner_quorum::LearnerQuorum},
@@ -10,7 +11,7 @@ use crate::{
 };
 
 pub struct Decrees {
-    decrees: Mutex<HashMap<usize, LearnerQuorum>>,
+    decrees: Mutex<HashMap<DecreeId, LearnerQuorum>>,
 }
 
 impl Decrees {
@@ -22,9 +23,9 @@ impl Decrees {
 
     pub async fn add_vote(
         &self,
-        id: usize,
-        from: usize,
-        decree_num: usize,
+        id: NodeId,
+        from: NodeId,
+        decree_num: DecreeId,
         ballot: Ballot,
         quorum_size: usize,
         observer: Arc<dyn PaxosObserver>,

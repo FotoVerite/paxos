@@ -2,6 +2,7 @@ use paxos::{
     node::paxos_state::{decree_notes::DecreeNotes, proposer::Proposer},
     paxos_command::PaxosCommand,
     console_observer::ConsoleObserver,
+    common::types::{NodeId, DecreeId},
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -28,10 +29,10 @@ async fn test_proposer_persistence() -> anyhow::Result<()> {
         assert!(notes.state.is_empty());
     }
 
-    let proposer = Proposer::new(id, uuid, 3, Arc::clone(&decree_notes), observer.clone());
+    let proposer = Proposer::new(NodeId(id), uuid, 3, Arc::clone(&decree_notes), observer.clone());
 
     // 2. Propose a value -> should bump ballot to (1, 1) and save
-    proposer.propose(0, PaxosCommand::NOOP).await;
+    proposer.propose(DecreeId(0), PaxosCommand::NOOP).await;
     
     // 3. Check persistence file exists
     // The path is defined in src/common/persistence.rs as .paxos/
@@ -41,12 +42,12 @@ async fn test_proposer_persistence() -> anyhow::Result<()> {
     // 4. Simulate restart: Load fresh DecreeNotes from disk
     // Drop logic not strictly needed as we load a new instance
     let recovered_notes = DecreeNotes::load_or_init(uuid).await?;
-    let recovered_note = recovered_notes.state.get(&0).expect("Should have note for decree 0");
+    let recovered_note = recovered_notes.state.get(&DecreeId(0)).expect("Should have note for decree 0");
     
     // 5. Verify ballot
     // Initial was (0,0). propose -> (1,id) = (1,1).
     assert_eq!(recovered_note.last_tried.number, 1);
-    assert_eq!(recovered_note.last_tried.node_id, id);
+    assert_eq!(recovered_note.last_tried.node_id, NodeId(id));
 
     // Cleanup
     std::fs::remove_file(filename).ok();

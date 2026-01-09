@@ -5,6 +5,7 @@ use paxos::{
     monitor::Event,
     node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
+    common::types::{NodeId, DecreeId},
 };
 use test_helpers::{NodeBuilder, RecordingObserver};
 use std::collections::HashSet;
@@ -30,7 +31,7 @@ async fn basic_proposer_acceptor_interaction() {
     };
 
     // Phase 1: Prepare
-    let prepare = proposer.propose(0, cmd.clone()).await;
+    let prepare = proposer.propose(DecreeId(0), cmd.clone()).await;
     assert!(matches!(prepare, Message::Prepare { .. }));
     
     // Acceptor promises
@@ -43,9 +44,9 @@ async fn basic_proposer_acceptor_interaction() {
     
     // Acceptor accepts
     let accepted = acceptor.handle_message(Message::Accept {
-        from: 1,
-        decree_num: 0,
-        ballot: Ballot::new(1,1),
+        from: NodeId(1),
+        decree_num: DecreeId(0),
+        ballot: Ballot::new(1, NodeId(1)),
         value: cmd,
         quorum: HashSet::new(),
     }).await;
@@ -94,12 +95,12 @@ async fn ballot_comparison_ensures_safety() {
     };
 
     // Proposer 1 sends Prepare (ballot 1,1)
-    let prepare1 = proposer1.propose(0, cmd1.clone()).await;
+    let prepare1 = proposer1.propose(DecreeId(0), cmd1.clone()).await;
     let promise1 = acceptor.handle_message(prepare1).await;
     assert!(matches!(promise1, Message::Promise { .. }));
 
     // Proposer 2 sends Prepare (ballot 1,2) - higher ballot
-    let prepare2 = proposer2.propose(0, cmd2.clone()).await;
+    let prepare2 = proposer2.propose(DecreeId(0), cmd2.clone()).await;
     let promise2 = acceptor.handle_message(prepare2).await;
     assert!(matches!(promise2, Message::Promise { .. }));
 
@@ -107,9 +108,9 @@ async fn ballot_comparison_ensures_safety() {
     let _accept1 = proposer1.handle_message(promise1).await;
     let resp1 = acceptor
         .handle_message(Message::Accept {
-            from: 1,
-            decree_num: 0,
-            ballot: Ballot::new(1, 1),
+            from: NodeId(1),
+            decree_num: DecreeId(0),
+            ballot: Ballot::new(1, NodeId(1)),
             value: cmd1,
             quorum: HashSet::new(),
         })
@@ -120,9 +121,9 @@ async fn ballot_comparison_ensures_safety() {
     let _accept2 = proposer2.handle_message(promise2).await;
     let resp2 = acceptor
         .handle_message(Message::Accept {
-            from: 2,
-            decree_num: 0,
-            ballot: Ballot::new(1, 2),
+            from: NodeId(2),
+            decree_num: DecreeId(0),
+            ballot: Ballot::new(1, NodeId(2)),
             value: cmd2,
             quorum: HashSet::new(),
         })
@@ -147,7 +148,7 @@ async fn observer_captures_full_protocol() {
     };
 
     // Run complete protocol
-    let prepare = proposer.propose(0, cmd.clone()).await;
+    let prepare = proposer.propose(DecreeId(0), cmd.clone()).await;
     let promise = acceptor.handle_message(prepare).await;
     let accept = proposer.handle_message(promise).await;
     let _accepted = acceptor.handle_message(accept).await;
@@ -169,15 +170,15 @@ async fn observer_captures_full_protocol() {
             e,
             Event::Proposal {
                 decree_num, value, ..
-            } if *decree_num == 0 && *value == cmd
+            } if *decree_num == DecreeId(0) && *value == cmd
         )
     });
     let has_promise = events
         .iter()
-        .any(|e| matches!(e, Event::Promise { decree_num, .. } if *decree_num == 0));
+        .any(|e| matches!(e, Event::Promise { decree_num, .. } if *decree_num == DecreeId(0)));
     let has_accept = events
         .iter()
-        .any(|e| matches!(e, Event::Accept { decree_num, .. } if *decree_num == 0));
+        .any(|e| matches!(e, Event::Accept { decree_num, .. } if *decree_num == DecreeId(0)));
 
     assert!(has_proposal, "Should have Proposal event");
     assert!(has_promise, "Should have Promise event");
@@ -195,18 +196,18 @@ async fn proposer_adopts_accepted_values() {
     };
 
     // Acceptor has previously accepted a value
-    let b_original = Ballot::new(3, 1);
+    let b_original = Ballot::new(3, NodeId(1));
     acceptor
         .handle_message(Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b_original,
         })
         .await;
     acceptor
         .handle_message(Message::Accept {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b_original,
             value: original_cmd.clone(),
             quorum: HashSet::new(),
@@ -219,13 +220,13 @@ async fn proposer_adopts_accepted_values() {
         key: "new".to_string(),
     };
 
-    proposer2.propose(0, new_cmd.clone()).await;
+    proposer2.propose(DecreeId(0), new_cmd.clone()).await;
 
     // New proposer gets a promise from the acceptor that includes the previously accepted value
     let promise = Message::Promise {
-        from: 0,
-        decree_num: 0,
-        ballot: Ballot::new(1, 2),
+        from: NodeId(0),
+        decree_num: DecreeId(0),
+        ballot: Ballot::new(1, NodeId(2)),
         accepted_ballot: b_original,
         accepted_value: original_cmd.clone(),
     };
@@ -248,15 +249,15 @@ async fn acceptor_monotonic_ballot_progression() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b1 = Ballot::new(1, 1);
-    let b3 = Ballot::new(3, 1);
-    let b5 = Ballot::new(5, 1);
+    let b1 = Ballot::new(1, NodeId(1));
+    let b3 = Ballot::new(3, NodeId(1));
+    let b5 = Ballot::new(5, NodeId(1));
 
     // Acceptor promises ballot (1, 1)
     let resp1 = acceptor
         .handle_message(Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b1,
         })
         .await;
@@ -265,8 +266,8 @@ async fn acceptor_monotonic_ballot_progression() {
     // Acceptor promises higher ballot (3, 1)
     let resp3 = acceptor
         .handle_message(Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b3,
         })
         .await;
@@ -275,8 +276,8 @@ async fn acceptor_monotonic_ballot_progression() {
     // Acceptor refuses lower ballot (5, 1) is higher, so should accept
     let resp5 = acceptor
         .handle_message(Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b5,
         })
         .await;
@@ -285,8 +286,8 @@ async fn acceptor_monotonic_ballot_progression() {
     // Trying the same ballot again should fail
     let resp_dup = acceptor
         .handle_message(Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b5,
         })
         .await;

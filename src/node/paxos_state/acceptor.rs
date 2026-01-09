@@ -2,25 +2,25 @@ mod accepted_decree;
 mod accepted_decrees;
 mod prev_vote;
 use crate::common::persistence::Persistence;
+use crate::common::types::{DecreeId, NodeId};
 use crate::message::Message;
-use crate::monitor::{Event, PaxosObserver};
+use crate::monitor::PaxosObserver;
 use crate::node::paxos_state::acceptor::accepted_decrees::AcceptedDecrees;
 use crate::node::paxos_state::ballot::Ballot;
 use crate::paxos_command::PaxosCommand;
 use anyhow::Result;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 pub struct Acceptor {
-    id: usize,
+    id: NodeId,
     uuid: Uuid,
     state: Mutex<AcceptedDecrees>,
     observer: Arc<dyn PaxosObserver>,
 }
 impl Acceptor {
-    pub async fn new(id: usize, uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
+    pub async fn new(id: NodeId, uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
         #[cfg(feature = "persistence")]
         let state = Persistence::load(&format!("acceptor_{}.bin", uuid)).await?;
 
@@ -40,7 +40,7 @@ impl Acceptor {
         Persistence::save(&format!("acceptor_{}.bin", self.uuid), &*state).await
     }
 
-    async fn prepare(&self, decree_num: usize, ballot: Ballot, from: usize) -> Message {
+    async fn prepare(&self, decree_num: DecreeId, ballot: Ballot, from: NodeId) -> Message {
         let mut state = self.state.lock().await;
         let msg = state.promise(
             self.id,
@@ -63,10 +63,10 @@ impl Acceptor {
 
     async fn accept(
         &self,
-        decree_num: usize,
+        decree_num: DecreeId,
         ballot: Ballot,
         cmd: PaxosCommand,
-        from: usize,
+        from: NodeId,
     ) -> Message {
         let mut state = self.state.lock().await;
         let msg = state.accept(
@@ -109,7 +109,7 @@ impl Acceptor {
 
     pub async fn prepopulate(
         uuid: Uuid,
-        initial_decrees: Vec<(usize, PaxosCommand)>,
+        initial_decrees: Vec<(DecreeId, PaxosCommand)>,
     ) -> anyhow::Result<()> {
         AcceptedDecrees::prepopulate(uuid, initial_decrees).await
     }

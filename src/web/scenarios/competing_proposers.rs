@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use rand::Rng;
 use crate::cluster::cluster::Cluster;
+use crate::common::types::NodeId;
 use crate::paxos_command::PaxosCommand;
 use crate::decree_generator::DecreeGenerator;
 
@@ -31,7 +32,7 @@ impl CompetingProposersScenario {
                     law: decree0,
                 };
                 let pick = [0, 2, 3, 4][rand::rng().random_range(0..4)];
-                cluster.propose_from(pick, cmd).await;
+                cluster.propose_from(NodeId(pick), cmd).await;
             });
 
             let p1 = tokio::spawn(async move {
@@ -40,7 +41,7 @@ impl CompetingProposersScenario {
                     author: "Proposer 1".to_string(),
                     law: decree1,
                 };
-                cluster.propose_from(1, cmd).await;
+                cluster.propose_from(NodeId(1), cmd).await;
             });
 
             // Wait for both to complete

@@ -1,6 +1,6 @@
 mod test_helpers;
 
-use paxos::{message::Message, monitor::Event, node::paxos_state::ballot::Ballot, paxos_command::PaxosCommand};
+use paxos::{message::Message, monitor::Event, node::paxos_state::ballot::Ballot, paxos_command::PaxosCommand, common::types::{NodeId, DecreeId}};
 use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver, create_ledger};
 use std::sync::Arc; // Added Arc import
 
@@ -22,10 +22,10 @@ async fn learner_receives_accepted_values() {
     };
 
     // First: learner must promise a ballot before accepting
-    let ballot = Ballot::new(1, 1);
+    let ballot = Ballot::new(1, NodeId(1));
     let decree_notes_arc = builder.decree_notes();
     let mut decree_notes = decree_notes_arc.lock().await;
-    decree_notes.state.insert(0, paxos::node::paxos_state::decree_notes::DecreeNote {
+    decree_notes.state.insert(DecreeId(0), paxos::node::paxos_state::decree_notes::DecreeNote {
         last_tried: ballot,
     });
     drop(decree_notes);
@@ -34,8 +34,8 @@ async fn learner_receives_accepted_values() {
     let resp1 = learner
         .handle_message(
             Message::Accepted {
-                from: 2,
-                decree_num: 0,
+                from: NodeId(2),
+                decree_num: DecreeId(0),
                 ballot,
                 value: cmd1.clone(),
             },
@@ -47,8 +47,8 @@ async fn learner_receives_accepted_values() {
     let resp2 = learner
         .handle_message(
             Message::Accepted {
-                from: 3,
-                decree_num: 0,
+                from: NodeId(3),
+                decree_num: DecreeId(0),
                 ballot,
                 value: cmd1.clone(), // Same value for consensus
             },
@@ -97,7 +97,7 @@ async fn learner_learns_multiple_decrees() {
     let learner = builder.learner(1, 1);
     let ledger = create_ledger();
 
-    let b = Ballot::new(1, 1);
+    let b = Ballot::new(1, NodeId(1));
 
     let cmd0 = PaxosCommand::GET {
         key: "decree0".to_string(),
@@ -109,10 +109,10 @@ async fn learner_learns_multiple_decrees() {
     // Set up promised ballots for both decrees
     let decree_notes_arc = builder.decree_notes();
     let mut decree_notes = decree_notes_arc.lock().await;
-    decree_notes.state.insert(0, paxos::node::paxos_state::decree_notes::DecreeNote {
+    decree_notes.state.insert(DecreeId(0), paxos::node::paxos_state::decree_notes::DecreeNote {
         last_tried: b,
     });
-    decree_notes.state.insert(1, paxos::node::paxos_state::decree_notes::DecreeNote {
+    decree_notes.state.insert(DecreeId(1), paxos::node::paxos_state::decree_notes::DecreeNote {
         last_tried: b,
     });
     drop(decree_notes);
@@ -121,8 +121,8 @@ async fn learner_learns_multiple_decrees() {
     learner
         .handle_message(
             Message::Accepted {
-                from: 2,
-                decree_num: 0,
+                from: NodeId(2),
+                decree_num: DecreeId(0),
                 ballot: b,
                 value: cmd0.clone(),
             },
@@ -134,8 +134,8 @@ async fn learner_learns_multiple_decrees() {
     learner
         .handle_message(
             Message::Accepted {
-                from: 2,
-                decree_num: 1,
+                from: NodeId(2),
+                decree_num: DecreeId(1),
                 ballot: b,
                 value: cmd1.clone(),
             },

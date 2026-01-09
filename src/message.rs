@@ -1,45 +1,45 @@
 use std::collections::HashSet;
 
-use crate::{node::paxos_state::ballot::Ballot, paxos_command::PaxosCommand};
+use crate::{common::types::{NodeId, DecreeId}, node::paxos_state::ballot::Ballot, paxos_command::PaxosCommand};
 
 #[derive(Debug, Clone)]
 pub enum Message {
     Prepare {
-        from: usize,
-        decree_num: usize,
+        from: NodeId,
+        decree_num: DecreeId,
         ballot: Ballot,
     },
     Promise {
-        from: usize,
-        decree_num: usize,
+        from: NodeId,
+        decree_num: DecreeId,
         ballot: Ballot,
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,
     },
     Accept {
-        from: usize,
-        decree_num: usize,
+        from: NodeId,
+        decree_num: DecreeId,
         ballot: Ballot,
         value: PaxosCommand,
-        quorum: HashSet<usize>,
+        quorum: HashSet<NodeId>,
     },
     Accepted {
-        from: usize,
-        decree_num: usize,
+        from: NodeId,
+        decree_num: DecreeId,
         ballot: Ballot,
         value: PaxosCommand,
     },
     NACK,
     Success {
-        from: usize,
-        decree_num: usize,
+        from: NodeId,
+        decree_num: DecreeId,
         value: PaxosCommand,
-        ballot_proposer: usize,  // Track which node originated this proposal
+        ballot_proposer: NodeId, // Track which node originated this proposal
     },
 
     PrepareBatch {
-        from: usize,
-        decrees_to: usize,
+        from: NodeId,
+        decrees_to: DecreeId,
         ballot: Ballot,
     },
 }

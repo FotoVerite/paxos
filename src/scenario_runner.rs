@@ -1,4 +1,5 @@
 use crate::cluster::cluster::Cluster;
+use crate::common::types::NodeId;
 use crate::scenario::{Scenario, ScenarioStep};
 use tokio::time::sleep;
 
@@ -36,19 +37,19 @@ impl ScenarioRunner {
             }
             ScenarioStep::Partition { node1, node2 } => {
                 println!("  [PARTITION] {} <-> {}", node1, node2);
-                cluster.partition(*node1, *node2).await;
+                cluster.partition(NodeId(*node1), NodeId(*node2)).await;
             }
             ScenarioStep::HealPartition { node1, node2 } => {
                 println!("  [HEAL] {} <-> {}", node1, node2);
-                cluster.heal_partition(*node1, *node2).await;
+                cluster.heal_partition(NodeId(*node1), NodeId(*node2)).await;
             }
             ScenarioStep::AddDelay { from, to, delay } => {
                 println!("  [DELAY] {} -> {} ({:?})", from, to, delay);
-                cluster.add_delay(*from, *to, *delay).await;
+                cluster.add_delay(NodeId(*from), NodeId(*to), *delay).await;
             }
             ScenarioStep::AddPacketLoss { from, to, drop_rate } => {
                 println!("  [PACKET_LOSS] {} -> {} ({}%)", from, to, drop_rate * 100.0);
-                cluster.add_packet_loss(*from, *to, *drop_rate).await;
+                cluster.add_packet_loss(NodeId(*from), NodeId(*to), *drop_rate).await;
             }
             ScenarioStep::ClearFailures { node } => {
                 println!("  [CLEAR_FAILURES] node {}", node);

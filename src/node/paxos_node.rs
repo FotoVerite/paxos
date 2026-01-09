@@ -1,5 +1,5 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc},
     time::Duration,
 };
 use uuid::Uuid;
@@ -8,6 +8,7 @@ use tokio::{sync::mpsc::Receiver, time::sleep};
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
+    common::types::{NodeId, DecreeId},
     message::Message,
     monitor::PaxosObserver,
     node::{
@@ -20,13 +21,13 @@ use crate::{
 pub struct PaxosNode {
     pub uuid: Uuid,
     rx: Option<Receiver<Message>>,
-    inflight_proposals: Arc<InflightProposals>,
+    _inflight_proposals: Arc<InflightProposals>,
     state: Arc<PaxosState>,
 }
 
 impl PaxosNode {
     pub async fn new(
-        id: usize,
+        id: NodeId,
         uuid: Uuid,
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
@@ -37,7 +38,7 @@ impl PaxosNode {
         Ok(Self {
             uuid,
             rx: Some(rx),
-            inflight_proposals: Arc::clone(&inflight_proposals),
+            _inflight_proposals: Arc::clone(&inflight_proposals),
             state: Arc::new(
                 PaxosState::init(
                     id,
@@ -52,12 +53,12 @@ impl PaxosNode {
         })
     }
 
-    pub async fn propose(&self, cmd: PaxosCommand, decree_num: Option<usize>) {
+    pub async fn propose(&self, cmd: PaxosCommand, decree_num: Option<DecreeId>) {
         let inflight = self.state.propose(cmd, decree_num).await;
         self.spawn_retry(Duration::from_millis(200), inflight)
     }
 
-    pub async fn get_next_gap(&self) -> Option<usize> {
+    pub async fn get_next_gap(&self) -> Option<DecreeId> {
         self.state.get_next_gap().await
     }
 

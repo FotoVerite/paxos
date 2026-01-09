@@ -1,14 +1,15 @@
 use serde::{Deserialize, Serialize};
-use std::{cmp::Ordering, fmt::{self, write}};
+use std::{cmp::Ordering, fmt::{self}};
+use crate::common::types::NodeId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Ballot {
     pub number: usize,
-    pub node_id: usize,
+    pub node_id: NodeId,
 }
 
 impl Ballot {
-    pub fn new(number: usize, node_id: usize) -> Self {
+    pub fn new(number: usize, node_id: NodeId) -> Self {
         Self { number, node_id }
     }
 }
@@ -32,8 +33,8 @@ impl Ord for Ballot {
 impl Default for Ballot {
     fn default() -> Ballot {
         Ballot {
-          number: 0, 
-          node_id: 0
+            number: 0,
+            node_id: NodeId(0),
         }
     }
 }

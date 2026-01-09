@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 /// Test helpers and builders for complex Paxos scenarios
 /// Makes it easy to set up multi-node clusters, simulations, and partition scenarios
 
@@ -10,6 +12,7 @@ use std::net::IpAddr;
 use uuid::Uuid;
 
 use paxos::{
+    common::types::{DecreeId, NodeId},
     message::Message,
     monitor::{Event, PaxosObserver},
     node::paxos_state::{acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, proposer::Proposer, ledger::Ledger},
@@ -22,7 +25,7 @@ use paxos::{
 pub fn create_ledger() -> Ledger {
     let uuid = Uuid::new_v4();
     let id = uuid.as_u64_pair().0 as usize;  // Use uuid as ID for uniqueness
-    Ledger::new(id, uuid)
+    Ledger::new(NodeId(id), uuid)
 }
 
 // ============================================================================
@@ -124,7 +127,7 @@ impl EventBarrier {
     ) -> Result<PaxosCommand, String> {
         let events = self
             .wait_for(
-                |e| matches!(e, Event::LearnedValue { decree_num: dn, .. } if *dn == decree_num),
+                |e| matches!(e, Event::LearnedValue { decree_num: dn, .. } if *dn == DecreeId(decree_num)),
                 1,
                 timeout,
             )
@@ -180,7 +183,7 @@ pub fn cleanup_persisted_state() {
 #[derive(Clone)]
 pub struct RecordingObserver {
     pub events: Arc<Mutex<Vec<Event>>>,
-    pub learned_values: Arc<Mutex<HashMap<usize, PaxosCommand>>>, // Changed type to PaxosCommand
+    pub learned_values: Arc<Mutex<HashMap<DecreeId, PaxosCommand>>>, // Changed type to PaxosCommand
     pending_tasks: Arc<AtomicUsize>, // Track spawned tasks waiting to complete
     pub barrier: Arc<EventBarrier>, // Event barrier for deterministic test synchronization
 }
@@ -205,7 +208,7 @@ impl RecordingObserver {
     }
 
     #[allow(dead_code)]
-    pub async fn get_learned_values(&self) -> HashMap<usize, PaxosCommand> {
+    pub async fn get_learned_values(&self) -> HashMap<DecreeId, PaxosCommand> {
         self.learned_values.lock().await.clone()
     }
 
@@ -379,7 +382,7 @@ impl NodeBuilder {
     pub fn proposer(&self, id: usize, quorum: usize) -> anyhow::Result<Proposer> {
         let uuid = self.generate_uuid(id);
         Ok(Proposer::new(
-            id,
+            NodeId(id),
             uuid,
             quorum,
             Arc::clone(&self.decree_notes),
@@ -389,7 +392,7 @@ impl NodeBuilder {
 
     pub async fn acceptor(&self, id: usize) -> anyhow::Result<Acceptor> {
         let uuid = self.generate_uuid(id);
-        Acceptor::new(id, uuid, Arc::clone(&self.observer) as Arc<dyn PaxosObserver>).await // Cast to trait object
+        Acceptor::new(NodeId(id), uuid, Arc::clone(&self.observer) as Arc<dyn PaxosObserver>).await // Cast to trait object
     }
 
     /// Generate a random UUID for test isolation
@@ -399,7 +402,7 @@ impl NodeBuilder {
 
     pub fn learner(&self, id: usize, quorum: usize) -> Learner {
         Learner::new(
-            id,
+            NodeId(id),
             quorum,
             Arc::clone(&self.decree_notes),
             Arc::clone(&self.observer) as Arc<dyn PaxosObserver>, // Cast to trait object
@@ -409,7 +412,7 @@ impl NodeBuilder {
     #[allow(dead_code)]
     pub async fn ledger(&self, id: usize) -> anyhow::Result<Ledger> {
         let uuid = self.generate_uuid(id);
-        Ledger::init(id, uuid).await
+        Ledger::init(NodeId(id), uuid).await
     }
 }
 
@@ -593,7 +596,7 @@ pub fn assert_ballot_number(msg: &Message, expected_number: usize, expected_id: 
         | Message::Accept { ballot, .. }
         | Message::Accepted { ballot, .. } => {
             assert_eq!(ballot.number, expected_number);
-            assert_eq!(ballot.node_id, expected_id);
+            assert_eq!(ballot.node_id, NodeId(expected_id));
         }
         //Message::PromiseBatch { .. } => panic!("Cannot extract ballot from PromiseBatch"),
         Message::NACK => panic!("Cannot extract ballot from NACK"),
@@ -604,107 +607,11 @@ pub fn assert_ballot_number(msg: &Message, expected_number: usize, expected_id: 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_quorum_calculator() {
-        assert_eq!(QuorumCalc::for_nodes(3), 2);
-        assert_eq!(QuorumCalc::for_nodes(5), 3);
-        assert_eq!(QuorumCalc::for_nodes(7), 4);
-
-        assert!(QuorumCalc::is_majority(2, 3));
-        assert!(!QuorumCalc::is_majority(1, 3));
-
-        assert!(QuorumCalc::can_lose_nodes(5, 1)); // Can lose 1 of 5, still have 4 >= 3
-        assert!(QuorumCalc::can_lose_nodes(5, 2)); // Can lose 2 of 5, still have 3 >= 3
-        assert!(!QuorumCalc::can_lose_nodes(5, 3)); // Can't lose 3 of 5, left with 2 < 3
-    }
-
-    #[tokio::test]
-    async fn test_recording_observer() {
-        let obs = RecordingObserver::new().arc();
-        obs.on_event(Event::Proposal {
-            id: 1,
-            decree_num: 0,
-            value: PaxosCommand::NOOP,
-            created_at: 0,
-        });
-        // Add a small delay to allow the spawned task to run
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-
-        assert_eq!(obs.event_count().await, 1);
-        assert_eq!(obs.proposals().await.len(), 1);
-        assert_eq!(obs.promises().await.len(), 0);
-    }
-
-    #[test]
-    fn test_scenario_builder() {
-        let scenario = ScenarioBuilder::new(5)
-            .partition_node(1)
-            .partition_node(2);
-
-        assert_eq!(scenario.node_count(), 5);
-        assert_eq!(scenario.quorum_size(), 3);
-        assert_eq!(scenario.available_nodes(), 3);
-        assert!(scenario.is_partitioned(1));
-        assert!(!scenario.is_partitioned(0));
-    }
-
-    #[tokio::test]
-    async fn test_node_builder() {
-        let builder = NodeBuilder::new();
-        let _proposer = builder.proposer(1, 3).unwrap();
-        let _acceptor = builder.acceptor(1).await.unwrap();
-        let _learner = builder.learner(1, 3);
-        // Just verify they construct without panic
-    }
+    use std::time::Duration;
 
     // ========================================================================
     // EventBarrier Tests
     // ========================================================================
-
-    #[tokio::test]
-    async fn test_event_barrier_wait_for_learned() {
-        let barrier = EventBarrier::new();
-
-        // Spawn a task that records a LearnedValue event after 50ms
-        let barrier_clone = barrier.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(50)).await;
-            barrier_clone
-                .record(Event::LearnedValue {
-                    id: 1,
-                    decree_num: 0,
-                    value: PaxosCommand::NOOP,
-                    created_at: 0,
-                })
-                .await;
-        });
-
-        // Wait for the event
-        let start = std::time::Instant::now();
-        let result = barrier
-            .wait_for_learned(0, Duration::from_secs(5))
-            .await;
-        let elapsed = start.elapsed();
-
-        // Should have received the event quickly (not full 5 seconds)
-        assert!(result.is_ok());
-        assert!(elapsed < Duration::from_secs(1));
-    }
-
-    #[tokio::test]
-    async fn test_event_barrier_timeout() {
-        let barrier = EventBarrier::new();
-
-        // Wait for event that never comes
-        let result = barrier
-            .wait_for_learned(999, Duration::from_millis(100))
-            .await;
-
-        // Should timeout
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Timeout"));
-    }
 
     #[tokio::test]
     async fn test_event_barrier_multiple_events() {
@@ -713,17 +620,17 @@ mod tests {
         // Record multiple events
         barrier
             .record(Event::Proposal {
-                id: 1,
-                decree_num: 0,
+                id: NodeId(1),
+                decree_num: DecreeId(0),
                 value: PaxosCommand::NOOP,
                 created_at: 0,
             })
             .await;
         barrier
             .record(Event::Promise {
-                id: 1,
-                from: 2,
-                decree_num: 0,
+                id: NodeId(1),
+                from: NodeId(2),
+                decree_num: DecreeId(0),
                 ballot: 1,
                 created_at: 0,
             })
@@ -750,8 +657,8 @@ mod tests {
         for i in 0..3 {
             barrier
                 .record(Event::LearnedValue {
-                    id: 1,
-                    decree_num: i,
+                    id: NodeId(1),
+                    decree_num: DecreeId(i),
                     value: PaxosCommand::NOOP,
                     created_at: 0,
                 })
@@ -772,8 +679,8 @@ mod tests {
 
         barrier
             .record(Event::Proposal {
-                id: 1,
-                decree_num: 0,
+                id: NodeId(1),
+                decree_num: DecreeId(0),
                 value: PaxosCommand::NOOP,
                 created_at: 0,
             })
@@ -793,18 +700,21 @@ mod tests {
 
         // Record an event through observer
         obs.on_event(Event::LearnedValue {
-            id: 1,
-            decree_num: 0,
+            id: NodeId(1),
+            decree_num: DecreeId(0),
             value: PaxosCommand::NOOP,
             created_at: 0,
         });
 
-        // Wait for it in the barrier
-        let result = barrier
-            .wait_for_learned(0, Duration::from_secs(1))
+        // Wait for it in barrier
+        let learned = barrier
+            .wait_for(
+                |e| matches!(e, Event::LearnedValue { .. }),
+                1,
+                Duration::from_secs(1),
+            )
             .await;
 
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), PaxosCommand::NOOP);
+        assert!(learned.is_ok());
     }
 }

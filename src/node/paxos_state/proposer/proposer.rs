@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::common::types::{DecreeId, NodeId};
 use crate::message::Message;
 use crate::monitor::PaxosObserver;
 use crate::node::paxos_state::ballot::Ballot;
@@ -12,17 +13,17 @@ use crate::node::paxos_state::proposer::proposed_decree::ProposedDecree;
 use crate::paxos_command::PaxosCommand;
 
 pub struct Proposer {
-    id: usize,
+    id: NodeId,
     uuid: Uuid,
     quorum_size: usize,
     decree_notes: Arc<Mutex<DecreeNotes>>,
-    state: Mutex<HashMap<usize, ProposedDecree>>,
+    state: Mutex<HashMap<DecreeId, ProposedDecree>>,
     observer: Arc<dyn PaxosObserver>,
 }
 
 impl Proposer {
     pub fn new(
-        id: usize,
+        id: NodeId,
         uuid: Uuid,
         quorum_size: usize,
         decree_notes: Arc<Mutex<DecreeNotes>>,
@@ -38,7 +39,7 @@ impl Proposer {
         }
     }
 
-    pub async fn propose(&self, decree_num: usize, cmd: PaxosCommand) -> Message {
+    pub async fn propose(&self, decree_num: DecreeId, cmd: PaxosCommand) -> Message {
         // Increment the ballot number for every new proposal attempt.
         let mut state = self.state.lock().await;
 
@@ -85,11 +86,11 @@ impl Proposer {
 
     pub async fn promise(
         &self,
-        decree_num: usize,
+        decree_num: DecreeId,
         ballot: Ballot,
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,
-        from_node: usize,
+        from_node: NodeId,
     ) -> Message {
         let mut state = self.state.lock().await;
         let Some(entry) = state.get_mut(&decree_num) else {
@@ -119,7 +120,7 @@ impl Proposer {
 
     async fn prepare(
         &self,
-        from_node: usize,
+        from_node: NodeId,
         proposed_decree: &mut ProposedDecree,
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,

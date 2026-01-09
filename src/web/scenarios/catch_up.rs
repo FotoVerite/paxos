@@ -1,5 +1,6 @@
 use std::net::IpAddr;
 use crate::cluster::cluster::Cluster;
+use crate::common::types::{DecreeId, NodeId};
 use crate::node::paxos_state::acceptor::Acceptor;
 use crate::node::paxos_state::ledger::Ledger;
 use crate::paxos_command::PaxosCommand;
@@ -27,10 +28,10 @@ impl CatchUpScenario {
             Ledger::prepopulate(node_uuid, ledger.clone()).await?;
 
             // Prepopulate acceptor with the same decrees
-            let initial_decrees: Vec<(usize, PaxosCommand)> = ledger
+            let initial_decrees: Vec<(DecreeId, PaxosCommand)> = ledger
                 .iter()
                 .enumerate()
-                .filter_map(|(idx, opt)| opt.as_ref().map(|cmd| (idx, cmd.clone())))
+                .filter_map(|(idx, opt)| opt.as_ref().map(|cmd| (DecreeId(idx), cmd.clone())))
                 .collect();
             Acceptor::prepopulate(node_uuid, initial_decrees).await?;
         }
@@ -50,12 +51,12 @@ impl CatchUpScenario {
             None
         };
 
-        if gap_decree_num.is_some() {
+        if let Some(gap_decree_num) = gap_decree_num {
             let cmd = PaxosCommand::EnactDecree {
                 author: "Olive Day".to_string(),
                 law: "The ides of February is national olive day".to_string(),
             };
-            cluster.propose_from_with_decree_num(node_id, gap_decree_num, cmd).await;
+            cluster.propose_from_with_decree_num(NodeId(node_id), Some(gap_decree_num), cmd).await;
         }
 
         Ok(())

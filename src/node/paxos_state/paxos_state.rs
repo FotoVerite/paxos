@@ -1,10 +1,10 @@
-use std::{sync::Arc, time::Duration};
-use tokio::{sync::Mutex, time::sleep};
-use tokio_util::sync::CancellationToken;
+use std::{sync::Arc};
+use tokio::{sync::Mutex};
 use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
+    common::types::{NodeId, DecreeId},
     message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub struct PaxosState {
-    id: usize,
+    id: NodeId,
     proposer: Proposer,
     acceptor: Acceptor,
     learner: Learner,
@@ -29,7 +29,7 @@ pub struct PaxosState {
 
 impl PaxosState {
     pub async fn init(
-        id: usize,
+        id: NodeId,
         uuid: Uuid,
         quorum: usize,
         peers: Arc<NetworkSimulator>,
@@ -56,7 +56,7 @@ impl PaxosState {
         Ok(state)
     }
 
-    pub async fn propose(&self, cmd: PaxosCommand, decree_num: Option<usize>) -> InflightProposal {
+    pub async fn propose(&self, cmd: PaxosCommand, decree_num: Option<DecreeId>) -> InflightProposal {
         let num = match decree_num {
             Some(num) => num,
             None => self.next().await,
@@ -71,11 +71,11 @@ impl PaxosState {
         self.peers.broadcast(msg).await;
     }
 
-    pub async fn next(&self) -> usize {
+    pub async fn next(&self) -> DecreeId {
         self.ledger.next().await
     }
 
-    pub async fn get_next_gap(&self) -> Option<usize> {
+    pub async fn get_next_gap(&self) -> Option<DecreeId> {
         self.ledger.next_gap().await
     }
 
@@ -128,7 +128,7 @@ impl PaxosState {
         }
     }
 
-    pub async fn emit_ledger_state(&self, id: usize, observer: Arc<dyn PaxosObserver>) {
+    pub async fn emit_ledger_state(&self, id: NodeId, observer: Arc<dyn PaxosObserver>) {
         let initial_decrees = self.ledger.get_initial_decrees().await;
         for (decree_num, value) in initial_decrees {
             observer.on_event(Event::InitialDecree {

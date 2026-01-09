@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 use crate::{
-    common::persistence::Persistence, message::Message, monitor::{Event, PaxosObserver}, node::paxos_state::{
+    common::{persistence::Persistence, types::{DecreeId, NodeId}}, message::Message, monitor::{Event, PaxosObserver}, node::paxos_state::{
         acceptor::{accepted_decree::AcceptedDecree, prev_vote::PrevVote},
         ballot::Ballot,
     }, paxos_command::PaxosCommand
@@ -11,21 +11,17 @@ use crate::{
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct AcceptedDecrees {
-    decrees: HashMap<usize, AcceptedDecree>,
+    decrees: HashMap<DecreeId, AcceptedDecree>,
 }
 
 impl AcceptedDecrees {
-    pub fn init() -> Self {
-        Self {
-            decrees: HashMap::new(),
-        }
-    }
+
 
     pub fn promise(
         &mut self,
-        id: usize,
-        from: usize,
-        decree_num: usize,
+        id: NodeId,
+        from: NodeId,
+        decree_num: DecreeId,
         ballot: Ballot,
         observer: Arc<dyn PaxosObserver>,
     ) -> Message {
@@ -67,9 +63,9 @@ impl AcceptedDecrees {
 
     pub fn accept(
         &mut self,
-        id: usize,
-        from: usize,
-        decree_num: usize,
+        id: NodeId,
+        from: NodeId,
+        decree_num: DecreeId,
         ballot: Ballot,
         value: PaxosCommand,
         observer: Arc<dyn PaxosObserver>,
@@ -116,13 +112,13 @@ impl AcceptedDecrees {
 
     pub async fn prepopulate(
         uuid: Uuid,
-        initial_decrees: Vec<(usize, PaxosCommand)>,
+        initial_decrees: Vec<(DecreeId, PaxosCommand)>,
     ) -> anyhow::Result<()> {
         let mut state = HashMap::new();
 
         let high_ballot = Ballot {
             number: 1,
-            node_id: 0,
+            node_id: NodeId(0),
         };
 
         for (decree_num, cmd) in initial_decrees {

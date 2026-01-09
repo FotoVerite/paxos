@@ -1,10 +1,6 @@
-use std::{collections::HashSet, sync::Arc, time::Duration};
-
-use anyhow::Ok;
-use tokio_util::sync::CancellationToken;
-
+use std::{collections::HashSet, sync::Arc};
 use crate::{
-    cluster::network_simulator::NetworkSimulator,
+    common::types::{DecreeId, NodeId},
     message::Message,
     monitor::{Event, PaxosObserver},
     node::paxos_state::{ballot::Ballot, proposer::quorum::Quorum},
@@ -12,8 +8,8 @@ use crate::{
 };
 
 pub struct ProposedDecree {
-    node_id: usize,
-    decree_num: usize,
+    node_id: NodeId,
+    decree_num: DecreeId,
     current_ballot: Ballot,
     proposed_value: PaxosCommand,
     quorum: Quorum,
@@ -22,8 +18,8 @@ pub struct ProposedDecree {
 
 impl ProposedDecree {
     pub fn init(
-        node_id: usize,
-        decree_num: usize,
+        node_id: NodeId,
+        decree_num: DecreeId,
         quorum_size: usize,
         proposed_value: &PaxosCommand,
         observer: Arc<dyn PaxosObserver>,
@@ -47,7 +43,7 @@ impl ProposedDecree {
         true
     }
 
-    pub fn update_quorum(&mut self, node_id: usize, ballot: Ballot, value: &PaxosCommand) {
+    pub fn update_quorum(&mut self, node_id: NodeId, ballot: Ballot, value: &PaxosCommand) {
         if self.quorum.update(node_id, ballot) {
             self.proposed_value = value.clone();
         }
@@ -103,38 +99,9 @@ impl ProposedDecree {
         self.proposed_value.clone()
     }
 
-    pub fn quorum_set(&self) -> HashSet<usize> {
+    pub fn quorum_set(&self) -> HashSet<NodeId> {
         self.quorum.quorum_set()
     }
 }
 
-async fn retry(
-    token: CancellationToken,
-    peers: Arc<NetworkSimulator>,
-    msg: Message,
-) -> anyhow::Result<()> {
-    let mut delay_ms: u64 = 100;
 
-    loop {
-        tokio::select! {
-
-            _ = token.cancelled() => {
-                tracing::debug!("task shutting down");
-                return Ok(());
-            }
-            _ = tokio::time::sleep(Duration::from_millis(delay_ms)) => {
-            // retry the current ballot
-
-                delay_ms *= 2; // cap backoff at 5s
-                if delay_ms <= 800 {
-                     tokio::select! {
-                        _ = token.cancelled() => {
-                            return Ok(());
-                        }
-                        _ = peers.broadcast(msg.clone()) => {}
-                    }
-                 }
-            }
-        }
-    }
-}

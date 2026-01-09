@@ -1,4 +1,4 @@
-use crate::{common::persistence::Persistence, paxos_command::PaxosCommand};
+use crate::{common::{persistence::Persistence, types::{DecreeId, NodeId}}, paxos_command::PaxosCommand};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -20,13 +20,13 @@ impl LedgerState {
 }
 
 pub struct Ledger {
-    id: usize,
+    _id: NodeId,
     uuid: Uuid,
     state: Mutex<LedgerState>,
 }
 
 impl Ledger {
-    pub async fn init(id: usize, uuid: Uuid) -> Result<Self> {
+    pub async fn init(id: NodeId, uuid: Uuid) -> Result<Self> {
         #[cfg(feature = "persistence")]
         let state = Persistence::load(&format!("ledger_{}.bin", uuid))
             .await
@@ -36,16 +36,16 @@ impl Ledger {
         let state = LedgerState::init();
 
         Ok(Self {
-            id,
+            _id: id,
             uuid,
             state: Mutex::new(state),
         })
     }
 
     /// Create a ledger with fresh empty state (for tests)
-    pub fn new(id: usize, uuid: Uuid) -> Self {
+    pub fn new(id: NodeId, uuid: Uuid) -> Self {
         Self {
-            id,
+            _id: id,
             uuid,
             state: Mutex::new(LedgerState::init()),
         }
@@ -56,16 +56,17 @@ impl Ledger {
         Persistence::save(&format!("ledger_{}.bin", self.uuid), &*state).await
     }
 
-    pub async fn insert(&self, slot: usize, value: PaxosCommand) -> bool {
+    pub async fn insert(&self, slot: DecreeId, value: PaxosCommand) -> bool {
+        let idx: usize = slot.into();
         let inserted = {
             let mut state = self.state.lock().await;
-            if state.decrees.len() <= slot {
-                state.decrees.resize(slot + 1, None);
+            if state.decrees.len() <= idx {
+                state.decrees.resize(idx + 1, None);
             }
-            if state.decrees[slot].is_some() {
+            if state.decrees[idx].is_some() {
                 return false;
             }
-            state.decrees[slot] = Some(value);
+            state.decrees[idx] = Some(value);
             true
         }; // Lock released here
 
@@ -83,43 +84,43 @@ impl Ledger {
         inserted
     }
 
-    pub async fn get(&self, slot: usize) -> Option<PaxosCommand> {
+    pub async fn get(&self, slot: DecreeId) -> Option<PaxosCommand> {
         let state = self.state.lock().await;
-        state.decrees.get(slot).cloned().flatten()
+        state.decrees.get(usize::from(slot)).cloned().flatten()
     }
 
-    pub async fn next(&self) -> usize {
+    pub async fn next(&self) -> DecreeId {
         let state = self.state.lock().await;
 
         // Find the first decree that hasn't been chosen yet
-        state.decrees.len()
+        DecreeId(state.decrees.len())
     }
 
-    pub async fn next_gap(&self) -> Option<usize> {
+    pub async fn next_gap(&self) -> Option<DecreeId> {
         let state = self.state.lock().await;
 
         // Find the first slot with a gap (None value)
         for (idx, cmd_opt) in state.decrees.iter().enumerate() {
             if cmd_opt.is_none() {
-                return Some(idx);
+                return Some(DecreeId(idx));
             }
         }
 
         // If there are no gaps but there are Some values, return the length to extend
         if state.decrees.iter().any(|c| c.is_some()) && state.decrees.iter().all(|c| c.is_some()) {
-            return Some(state.decrees.len());
+            return Some(DecreeId(state.decrees.len()));
         }
 
         None
     }
 
-    pub async fn get_initial_decrees(&self) -> Vec<(usize, PaxosCommand)> {
+    pub async fn get_initial_decrees(&self) -> Vec<(DecreeId, PaxosCommand)> {
         let state = self.state.lock().await;
         state
             .decrees
             .iter()
             .enumerate()
-            .filter_map(|(idx, cmd_opt)| cmd_opt.as_ref().map(|cmd| (idx, cmd.clone())))
+            .filter_map(|(idx, cmd_opt)| cmd_opt.as_ref().map(|cmd| (DecreeId(idx), cmd.clone())))
             .collect()
     }
 

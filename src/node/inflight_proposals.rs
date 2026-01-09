@@ -3,17 +3,17 @@ use std::collections::HashMap;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
-use crate::paxos_command::PaxosCommand;
+use crate::{common::types::DecreeId, paxos_command::PaxosCommand};
 
 #[derive(Debug, Clone)]
 pub struct InflightProposal {
     pub token: CancellationToken,
-    pub decree_num: usize,
+    pub decree_num: DecreeId,
     pub cmd: PaxosCommand,
 }
 
 pub struct InflightProposals {
-    inflight: Mutex<HashMap<usize, InflightProposal>>,
+    inflight: Mutex<HashMap<DecreeId, InflightProposal>>,
 }
 
 impl InflightProposals {
@@ -21,7 +21,7 @@ impl InflightProposals {
     pub fn new() -> Self {
         Self {inflight: Mutex::new(HashMap::new())}
     }
-    pub async fn insert(&self, decree_num: usize, cmd: PaxosCommand) -> InflightProposal {
+    pub async fn insert(&self, decree_num: DecreeId, cmd: PaxosCommand) -> InflightProposal {
         let (old_token, entry) = {
             let mut state = self.inflight.lock().await;
             let token = CancellationToken::new();
@@ -53,7 +53,7 @@ impl InflightProposals {
         entry
     }
 
-    pub async fn cancel(&self, decree_num: usize) {
+    pub async fn cancel(&self, decree_num: DecreeId) {
         let token = {
             let mut state = self.inflight.lock().await;
             state.remove(&decree_num).map(|entry| entry.token)

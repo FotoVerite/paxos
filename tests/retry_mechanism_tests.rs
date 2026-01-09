@@ -8,6 +8,7 @@ mod test_helpers;
 
 use paxos::{
     cluster::cluster::Cluster, paxos_command::PaxosCommand,
+    common::types::{NodeId},
 };
 use std::sync::Arc;
 use std::net::IpAddr;
@@ -36,7 +37,7 @@ async fn test_retry_fires_with_incomplete_quorum() {
     // Partition node 0 from 2, 3, 4
     // This means node 0 can only reach node 1 (2 nodes total, quorum=3)
     for i in 2..5 {
-        cluster.partition(0, i).await;
+        cluster.partition(NodeId(0), NodeId(i)).await;
     }
 
     sleep(Duration::from_millis(50)).await;
@@ -46,7 +47,7 @@ async fn test_retry_fires_with_incomplete_quorum() {
         key: "test_retry".to_string(),
         version: 1,
     };
-    cluster.propose_from(0, cmd.clone()).await;
+    cluster.propose_from(NodeId(0), cmd.clone()).await;
 
     // First attempt should happen quickly
     sleep(Duration::from_millis(300)).await;
@@ -106,7 +107,7 @@ async fn test_retry_fires_with_incomplete_quorum() {
 
     // Now heal the partition
     for i in 2..5 {
-        cluster.heal_partition(0, i).await;
+        cluster.heal_partition(NodeId(0), NodeId(i)).await;
     }
 
     // Wait for the next retry to fire after healing
@@ -175,7 +176,7 @@ async fn test_retry_timeout_cancels_old_proposal() {
 
     // Create a partition that won't be healed
     for i in 2..5 {
-        cluster.partition(0, i).await;
+        cluster.partition(NodeId(0), NodeId(i)).await;
     }
 
     sleep(Duration::from_millis(50)).await;
@@ -184,7 +185,7 @@ async fn test_retry_timeout_cancels_old_proposal() {
         key: "timeout_test".to_string(),
         version: 2,
     };
-    cluster.propose_from(0, cmd.clone()).await;
+    cluster.propose_from(NodeId(0), cmd.clone()).await;
 
     // Let retries run: 200, 400, 800, 1600, 3200, 6400 = ~12.8s total
     // But we'll check much earlier to verify retries are happening

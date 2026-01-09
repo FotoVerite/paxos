@@ -1,20 +1,364 @@
-/// Robust testing scenarios inspired by MIT 6.5840 Raft testing methodology
-/// These tests are more demanding than the basic tests, testing:
-/// - Longer partition durations
-/// - More nodes (7, 9 nodes)
-/// - Higher message volume
-/// - Complex failure patterns
-/// - Recovery scenarios
+/// Comprehensive integration scenarios for Paxos
+/// 
+/// This file consolidates:
+/// - Robust scenarios (MIT-style 7/9 node clusters, complex failures, recovery)
+/// - Basic partition safety tests
+/// - Consensus liveness tests
+/// 
+/// These tests verify the end-to-end correctness of the Paxos implementation.
+
 mod test_helpers;
 
 use paxos::{
     cluster::cluster::Cluster,
     paxos_command::PaxosCommand,
+    common::types::{NodeId},
 };
 use std::sync::Arc;
 use std::net::IpAddr;
 use tokio::time::Duration;
-use test_helpers::RecordingObserver;
+use test_helpers::{RecordingObserver, ScenarioBuilder};
+
+// ============================================================================
+// BASIC CONSENSUS TESTS (Moved from paxos_consensus_tests.rs)
+// ============================================================================
+
+#[tokio::test]
+async fn test_consensus_without_failures() {
+    let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer.clone()).await.unwrap();
+
+    for i in 0..3 {
+        cluster.nodes[i].start();
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Propose multiple decrees
+    for i in 0..3 {
+        let cmd = PaxosCommand::EnactDecree {
+            author: "Socrates".to_string(),
+            law: "Test Law".to_string(),
+        };
+        cluster.propose(cmd.clone()).await;
+        
+        // Wait for decree to be learned instead of arbitrary sleep
+        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
+    }
+
+    observer.wait_for_events().await;
+}
+
+#[tokio::test]
+async fn test_consensus_with_partition_recovery() {
+    let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 5, observer.clone()).await.unwrap();
+
+    for i in 0..5 {
+        cluster.nodes[i].start();
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    cluster.enable_failures().await;
+
+    // Phase 1: Normal operation
+    let cmd1 = PaxosCommand::AppointArchon {
+        name: "Plato".to_string(),
+        term_length_years: 5,
+    };
+    cluster.propose(cmd1).await;
+    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+
+    // Phase 2: Create partition (isolate node 0)
+    for i in 1..5 {
+        cluster.partition(NodeId(0), NodeId(i)).await;
+    }
+
+    let cmd2 = PaxosCommand::BuildAcropolis {
+        stones_required: 1000,
+        architect: "Ictinus".to_string(),
+    };
+    cluster.propose(cmd2).await;
+    let _ = barrier.wait_for_learned(1, Duration::from_secs(5)).await;
+
+    // Phase 3: Heal partition
+    for i in 1..5 {
+        cluster.heal_partition(NodeId(0), NodeId(i)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Phase 4: Resume normal operation
+    let cmd3 = PaxosCommand::Ostracize {
+        citizen: "Meletus".to_string(),
+    };
+    cluster.propose(cmd3).await;
+    let _ = barrier.wait_for_learned(2, Duration::from_secs(5)).await;
+
+    observer.wait_for_events().await;
+}
+
+#[tokio::test]
+async fn test_consensus_survives_packet_loss() {
+    let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 5, observer.clone()).await.unwrap();
+
+    for i in 0..5 {
+        cluster.nodes[i].start();
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    cluster.enable_failures().await;
+
+    // Add 30% packet loss between node 0 and node 1
+    cluster.add_packet_loss(NodeId(0), NodeId(1), 0.3).await;
+
+    for i in 0..3 {
+        let cmd = PaxosCommand::EnactDecree {
+            author: format!("Philosopher {}", i),
+            law: format!("Law {}", i),
+        };
+        cluster.propose(cmd).await;
+        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
+    }
+
+    observer.wait_for_events().await;
+}
+
+#[tokio::test]
+async fn test_consensus_with_high_latency() {
+    let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 3, observer.clone()).await.unwrap();
+
+    for i in 0..3 {
+        cluster.nodes[i].start();
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    cluster.enable_failures().await;
+
+    // Add 200ms latency to all messages from node 0
+    cluster
+        .add_delay(NodeId(0), NodeId(1), Duration::from_millis(200))
+        .await;
+    cluster
+        .add_delay(NodeId(0), NodeId(2), Duration::from_millis(200))
+        .await;
+
+    let cmd = PaxosCommand::NOOP;
+    cluster.propose(cmd).await;
+    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+
+    observer.wait_for_events().await;
+}
+
+#[tokio::test]
+async fn test_quorum_still_achievable_with_partition() {
+    let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 7, observer.clone()).await.unwrap();
+
+    for i in 0..7 {
+        cluster.nodes[i].start();
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    cluster.enable_failures().await;
+
+    // Partition node 0 from nodes 1,2,3 (but 4,5,6 remain connected)
+    for i in 1..4 {
+        cluster.partition(NodeId(0), NodeId(i)).await;
+    }
+
+    // A 7-node cluster needs quorum of 4
+    // Even without nodes 0,1,2,3, we have nodes 4,5,6 + one of the isolated nodes
+    // This should still allow consensus
+
+    let cmd = PaxosCommand::NOOP;
+    cluster.propose(cmd).await;
+    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+
+    // Heal the partition
+    for i in 1..4 {
+        cluster.heal_partition(NodeId(0), NodeId(i)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    observer.wait_for_events().await;
+}
+
+#[tokio::test]
+async fn test_repeated_partition_heal_cycles() {
+    let observer = Arc::new(RecordingObserver::new());
+    let barrier = observer.barrier.clone();
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let mut cluster = Cluster::new(0, ip, 5, observer.clone()).await.unwrap();
+
+    for i in 0..5 {
+        cluster.nodes[i].start();
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    cluster.enable_failures().await;
+
+    let mut decree_num = 0;
+    for cycle in 0..3 {
+        // Create partition
+        cluster.partition(NodeId(0), NodeId(2)).await;
+        cluster.partition(NodeId(1), NodeId(3)).await;
+
+        let cmd = PaxosCommand::EnactDecree {
+            author: format!("Cycle {}", cycle),
+            law: "Partition Law".to_string(),
+        };
+        cluster.propose(cmd).await;
+        let _ = barrier.wait_for_learned(decree_num, Duration::from_secs(5)).await;
+        decree_num += 1;
+
+        // Heal partition
+        cluster.heal_partition(NodeId(0), NodeId(2)).await;
+        cluster.heal_partition(NodeId(1), NodeId(3)).await;
+
+        let cmd = PaxosCommand::EnactDecree {
+            author: format!("Recovery {}", cycle),
+            law: "Recovery Law".to_string(),
+        };
+        cluster.propose(cmd).await;
+        let _ = barrier.wait_for_learned(decree_num, Duration::from_secs(5)).await;
+        decree_num += 1;
+    }
+
+    observer.wait_for_events().await;
+}
+
+// ============================================================================
+// PARTITION SAFETY TESTS (Moved from partition_failure_tests.rs)
+// ============================================================================
+
+#[test]
+fn three_node_all_healthy() {
+    let scenario = ScenarioBuilder::new(3);
+    assert_eq!(scenario.quorum_size(), 2);
+    assert_eq!(scenario.available_nodes(), 3);
+    assert!(scenario.can_reach_quorum());
+}
+
+#[test]
+fn three_node_one_partitioned_can_reach_quorum() {
+    let scenario = ScenarioBuilder::new(3).partition_node(0);
+    assert_eq!(scenario.quorum_size(), 2);
+    assert_eq!(scenario.available_nodes(), 2);
+    assert!(scenario.can_reach_quorum());
+}
+
+#[test]
+fn three_node_two_partitioned_cannot_reach_quorum() {
+    let scenario = ScenarioBuilder::new(3)
+        .partition_node(0)
+        .partition_node(1);
+    assert_eq!(scenario.quorum_size(), 2);
+    assert_eq!(scenario.available_nodes(), 1);
+    assert!(!scenario.can_reach_quorum());
+}
+
+#[test]
+fn five_node_all_healthy() {
+    let scenario = ScenarioBuilder::new(5);
+    assert_eq!(scenario.quorum_size(), 3);
+    assert_eq!(scenario.available_nodes(), 5);
+    assert!(scenario.can_reach_quorum());
+}
+
+#[test]
+fn five_node_one_partitioned_can_reach_quorum() {
+    let scenario = ScenarioBuilder::new(5).partition_node(0);
+    assert_eq!(scenario.quorum_size(), 3);
+    assert_eq!(scenario.available_nodes(), 4);
+    assert!(scenario.can_reach_quorum());
+}
+
+#[test]
+fn five_node_two_partitioned_can_reach_quorum() {
+    let scenario = ScenarioBuilder::new(5)
+        .partition_node(0)
+        .partition_node(1);
+    assert_eq!(scenario.quorum_size(), 3);
+    assert_eq!(scenario.available_nodes(), 3);
+    assert!(scenario.can_reach_quorum());
+}
+
+#[test]
+fn five_node_three_partitioned_cannot_reach_quorum() {
+    let scenario = ScenarioBuilder::new(5).partition_minority(3);
+    assert_eq!(scenario.quorum_size(), 3);
+    assert_eq!(scenario.available_nodes(), 2);
+    assert!(!scenario.can_reach_quorum());
+}
+
+#[test]
+fn partition_state_tracking() {
+    let scenario = ScenarioBuilder::new(5)
+        .partition_node(1)
+        .partition_node(3);
+    
+    assert!(scenario.is_partitioned(1));
+    assert!(scenario.is_partitioned(3));
+    assert!(!scenario.is_partitioned(0));
+    assert!(!scenario.is_partitioned(2));
+    assert!(!scenario.is_partitioned(4));
+    assert_eq!(scenario.available_nodes(), 3);
+}
+
+#[test]
+fn partition_minority_with_two_nodes() {
+    let scenario = ScenarioBuilder::new(5).partition_minority(2);
+    
+    assert_eq!(scenario.available_nodes(), 3);
+    assert!(scenario.is_partitioned(0));
+    assert!(scenario.is_partitioned(1));
+    assert!(!scenario.is_partitioned(2));
+}
+
+#[test]
+fn minority_partition_cannot_consensus() {
+    let scenario = ScenarioBuilder::new(5).partition_minority(2);
+    
+    let quorum = scenario.quorum_size();
+    let majority_size = scenario.available_nodes();
+    let minority_size = 2;
+    
+    // Majority can reach quorum
+    assert!(majority_size >= quorum);
+    
+    // Minority cannot reach quorum
+    assert!(minority_size < quorum);
+}
+
+#[test]
+fn at_most_one_partition_can_have_quorum() {
+    let total = 5;
+    let partition1_size = 2;
+    let partition2_size = 3;
+    let quorum = total / 2 + 1; // = 3
+    
+    assert_eq!(partition1_size + partition2_size, total);
+    
+    // Only partition 2 (majority) can have quorum
+    assert!(partition1_size < quorum);
+    assert!(partition2_size >= quorum);
+}
+
+// ============================================================================
+// ROBUST SCENARIOS (Moved from robust_scenarios_tests.rs)
+// ============================================================================
 
 /// Test consensus with 7 nodes and sustained normal operation
 /// MIT style: Multiple proposals with reliable network
@@ -39,6 +383,7 @@ async fn test_seven_node_consensus_sustained() {
             law: format!("Law number {}", i),
         };
         cluster.propose(cmd).await;
+        // Updated to use usize for wait_for_learned as helper expects it
         let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
     }
 
@@ -121,7 +466,7 @@ async fn test_minority_partition_seven_nodes() {
     // Create partition: nodes 0,1,2 (3 nodes) vs 3,4,5,6 (4 nodes)
     for i in 0..3 {
         for j in 3..7 {
-            cluster.partition(i, j).await;
+            cluster.partition(NodeId(i), NodeId(j)).await;
         }
     }
     tokio::time::sleep(Duration::from_millis(200)).await;
@@ -139,7 +484,7 @@ async fn test_minority_partition_seven_nodes() {
     // Heal the partition
     for i in 0..3 {
         for j in 3..7 {
-            cluster.heal_partition(i, j).await;
+            cluster.heal_partition(NodeId(i), NodeId(j)).await;
         }
     }
     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -192,10 +537,10 @@ async fn test_extended_partition_five_nodes() {
     let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
 
     // Extended partition: node 0 isolated for 2 seconds
-    cluster.partition(0, 1).await;
-    cluster.partition(0, 2).await;
-    cluster.partition(0, 3).await;
-    cluster.partition(0, 4).await;
+    cluster.partition(NodeId(0), NodeId(1)).await;
+    cluster.partition(NodeId(0), NodeId(2)).await;
+    cluster.partition(NodeId(0), NodeId(3)).await;
+    cluster.partition(NodeId(0), NodeId(4)).await;
 
     // Simulate activity during partition: majority proceeds
     for i in 0..3 {
@@ -213,7 +558,7 @@ async fn test_extended_partition_five_nodes() {
 
     // Heal partition - minority node should catch up
     for i in 1..5 {
-        cluster.heal_partition(0, i).await;
+        cluster.heal_partition(NodeId(0), NodeId(i)).await;
     }
     tokio::time::sleep(Duration::from_millis(500)).await;
 
@@ -259,7 +604,7 @@ async fn test_rolling_failures_seven_nodes() {
         // Isolate node from rest
         for other in 0..7 {
             if other != failed_node {
-                cluster.partition(failed_node, other).await;
+                cluster.partition(NodeId(failed_node), NodeId(other)).await;
             }
         }
 
@@ -279,7 +624,7 @@ async fn test_rolling_failures_seven_nodes() {
         // Recover the node
         for other in 0..7 {
             if other != failed_node {
-                cluster.heal_partition(failed_node, other).await;
+                cluster.heal_partition(NodeId(failed_node), NodeId(other)).await;
             }
         }
 
@@ -308,7 +653,7 @@ async fn test_multiple_overlapping_partitions() {
     // Create initial partition: 0,1 split from 2,3,4,5,6
     for i in 0..2 {
         for j in 2..7 {
-            cluster.partition(i, j).await;
+            cluster.partition(NodeId(i), NodeId(j)).await;
         }
     }
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -323,12 +668,12 @@ async fn test_multiple_overlapping_partitions() {
 
     // Add another partition: further split the majority
     // Now we have: [0,1] | [2,3] [4,5,6]
-    cluster.partition(2, 4).await;
-    cluster.partition(2, 5).await;
-    cluster.partition(2, 6).await;
-    cluster.partition(3, 4).await;
-    cluster.partition(3, 5).await;
-    cluster.partition(3, 6).await;
+    cluster.partition(NodeId(2), NodeId(4)).await;
+    cluster.partition(NodeId(2), NodeId(5)).await;
+    cluster.partition(NodeId(2), NodeId(6)).await;
+    cluster.partition(NodeId(3), NodeId(4)).await;
+    cluster.partition(NodeId(3), NodeId(5)).await;
+    cluster.partition(NodeId(3), NodeId(6)).await;
 
     tokio::time::sleep(Duration::from_millis(300)).await;
 
@@ -344,14 +689,14 @@ async fn test_multiple_overlapping_partitions() {
     // Gradually heal in reverse order
     for i in 0..2 {
         for j in 2..7 {
-            cluster.heal_partition(i, j).await;
+            cluster.heal_partition(NodeId(i), NodeId(j)).await;
         }
     }
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     for i in 2..4 {
         for j in 4..7 {
-            cluster.heal_partition(i, j).await;
+            cluster.heal_partition(NodeId(i), NodeId(j)).await;
         }
     }
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -389,7 +734,7 @@ async fn test_high_latency_seven_nodes() {
         for to in 0..7 {
             if from != to {
                 cluster
-                    .add_delay(from, to, Duration::from_millis(300))
+                    .add_delay(NodeId(from), NodeId(to), Duration::from_millis(300))
                     .await;
             }
         }
@@ -430,10 +775,10 @@ async fn test_asymmetric_latency() {
     // Add one-way latency: 0 -> 1,2 have 500ms delay
     // But 1,2 -> 0 is normal
     cluster
-        .add_delay(0, 1, Duration::from_millis(500))
+        .add_delay(NodeId(0), NodeId(1), Duration::from_millis(500))
         .await;
     cluster
-        .add_delay(0, 2, Duration::from_millis(500))
+        .add_delay(NodeId(0), NodeId(2), Duration::from_millis(500))
         .await;
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -470,7 +815,7 @@ async fn test_transient_packet_loss() {
 
     // Add 30% packet loss from node 0 to others
     for to in 1..7 {
-        cluster.add_packet_loss(0, to, 0.3).await;
+        cluster.add_packet_loss(NodeId(0), NodeId(to), 0.3).await;
     }
 
     // High message volume despite packet loss
@@ -513,7 +858,7 @@ async fn test_recovery_from_extended_offline() {
 
     // Isolate node 0 for extended period
     for i in 1..5 {
-        cluster.partition(0, i).await;
+        cluster.partition(NodeId(0), NodeId(i)).await;
     }
 
     // Continue proposals in majority while node 0 is isolated
@@ -534,7 +879,7 @@ async fn test_recovery_from_extended_offline() {
 
     // Heal partition - node 0 should catch up with all committed entries
     for i in 1..5 {
-        cluster.heal_partition(0, i).await;
+        cluster.heal_partition(NodeId(0), NodeId(i)).await;
     }
     tokio::time::sleep(Duration::from_millis(500)).await;
 

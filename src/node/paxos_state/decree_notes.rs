@@ -1,4 +1,4 @@
-use crate::{common::persistence::Persistence, node::paxos_state::ballot::Ballot};
+use crate::{common::{persistence::Persistence, types::{DecreeId, NodeId}}, node::paxos_state::ballot::Ballot};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{cmp::max, collections::HashMap};
@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct DecreeNotes {
-    pub state: HashMap<usize, DecreeNote>,
+    pub state: HashMap<DecreeId, DecreeNote>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -37,7 +37,7 @@ impl DecreeNotes {
 }
 
 impl DecreeNote {
-    pub fn new(node_id: usize) -> Self {
+    pub fn new(node_id: NodeId) -> Self {
         Self {
             last_tried: Ballot {
                 number: 0,

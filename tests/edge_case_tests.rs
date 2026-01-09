@@ -4,10 +4,11 @@ use paxos::{
     message::Message,
     node::paxos_state::ballot::Ballot,
     paxos_command::PaxosCommand,
+    common::types::{NodeId, DecreeId},
 };
 use test_helpers::{cleanup_persisted_state, NodeBuilder, RecordingObserver};
 use std::collections::HashSet;
-use std::sync::Arc;
+
 
 // ============================================================================
 // EDGE CASE TESTS
@@ -23,7 +24,7 @@ async fn out_of_order_promise_after_accept() {
         key: "test".to_string(),
     };
 
-    let prepare = proposer.propose(0, cmd.clone()).await;
+    let prepare = proposer.propose(DecreeId(0), cmd.clone()).await;
     let prepare_ballot = if let Message::Prepare { ballot, .. } = prepare {
         ballot
     } else {
@@ -32,20 +33,20 @@ async fn out_of_order_promise_after_accept() {
 
     // Proposer receives Promise
     let promise = Message::Promise {
-        from: 2,
-        decree_num: 0,
+        from: NodeId(2),
+        decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, 0),
+        accepted_ballot: Ballot::new(0, NodeId(0)),
         accepted_value: PaxosCommand::NOOP,
     };
     let _accept = proposer.handle_message(promise).await;
 
     // Now imagine Promise from another acceptor arrives (out of order)
     let late_promise = Message::Promise {
-        from: 3,
-        decree_num: 0,
+        from: NodeId(3),
+        decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, 0),
+        accepted_ballot: Ballot::new(0, NodeId(0)),
         accepted_value: PaxosCommand::NOOP,
     };
 
@@ -65,12 +66,12 @@ async fn accept_before_prepare_same_decree() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b = Ballot::new(5, 1);
+    let b = Ballot::new(5, NodeId(1));
 
     // Accept arrives before Prepare - acceptor has no promise yet
     let resp = acceptor.handle_message(Message::Accept {
-        from: 1,
-        decree_num: 0,
+        from: NodeId(1),
+        decree_num: DecreeId(0),
         ballot: b,
         value: PaxosCommand::NOOP,
         quorum: HashSet::new(),
@@ -91,12 +92,12 @@ async fn duplicate_prepare_messages() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b = Ballot::new(5, 1);
+    let b = Ballot::new(5, NodeId(1));
 
     // First Prepare
     let resp1 = acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
+        from: NodeId(1),
+        decree_num: DecreeId(0),
         ballot: b,
     })
     .await;
@@ -104,8 +105,8 @@ async fn duplicate_prepare_messages() {
 
     // Duplicate Prepare with same ballot
     let resp2 = acceptor.handle_message(Message::Prepare {
-        from: 1,
-        decree_num: 0,
+        from: NodeId(1),
+        decree_num: DecreeId(0),
         ballot: b,
     })
     .await;
@@ -123,7 +124,7 @@ async fn duplicate_accept_messages() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b = Ballot::new(5, 1);
+    let b = Ballot::new(5, NodeId(1));
     let value = PaxosCommand::PUT {
         key: "test".to_string(),
         version: 1,
@@ -132,8 +133,8 @@ async fn duplicate_accept_messages() {
     // Prepare first
     acceptor.handle_message(
         Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b,
         },
     )
@@ -142,8 +143,8 @@ async fn duplicate_accept_messages() {
     // First Accept
     let resp1 = acceptor.handle_message(
         Message::Accept {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b,
             value: value.clone(),
             quorum: HashSet::new(),
@@ -155,8 +156,8 @@ async fn duplicate_accept_messages() {
     // Duplicate Accept with same ballot and value
     let resp2 = acceptor.handle_message(
         Message::Accept {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b,
             value: value.clone(),
             quorum: HashSet::new(),
@@ -192,8 +193,8 @@ async fn learner_out_of_order_accepted() {
     };
 
     // Propose two different values - they will race for the same decree
-    cluster.propose_from(1, cmd1.clone()).await;
-    cluster.propose_from(0, cmd0.clone()).await;
+    cluster.propose_from(NodeId(1), cmd1.clone()).await;
+    cluster.propose_from(NodeId(0), cmd0.clone()).await;
 
     // Wait for some LearnedValue events to occur (may be out of order/conflicting values)
     let result = barrier.wait_for(
@@ -221,7 +222,7 @@ async fn proposer_with_insufficient_promises() {
         key: "test".to_string(),
     };
 
-    let prepare = proposer.propose(0, cmd.clone()).await;
+    let prepare = proposer.propose(DecreeId(0), cmd.clone()).await;
     let prepare_ballot = if let Message::Prepare { ballot, .. } = prepare {
         ballot
     } else {
@@ -230,10 +231,10 @@ async fn proposer_with_insufficient_promises() {
 
     // Receive only 1 promise (need 3 for quorum)
     let promise1 = Message::Promise {
-        from: 2,
-        decree_num: 0,
+        from: NodeId(2),
+        decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, 0),
+        accepted_ballot: Ballot::new(0, NodeId(0)),
         accepted_value: PaxosCommand::NOOP,
     };
 
@@ -247,10 +248,10 @@ async fn proposer_with_insufficient_promises() {
 
     // Receive 2nd promise
     let promise2 = Message::Promise {
-        from: 3,
-        decree_num: 0,
+        from: NodeId(3),
+        decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, 0),
+        accepted_ballot: Ballot::new(0, NodeId(0)),
         accepted_value: PaxosCommand::NOOP,
     };
 
@@ -264,10 +265,10 @@ async fn proposer_with_insufficient_promises() {
 
     // Receive 3rd promise - now MUST reach quorum and send Accept
     let promise3 = Message::Promise {
-        from: 4,
-        decree_num: 0,
+        from: NodeId(4),
+        decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, 0),
+        accepted_ballot: Ballot::new(0, NodeId(0)),
         accepted_value: PaxosCommand::NOOP,
     };
 
@@ -286,14 +287,14 @@ async fn large_ballot_numbers() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b_huge = Ballot::new(999999, 1);
-    let b_higher = Ballot::new(1000000, 1);
+    let b_huge = Ballot::new(999999, NodeId(1));
+    let b_higher = Ballot::new(1000000, NodeId(1));
 
     // Prepare with huge ballot
     let resp1 = acceptor.handle_message(
         Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b_huge,
         },
     )
@@ -303,8 +304,8 @@ async fn large_ballot_numbers() {
     // Higher ballot should still work
     let resp2 = acceptor.handle_message(
         Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b_higher,
         },
     )
@@ -323,7 +324,7 @@ async fn proposer_promise_from_itself() {
         key: "test".to_string(),
     };
 
-    let prepare = proposer.propose(0, cmd.clone()).await;
+    let prepare = proposer.propose(DecreeId(0), cmd.clone()).await;
     let prepare_ballot = if let Message::Prepare { ballot, .. } = prepare {
         ballot
     } else {
@@ -332,10 +333,10 @@ async fn proposer_promise_from_itself() {
 
     // Proposer receives Promise from itself
     let promise_from_self = Message::Promise {
-        from: 1, // Same as proposer id
-        decree_num: 0,
+        from: NodeId(1), // Same as proposer id
+        decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, 0),
+        accepted_ballot: Ballot::new(0, NodeId(0)),
         accepted_value: PaxosCommand::NOOP,
     };
 
@@ -355,9 +356,9 @@ async fn multiple_concurrent_proposals_same_decree() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b1_1 = Ballot::new(1, 1); // Proposer 1
-    let b1_2 = Ballot::new(1, 2); // Proposer 2
-    let b1_3 = Ballot::new(1, 3); // Proposer 3
+    let b1_1 = Ballot::new(1, NodeId(1)); // Proposer 1
+    let b1_2 = Ballot::new(1, NodeId(2)); // Proposer 2
+    let b1_3 = Ballot::new(1, NodeId(3)); // Proposer 3
 
     let value1 = PaxosCommand::GET {
         key: "p1".to_string(),
@@ -372,8 +373,8 @@ async fn multiple_concurrent_proposals_same_decree() {
     // All three prepare
     acceptor.handle_message(
         Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b1_1,
         },
     )
@@ -381,8 +382,8 @@ async fn multiple_concurrent_proposals_same_decree() {
 
     acceptor.handle_message(
         Message::Prepare {
-            from: 2,
-            decree_num: 0,
+            from: NodeId(2),
+            decree_num: DecreeId(0),
             ballot: b1_2,
         },
     )
@@ -390,8 +391,8 @@ async fn multiple_concurrent_proposals_same_decree() {
 
     acceptor.handle_message(
         Message::Prepare {
-            from: 3,
-            decree_num: 0,
+            from: NodeId(3),
+            decree_num: DecreeId(0),
             ballot: b1_3,
         },
     )
@@ -400,8 +401,8 @@ async fn multiple_concurrent_proposals_same_decree() {
     // P1 tries to Accept (lowest ballot) - should fail
     let resp1 = acceptor
         .handle_message(Message::Accept {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b1_1,
             value: value1,
             quorum: HashSet::new(),
@@ -412,8 +413,8 @@ async fn multiple_concurrent_proposals_same_decree() {
     // P2 tries to accept (middle ballot) - should fail
     let resp2 = acceptor
         .handle_message(Message::Accept {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b1_2,
             value: value2,
             quorum: HashSet::new(),
@@ -424,8 +425,8 @@ async fn multiple_concurrent_proposals_same_decree() {
     // P3 tries to accept (highest ballot) - should succeed
     let resp3 = acceptor
         .handle_message(Message::Accept {
-            from: 3,
-            decree_num: 0,
+            from: NodeId(3),
+            decree_num: DecreeId(0),
             ballot: b1_3,
             value: value3.clone(),
             quorum: HashSet::new(),
@@ -440,13 +441,13 @@ async fn sparse_decree_numbering() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b = Ballot::new(1, 1);
+    let b = Ballot::new(1, NodeId(1));
 
     // Prepare for decree 0
     let resp0 = acceptor.handle_message(
         Message::Prepare {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b,
         },
     )
@@ -456,8 +457,8 @@ async fn sparse_decree_numbering() {
     // Prepare for decree 1000 (huge gap)
     let resp1000 = acceptor.handle_message(
         Message::Prepare {
-            from: 1,
-            decree_num: 1000,
+            from: NodeId(1),
+            decree_num: DecreeId(1000),
             ballot: b,
         },
     )
@@ -467,8 +468,8 @@ async fn sparse_decree_numbering() {
     // Both decrees should be independent
     acceptor
         .handle_message(Message::Accept {
-            from: 1,
-            decree_num: 0,
+            from: NodeId(1),
+            decree_num: DecreeId(0),
             ballot: b,
             value: PaxosCommand::NOOP,
             quorum: HashSet::new(),
@@ -477,8 +478,8 @@ async fn sparse_decree_numbering() {
 
     let resp = acceptor
         .handle_message(Message::Accept {
-            from: 1,
-            decree_num: 1000,
+            from: NodeId(1),
+            decree_num: DecreeId(1000),
             ballot: b,
             value: PaxosCommand::GET {
                 key: "sparse".to_string(),
@@ -508,7 +509,7 @@ async fn learner_consensus_from_all_acceptors() {
     };
 
     // Propose the command
-    cluster.propose_from(0, cmd.clone()).await;
+    cluster.propose_from(NodeId(0), cmd.clone()).await;
 
     // Wait for any LearnedValue event
     let result = barrier.wait_for(
@@ -535,14 +536,14 @@ async fn promise_reports_higher_accepted_ballot() {
         key: "test".to_string(),
     };
 
-    proposer.propose(0, cmd.clone()).await;
+    proposer.propose(DecreeId(0), cmd.clone()).await;
 
     // Promise reports accepted value from ballot (10, 2) but current ballot is (1, 1)
     let promise = Message::Promise {
-        from: 2,
-        decree_num: 0,
-        ballot: Ballot::new(1, 1),
-        accepted_ballot: Ballot::new(10, 2), // Much higher than current
+        from: NodeId(2),
+        decree_num: DecreeId(0),
+        ballot: Ballot::new(1, NodeId(1)),
+        accepted_ballot: Ballot::new(10, NodeId(2)), // Much higher than current
         accepted_value: PaxosCommand::PUT {
             key: "old".to_string(),
             version: 1,
