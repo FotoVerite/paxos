@@ -2,7 +2,10 @@
 <nav class="navbar">
     <div class="nav-container">
         <div class="nav-brand">
-            <a href="/">⚡ Paxos</a>
+            <a href="/" class="brand-link">
+                <img src="/favicon.svg" alt="Paxos Logo" class="brand-logo">
+                <span class="brand-text">Paxos</span>
+            </a>
         </div>
         
         <div class="nav-menu">
@@ -156,13 +159,32 @@
         align-items: center;
     }
 
-    .nav-brand a {
+    .brand-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         color: #60a5fa;
         text-decoration: none;
+        height: 100%;
     }
 
-    .nav-brand a:hover {
+    .brand-link:hover {
         color: #93c5fd;
+    }
+
+    .brand-link:hover .brand-logo {
+        filter: brightness(1.2);
+    }
+
+    .brand-logo {
+        height: 50px;
+        width: auto;
+        transition: filter 0.2s;
+    }
+
+    .brand-text {
+        font-size: 20px;
+        font-weight: bold;
     }
 
     .nav-menu {
