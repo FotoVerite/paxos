@@ -1,7 +1,5 @@
 {% extends "base.html" %} {% block title %}Preliminary Protocol Demo - Paxos{%
-endblock %} {% block extra_stylesheets %}
-<link rel="stylesheet" href="/basic-protocol.css" />
-{% endblock %} {% block content %}
+endblock %} {% block body_class %}protocol-page{% endblock %} {% block content %}
 <div class="demo-container">
   <!-- Visualization -->
   <div class="visualization">
@@ -27,14 +25,7 @@ endblock %} {% block extra_stylesheets %}
       <div class="control-group">
         <h3>Speed</h3>
         <div class="speed-control">
-          <input
-            type="range"
-            id="speed"
-            value="1"
-            min="0.25"
-            max="2"
-            step="0.25"
-          />
+          <input type="range" id="speed" value="1" min="0.25" max="2" step="0.25" />
           <span id="speedValue">1x</span>
         </div>
       </div>
@@ -89,14 +80,14 @@ endblock %} {% block extra_stylesheets %}
     <div id="eventLog"></div>
   </div>
 
-   <div class="nav-links">
-      <div class="prev">
-        <a href="/protocols/preliminary-protocol">Prev - Section 2.2 Preliminary Protocol </a>
-      </div>
-      <div class="next">
-        <a href="/protocols/basic-protocol">Next - Section 2.3 Basic Protocol </a>
-      </div>
+  <div class="nav-links">
+    <div class="prev">
+      <a href="/protocols/preliminary-protocol">Prev - Section 2.2 Preliminary Protocol </a>
     </div>
+    <div class="next">
+      <a href="/protocols/basic-protocol">Next - Section 2.3 Basic Protocol </a>
+    </div>
+  </div>
 </div>
 {% endblock %} {% block scripts %}
 <script src="/paxos-visualizer.js"></script>
@@ -226,7 +217,7 @@ endblock %} {% block extra_stylesheets %}
         scenarioUtils
       ),
     }),
-    };
+  };
 
   function resetScenario() {
     isRunning = false;

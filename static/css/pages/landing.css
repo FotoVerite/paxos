@@ -1,0 +1,278 @@
+/* Landing Page Styles Scoped */
+.landing-page {
+
+    /* ============================================================================
+       LAYOUT & CONTAINER
+       ============================================================================ */
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--space-2xl) var(--space-xl);
+    }
+
+    header {
+        text-align: center;
+        margin-bottom: var(--space-2xl);
+    }
+
+    header h1 {
+        font-size: 3.5rem;
+        margin-bottom: var(--space-md);
+    }
+
+    .tagline {
+        font-size: 1.5rem;
+        color: var(--color-text-secondary);
+        margin-bottom: var(--space-2xl);
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+        line-height: 1.5;
+    }
+
+    /* ============================================================================
+       FUNNEL NAVIGATION SECTION
+       ============================================================================ */
+    .funnel-nav-section {
+        text-align: center;
+        margin-bottom: var(--space-2xl);
+    }
+
+    .funnel-nav-section h2 {
+        color: var(--color-success);
+        font-size: 2rem;
+        margin-bottom: var(--space-2xl);
+    }
+
+    .funnel-nav {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: var(--space-xl);
+        flex-wrap: wrap;
+    }
+
+    .funnel-step {
+        display: flex;
+        align-items: center;
+        gap: var(--space-xl);
+    }
+
+    .funnel-card {
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-xl);
+        padding: var(--space-2xl);
+        width: 250px;
+        text-align: center;
+        transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .funnel-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .funnel-card h3 {
+        color: var(--color-primary);
+        font-size: 1.5rem;
+        margin-bottom: var(--space-lg);
+    }
+
+    .funnel-card p {
+        color: var(--color-text-muted);
+        font-size: 0.9rem;
+        line-height: 1.6;
+        margin-bottom: var(--space-lg);
+    }
+
+    .funnel-card a {
+        text-decoration: none;
+    }
+
+    .funnel-arrow {
+        font-size: 2.5rem;
+        color: var(--color-primary);
+    }
+
+    /* Navigation Links */
+    .nav-links {
+        display: flex;
+        justify-content: space-between;
+        margin-top: var(--space-2xl);
+        gap: var(--space-xl);
+    }
+
+    .nav-link-left,
+    .nav-link-right {
+        font-size: 1.2rem;
+        color: var(--color-primary);
+        text-decoration: none;
+        padding: var(--space-sm) var(--space-xl);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        transition: background var(--transition-fast);
+        flex: 1;
+        text-align: center;
+        max-width: 200px;
+    }
+
+    .nav-link-left:hover,
+    .nav-link-right:hover {
+        background: var(--color-border);
+    }
+
+    /* ============================================================================
+       READING LIST SECTION
+       ============================================================================ */
+    .whitepapers-section {
+        background: var(--color-bg-secondary);
+        border-radius: var(--radius-xl);
+        padding: var(--space-2xl);
+        margin-bottom: var(--space-2xl);
+        border: 1px solid var(--color-border);
+    }
+
+    .whitepapers-section h2 {
+        color: var(--color-accent);
+        font-size: 2rem;
+        margin-bottom: var(--space-2xl);
+        text-align: center;
+    }
+
+    .paper-category {
+        margin-bottom: var(--space-2xl);
+    }
+
+    .paper-category:last-child {
+        margin-bottom: 0;
+    }
+
+    .paper-category h3 {
+        color: var(--color-text-secondary);
+        font-size: 1.5rem;
+        margin-bottom: var(--space-xl);
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: var(--space-md);
+    }
+
+    .paper-item {
+        margin-bottom: var(--space-xl);
+        padding: var(--space-lg);
+        background: var(--color-primary-dark);
+        border-radius: var(--radius-md);
+        border-left: 3px solid var(--color-primary);
+    }
+
+    .paper-item .title {
+        font-weight: bold;
+        color: var(--color-primary);
+        font-size: 1.1rem;
+        margin-bottom: var(--space-xs);
+    }
+
+    .paper-item .author {
+        color: var(--color-text-muted);
+        font-size: 0.95rem;
+        margin-bottom: var(--space-md);
+    }
+
+    .paper-item .description {
+        color: var(--color-text-secondary);
+        line-height: 1.6;
+        margin-bottom: var(--space-lg);
+    }
+
+    .paper-item .link {
+        color: var(--color-success);
+        text-decoration: none;
+        font-weight: 600;
+        transition: color var(--transition-fast);
+    }
+
+    .paper-item .link:hover {
+        color: var(--color-success-light);
+    }
+
+    /* ============================================================================
+       RESPONSIVE
+       ============================================================================ */
+    @media (max-width: 1024px) {
+        .funnel-nav {
+            flex-direction: column;
+            gap: var(--space-xl);
+        }
+
+        .funnel-arrow {
+            transform: rotate(90deg);
+        }
+
+        .nav-links {
+            flex-direction: column;
+        }
+
+        .nav-link-left,
+        .nav-link-right {
+            max-width: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: var(--space-xl) var(--space-md);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+        }
+
+        .tagline {
+            font-size: 1.1rem;
+        }
+
+        .funnel-card {
+            width: 200px;
+            padding: var(--space-xl);
+        }
+
+        .funnel-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: var(--space-md);
+        }
+
+        .funnel-card p {
+            font-size: 0.85rem;
+        }
+
+        .funnel-arrow {
+            font-size: 1.8rem;
+        }
+
+        .whitepapers-section {
+            padding: var(--space-xl);
+        }
+
+        .whitepapers-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: var(--space-xl);
+        }
+
+        .paper-item {
+            padding: var(--space-md);
+        }
+
+        .paper-item .title {
+            font-size: 1rem;
+        }
+
+        .nav-links {
+            gap: var(--space-md);
+        }
+
+        .nav-link-left,
+        .nav-link-right {
+            padding: var(--space-md) var(--space-lg);
+            font-size: 1rem;
+        }
+    }
+}

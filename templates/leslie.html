@@ -1,7 +1,7 @@
-{% extends "base.html" %} {% block title %}Leslie Lamport - Paxos Pioneer{%
-endblock %} {% block extra_stylesheets %}
-<link rel="stylesheet" href="/leslie.css" />
-{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}Leslie Lamport - Paxos Pioneer{% endblock %}
+{% block body_class %}leslie-page{% endblock %}
+
+{% block content %}
 <div class="container">
   <div class="panel">
     <div class="bio-header">
@@ -31,30 +31,21 @@ endblock %} {% block extra_stylesheets %}
         people are working on real systems, there are a million problems out
         there." This real-world grounding shaped his work. He introduced
         <strong>logical clocks</strong> and the "happens-before" relation in
-        <a
-          href="https://lamport.azurewebsites.net/pubs/time-clocks.pdf"
-          target="_blank"
-          >Time, Clocks, and the Ordering of Events in a Distributed System</a
-        >
+        <a href="https://lamport.azurewebsites.net/pubs/time-clocks.pdf" target="_blank">Time, Clocks, and the Ordering
+          of Events in a Distributed System</a>
         (1978), showing how to order events across machines without a global
         clock. He formalized the challenge of reaching agreement despite
         arbitrary failures in
-        <a
-          href="https://lamport.azurewebsites.net/pubs/pubs.html#bgp"
-          target="_blank"
-          >The Byzantine Generals Problem</a
-        >
+        <a href="https://lamport.azurewebsites.net/pubs/pubs.html#bgp" target="_blank">The Byzantine Generals
+          Problem</a>
         (1982)—a paper that pioneered Lamport's distinctive use of narrative and
         metaphor to explain subtle logic.
       </p>
 
       <p>
         Then came Paxos. In
-        <a
-          href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-original"
-          target="_blank"
-          >The Part-Time Parliament</a
-        >
+        <a href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-original" target="_blank">The Part-Time
+          Parliament</a>
         (1989, published 1998), Lamport wrapped the consensus algorithm in an
         allegory about an ancient Greek parliament. Senators propose decrees,
         accept or reject them, and learn the final verdict—all with messages
@@ -64,11 +55,8 @@ endblock %} {% block extra_stylesheets %}
         the mathematics. This approach, built on his success with Byzantine
         Generals, became his signature. When his first explanation didn't land
         (Paxos was famously hard to understand), he rewrote it as
-        <a
-          href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-simple"
-          target="_blank"
-          >Paxos Made Simple</a
-        >, then later showed how multiple instances work together—the foundation
+        <a href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-simple" target="_blank">Paxos Made Simple</a>,
+        then later showed how multiple instances work together—the foundation
         for systems at Google, Amazon, and Microsoft.
       </p>
 
@@ -87,61 +75,41 @@ endblock %} {% block extra_stylesheets %}
         <h3>Essential Papers</h3>
         <ul>
           <li>
-            <a
-              href="https://lamport.azurewebsites.net/pubs/time-clocks.pdf"
-              target="_blank"
-              >Time, Clocks, and the Ordering of Events in a Distributed
-              System</a
-            >
+            <a href="https://lamport.azurewebsites.net/pubs/time-clocks.pdf" target="_blank">Time, Clocks, and the
+              Ordering of Events in a Distributed
+              System</a>
             (1978)
           </li>
           <li>
-            <a
-              href="https://lamport.azurewebsites.net/pubs/pubs.html#bgp"
-              target="_blank"
-              >The Byzantine Generals Problem</a
-            >
+            <a href="https://lamport.azurewebsites.net/pubs/pubs.html#bgp" target="_blank">The Byzantine Generals
+              Problem</a>
             (1982)
           </li>
           <li>
-            <a
-              href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-original"
-              target="_blank"
-              >The Part-Time Parliament</a
-            >
+            <a href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-original" target="_blank">The Part-Time
+              Parliament</a>
             (1989/1998)
           </li>
           <li>
-            <a
-              href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-simple"
-              target="_blank"
-              >Paxos Made Simple</a
-            >
+            <a href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-simple" target="_blank">Paxos Made
+              Simple</a>
             (2001)
           </li>
         </ul>
       </div>
 
       <div class="bio-quote">
-        <em
-          >"A distributed system is one in which the failure of a computer you
-          didn't even know existed can render your own computer unusable."</em
-        >
+        <em>"A distributed system is one in which the failure of a computer you
+          didn't even know existed can render your own computer unusable."</em>
       </div>
     </div>
 
     <div class="bio-footer">
       <p>
         Information sourced from
-        <a href="https://en.wikipedia.org/wiki/Leslie_Lamport" target="_blank"
-          >Leslie Lamport - Wikipedia</a
-        >
+        <a href="https://en.wikipedia.org/wiki/Leslie_Lamport" target="_blank">Leslie Lamport - Wikipedia</a>
         and the
-        <a
-          href="https://amturing.acm.org/award_winners/lamport_1205376.cfm"
-          target="_blank"
-          >ACM Turing Award</a
-        >
+        <a href="https://amturing.acm.org/award_winners/lamport_1205376.cfm" target="_blank">ACM Turing Award</a>
         biography.
       </p>
     </div>

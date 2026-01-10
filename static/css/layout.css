@@ -1,0 +1,134 @@
+/* Layout Styles */
+header {
+    background: var(--color-bg-secondary);
+    padding: var(--space-lg) var(--space-xl);
+    text-align: center;
+    border-bottom: 1px solid var(--color-border);
+
+    h1 {
+        margin: 0;
+        font-size: 2.5rem;
+        color: var(--color-primary);
+
+    }
+
+    .subtitle {
+        font-size: 0.95rem;
+        color: var(--color-text-muted);
+    }
+}
+
+/* Navigation Bar */
+.navbar {
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-container {
+    max-width: 100%;
+    margin: 0;
+    padding: var(--space-md) var(--space-xl);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2xl);
+}
+
+.nav-brand a {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.nav-brand a:hover {
+    color: var(--color-primary-hover);
+}
+
+.nav-menu {
+    display: flex;
+    align-items: center;
+}
+
+.nav-link {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.nav-link:hover {
+    background: var(--color-bg-tertiary);
+    color: var(--color-primary);
+}
+
+.nav-link.active {
+    background: var(--color-bg-tertiary);
+    color: var(--color-primary);
+    border-radius: 0px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-xl);
+
+    ol {
+        padding-left: var(--space-lg);
+    }
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+
+    a {
+        color: var(--color-success);
+        text-decoration: none;
+        font-weight: 600;
+        transition: color var(--transition-fast);
+    }
+
+    .prev {
+        padding: var(--space-sm) var(--space-md);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        background: var(--color-primary-dark);
+
+        a::before {
+            content: "← ";
+            margin-right: var(--space-xs);
+        }
+    }
+
+    .next {
+        padding: var(--space-sm) var(--space-md);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        margin-left: auto;
+        background: var(--color-primary-dark);
+
+        a::after {
+            content: " →";
+            margin-left: var(--space-xs);
+        }
+    }
+}
+
+/* Navigation Arrows */
+.nav-prev::before {
+    content: "← ";
+    margin-right: var(--space-xs);
+}
+
+.nav-next::after {
+    content: " →";
+    margin-left: var(--space-xs);
+}

@@ -1,10 +1,9 @@
 {% extends "base.html" %} {% block title %}Decree Lifecycle - Paxos{% endblock
-%} {% block extra_stylesheets %}
-<link rel="stylesheet" href="/decree.css" />
-<link
-  rel="stylesheet"
-  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-/>
+%}
+{% block body_class %}decree-page{% endblock %}
+{% block extra_stylesheets %}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 {% endblock %} {% block content %}
@@ -72,13 +71,13 @@
     </div>
   </div>
   <div class="nav-links">
-      <div class="prev">
-        <a href="/synod/overview">Prev - Section 2 Overview</a>
-      </div>
-      <div class="next">
-        <a href="/synod/math-terms">Next - Mathematical Terms </a>
-      </div>
+    <div class="prev">
+      <a href="/synod/overview">Prev - Section 2 Overview</a>
     </div>
+    <div class="next">
+      <a href="/synod/math-terms">Next - Mathematical Terms </a>
+    </div>
+  </div>
 </div>
 {% endblock %} {% block scripts %}
 <script src="/decree-simulator.js"></script>
@@ -160,8 +159,8 @@
                     <div class="priest" id="priest-${i}">
                         <div class="priest-id">${simulator.priestNames[i]}</div>
                         <div class="priest-state">participation: ${(
-                          simulator.priestParticipation[i] * 100
-                        ).toFixed(0)}%</div>
+          simulator.priestParticipation[i] * 100
+        ).toFixed(0)}%</div>
                         <div id="priest-vote-${i}"></div>
                     </div>
                 `;
