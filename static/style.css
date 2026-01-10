@@ -109,7 +109,6 @@ header {
 
 .nav-menu {
   display: flex;
-  gap: var(--space-xl);
   align-items: center;
 }
 
@@ -130,6 +129,7 @@ header {
 .nav-link.active {
   background: var(--color-bg-tertiary);
   color: var(--color-primary);
+  border-radius: 0px;
 }
 
 /* Buttons */
@@ -174,7 +174,6 @@ button:disabled {
 
 .nav-links {
   display: flex;
-  gap: var(--space-xl);
   align-items: center;
 
   a {
