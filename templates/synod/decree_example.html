@@ -56,6 +56,9 @@
       <!-- Current Ballot -->
       <div id="ballotContainer"></div>
 
+      <!-- Learn Phase (persists) -->
+      <div id="learnPhaseContainer"></div>
+
       <!-- Learned Values -->
       <div class="learned-values">
         <h3>✓ Learned By Priests</h3>
@@ -124,8 +127,8 @@
       },
 
       onBallotStarted: function (ballot) {
-        renderBallotDisplay(ballot);
-      },
+         renderBallotDisplay(ballot);
+       },
 
       onPriestVoted: function (data) {
         updatePriestVoteDisplay(data.priestId, data.priestName);
@@ -144,43 +147,43 @@
   });
 
   function renderBallotDisplay(ballot) {
-    const container = document.getElementById("ballotContainer");
-    const { number, decree } = ballot;
+     const container = document.getElementById("ballotContainer");
+     const { number, decree } = ballot;
 
-    let html = `
-                <div class="phase-marker prepare">
-                    <span class="phase-name">Prepare</span>
-                    <span class="phase-description">Ballot ${number}: Proposing "${decree}"</span>
-                </div>
+     let html = `
+                 <div class="phase-marker prepare">
+                     <span class="phase-name">Prepare</span>
+                     <span class="phase-description">Ballot ${number}: Proposing "${decree}"</span>
+                 </div>
 
-                <div class="priest-grid">
-            `;
+                 <div class="priest-grid">
+             `;
 
-    for (let i = 0; i < simulator.totalPriests; i++) {
-      html += `
-                    <div class="priest" id="priest-${i}">
-                        <div class="priest-id">${simulator.priestNames[i]}</div>
-                        <div class="priest-state">participation: ${(
-          simulator.priestParticipation[i] * 100
-        ).toFixed(0)}%</div>
-                        <div id="priest-vote-${i}"></div>
-                    </div>
-                `;
-    }
+     for (let i = 0; i < simulator.totalPriests; i++) {
+       html += `
+                     <div class="priest" id="priest-${i}">
+                         <div class="priest-id">${simulator.priestNames[i]}</div>
+                         <div class="priest-state">participation: ${(
+           simulator.priestParticipation[i] * 100
+         ).toFixed(0)}%</div>
+                         <div id="priest-vote-${i}"></div>
+                     </div>
+                 `;
+     }
 
-    html += `
-                </div>
+     html += `
+                 </div>
 
-                <div class="phase-marker accept">
-                    <span class="phase-name">Accept</span>
-                    <span class="phase-description" id="voteCount">0/${simulator.totalPriests} priests voted</span>
-                </div>
-                
-                <div id="learnPhase"></div>
-            `;
+                 <div class="phase-marker accept">
+                     <span class="phase-name">Accept</span>
+                     <span class="phase-description" id="voteCount">0/${simulator.totalPriests} priests voted</span>
+                 </div>
+                 
+                 <div id="learnPhase"></div>
+             `;
 
-    container.innerHTML = html;
-  }
+     container.innerHTML = html;
+   }
 
   function updatePriestVoteDisplay(priestId, priestName) {
     const priestEl = document.getElementById(`priest-${priestId}`);
@@ -195,45 +198,35 @@
   }
 
   function renderBallotPhases(state) {
-    if (!state.currentBallotData) return;
+     const ballot = state.currentBallotData;
+     const learnedValue = state.learnedValue;
+     
+     if (!ballot && !learnedValue) return;
 
-    const ballot = state.currentBallotData;
-    const voteCount = ballot.votes.length;
-    const isSuccess = voteCount >= state.quorumSize;
+     const voteCount = ballot ? ballot.votes.length : 0;
+     const isSuccess = ballot && voteCount >= state.quorumSize;
 
-    // Update vote count
-    const voteCountEl = document.getElementById("voteCount");
-    if (voteCountEl) {
-      voteCountEl.textContent = `${voteCount}/${simulator.totalPriests} priests voted`;
-    }
+     // Update vote count
+     const voteCountEl = document.getElementById("voteCount");
+     if (voteCountEl && ballot) {
+       voteCountEl.textContent = `${voteCount}/${simulator.totalPriests} priests voted`;
+     }
 
-    // Update decree status
-    const statusEl = document.getElementById("decreeStatus");
-    if (statusEl) {
-      if (isSuccess) {
-        statusEl.textContent = "✓ Chosen by quorum";
-        statusEl.className = "decree-status success";
-      } else {
-        statusEl.textContent = `⏳ ${voteCount}/${state.quorumSize} votes for quorum`;
-        statusEl.className = "decree-status in-progress";
-      }
-    }
-
-    // Update learn phase
-    const learnPhase = document.getElementById("learnPhase");
-    if (learnPhase) {
-      if (isSuccess) {
-        learnPhase.innerHTML = `
-                        <div class="phase-marker learn">
-                            <span class="phase-name">Learn</span>
-                            <span class="phase-description">Decree chosen - all priests learn "${ballot.decree}"</span>
-                        </div>
-                    `;
-      } else {
-        learnPhase.innerHTML = "";
-      }
-    }
-  }
+     // Update persistent learn phase container (only show once consensus is reached)
+     const learnPhaseContainer = document.getElementById("learnPhaseContainer");
+     if (learnPhaseContainer) {
+       if (learnedValue) {
+         learnPhaseContainer.innerHTML = `
+           <div class="phase-marker learn">
+             <span class="phase-name">Learn</span>
+             <span class="phase-description">Decree chosen - all priests learn "${learnedValue}"</span>
+           </div>
+         `;
+       } else {
+         learnPhaseContainer.innerHTML = "";
+       }
+     }
+   }
 </script>
 <script>
   // Render KaTeX math when DOM is ready

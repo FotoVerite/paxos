@@ -38,6 +38,7 @@ class DecreeSimulator {
         this.ballotCounter = 0;
         this.autoRetryTimeout = null;
         this.lastRenderedBallotCount = 0;
+        this.statusLocked = false; // Prevent status from being overwritten once chosen
         
         // Callbacks
         this.onBallotStarted = options.onBallotStarted || (() => {});
@@ -218,6 +219,7 @@ class DecreeSimulator {
         this.ballotHistory.push(this.currentBallotData);
         this.onBallotFinalized(this.currentBallotData);
         
+        // Keep current ballot data in memory for display purposes, don't clear it
         this._updateDisplay();
     }
     
@@ -241,8 +243,10 @@ class DecreeSimulator {
         const el = document.getElementById(this.currentProposalId);
         if (!el) return;
         
-        if (this.currentBallotData) {
+        if (this.currentBallotData && this.currentBallotData.decree) {
             el.textContent = `"${this.currentBallotData.decree}"`;
+        } else if (this.learnedValue) {
+            el.textContent = `"${this.learnedValue}" (consensus reached)`;
         } else {
             el.textContent = '--';
         }
@@ -267,7 +271,9 @@ class DecreeSimulator {
         const el = document.getElementById(this.decreeValueId);
         if (!el) return;
         
-        if (this.currentBallotData) {
+        if (this.learnedValue) {
+            el.textContent = this.learnedValue;
+        } else if (this.currentBallotData && this.currentBallotData.decree) {
             el.textContent = this.currentBallotData.decree;
         } else {
             el.textContent = '--';
@@ -281,6 +287,19 @@ class DecreeSimulator {
         if (!this.decreeStatusId) return;
         const el = document.getElementById(this.decreeStatusId);
         if (!el) return;
+        
+        // Once chosen, lock the status
+        if (this.learnedValue) {
+            if (!this.statusLocked) {
+                el.textContent = '✓ Chosen by quorum';
+                el.className = 'decree-status success';
+                this.statusLocked = true;
+            }
+            return;
+        }
+        
+        // Don't update if status is locked
+        if (this.statusLocked) return;
         
         if (!this.currentBallotData) {
             el.textContent = 'Waiting...';
@@ -408,6 +427,7 @@ class DecreeSimulator {
         this.learnedValue = null;
         this.ballotCounter = 0;
         this.lastRenderedBallotCount = 0;
+        this.statusLocked = false;
         
         this._updateDisplay();
         if (this.historyContainerId) {
