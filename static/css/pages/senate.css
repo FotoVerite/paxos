@@ -33,83 +33,16 @@
     }
 
     /* ============================================================================
-       CONTROL PANEL
+       CONTROL PANEL (Uses components.css structure mostly)
        ============================================================================ */
     .control-panel {
         width: 300px;
-        background: var(--color-bg-secondary);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-xl);
-        padding: var(--space-xl);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-xl);
+        /* Inherits styles from components.css .control-panel */
         overflow-y: auto;
     }
 
-    .control-panel h2 {
-        color: var(--color-primary);
-        font-size: 1.1rem;
-        border-bottom: 1px solid var(--color-border);
-        padding-bottom: var(--space-md);
-        margin: 0;
-    }
-
     /* ============================================================================
-       CONTROL GROUPS
-       ============================================================================ */
-    .control-group {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-xs);
-    }
-
-    .control-group label {
-        color: var(--color-text-secondary);
-        font-size: 0.9rem;
-        font-weight: 500;
-    }
-
-    /* ============================================================================
-       STATUS INDICATOR
-       ============================================================================ */
-    .status-indicator {
-        display: flex;
-        align-items: center;
-        gap: var(--space-xs);
-        padding: var(--space-xs) var(--space-md);
-        background: var(--color-primary-dark);
-        border-radius: var(--radius-md);
-        margin-bottom: var(--space-md);
-        color: var(--color-text-secondary);
-    }
-
-    .status-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: var(--color-error);
-        animation: pulse 2s infinite;
-    }
-
-    .status-dot.connected {
-        background: var(--color-success);
-    }
-
-    @keyframes pulse {
-
-        0%,
-        100% {
-            opacity: 1;
-        }
-
-        50% {
-            opacity: 0.5;
-        }
-    }
-
-    /* ============================================================================
-       STATS
+       STATS (Matches components.css .stats-grid pattern)
        ============================================================================ */
     .stats-group {
         background: var(--color-primary-dark);
@@ -119,6 +52,7 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: var(--space-xs);
+        margin-bottom: var(--space-xl);
     }
 
     .stat-item {
@@ -138,7 +72,7 @@
     }
 
     /* ============================================================================
-       EVENT LOG
+       EVENT LOG (Matches components.css pattern)
        ============================================================================ */
     .event-log {
         background: var(--color-primary-dark);
@@ -176,39 +110,6 @@
     .event-item.proposal {
         border-left-color: var(--color-info);
         color: var(--color-info);
-    }
-
-    /* ============================================================================
-       SCROLLBAR
-       ============================================================================ */
-    .control-panel {
-        scrollbar-width: thin;
-    }
-
-    .control-panel::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .control-panel::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .control-panel::-webkit-scrollbar-thumb {
-        background: var(--color-border);
-        border-radius: 3px;
-    }
-
-    .event-log::-webkit-scrollbar {
-        width: 4px;
-    }
-
-    .event-log::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .event-log::-webkit-scrollbar-thumb {
-        background: var(--color-border);
-        border-radius: 2px;
     }
 
     /* ============================================================================

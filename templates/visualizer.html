@@ -262,9 +262,9 @@
 
                 // Create event element
                 const eventEl = document.createElement('div');
-                eventEl.className = `event ${eventClass}`;
+                eventEl.className = `event-log-item ${eventClass}`;
                 eventEl.innerHTML = `
-                        <span class="event-type">${eventType}</span>
+                        <span class="type">${eventType}</span>
                         <div class="event-data">${JSON.stringify(eventData, null, 2)}</div>
                     `;
 

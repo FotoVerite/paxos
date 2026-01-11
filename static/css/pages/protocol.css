@@ -6,15 +6,15 @@
         display: flex;
         flex-direction: column;
         height: 100vh;
-        padding: 20px;
-        gap: 20px;
+        padding: var(--space-xl);
+        gap: var(--space-xl);
     }
 
     /* Visualization */
     .visualization {
         flex: 0 0 40%;
-        background: #0f172a;
-        border-radius: 8px;
+        background: var(--color-primary-dark);
+        border-radius: var(--radius-lg);
         overflow: hidden;
         position: relative;
 
@@ -35,9 +35,9 @@
         top: 10px;
         right: 10px;
         background: rgba(30, 30, 46, 0.95);
-        border: 1px solid #444;
-        border-radius: 8px;
-        padding: 12px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: var(--space-md);
         font-family: monospace;
         font-size: 12px;
         z-index: 100;
@@ -52,9 +52,9 @@
 
             .proposal-stat-item {
                 padding: 6px 8px;
-                border-radius: 4px;
-                background: #1f2937;
-                border: 1px solid #444;
+                border-radius: var(--radius-sm);
+                background: var(--color-bg-secondary);
+                border: 1px solid var(--color-border);
                 cursor: pointer;
                 transition: all 0.15s ease;
                 user-select: none;
@@ -62,17 +62,17 @@
                 .node-id {
                     font-weight: bold;
                     margin-right: 3px;
-                    color: #60a5fa;
+                    color: var(--color-primary);
                 }
 
                 &:hover {
-                    background: #374151;
-                    border-color: #60a5fa;
+                    background: var(--color-bg-tertiary);
+                    border-color: var(--color-primary);
                 }
 
                 &.selected {
                     background: #0f3460;
-                    border-color: #60a5fa;
+                    border-color: var(--color-primary);
                     box-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
                 }
             }
@@ -85,17 +85,16 @@
         top: 20px;
         right: 150px;
         background: rgba(30, 30, 46, 0.98);
-        border: 2px solid #60a5fa;
-        border-radius: 8px;
-        padding: 16px;
+        border: 2px solid var(--color-primary);
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
         max-width: 400px;
         min-width: 300px;
         max-height: 350px;
         z-index: 100;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         backdrop-filter: blur(10px);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-            sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         display: none;
     }
 
@@ -103,7 +102,7 @@
         display: flex;
 
         .decree-hint {
-            color: #9ca3af;
+            color: var(--color-text-muted);
             font-style: italic;
             margin: 0;
             font-size: 13px;
@@ -112,12 +111,12 @@
         .decree-content {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: var(--space-sm);
             height: 100%;
 
             .decree-node-label {
                 font-size: 11px;
-                color: #60a5fa;
+                color: var(--color-primary);
                 font-weight: bold;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
@@ -137,10 +136,10 @@
 
                 .decree-text {
                     font-size: 13px;
-                    color: #e5e7eb;
+                    color: var(--color-text-primary);
                     line-height: 1.4;
                     font-style: italic;
-                    border-left: 3px solid #f59e0b;
+                    border-left: 3px solid var(--color-accent);
                     padding-left: 12px;
                     margin: 0;
                 }
@@ -155,23 +154,14 @@
         .control-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
+            gap: var(--space-lg);
+            margin-bottom: var(--space-lg);
 
             .control-group {
                 h3 {
                     margin: 0 0 8px 0;
                     font-size: 14px;
-                    color: #cbd5e1;
-                }
-
-                select {
-                    width: 100%;
-                    padding: 8px;
-                    background: #1e293b;
-                    color: #e2e8f0;
-                    border: 1px solid #334155;
-                    border-radius: 4px;
+                    color: var(--color-text-secondary);
                 }
             }
 
@@ -185,7 +175,7 @@
                 }
 
                 #speedValue {
-                    color: #94a3b8;
+                    color: var(--color-text-muted);
                     min-width: 30px;
                 }
             }
@@ -200,15 +190,15 @@
                     padding: 8px;
                     color: white;
                     border: none;
-                    border-radius: 4px;
+                    border-radius: var(--radius-sm);
                     cursor: pointer;
                     transition: background-color 0.2s ease;
 
                     &#playBtn {
-                        background: #3b82f6;
+                        background: var(--color-primary-hover);
 
                         &:hover {
-                            background: #2563eb;
+                            background: var(--color-primary);
                         }
                     }
 
@@ -230,21 +220,21 @@
         }
 
         .status-info {
-            padding: 12px;
-            background: #1e293b;
-            border-radius: 4px;
-            border-left: 3px solid #60a5fa;
+            padding: var(--space-md);
+            background: var(--color-bg-secondary);
+            border-radius: var(--radius-sm);
+            border-left: 3px solid var(--color-primary);
 
             #statusTitle {
                 font-weight: bold;
-                color: #60a5fa;
+                color: var(--color-primary);
                 margin-bottom: 4px;
                 font-size: 14px;
             }
 
             #statusDescription {
                 font-size: 12px;
-                color: #cbd5e1;
+                color: var(--color-text-secondary);
             }
         }
     }
@@ -256,18 +246,19 @@
         h3 {
             margin: 0 0 10px 0;
             font-size: 14px;
-            color: #cbd5e1;
+            color: var(--color-text-secondary);
         }
 
+        /* Reuse components.css stats-grid or keep specific layout here if needed */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
             gap: 8px;
 
             .stat-card {
-                background: #1e293b;
+                background: var(--color-bg-secondary);
                 padding: 8px;
-                border-radius: 4px;
+                border-radius: var(--radius-sm);
                 text-align: center;
 
                 .stat-value {
@@ -275,7 +266,7 @@
                     font-size: 16px;
 
                     &#nextBallotCount {
-                        color: #60a5fa;
+                        color: var(--color-primary);
                     }
 
                     &#lastVoteCount {
@@ -283,15 +274,15 @@
                     }
 
                     &#beginBallotCount {
-                        color: #f59e0b;
+                        color: var(--color-accent);
                     }
 
                     &#votedCount {
-                        color: #10b981;
+                        color: var(--color-success-light);
                     }
 
                     &#learnedCount {
-                        color: #34d399;
+                        color: var(--color-success);
                     }
 
                     &#successCount {
@@ -301,14 +292,14 @@
 
                 .stat-label {
                     font-size: 10px;
-                    color: #94a3b8;
+                    color: var(--color-text-muted);
                     line-height: 1.2;
                 }
             }
         }
     }
 
-    /* Event Log */
+    /* Event Log - Using unified styles structure */
     .event-log-section {
         flex: 0 0 auto;
         display: flex;
@@ -318,140 +309,56 @@
         h3 {
             margin: 0 0 10px 0;
             font-size: 14px;
-            color: #cbd5e1;
+            color: var(--color-text-secondary);
         }
 
         #eventLog {
             flex: 1;
             overflow-y: auto;
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 4px;
+            background: var(--color-primary-dark);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
             padding: 10px;
         }
     }
 
-    /* Event item */
+    /* Event item matches components.css logic roughly, but keeps specific id hooks if needed */
     .event-item {
         padding: 8px;
         margin: 2px 0;
-        background: #1e293b;
-        border-left: 3px solid #60a5fa;
-        border-radius: 4px;
+        background: var(--color-bg-secondary);
+        border-left: 3px solid var(--color-primary);
+        border-radius: var(--radius-sm);
         font-size: 12px;
-        color: #cbd5e1;
+        color: var(--color-text-secondary);
         font-family: monospace;
         word-break: break-word;
     }
 
     /* Responsive - Smaller viewport heights (1080px and below) */
     @media (max-height: 1080px) {
-
-        /* Main container */
         .demo-container {
             padding: 12px;
             gap: 10px;
         }
 
-        /* Visualization */
         .visualization {
             flex: 0 0 40%;
         }
 
-        /* Controls section */
         .controls-section {
             .control-grid {
                 gap: 10px;
                 margin-bottom: 10px;
-
-                .control-group h3 {
-                    margin: 0 0 4px 0;
-                    font-size: 12px;
-                }
-
-                select {
-                    padding: 6px;
-                    font-size: 12px;
-                }
-
-                .speed-control {
-                    gap: 6px;
-
-                    #speedValue {
-                        font-size: 11px;
-                    }
-                }
-
-                .button-group {
-                    gap: 6px;
-
-                    button {
-                        padding: 6px;
-                        font-size: 12px;
-                    }
-                }
-            }
-
-            .status-info {
-                padding: 8px;
-
-                #statusTitle {
-                    font-size: 12px;
-                    margin-bottom: 2px;
-                }
-
-                #statusDescription {
-                    font-size: 11px;
-                }
             }
         }
 
-        /* Stats section */
-        .stats-section {
-            flex: 0 0 auto;
-
-            h3 {
-                margin: 0 0 6px 0;
-                font-size: 11px;
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(6, 1fr);
-                gap: 5px;
-
-                .stat-card {
-                    padding: 5px 3px;
-
-                    .stat-value {
-                        font-size: 13px;
-                    }
-
-                    .stat-label {
-                        font-size: 8px;
-                        line-height: 1.1;
-                    }
-                }
-            }
+        .stats-section .stats-grid .stat-card {
+            padding: 5px 3px;
         }
 
-        /* Event log */
         .event-log-section {
             max-height: 150px;
-
-            h3 {
-                margin: 0 0 8px 0;
-                font-size: 12px;
-            }
-
-            #eventLog {
-                padding: 8px;
-            }
-        }
-
-        .event-item {
-            padding: 6px;
-            margin: 1px 0;
-            font-size: 11px;
         }
     }
 }

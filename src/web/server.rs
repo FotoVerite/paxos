@@ -98,7 +98,6 @@ pub async fn run_web_server() {
 
 
         .route("/the_problem", get(the_problem_handler))
-        .route("/decree", get(decree_handler))
         .route("/ws", get(websocket_handler))
         .route("/api/start-scenario", post(start_scenario_handler))
         .route("/api/stop-scenario", post(stop_scenario_handler))

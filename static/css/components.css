@@ -22,6 +22,12 @@ button:disabled {
     color: var(--color-text-muted);
 }
 
+.btn-compact {
+    padding: var(--space-xs) var(--space-md);
+    font-size: 0.9rem;
+    min-height: 32px;
+}
+
 .highlight-box {
     background: var(--color-primary-dark);
     border: 2px solid var(--color-primary);
@@ -142,6 +148,123 @@ button:disabled {
     padding-bottom: var(--space-md);
 }
 
+/* Control Panel (Unified) */
+.control-panel {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-xl);
+    margin-bottom: var(--space-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.control-panel h2 {
+    margin: 0 0 var(--space-lg) 0;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: var(--space-md);
+    color: var(--color-primary);
+    font-size: 1.1rem;
+}
+
+.control-group {
+    display: flex;
+    gap: var(--space-md);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.control-group label {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.status-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: var(--color-primary-dark);
+    border: 1px solid var(--color-border);
+    padding: var(--space-xs) var(--space-md);
+    border-radius: var(--radius-sm);
+}
+
+.status-item .label {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.status-item .value {
+    color: var(--color-primary);
+    font-weight: 700;
+    font-family: 'Monaco', monospace;
+    font-size: 0.95rem;
+}
+
+/* Stats Grid & Cards (Unified) */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: var(--space-md);
+    margin-bottom: var(--space-xl);
+}
+
+.stat-card {
+    background: var(--color-primary-dark);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    text-align: center;
+}
+
+.stat-card .value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-primary);
+    margin-bottom: var(--space-xs);
+}
+
+.stat-card .label {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+
+/* Event Log (Unified) */
+.event-log-container {
+    background: var(--color-primary-dark);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    max-height: 250px;
+    overflow-y: auto;
+    font-size: 0.9rem;
+}
+
+.event-log-item {
+    background: var(--color-bg-secondary);
+    border-left: 3px solid var(--color-primary);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.event-log-item:last-child {
+    margin-bottom: 0;
+}
+
+.event-log-item .type {
+    font-weight: bold;
+    margin-right: var(--space-xs);
+}
+
 /* Status Indicators */
 .status-indicator {
     width: 12px;
@@ -149,6 +272,7 @@ button:disabled {
     border-radius: 50%;
     background: var(--color-error);
     animation: pulse 2s infinite;
+    display: inline-block;
 }
 
 .status-indicator.connected {
@@ -168,19 +292,23 @@ button:disabled {
 }
 
 /* Color Palette - Event Types */
-.event-learn {
+.event-learn,
+.event-log-item.learn {
     border-left-color: var(--color-success);
 }
 
-.event-promise {
+.event-promise,
+.event-log-item.promise {
     border-left-color: var(--color-accent);
 }
 
-.event-proposal {
+.event-proposal,
+.event-log-item.proposal {
     border-left-color: var(--color-info);
 }
 
-.event-accept {
+.event-accept,
+.event-log-item.accept {
     border-left-color: var(--color-error);
 }
 
@@ -203,7 +331,8 @@ button:disabled {
 /* Inputs */
 input[type="number"],
 input[type="text"],
-input[type="range"] {
+input[type="range"],
+select {
     background: var(--color-primary-dark);
     border: 1px solid var(--color-border);
     color: var(--color-text-primary);

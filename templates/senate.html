@@ -38,29 +38,29 @@
 
         <div>
             <h2>Stats</h2>
-            <div class="stats-group">
-                <div class="stat-item">
-                    <div class="stat-value" id="proposalCount">0</div>
-                    <div class="stat-label">Proposals</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="value" id="proposalCount">0</div>
+                    <div class="label">Proposals</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="promiseCount">0</div>
-                    <div class="stat-label">Promises</div>
+                <div class="stat-card">
+                    <div class="value" id="promiseCount">0</div>
+                    <div class="label">Promises</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="acceptCount">0</div>
-                    <div class="stat-label">Accepts</div>
+                <div class="stat-card">
+                    <div class="value" id="acceptCount">0</div>
+                    <div class="label">Accepts</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="learnCount">0</div>
-                    <div class="stat-label">Learned</div>
+                <div class="stat-card">
+                    <div class="value" id="learnCount">0</div>
+                    <div class="label">Learned</div>
                 </div>
             </div>
         </div>
 
         <div>
             <h2>Events</h2>
-            <div class="event-log" id="eventLog"></div>
+            <div class="event-log-container" id="eventLog"></div>
         </div>
     </div>
 </div>
@@ -179,7 +179,7 @@
 
         // Add to event log
         const item = document.createElement('div');
-        item.className = `event-item ${colorClass}`;
+        item.className = `event-log-item ${colorClass}`;
         item.textContent = `[${eventType}] Node ${nodeId}`;
         eventLog.insertBefore(item, eventLog.firstChild);
         while (eventLog.children.length > 20) {

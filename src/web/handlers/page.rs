@@ -138,7 +138,6 @@ page_template!(
 );
 page_template!(terms_handler, TermTemplate, "terms.html");
 page_template!(the_problem_handler, TheProblem, "the_problem.html");
-page_template!(decree_handler, DecreeTemplate, "decree.html");
 
 page_template!(
     synod_constraints_handler,

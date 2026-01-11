@@ -14,23 +14,25 @@
   </header>
 
   <!-- Controls -->
-  <div class="control-section">
-    <div class="control-group-row">
-      <button onclick="startNewBallot()" class="btn-large">
+  <div class="control-panel">
+    <div class="control-group">
+      <button onclick="startNewBallot()" class="btn-compact">
         🗳️ Try Ballot
       </button>
-      <button onclick="resetSimulation()" class="btn-large">↻ Reset</button>
+      <button onclick="resetSimulation()" class="btn-compact" style="background: var(--color-bg-tertiary);">
+        ↻ Reset
+      </button>
 
-      <div class="spacer"></div>
+      <div style="flex: 1;"></div>
 
-      <div class="control-item">
-        <label>Proposed Decree:</label>
-        <div class="control-item-value" id="currentProposal">--</div>
+      <div class="status-item">
+        <span class="label">Proposed Decree</span>
+        <span class="value" id="currentProposal">--</span>
       </div>
 
-      <div class="control-item">
-        <label>Ballots Tried:</label>
-        <div class="control-item-value" id="ballotsTried">0</div>
+      <div class="status-item">
+        <span class="label">Ballots Tried</span>
+        <span class="value" id="ballotsTried">0</span>
       </div>
     </div>
   </div>
