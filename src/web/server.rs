@@ -19,7 +19,7 @@ pub async fn run_web_server() {
     let app = Router::new()
         .route("/", get(landing_handler))
         .route("/whitepapers", get(whitepapers_handler))
-        .route("/leslie", get(leslie_handler))
+        .route("/leslie-lamport-biography", get(leslie_handler))
         .route("/visualizer", get(visualizer_handler))
         .route("/senate", get(senate_handler))
         .route("/setting_of_paper", get(setting_of_paper_handler))

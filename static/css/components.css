@@ -29,11 +29,16 @@ button:disabled {
 }
 
 .highlight-box {
-    background: var(--color-primary-dark);
+    background: 
+        url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="215" height="150" viewBox="0 0 215 150"><defs><linearGradient id="col1" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%%" style="stop-color:rgba(96,165,250,0.08)" /><stop offset="100%%" style="stop-color:rgba(96,165,250,0.01)" /></linearGradient><linearGradient id="col2" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%%" style="stop-color:rgba(96,165,250,0.12)" /><stop offset="100%%" style="stop-color:rgba(96,165,250,0.02)" /></linearGradient><linearGradient id="col3" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%%" style="stop-color:rgba(96,165,250,0.16)" /><stop offset="100%%" style="stop-color:rgba(96,165,250,0.03)" /></linearGradient><linearGradient id="col4" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%%" style="stop-color:rgba(96,165,250,0.16)" /><stop offset="100%%" style="stop-color:rgba(96,165,250,0.03)" /></linearGradient><linearGradient id="fade" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%%" style="stop-color:rgba(0,0,0,0.06)" /><stop offset="70%%" style="stop-color:rgba(0,0,0,0.02)" /><stop offset="100%%" style="stop-color:rgba(0,0,0,0)" /></linearGradient></defs><g><rect x="86" y="50" width="21" height="100" rx="6" fill="url(%23col1)" /><rect x="122" y="50" width="21" height="100" rx="6" fill="url(%23col2)" /><rect x="158" y="50" width="21" height="100" rx="6" fill="url(%23col3)" /><rect x="194" y="50" width="21" height="100" rx="6" fill="url(%23col4)" /></g><rect width="215" height="150" fill="url(%23fade)" /></svg>') 
+        no-repeat right bottom,
+        var(--color-primary-dark);
+    background-size: 215px 150px, 100% 100%;
     border: 2px solid var(--color-primary);
     border-radius: var(--radius-lg);
     padding: var(--space-xl);
     margin-bottom: var(--space-2xl);
+    position: relative;
 }
 
 /* Panels & Cards */
