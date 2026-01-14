@@ -126,6 +126,7 @@ page_template!(
 
 // Define pages
 page_template!(landing_handler, LandingTemplate, "landing.html");
+page_template!(whitepapers_handler, WhitepapersTemplate, "whitepapers.html");
 page_template!(leslie_handler, LeslieTemplate, "leslie.html");
 page_template!(visualizer_handler, VisualizerTemplate, "visualizer.html");
 

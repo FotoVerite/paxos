@@ -1,0 +1,169 @@
+{% extends "base.html" %} {% block title %}Paxos Explained{% endblock %}
+{% block body_class %}landing-page{% endblock %}
+{% block content %}
+<div class="container">
+  <header>
+    <h1>Paxos a <i>very</i> part-time parliament</h1>
+    <p class="tagline">
+      Paxos a part time parliament published in 1998 by Leslie Lamport is the
+      one of the landmark white papers on distributed consensus. It's the
+      backbone of many modern systems, from databases to cloud services. Being
+      seminal doesn't mean it's easy to understand. Nor does it mean the white
+      paper describing it was well written. It notoriously isn't, but as a
+      foundational work it is useful for anyone trying to understand both the
+      history and theory of distributed systems.
+    </p>
+  </header>
+
+  <section class="whitepapers-section">
+    <h2>White Papers</h2>
+
+    <p>
+      Various papers that can help with understanding as we go through the
+      protocol.
+    </p>
+
+    <div class="paper-category">
+      <h3>Paxos Papers</h3>
+      <div class="paper-item">
+        <div class="title">The Part‑Time Parliament</div>
+        <div class="author">📄 Lamport, Leslie</div>
+        <div class="description">
+          Lamport's original paper wrapped in an allegory about an ancient Greek
+          parliament. It's dense and and rambling, with some brilliant insights
+          along with asides that add nothing. But that's why this website
+          exists.
+        </div>
+        <a href="http://lamport.azurewebsites.net/pubs/pubs.html#paxos-original" target="_blank" class="link">Paxos The
+          Part‑Time Parliament ↗</a>
+      </div>
+      <div class="paper-item">
+        <div class="title">Paxos Made Simple</div>
+        <div class="author">📄 Lamport, Leslie</div>
+        <div class="description">
+          After watching thousands struggle with his first paper, Lamport tried
+          to simplify it but just ended up writing math proofs with no
+          explination. Math PHDs please read, normal computer science people
+          try, but it's not you.
+        </div>
+        <a href="http://lamport.azurewebsites.net/pubs/pubs.html#paxos-simple" target="_blank" class="link">Get the
+          "Simple" Version ↗</a>
+      </div>
+    </div>
+
+    <div class="paper-category">
+      <h3>From Theory to Practice</h3>
+      <div class="paper-item">
+        <div class="title">Paxos Made Moderately Complex</div>
+        <div class="author">📄 van Renesse, Robbert</div>
+        <div class="description">
+          The perfect bridge between academic theory and real-world code. This
+          paper pulls back the curtain on the engineering details you'll
+          actually need when building production systems. It reads like a
+          commented walkthrough of how to actually implemented paxos for a
+          production system.
+        </div>
+        <a href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf" target="_blank" class="link">Paxos Made Moderately
+          Complex ↗</a>
+      </div>
+      <div class="paper-item">
+        <div class="title">Paxos Made Practical</div>
+        <div class="author">📄 Mazières, David</div>
+        <div class="description">
+          This paper digs into the operational challenges, failure modes, and
+          pragmatic choices you'll face when deploying Paxos in the wild.
+          Essential reading if you're thinking about actually using this in
+          production.
+        </div>
+        <a href="https://web.archive.org/web/20140228103759/http://www.scs.stanford.edu/2013wi-cs244b/labs/paxos_made_practical.pdf"
+          target="_blank" class="link">Paxos Made Practical ↗</a>
+      </div>
+    </div>
+
+    <div class="paper-category">
+      <h3>Other distributed systems algorithms</h3>
+      <div class="paper-item">
+        <div class="title">
+          In Search of an Understandable Consensus Algorithm (Raft)
+        </div>
+        <div class="author">📄 Ongaro & Ousterhout</div>
+        <div class="description">
+          The paper that asked: "Does consensus really need to be this hard?"
+          Raft was designed with understandability as a first-class concern, and
+          it shows. It became wildly popular for good reason.
+        </div>
+        <a href="https://raft.github.io/raft.pdf" target="_blank" class="link">Raft ↗</a>
+      </div>
+      <div class="paper-item">
+        <div class="title">Viewstamped Replication</div>
+        <div class="author">📄 Oki & Liskov</div>
+        <div class="description">
+          Developed independently around the same time as Paxos, It's another
+          foundational consensus algorithm—a perfect example of how similar
+          solutions emerge from the same hard problems.
+        </div>
+        <a href="https://pmg.csail.mit.edu/papers/vr-revisited.pdf" target="_blank" class="link">Viewstamped Replication
+          ↗</a>
+      </div>
+    </div>
+
+    <div class="paper-category">
+      <h3>Foundational Antecedent Papers</h3>
+      <div class="paper-item">
+        <div class="title">Fischer-Lynch-Paterson (FLP) Impossibility</div>
+        <div class="author">📄 Fischer, Lynch, Paterson</div>
+        <div class="description">
+          The theoretical bedrock. FLP proves that perfect consensus is
+          mathematically impossible in a fully asynchronous system where any
+          single node can fail. This is why Paxos has to be so clever—it's
+          working around an actual impossibility proof.
+        </div>
+        <a href="https://groups.csail.mit.edu/tds/papers/Lynch/jacm85.pdf" target="_blank" class="link">FLP ↗</a>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <div class="next">
+        <a href="/leslie">Next - A short biography on the creator</a>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  const pages = ["/", "/leslie", "/visualizer", "/senate", "/decree"];
+  let currentPageIndex = pages.indexOf(window.location.pathname);
+
+  const prevLink = document.getElementById("prev-link");
+  const nextLink = document.getElementById("next-link");
+
+  function updateNavLinks() {
+    prevLink.style.display = "block";
+    nextLink.style.display = "block";
+
+    if (currentPageIndex <= 0) {
+      prevLink.style.display = "none";
+    }
+    if (currentPageIndex >= pages.length - 1) {
+      nextLink.style.display = "none";
+    }
+
+    prevLink.href = pages[Math.max(0, currentPageIndex - 1)];
+    nextLink.href = pages[Math.min(pages.length - 1, currentPageIndex + 1)];
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") {
+      if (currentPageIndex < pages.length - 1) {
+        window.location.href = pages[currentPageIndex + 1];
+      }
+    } else if (e.key === "ArrowLeft") {
+      if (currentPageIndex > 0) {
+        window.location.href = pages[currentPageIndex - 1];
+      }
+    }
+  });
+
+  updateNavLinks();
+</script>
+{% endblock %}
