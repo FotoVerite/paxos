@@ -1,0 +1,21 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+  </defs>
+
+  <path d="M10 20 Q50 26 90 20 L86 30 Q50 36 14 30 Z" stroke="url(#lineGrad)" stroke-width="2" stroke-opacity="0.4"/>
+
+  <path d="M35 70 C35 55 20 45 12 30" stroke="url(#lineGrad)" stroke-width="2.5" stroke-opacity="0.4"/>
+  <path d="M65 70 C65 55 80 45 88 30" stroke="url(#lineGrad)" stroke-width="2.5" stroke-opacity="0.4"/>
+
+  <path d="M35 70 C40 50 30 40 25 32" stroke="url(#lineGrad)" stroke-width="1.5" stroke-opacity="0.4"/>
+  <path d="M65 70 C60 50 70 40 75 32" stroke="url(#lineGrad)" stroke-width="1.5" stroke-opacity="0.4"/>
+  
+  <path d="M50 70 C50 60 40 50 38 35" stroke="url(#lineGrad)" stroke-width="1.2" stroke-opacity="0.4"/>
+  <path d="M50 70 C50 60 60 50 62 35" stroke="url(#lineGrad)" stroke-width="1.2" stroke-opacity="0.4"/>
+
+  <path d="M35 70 V90 M65 70 V90 M45 72 V90 M55 72 V90" stroke="url(#lineGrad)" stroke-width="2" stroke-linecap="round" stroke-opacity="0.4"/>
+</svg>

@@ -20,9 +20,9 @@ pub async fn run_web_server() {
         .route("/", get(landing_handler))
         .route("/whitepapers", get(whitepapers_handler))
         .route("/leslie-lamport-biography", get(leslie_handler))
+        .route("/publishing-history", get(setting_of_paper_handler))
         .route("/visualizer", get(visualizer_handler))
         .route("/senate", get(senate_handler))
-        .route("/setting_of_paper", get(setting_of_paper_handler))
         .route("/terms", get(terms_handler))
         .route("/overview", get(overview_handler))
         //section-1
@@ -78,15 +78,8 @@ pub async fn run_web_server() {
             "/further-developments/picking-a-president",
             get(f_d_picking_a_president),
         )
-        .route(
-            "/further-developments/long-ledgers",
-            get(f_d_long_ledgers),
-        )
-        .route(
-            "/further-developments/bureaucrats",
-            get(f_d_bureaucrats),
-        )
-
+        .route("/further-developments/long-ledgers", get(f_d_long_ledgers))
+        .route("/further-developments/bureaucrats", get(f_d_bureaucrats))
         .route(
             "/further-developments/learning-the-law",
             get(f_d_learning_the_law),
@@ -95,9 +88,6 @@ pub async fn run_web_server() {
             "/further-developments/dishonest-legislators",
             get(f_d_dishonest_legislators),
         )
-
-
-
         .route("/the_problem", get(the_problem_handler))
         .route("/ws", get(websocket_handler))
         .route("/api/start-scenario", post(start_scenario_handler))
