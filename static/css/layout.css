@@ -76,6 +76,7 @@ header {
 }
 
 .container {
+    position: relative;
     max-width: 1400px;
     margin: 0 auto;
     padding: var(--space-2xl) var(--space-xl);
@@ -132,3 +133,4 @@ header {
     content: " →";
     margin-left: var(--space-xs);
 }
+

@@ -9,11 +9,18 @@
 {% endblock %} {% block content %}
 <div class="container">
   <div class="panel">
+    <div class="header-icon">
+      <object
+        type="image/svg+xml"
+        data="/svgs/curly_brace.svg"
+        class="math-logo"
+      ></object>
+    </div>
     <h1>Section 2. A basic protocol made constrained</h1>
 
     <p>There are three major constraints to the paxos protocol</p>
 
-    <div class="key-concept">
+    <div class="key-concept block">
       <h2>Ballot Uniqueness</h2>
 
       <strong>$\mathbf{B1}(\mathcal{B})$:</strong> $\triangleq \forall B, B' \in
@@ -27,7 +34,14 @@
       </p>
     </div>
 
-    <div class="key-concept">
+    <div class="key-concept block">
+      <div class="block-icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/quorum.svg"
+          class="math-logo"
+        ></object>
+      </div>
       <h2>Quorums</h2>
 
       <strong>$\mathbf{B2}(\mathcal{B})$:</strong> $\triangleq \forall B, B' \in
@@ -41,15 +55,16 @@
       </p>
     </div>
 
-    <div class="key-concept">
+    <div class="key-concept block">
       <h2>Decree Consistency</h2>
 
-      <strong>$\mathbf{B3}(\mathcal{B})$:</strong>
-      $\triangleq \forall B \in \mathcal{B} : (\text{MaxVote}(B_{\text{bal}},
-      B_{\text{qrm}}, \mathcal{B})_{\text{bal}} = -\infty) \Rightarrow
-      (B_{\text{dec}} = \text{MaxVote}(B_{\text{bal}}, B_{\text{qrm}},
-      \mathcal{B})_{\text{dec}})$
-
+      <p>
+        <strong>$\mathbf{B3}(\mathcal{B})$:</strong>
+        $\triangleq \forall B \in \mathcal{B} : (\text{MaxVote}(B_{\text{bal}},
+        B_{\text{qrm}}, \mathcal{B})_{\text{bal}} = -\infty) \Rightarrow
+        (B_{\text{dec}} = \text{MaxVote}(B_{\text{bal}}, B_{\text{qrm}},
+        \mathcal{B})_{\text{dec}})$
+      </p>
       <p>
         For any ballot $B$ in the set $\mathcal{B}$, if there is no previously
         accepted ballot in the quorum with a higher ballot number, then the

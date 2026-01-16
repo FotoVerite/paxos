@@ -45,8 +45,7 @@ button:disabled {
   background-repeat: no-repeat;
   background-size: contain;
   background-position: top right;
-  filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.1));
-  
+  filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.1));
 }
 
 .ionic-icon {
@@ -54,8 +53,7 @@ button:disabled {
   background-repeat: no-repeat;
   background-size: contain;
   background-position: top right;
-  filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.1));
-  
+  filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.1));
 }
 
 .hellenic-icon {
@@ -63,8 +61,7 @@ button:disabled {
   background-repeat: no-repeat;
   background-size: contain;
   background-position: top right;
-  filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.1));
-  
+  filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.1));
 }
 
 /* Panels & Cards */
@@ -120,7 +117,7 @@ button:disabled {
     transition: color var(--transition-fast);
   }
 
-  blockquote {
+  /* blockquote {
     font-size: 0.9rem;
     line-height: 1.6rem;
     background: var(--color-primary-dark);
@@ -128,7 +125,7 @@ button:disabled {
     padding: var(--space-lg);
     border-radius: var(--radius-lg);
     border-left: 3px solid var(--color-border);
-  }
+  } */
 
   p {
     color: var(--color-text-secondary);
@@ -147,6 +144,7 @@ button:disabled {
   }
 
   .block {
+    position: relative;
     background: var(--color-primary-dark);
     border-left: 3px solid var(--color-primary);
     border-radius: var(--radius-md);
@@ -380,3 +378,79 @@ input[type="range"] {
   height: 6px;
   cursor: pointer;
 }
+
+/*Icons*/
+.header-icon {
+  width: 60px;
+  top: 45px;
+  position: absolute;
+  right: 40px;
+  opacity: 0.5;
+}
+
+.block-icon {
+  width: 60px;
+  top: 2px;
+  position: absolute;
+  right: 2px;
+  opacity: 0.6;
+}
+
+.quote-container {
+  margin: 2.5rem 0;
+  padding: 1.5rem; /* Space for the architectural border */
+  position: relative;
+  border-top-left-radius: var(--radius-md);
+  border-left: 5px solid;
+  border-image: linear-gradient(to bottom, #ff71ce, #01cdfe) 1;
+
+  background: linear-gradient(
+    to right,
+    rgba(70, 72, 78, 0.931),
+    rgba(73, 75, 82, 0.931)
+  );
+  .inscription-label {
+    display: block;
+    font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #ff71ce; /* Neon Pink */
+    margin-bottom: 0.5rem;
+    opacity: 0.8;
+  }
+
+  blockquote {
+    font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+    background: transparent;
+  }
+
+  .quote-source {
+    display: block;
+    text-align: right;
+    margin-top: 0.75rem;
+
+    /* Typography */
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    font-style: normal; /* Override default italic <cite> */
+  }
+
+  .quote-source a {
+    color: #01cdfe; /* Use your Cyan accent color */
+    text-decoration: none;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+
+  .quote-source a:hover {
+    opacity: 1;
+    border-bottom: 1px solid #01cdfe;
+  }
+
+  /* Optional: Selection color to match the theme */
+}
+
+/* The Label (Stone Inscription Style) */

@@ -1,0 +1,21 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+    
+    <mask id="numberMask">
+      <rect width="100" height="100" fill="white" />
+      <rect x="22" y="22" width="50" height="56" fill="black" />
+    </mask>
+  </defs>
+
+  <rect x="18" y="18" width="64" height="64" rx="2" 
+        fill="url(#mathGrad)" 
+        fill-opacity="0.9" 
+        mask="url(#numberMask)" />
+
+  <g stroke="url(#mathGrad)" stroke-width="4.5" stroke-linecap="round" stroke-opacity="0.9">
+    <line x1="42" y1="35" x2="38" y2="65" /> <line x1="58" y1="35" x2="54" y2="65" /> <line x1="33" y1="44" x2="63" y2="44" /> <line x1="30" y1="56" x2="60" y2="56" /> </g>
+</svg>
