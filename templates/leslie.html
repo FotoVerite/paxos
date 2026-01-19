@@ -3,6 +3,7 @@
 
 {% block content %}
 <div class="container">
+
   <div class="panel">
     <div class="bio-header">
       <div class="bio-title">
@@ -113,15 +114,21 @@
         biography.
       </p>
     </div>
+  </div>
 
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/">Prev - Whitepapers</a>
-      </div>
-      <div class="next">
-        <a href="/publishing-history">Next - Paxos Publishing History</a>
-      </div>
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a href="/" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Home</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Leslie Lamport</span>
     </div>
+    <a href="/publishing-history" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+      <span class="breadcrumb-text">Publishing History</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
   </div>
 </div>
 {% endblock %}

@@ -15,8 +15,11 @@ class AnimatedNodes {
         this.initializeNodes();
         this.animate();
         
-        // Handle window resize
-        window.addEventListener('resize', () => this.setupCanvas());
+        // Handle window resize - reinitialize nodes when size changes significantly
+        window.addEventListener('resize', () => {
+            this.setupCanvas();
+            this.initializeNodes();
+        });
     }
     
     setupCanvas() {
@@ -26,30 +29,62 @@ class AnimatedNodes {
         this.ctx = this.canvas.getContext('2d');
     }
     
+    getResponsiveNodeSize() {
+        const width = window.innerWidth;
+        
+        // Scale nodes based on viewport width
+        if (width < 380) {
+            return { nodeRadius: 1.5, spacing: 10 };
+        } else if (width < 480) {
+            return { nodeRadius: 2, spacing: 9 };
+        } else if (width < 768) {
+            return { nodeRadius: 3, spacing: 16 };
+        } else if (width < 1024) {
+            return { nodeRadius: 3.5, spacing: 18 };
+        }
+        return { nodeRadius: 4, spacing: 20 };
+    }
+    
     initializeNodes() {
         // Create nodes in a grid pattern that forms "PAXOS" letters
-        const nodeRadius = 4;
-        const spacing = 20;
-        const centerX = this.canvas.width / 2;
-        const centerY = this.canvas.height / 2 - 130; // Moved up 50px from -80
+        const { nodeRadius, spacing } = this.getResponsiveNodeSize();
+        const centerY = this.canvas.height / 2 - 130;
         
         // Define letter patterns (simplified)
-        // Each letter is a grid of points that will become glowing nodes
         const letters = this.getLetterPatterns(spacing);
         
-        // Calculate total width needed for all letters
-        let totalWidth = 0;
-        letters.forEach((letterPoints) => {
-            const maxX = Math.max(...letterPoints.map(p => p[0]));
-            totalWidth += (maxX + 1) * spacing + 30; // +30 for letter spacing
-        });
-        
-        // Start position to center all letters
-        let currentX = centerX - (totalWidth / 2);
+        // First pass: create all node positions with temporary currentX
+        const tempNodes = [];
+        let currentX = 0;
+        const letterSpacing = 30;
         
         letters.forEach((letterPoints) => {
             letterPoints.forEach(point => {
                 const x = currentX + point[0] * spacing;
+                const y = centerY + point[1] * spacing;
+                tempNodes.push({ x, y });
+            });
+            
+            // Move to next letter position
+            const maxX = Math.max(...letterPoints.map(p => p[0]));
+            currentX += (maxX + 1) * spacing + letterSpacing;
+        });
+        
+        // Calculate bounding box of all nodes
+        const xCoords = tempNodes.map(n => n.x);
+        const minX = Math.min(...xCoords);
+        const maxX = Math.max(...xCoords);
+        const boundingWidth = maxX - minX;
+        
+        // Calculate offset to center the entire group
+        const centerX = this.canvas.width / 2;
+        const offsetX = centerX - (minX + boundingWidth / 2);
+        
+        // Second pass: create actual nodes with centered positions
+        currentX = 0;
+        letters.forEach((letterPoints) => {
+            letterPoints.forEach(point => {
+                const x = offsetX + currentX + point[0] * spacing;
                 const y = centerY + point[1] * spacing;
                 
                 this.nodes.push({
@@ -64,16 +99,16 @@ class AnimatedNodes {
                     connected: [],
                     vx: (Math.random() - 0.5) * 0.1,
                     vy: (Math.random() - 0.5) * 0.1,
-                    cycleOffset: Math.random() * Math.PI * 2, // Random cycle start time
-                    pulseSpeed: 1.5 + Math.random() * 1.5, // Random pulse speed (1.5 to 3)
-                    wobbleSpeed: 0.8 + Math.random() * 0.6, // Random wobble speed (0.8 to 1.4)
-                    wobbleAmount: 1.5 + Math.random() * 2, // Random wobble magnitude (1.5 to 3.5)
+                    cycleOffset: Math.random() * Math.PI * 2,
+                    pulseSpeed: 1.5 + Math.random() * 1.5,
+                    wobbleSpeed: 0.8 + Math.random() * 0.6,
+                    wobbleAmount: 1.5 + Math.random() * 2,
                 });
             });
             
             // Move to next letter position
             const maxX = Math.max(...letterPoints.map(p => p[0]));
-            currentX += (maxX + 1) * spacing + 30;
+            currentX += (maxX + 1) * spacing + letterSpacing;
         });
         
         // Calculate connections between nearby nodes (only adjacent nodes)
