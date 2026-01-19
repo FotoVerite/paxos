@@ -1,0 +1,26 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+  </defs>
+
+  <rect x="25" y="46" width="50" height="1.5" rx="0.75" fill="url(#mathGrad)" opacity="0.5" />
+  <rect x="25" y="52.5" width="50" height="1.5" rx="0.75" fill="url(#mathGrad)" opacity="0.5" />
+
+  <path d="M 30 40 L 18 50 L 30 60" 
+        fill="none" 
+        stroke="url(#mathGrad)" 
+        stroke-width="1.5" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" 
+        opacity="0.5" />
+
+  <path d="M 70 38 L 84 50 L 70 62" 
+        fill="none" 
+        stroke="url(#mathGrad)" 
+        stroke-width="2" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" />
+</svg>

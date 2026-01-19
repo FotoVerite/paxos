@@ -1,0 +1,34 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+
+    <clipPath id="innerOverlap">
+      <circle cx="60" cy="50" r="22" />
+    </clipPath>
+  </defs>
+
+  <circle cx="40" cy="50" r="22" 
+          fill="none" 
+          stroke="url(#mathGrad)" 
+          stroke-width="1" 
+          opacity="0.4" />
+
+  <circle cx="60" cy="50" r="22" 
+          fill="none" 
+          stroke="url(#mathGrad)" 
+          stroke-width="3" />
+
+  <circle cx="40" cy="50" r="22" 
+          fill="url(#mathGrad)" 
+          fill-opacity="0.9" 
+          clip-path="url(#rightCircleClip)" />
+          
+  <defs>
+    <clipPath id="rightCircleClip">
+      <circle cx="60" cy="50" r="22" />
+    </clipPath>
+  </defs>
+</svg>

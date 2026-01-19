@@ -1,62 +1,68 @@
-{% extends "base.html" %}
-
-{% block title %}Paxos Definitions{% endblock %}
-
-{% block extra_stylesheets %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+{% extends "base.html" %} {% block title %}Paxos Definitions{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <div class="container">
-    <div class="panel min-height-900hv">
-        <h1>Ballot or <strong>$B$</strong></h1>
-        <p>
-            The choice of naming the concept of the protocol container logic is a true mistake on Lamport's part. It
-            confuses the concepts he's trying to explain with no additional clarity. It's easy to consider this a round
-            of voting but that's not quite either.
-        </p>
-
-        <p>
-            In truth, it's not object; it's a mathematical concept and logical organization for the protocol. For ease
-            of use I will refer to it as both as a round or as a ballot when such terms will make it more clear what I
-            am referring to. IE: I will try to use ballot when referring to the actual protocol proof and round when
-            referring to the process.
-        </p>
-
-        <p>
-            A round is successful if the number of nodes that have voted for a decree meets or exceeds the quorum
-            threshold.
-        </p>
-
-        <div class="nav-links">
-            <div class="prev">
-                <a href="/synod/definitions">Prev - Section 2 Definitions</a>
-            </div>
-            <div class="next">
-                <a href="/synod/ballot-number">Next - Ballot Number </a>
-            </div>
-        </div>
+  <div class="panel min-height-900hv">
+    <div class="header-icon">
+      <object
+        type="image/svg+xml"
+        data="/svgs/ballot.svg"
+        class="math-logo"
+      ></object>
     </div>
+    <h1>Ballot or <strong>$B$</strong></h1>
+    <div class="block">
+      <p>
+        The choice of naming the concept of the protocol container logic is a
+        true mistake on Lamport's part. It confuses the concepts he's trying to
+        explain with no additional clarity. It's easy to consider this a round
+        of voting but that's not quite either.
+      </p>
+
+      <p>
+        In truth, it's not object; it's a mathematical concept and logical
+        organization for the protocol. For ease of use I will refer to it as
+        both as a round or as a ballot when such terms will make it more clear
+        what I am referring to. IE: I will try to use ballot when referring to
+        the actual protocol proof and round when referring to the process.
+      </p>
+
+      <p>
+        A round is successful if the number of nodes that have voted for a
+        decree meets or exceeds the quorum threshold.
+      </p>
+    </div>
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/synod/definitions">Prev - Section 2 Definitions</a>
+      </div>
+      <div class="next">
+        <a href="/synod/ballot-number">Next - Ballot Number </a>
+      </div>
+    </div>
+  </div>
 </div>
 
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 
 <script>
-    // Render KaTeX math when DOM is ready
-    document.addEventListener('DOMContentLoaded', function () {
-        if (window.renderMathInElement) {
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },
-                    { left: '$', right: '$', display: false }
-                ]
-            });
-        }
-    });
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
 </script>
 
 {% endblock %}
