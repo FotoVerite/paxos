@@ -146,7 +146,7 @@ content %}
       <div class="icon">
         <object
           type="image/svg+xml"
-          data="/svgs/timer.svg"
+          data="/svgs/message.svg"
           class="math-logo"
         ></object>
       </div>
@@ -213,11 +213,8 @@ content %}
       </div>
 
       <p>
-        Nodes might be lazy, they might leave the room (crash), and their
-        messengers might get lost (network packet loss), but they never lie.
-        While this is a concern for real world systems, it is outside the scope
-        of the paper and Paxos assumes all messages are reflecting the state of
-        the system truthfully.
+        Nodes are fail-stop, not malicious. They may crash or go silent, but
+        they never send forged or contradictory messages to trick the system.
       </p>
     </div>
   </div>
