@@ -412,7 +412,7 @@ input[type="range"] {
 /*Icons*/
 .header-icon {
   width: 60px;
-  top: 70px;
+  top: 75px;
   position: absolute;
   right: 40px;
   opacity: 0.5;

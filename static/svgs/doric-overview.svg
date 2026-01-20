@@ -1,0 +1,17 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+    
+    <g id="pillar">
+      <rect x="0" y="65" width="20" height="3" rx="0.5" fill="url(#mathGrad)" />
+      <rect x="4" y="30" width="3" height="35" fill="url(#mathGrad)" opacity="0.6" />
+      <rect x="8.5" y="30" width="3" height="35" fill="url(#mathGrad)" />
+      <rect x="13" y="30" width="3" height="35" fill="url(#mathGrad)" opacity="0.6" />
+      <rect x="2" y="27" width="16" height="3" rx="0.5" fill="url(#mathGrad)" />
+    </g>
+  </defs>
+
+  <use href="#pillar" x="12" y="0" /> <use href="#pillar" x="40" y="0" /> <use href="#pillar" x="68" y="0" /> </svg>

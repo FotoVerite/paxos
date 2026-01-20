@@ -1,113 +1,122 @@
 {% extends "base.html" %} {% block title %}The Single-Decree Synod: Overview{%
 endblock %} {% block content %} {% block extra_stylesheets %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 {% endblock %}
 
 <div class="container">
-    <div class="panel">
-        <h1 class="panel-title">The Single-Decree Synod: Overview</h1>
-
-        <p class="highlight-box">
-            The Single-Decree Synod is the main protocol for nodes to agree on a
-            single value.
-        </p>
-
-        <p>
-            Lamport suddenly thrust us back in time again. Now instead of legislators
-            we have priest in a synod. Bluntly this layer to the allegory is just
-            fucking stupid it adds nothing of value and additional cognitive overhead.
-            Legislators or Priests they're all nodes. The religious overtones mean
-            nothing besides maybe a slight node to Math being a religion onto itself
-            and how this implementation requires a bit of faith on the constraints
-            holding.
-        </p>
-
-        <blockquote>
-            The Paxon Parliament evolved from an earlier ceremonial Synod of priests
-            that was convened every 19 years to choose a single, symbolic decree.
-        </blockquote>
-
-        <div class="block">
-
-
-            <ul>
-                <li>
-                    <h2 class="doric-icon">
-                        <a href="/the-problem/the-island-of-paxos"><strong>2.1:</strong> Mathematical Results</a>
-                    </h2>
-                    <p>
-                        By far one of the most overloaded section of the white paper which
-                        is doing the following
-                    </p>
-                    <ol>
-                        <li>
-                            Defining the Ballot Concept/Container/Set formally $\mathcal{B}$
-                        </li>
-                        <li>
-                            Three constraints on a set of ballots that if true would guarantee
-                            consistency as shown by the latter sections.
-                        </li>
-                        <li>The proof proving this logically which consists of</li>
-                        <ol>
-                            <li>The formal definitions of the three constraints</li>
-                            <li>The formal definition of three functions</li>
-                            <li>
-                                A lemma proving the point that for any successful ballot with a
-                                larger id with a different decree it must be part of the null
-                                set. Hence it cannot exist.
-                            </li>
-                            <li>Proof of the Lemma by contradiction</li>
-                            <li>
-                                A theorem that states that any decree that comes from a ballot
-                                greater than a successful ballot must have the same decree.
-                            </li>
-
-                            <li>
-                                A theorem that states that any decree that comes from a ballot
-                                greater than a successful ballot must have the same decree.
-                            </li>
-
-                            <li>
-                                A final theorem that this will hold for all future ballots for this decree.
-                            </li>
-                        </ol>
-                    </ol>
-                </li>
-            </ul>
-        </div>
-
-        <p class="highlight-box">
-            We have a lot of ground to cover.
-        </p>
-
-        <div class="nav-links">
-            <div class="prev">
-                <a href="/the-problem/assumptions">← Prev - 1.3 Assumptions</a>
-            </div>
-            <div class="next">
-                <a href="/synod/decree-example">Next - Decree Example</a>
-            </div>
-        </div>
+  <div class="panel">
+    <div class="header-icon">
+      <object
+        type="image/svg+xml"
+        data="/svgs/ionic-overview.svg"
+        class="math-logo"
+      ></object>
     </div>
-    {% endblock %}
+    <h1 class="panel-title">The Single-Decree Synod: Overview</h1>
+
+    <p class="highlight-box">
+      The Single-Decree Synod is the main protocol for nodes to agree on a
+      single value.
+    </p>
+
+    <p>
+      Lamport suddenly thrust us back in time again. Now instead of legislators
+      we have priest in a synod. Bluntly this layer to the allegory is just
+      fucking stupid it adds nothing of value and additional cognitive overhead.
+      Legislators or Priests they're all nodes. The religious overtones mean
+      nothing besides maybe a slight node to Math being a religion onto itself
+      and how this implementation requires a bit of faith on the constraints
+      holding.
+    </p>
+
+    <blockquote>
+      The Paxon Parliament evolved from an earlier ceremonial Synod of priests
+      that was convened every 19 years to choose a single, symbolic decree.
+    </blockquote>
+
+    <div class="block">
+      <ul>
+        <li>
+          <h2 class="doric-icon">
+            <a href="/the-problem/the-island-of-paxos"
+              ><strong>2.1:</strong> Mathematical Results</a
+            >
+          </h2>
+          <p>
+            By far one of the most overloaded section of the white paper which
+            is doing the following
+          </p>
+          <ol>
+            <li>
+              Defining the Ballot Concept/Container/Set formally $\mathcal{B}$
+            </li>
+            <li>
+              Three constraints on a set of ballots that if true would guarantee
+              consistency as shown by the latter sections.
+            </li>
+            <li>The proof proving this logically which consists of</li>
+            <ol>
+              <li>The formal definitions of the three constraints</li>
+              <li>The formal definition of three functions</li>
+              <li>
+                A lemma proving the point that for any successful ballot with a
+                larger id with a different decree it must be part of the null
+                set. Hence it cannot exist.
+              </li>
+              <li>Proof of the Lemma by contradiction</li>
+              <li>
+                A theorem that states that any decree that comes from a ballot
+                greater than a successful ballot must have the same decree.
+              </li>
+
+              <li>
+                A theorem that states that any decree that comes from a ballot
+                greater than a successful ballot must have the same decree.
+              </li>
+
+              <li>
+                A final theorem that this will hold for all future ballots for
+                this decree.
+              </li>
+            </ol>
+          </ol>
+        </li>
+      </ul>
+    </div>
+
+    <p class="highlight-box">We have a lot of ground to cover.</p>
+
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/the-problem/assumptions">← Prev - 1.3 Assumptions</a>
+      </div>
+      <div class="next">
+        <a href="/synod/decree-example">Next - Decree Example</a>
+      </div>
+    </div>
+  </div>
+  {% endblock %}
 </div>
 
 {% block scripts %}
 
 <script>
-    // Render KaTeX math when DOM is ready
-    document.addEventListener("DOMContentLoaded", function () {
-        if (window.renderMathInElement) {
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: "$$", right: "$$", display: true },
-                    { left: "$", right: "$", display: false },
-                ],
-            });
-        }
-    });
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
 </script>
 
 {% endblock %}
