@@ -20,6 +20,13 @@ h1 {
     margin-bottom: var(--space-md);
 }
 
+.panel-title {
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, rgba(96, 165, 250, 0.05) 100%);
+    padding: var(--space-xl);
+    margin: 0 0 var(--space-2xl) 0;
+    border-radius: var(--radius-lg);
+}
+
 h2 {
     font-size: 1.5rem;
     color: var(--color-primary);

@@ -1,0 +1,14 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+    <mask id="checkMask">
+      <rect width="100" height="100" fill="white" />
+      <path d="M25 52 L42 69 L75 30 L82 38 L42 82 L16 57 Z" fill="black" />
+    </mask>
+  </defs>
+
+  <path d="M15 50 L42 78 L85 25 L92 35 L42 90 L8 58 Z" fill="url(#mathGrad)" mask="url(#checkMask)" />
+</svg>

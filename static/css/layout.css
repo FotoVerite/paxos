@@ -1,16 +1,4 @@
 /* Layout Styles */
-/* DEBUG: Center line - remove after testing */
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 50%;
-    width: 1px;
-    height: 100vh;
-    background: red;
-    z-index: 9999;
-    pointer-events: none;
-}
 
 header {
     background: var(--color-bg-secondary);

@@ -138,16 +138,21 @@ block content %}
       </ul>
     </div>
 
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/publishing-history">Prev - Publishing History</a>
-      </div>
-      <div class="next">
-        <a href="/the-problem/the-island-of-paxos"
-          >Next - The Island Of Paxos
-        </a>
-      </div>
     </div>
-  </div>
-  {% endblock %}
-</div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    <div class="breadcrumb-nav">
+      <a href="/publishing-history" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
+        <span class="breadcrumb-arrow">←</span>
+        <span class="breadcrumb-text">Publishing History</span>
+      </a>
+      <div class="breadcrumb-current">
+        <span class="breadcrumb-label">Paper Overview</span>
+      </div>
+      <a href="/the-problem/the-island-of-paxos" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+        <span class="breadcrumb-text">The Island of Paxos</span>
+        <span class="breadcrumb-arrow">→</span>
+      </a>
+    </div>
+    </div>
+    {% endblock %}

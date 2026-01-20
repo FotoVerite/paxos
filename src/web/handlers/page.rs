@@ -130,7 +130,15 @@ page_template!(whitepapers_handler, WhitepapersTemplate, "whitepapers.html");
 page_template!(leslie_handler, LeslieTemplate, "leslie.html");
 page_template!(visualizer_handler, VisualizerTemplate, "visualizer.html");
 
-page_template!(overview_handler, OverviewTemplate, "overview.html");
+// Overview page
+#[derive(Template)]
+#[template(path = "overview.html")]
+struct Overview;
+
+pub async fn overview_handler() -> impl IntoResponse {
+    Html(Overview.render().unwrap_or_default())
+}
+
 page_template!(senate_handler, SenateTemplate, "senate.html");
 page_template!(
     setting_of_paper_handler,

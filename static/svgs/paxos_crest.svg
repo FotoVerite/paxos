@@ -1,0 +1,22 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+  </defs>
+
+  <circle cx="50" cy="50" r="42" fill="none" stroke="url(#mathGrad)" stroke-width="1" opacity="0.4" />
+  <path d="M 50 8 A 42 42 0 0 1 50 92" fill="none" stroke="url(#mathGrad)" stroke-width="3" stroke-linecap="round" />
+
+  <rect x="40" y="65" width="20" height="3" rx="0.5" fill="url(#mathGrad)" />
+  <rect x="44" y="30" width="3" height="35" fill="url(#mathGrad)" opacity="0.6" />
+  <rect x="48.5" y="30" width="3" height="35" fill="url(#mathGrad)" />
+  <rect x="53" y="30" width="3" height="35" fill="url(#mathGrad)" opacity="0.6" />
+  <rect x="42" y="27" width="16" height="3" rx="0.5" fill="url(#mathGrad)" />
+
+  <path d="M 30 75 Q 35 70, 40 75 T 50 75 T 60 75 T 70 75" 
+        fill="none" stroke="url(#mathGrad)" stroke-width="1.5" stroke-linecap="round" />
+  <path d="M 35 82 Q 40 77, 45 82 T 55 82 T 65 82" 
+        fill="none" stroke="url(#mathGrad)" stroke-width="1" stroke-linecap="round" opacity="0.5" />
+</svg>

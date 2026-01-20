@@ -64,6 +64,36 @@ button:disabled {
   filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.1));
 }
 
+.inner-panel {
+  position: relative;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+
+  .icon {
+    width: 60px;
+    top: 5px;
+    position: absolute;
+    right: 10px;
+    opacity: 0.5;
+
+    @media (max-width: 580px) {
+      top: 15px;
+      width: 42px;
+    }
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  p {
+    font-size: 0.9rem;
+  }
+}
+
 /* Panels & Cards */
 .panel {
   background: var(--color-bg-secondary);
@@ -382,10 +412,15 @@ input[type="range"] {
 /*Icons*/
 .header-icon {
   width: 60px;
-  top: 45px;
+  top: 70px;
   position: absolute;
   right: 40px;
   opacity: 0.5;
+
+  @media (max-width: 580px) {
+    top: 80px;
+    width: 42px;
+  }
 }
 
 .block-icon {

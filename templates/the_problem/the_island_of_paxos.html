@@ -2,52 +2,84 @@
 block content %}
 <div class="container">
   <div class="panel">
+    <div class="header-icon">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos_crest.svg"
+        class="math-logo"
+      ></object>
+    </div>
     <h1 class="panel-title">The Island Of Paxos</h1>
-    <blockquote>
+    <div class="block">
+      <div class="quote-container">
+        <span class="inscription-label">The Island of Paxos 1.1</span>
+        <blockquote>
+          Early in this millennium, the Aegean island of Paxos was a thriving
+          mercantile center...But trade came before civic duty, and no one in
+          Paxos was willing to devote his life to Parliament
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=3"
+            target="_blank"
+          >
+            LAMPORT, P. 3 — §1.1
+          </a>
+        </cite>
+      </div>
+
       <p>
-        Early in this millennium, the Aegean island of Paxos was a thriving
-        mercantile center...But trade came before civic duty, and no one in
-        Paxos was willing to devote his life to Parliament
+        When confronted with the complexity of a problem, logically one would
+        state in clear terms the issues one is trying to solve. Lamport opted to
+        dress up the problem in allegory and obscuring language.
       </p>
-    </blockquote>
 
-    <p>
-      When confronted with the complexity of a problem, logically one would
-      state in clear terms the issues one is trying to solve. Lamport opted to
-      dress up the problem in allegory and obscuring language.
-    </p>
+      <p>
+        His description is telling; "But trade comes before civic duty". The
+        purpose of a node is multifaceted and to do work, agreement is simply
+        one part of it's purpose. While Lamport paper is concerned with the
+        problem of consensus, any system is more then that. It's main purpose is
+        to be productive which consensus allows it to be. Consensus on it's own
+        is not enough for a useful system.
+      </p>
 
-    <p>
-      His description is telling; "But trade comes before civic duty". The
-      purpose of a node is multifaceted and to do work, agreement is simply one
-      part of it's purpose. While Lamport paper is concerned with the problem of
-      consensus, any system is more then that. It's main purpose is to be
-      productive which consensus allows it to be. Consensus on it's own is not
-      enough for a useful system.
-    </p>
+      <p></p>
 
-    <p></p>
-
-    <p>
-      The allergy exploring this leans heavily on personification of nodes as
-      people, with physical needs and toolsets. Ledgers with permanent ink;
-      messengers traveling to distant lands via sea and land. The purpose I
-      believe is to separate implementation from description. He wants there to
-      be a bit elasticity what they can be and how it works. How a ledger is
-      recorded is not as important as the fact that it is recorded. But metaphor
-      always leads to vagueness and a loss of precision. Throughout the paper I
-      will try to keep Lamport terminology as much as possible but I will also
-      try my best to add precision.
-    </p>
-
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/overview">Prev - Paper Overview</a>
-      </div>
-      <div class="next">
-        <a href="/the-problem/requirements">Next - Section 1.2 Requirements</a>
-      </div>
+      <p>
+        The allergy exploring this leans heavily on personification of nodes as
+        people, with physical needs and toolsets. Ledgers with permanent ink;
+        messengers traveling to distant lands via sea and land. The purpose I
+        believe is to separate implementation from description. He wants there
+        to be a bit elasticity what they can be and how it works. How a ledger
+        is recorded is not as important as the fact that it is recorded. But
+        metaphor always leads to vagueness and a loss of precision. Throughout
+        the paper I will try to keep Lamport terminology as much as possible but
+        I will also try my best to add precision.
+      </p>
     </div>
   </div>
-  {% endblock %}
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/overview"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Overview</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">The Island of Paxos</span>
+    </div>
+    <a
+      href="/the-problem/requirements"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Requirements</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
 </div>
+{% endblock %}

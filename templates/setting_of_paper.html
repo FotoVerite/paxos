@@ -33,59 +33,87 @@ endblock %} {% block content %}
       explains the additional framing.
     </p>
 
-    <blockquote
-      cite="https://people.eecs.berkeley.edu/~kubitron/courses/cs262a-F12/handouts/papers/lamport-paxos.pdf"
-    >
-      This submission was recently discovered behind a filing cabinet in the
-      TOCS editorial office. Despite its age, the editor-in-chief felt that it
-      was worth publishing. Because the author is currently doing field work in
-      the Greek isles and cannot be reached, Iwas asked to prepare it for
-      publication. The author appears to be an archeologist with only a passing
-      interest in computer science. This is unfortunate; even though the obscure
-      ancient Paxon civilization he describes is of little interest to most
-      computer scientists, its legislative system is an excellent model for how
-      to implement a distributed computer system in an asynchronous environment.
-      Indeed, some of the refinements the Paxons made to their protocol appear
-      to be unknown in the systems literature. The author does give a brief
-      discussion of the Paxon Parliament’s relevance to distributed computing in
-      Section 4. Computer scientists will probably want to read that section
-      first. Even before that, they might want to read the explanation of the
-      algorithm for computer scientists by Lampson [1996]. The algorithm is also
-      described more formally by De Prisco et al. [1997]. Ihave added further
-      comments on the relation between the ancient protocols and more recent
-      work at the end of Section 4. Keith Marzullo University of California, San
-      Diago
-    </blockquote>
+    <div class="quote-container">
+      <span class="inscription-label">Opening</span>
+      <blockquote>
+        This submission was recently discovered behind a filing cabinet in the
+        TOCS editorial office. Despite its age, the editor-in-chief felt that it
+        was worth publishing. Because the author is currently doing field work
+        in the Greek isles and cannot be reached, Iwas asked to prepare it for
+        publication. The author appears to be an archeologist with only a
+        passing interest in computer science. This is unfortunate; even though
+        the obscure ancient Paxon civilization he describes is of little
+        interest to most computer scientists, its legislative system is an
+        excellent model for how to implement a distributed computer system in an
+        asynchronous environment. Indeed, some of the refinements the Paxons
+        made to their protocol appear to be unknown in the systems literature.
+        The author does give a brief discussion of the Paxon Parliament’s
+        relevance to distributed computing in Section 4. Computer scientists
+        will probably want to read that section first. Even before that, they
+        might want to read the explanation of the algorithm for computer
+        scientists by Lampson [1996]. The algorithm is also described more
+        formally by De Prisco et al. [1997]. Ihave added further comments on the
+        relation between the ancient protocols and more recent work at the end
+        of Section 4. Keith Marzullo University of California, San Diago
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=1"
+          target="_blank"
+        >
+          LAMPORT, P. 2 — Introduction
+        </a>
+      </cite>
+    </div>
 
     <p>
       Lamport himself also explained how the framing and delayed publication
       happened:
     </p>
 
-    <blockquote
-      cite="https://www.microsoft.com/en-us/research/publication/part-time-parliament/?utm_source=chatgpt.com"
-    >
-      “I submitted the paper to TOCS in 1990. All three referees said that the
-      paper was mildly interesting... but that all the Paxos stuff had to be
-      removed. I was quite annoyed at how humorless everyone working in the
-      field seemed to be, so I did nothing with the paper... As a way of both
-      carrying on the joke and saving myself work, I suggested that instead of
-      my writing a revision, it be published as a recently rediscovered
-      manuscript, with annotations by Keith Marzullo.”
-      <br /><cite
-        >— Leslie Lamport, historical remarks ([MS Research
-        link](https://www.microsoft.com/en-us/research/publication/part-time-parliament))</cite
-      >
-    </blockquote>
-
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/leslie">Prev - Biography</a>
-      </div>
-      <div class="next">
-        <a href="/overview">Next - Overview </a>
-      </div>
+    <div class="quote-container">
+      <span class="inscription-label">Leslie Lamport, historical remarks</span>
+      <blockquote>
+        I submitted the paper to TOCS in 1990. All three referees said that the
+        paper was mildly interesting... but that all the Paxos stuff had to be
+        removed. I was quite annoyed at how humorless everyone working in the
+        field seemed to be, so I did nothing with the paper... As a way of both
+        carrying on the joke and saving myself work, I suggested that instead of
+        my writing a revision, it be published as a recently rediscovered
+        manuscript, with annotations by Keith Marzullo.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.microsoft.com/en-us/research/publication/part-time-parliament"
+          target="_blank"
+        >
+          MS Research
+        </a>
+      </cite>
     </div>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/leslie"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Biography</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Publishing History</span>
+    </div>
+    <a
+      href="/overview"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Overview</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
   </div>
 </div>
 {% endblock %}

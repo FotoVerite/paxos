@@ -1,67 +1,248 @@
 {% extends "base.html" %} {% block title %}Assumptions{% endblock %} {% block
 content %}
 <div class="container">
-    <div class="panel">
-        <h1>Section 1.3 Assumptions</h1>
-
-        <blockquote>
-            The requirements of the parliamentary protocol could be achieved only by providing
-            the legislators with the necessary resources. Each legislator received a sturdy ledger
-            in which to record the decrees, a pen, and a supply of indelible ink. Legislators might
-            forget what they had been doing if they left the Chamber,3 so they would write
-            notes in the back of the ledgers to remind themselves of important parliamentary
-            tasks. An entry in the list of decrees was never changed, but notes could be crossed
-            out. Achieving the progress condition required that legislators be able to measure
-            the passage of time, so they were given simple hourglass timers
-        </blockquote>
-
-        <p>
-            If a legislator is a node, what is a decree? What is a ledger. The ledger
-            is some way of it being recorded that stable. It could be memory, it could
-            be a database, it could be json document. That part isn't important to
-            Lamport. He is more interested in the process of how they are agreed to
-            and recorded. He also is making concrete the requirement that each node
-            owns it's own recording and that it isn't a shared between them. So a
-            database they were all using as their main ledger would not count not
-            would it truly be distributed then, that would be centralized.
-        </p>
-
-        <p>If the requirements are consensus between nodes these are the tools he's giving </p>
-
-
-        <p>
-            Any of the other metadata, the "notes in the margins" cannot be counted on
-            to always be there and accessible. Messages, IE messengers might never be
-            delivered or delayed. Time must be kept locally at least in a simplistic
-            manner, IE the hourglass timers. And there must be a retry mechanism, what
-            those are are outside the main scope of the paper.
-        </p>
-
-        <p>
-            One assumption he is not concerned with is disagreements among the
-            legislators. He is assuming they all trust each other, no Byzantine
-            faults, no malicious actors, and no clients trying to propose different
-            values for the same decrees. He is basically saying transactions are not
-            an problem this is to address and is outside the scope.
-        </p>
-
-        <blockquote>
-            In modern parliaments, the passing of decrees is hindered by disagreement
-            among legislators. This was not the case in Paxos, where an atmosphere of
-            mutual trust prevailed What little time on it will be late in the paper.
-            "What evidence has been uncovered is discussed in Section 3.3.5"
-        </blockquote>
-
-
-        <div class="nav-links">
-            <div class="prev">
-                <a href="/the-problem/requirements">Prev - 1.2 Requirements</a>
-            </div>
-            <div class="next">
-                <a href="/synod/overview">Next - Section 2 Overview </a>
-            </div>
-        </div>
-
+  <div class="panel">
+    <div class="header-icon">
+      <object
+        type="image/svg+xml"
+        data="/svgs/square_bracket.svg"
+        class="math-logo"
+      ></object>
     </div>
+    <h1 class="panel-title">Section 1.3 Assumptions</h1>
+
+    <p class="highlight-box">
+      If the requirements are consensus between nodes; assumptions are the tools
+      Lamport gives them to achieve this.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Assumptions 1.3</span>
+      <blockquote>
+        The requirements of the parliamentary protocol could be achieved only by
+        providing the legislators with the necessary resources.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=4"
+          target="_blank"
+        >
+          LAMPORT, P. 4 — §1.3
+        </a>
+      </cite>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/ledger.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Ledger</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Requirements 1.3</span>
+        <blockquote>
+          Each legislator received a sturdy ledger in which to record the
+          decrees, a pen, and a supply of indelible ink.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=4"
+            target="_blank"
+          >
+            LAMPORT, P. 4 — §1.3
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        The ledger a stable recording of the decrees in order. It could be
+        memory, it could be a database, it could be a json document. That part
+        isn't important. What is, is that if the node crashes or stops the
+        ledger can be instantiated to its last known state. Also it is made
+        clear that each node owns it's own recording. If they were all using the
+        same database as their main ledger it would make the algorithm pointless
+        since the database would be centralization of decrees.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/note.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Notes</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Requirements 1.3</span>
+        <blockquote>
+          Legislators might forget what they had been doing if they left the
+          Chamber, so they would write notes in the back of the ledgers to
+          remind themselves of important parliamentary tasks. An entry in the
+          list of decrees was never changed, but notes could be crossed out.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=4"
+            target="_blank"
+          >
+            LAMPORT, P. 4 — §1.3
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Metadata, the "notes in the margins" cannot be counted on to always be
+        there and accessible. These can be ballot entries, votes, ballot
+        numbers, timeouts, retries, anything that is not the actual decree being
+        recorded. They are subject to loss, change, corruption, or being
+        unavailable. They are optimizations and conveniences but not required
+        for correctness.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/timer.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Timers</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Requirements 1.3</span>
+        <blockquote>
+          Achieving the progress condition required that legislators be able to
+          measure the passage of time, so they were given simple hourglass
+          timers.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=4"
+            target="_blank"
+          >
+            LAMPORT, P. 4 — §1.3
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Nodes need to be able to measure time locally at least in a simplistic
+        manner and there must be a retry mechanism, what those are are outside
+        the scope of the paper and are mentioned only to clarify that they are
+        needed.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/timer.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Messages</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Requirements 1.3</span>
+        <blockquote>
+          Legislators could communicate only by messenger, and were provided
+          with funds to hire as many messengers as they needed. A messenger
+          could be counted on not to garble messages, but he might forget that
+          he had already delivered a message, and deliver it again. Like the
+          legislators they served, messengers devoted only part of their time to
+          parliamentary duties. A messenger might leave the Chamber to conduct
+          some business—perhaps taking a six-month voyage—before delivering a
+          message. He might even leave forever, in which case the message would
+          never be delivered.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=4"
+            target="_blank"
+          >
+            LAMPORT, P. 4 — §1.3
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Nodes communicate only by messages. Messages might be delayed
+        indefinitely, they might be duplicated, or they might never be delivered
+        at all. They need to be designed to handle these conditions. Hence all
+        messages should be idempotent.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/tampered.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Non-Byzantine</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Requirements 1.3</span>
+        <blockquote>
+          In modern parliaments, the passing of decrees is hindered by
+          disagreement among legislators. This was not the case in Paxos, where
+          an atmosphere of mutual trust prevailed What little time on it will be
+          late in the paper. "What evidence has been uncovered is discussed in
+          Section 3.3.5"
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=5"
+            target="_blank"
+          >
+            LAMPORT, P. 5 — §1.3
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Nodes might be lazy, they might leave the room (crash), and their
+        messengers might get lost (network packet loss), but they never lie.
+        While this is a concern for real world systems, it is outside the scope
+        of the paper and Paxos assumes all messages are reflecting the state of
+        the system truthfully.
+      </p>
+    </div>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/the-problem/requirements"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Requirements</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Assumptions</span>
+    </div>
+    <a
+      href="/synod/overview"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Section 2 Overview</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+  {% endblock %}
 </div>
-{% endblock %}
