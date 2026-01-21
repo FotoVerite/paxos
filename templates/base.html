@@ -10,7 +10,7 @@
     {% block extra_stylesheets %}{% endblock %}
 </head>
 
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" {% block background_grid %}{% endblock %}>
     {% include "nav.html" %}
 
     <main>
@@ -18,6 +18,7 @@
     </main>
 
     {% block scripts %}{% endblock %}
+    <script src="/js/background-grid.js"></script>
 </body>
 
 </html>

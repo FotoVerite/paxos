@@ -33,7 +33,7 @@ pub async fn run_web_server() {
         .route("/synod/overview", get(synod_overview_handler))
         .route("/synod/decree-example", get(synod_decree_handler))
         .route(
-            "/synod/ballot-definition",
+            "/synod/ballot-definitions",
             get(synod_ballot_definition_handler),
         )
         .route("/synod/math-terms", get(synod_math_terms_handler))

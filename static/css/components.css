@@ -40,6 +40,14 @@ button:disabled {
   margin-bottom: var(--space-2xl);
 }
 
+.delta-icon {
+  background-image: url("../svgs/delta.svg");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: top right;
+  filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.1));
+}
+
 .doric-icon {
   background-image: url("../column-top.svg");
   background-repeat: no-repeat;

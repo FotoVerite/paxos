@@ -1,6 +1,7 @@
 @import "css/vars.css";
 
 @import "css/base.css";
+@import "css/animations/background-grid.css";
 @import "css/layout.css";
 @import "css/components.css";
 @import "css/pages/landing.css";

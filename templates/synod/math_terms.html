@@ -9,7 +9,6 @@ block extra_stylesheets %}
 {% endblock %} {% block content %}
 <div class="container">
   <div class="panel">
-    <header>
       <div class="header-icon">
         <object
           type="image/svg+xml"
@@ -17,9 +16,7 @@ block extra_stylesheets %}
           class="math-logo"
         ></object>
       </div>
-      <h1>Mathematical Terms</h1>
-      <p class="subtitle">Math Notation and Terms for My Liberal Art Peeps</p>
-    </header>
+      <h1 class="panel-title">Mathematical Terms</h1>
     <div class="block">
       <dl>
         <dt>Theorem</dt>
@@ -58,18 +55,25 @@ block extra_stylesheets %}
         </dd>
       </dl>
     </div>
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/synod/decree-example">Prev - Decree Example</a>
-      </div>
-      <div class="next">
-        <a href="/synod/ballot-definition">Next - Ballot Terms </a>
-      </div>
     </div>
-  </div>
-</div>
 
-{% endblock %} {% block scripts %}
+    <!-- Bottom Breadcrumb Navigation -->
+    <div class="breadcrumb-nav">
+    <a href="/synod/decree-example" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Decree Example</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Math Terms</span>
+    </div>
+    <a href="/synod/ballot-definitions" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+      <span class="breadcrumb-text">Ballot Terms</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+    </div>
+    </div>
+
+    {% endblock %} {% block scripts %}
 
 <script>
   // Render KaTeX math when DOM is ready

@@ -24,7 +24,11 @@ endblock %} {% block content %} {% block extra_stylesheets %}
       a single value and that all additional protocols are built upon.
     </p>
 
-    <p>Of course, Lamport doesn't want to spell that out simply.</p>
+    <p>
+      Of course, Lamport doesn't want to spell that out simply. We're suddenly
+      thrust us back even further in time. Now instead of legislators we have
+      priests in a synod coming up with the original protocol.
+    </p>
 
     <div class="quote-container">
       <span class="inscription-label">2 The Single-Decree Synod</span>
@@ -37,7 +41,7 @@ endblock %} {% block content %} {% block extra_stylesheets %}
         Synod was in progress. Finally, the old protocol failed, and a Synod
         ended with no decree chosen. To prevent a repetition of this theological
         disaster, Paxon religious leaders asked mathematicians to formulate a
-        protocol for choosin gthe Synod’s decree. The protocol’s requirements
+        protocol for choosing the Synod’s decree. The protocol’s requirements
         and assumptions were essentially the same as those of the later
         Parliament except that instead of containing a sequence of decrees, a
         ledger would have at most one decree.
@@ -53,38 +57,48 @@ endblock %} {% block content %} {% block extra_stylesheets %}
     </div>
 
     <p>
-      We're suddenly thrust us back in time again. Now instead of legislators we
-      have priest in a synod. Bluntly this layer to the allegory is just fucking
-      stupid it adds nothing of value and additional cognitive overhead.
-      Legislators or Priests they're all nodes. The religious overtones mean
-      nothing besides maybe a slight node to Math being a religion onto itself
-      and how this implementation requires a bit of faith on the constraints
-      holding.
+      Bluntly this layer to the allegory is just fucking stupid it adds nothing
+      of value and additional cognitive overhead. Legislators or Priests they're
+      all nodes. The religious overtones mean nothing besides maybe a slight
+      node to Math being a religion onto itself and how this implementation
+      requires a bit of faith on the constraints holding. The paper's main
+      concern in why the algorithm works not how to actually implement it.
+      Leslie conceives of solutions from first principles and correctness more
+      then anything else. As he remarked in a lecture about paxos in Russia in
+      2019:
     </p>
 
     <div class="quote-container">
-      <span class="inscription-label">2 The Single-Decree Synod</span>
+      <span class="inscription-label">This Piece of Magic</span>
       <blockquote>
-        What's important now is to understand - and I don't expect you to understand it now. But as you are reading now and go back and read the lectures the important thing  is to think about it's not how this piece of magic is implemented but that given this piece of magic we've satisfied consensus.
+        What's important now is to understand - and I don't expect you to
+        understand it now. But as you are reading now and go back and read the
+        lectures the important thing is to think about it's not how this piece
+        of magic is implemented but that given this piece of magic we've
+        satisfied consensus.
       </blockquote>
       <cite class="quote-source">
         Lamport, Leslie.
         <em
           >Leslie Lamport — The Paxos algorithm or how to win a Turing Award.
           Part 1.</em
-        > YouTube video, 2019. Quoted at 1:12:32–1:12:52.
-        <a href="https://www.youtube.com/watch?v=tw3gsBms-f8&t=4352"> Source </a>
+        >
+        YouTube video, 2019. Quoted at 1:12:32–1:12:52.
+        <a href="https://www.youtube.com/watch?v=tw3gsBms-f8&t=4352">
+          Source
+        </a>
       </cite>
     </div>
+
+    <p>
+      Below is a overview of what Section 2 covers in what I hope is an
+      understandable format.
+    </p>
 
     <div class="block">
       <ul>
         <li>
-          <h2 class="doric-icon">
-            <a href="/the-problem/the-island-of-paxos"
-              ><strong>2.1:</strong> Mathematical Results</a
-            >
-          </h2>
+          <h2 class="delta-icon">§2.1 Mathematical Results</h2>
           <p>
             By far one of the most overloaded section of the white paper which
             is doing the following
@@ -123,6 +137,26 @@ endblock %} {% block content %} {% block extra_stylesheets %}
               </li>
             </ol>
           </ol>
+        </li>
+        <li>
+          <h2 class="doric-icon">§2.2 The Preliminary Protocol</h2>
+          <p>
+            This section introduces the preliminary protocol that satisfies
+            these three constraints and hence guarantees safety for a single
+            decree.
+          </p>
+        </li>
+        <li>
+          <h2 class="ionic-icon">§2.3 The Basic Protocol</h2>
+          <p>
+            Refines the Preliminary Protocol for crash resistance and metadata storage with the addition of simplifying what information a node need to stores to be correct and more easily ignore stale messages.
+          </p>
+        </li>
+        <li>
+          <h2 class="hellenic-icon">§2.4 The Complete Protocol</h2>
+          <p>
+            Refines the Basic Protocol with the idea of of leadership and timers to optimize for performance while maintaining safety and increasing liveliness.
+          </p>
         </li>
       </ul>
     </div>
