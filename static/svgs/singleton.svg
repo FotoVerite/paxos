@@ -1,0 +1,26 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+  </defs>
+
+  <path d="M 35 25 C 25 25, 28 38, 28 45 C 28 48, 18 50, 18 50 C 18 50, 28 52, 28 55 C 28 62, 25 75, 35 75" 
+    fill="none" 
+    stroke="url(#mathGrad)" 
+    stroke-width="1.5" 
+    stroke-linecap="round" 
+    opacity="0.5" />
+
+  <path d="M 65 25 C 75 25, 72 38, 72 45 C 72 48, 82 50, 82 50 C 82 50, 72 52, 72 55 C 72 62, 75 75, 65 75" 
+    fill="none" 
+    stroke="url(#mathGrad)" 
+    stroke-width="2.5" 
+    stroke-linecap="round" />
+
+  <g transform="translate(50, 50) rotate(45)">
+    <rect x="-10" y="-1.5" width="20" height="3" rx="1" fill="url(#mathGrad)" />
+    <rect x="-1.5" y="-10" width="3" height="20" rx="1" fill="url(#mathGrad)" />
+  </g>
+</svg>

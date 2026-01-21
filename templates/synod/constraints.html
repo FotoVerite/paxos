@@ -9,18 +9,25 @@
 {% endblock %} {% block content %}
 <div class="container">
   <div class="panel">
-    <div class="header-icon">
+    <div class="header-icon large">
       <object
         type="image/svg+xml"
         data="/svgs/curly_brace.svg"
         class="math-logo"
       ></object>
     </div>
-    <h1>Section 2. A basic protocol made constrained</h1>
+    <h1 class="panel-title">Section 2. A basic protocol made constrained</h1>
 
     <p>There are three major constraints to the paxos protocol</p>
 
     <div class="key-concept block">
+      <div class="block-icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/singleton.svg"
+          class="math-logo"
+        ></object>
+      </div>
       <h2>Ballot Uniqueness</h2>
 
       <strong>$\mathbf{B1}(\mathcal{B})$:</strong> $\triangleq \forall B, B' \in
@@ -75,14 +82,29 @@
       </p>
     </div>
 
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/synod/ballot-number">Prev - Ballot Number</a>
-      </div>
-      <div class="next">
-        <a href="/synod/votes-function-b">Next - Votes($\mathcal{B})$ </a>
-      </div>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/ballot-number"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Ballot Number</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Constraints</span>
     </div>
+    <a
+      href="/synod/votes-function-b"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Votes</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
   </div>
 </div>
 

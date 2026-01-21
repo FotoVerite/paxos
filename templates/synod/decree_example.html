@@ -1,17 +1,24 @@
 {% extends "base.html" %} {% block title %}Decree Lifecycle - Paxos{% endblock
-%}
-{% block body_class %}decree-page{% endblock %}
-{% block extra_stylesheets %}
+%} {% block body_class %}decree-page{% endblock %} {% block extra_stylesheets %}
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 {% endblock %} {% block content %}
 <div class="container">
-  <header>
-    <h1>📜 Decree Lifecycle Example</h1>
-    <p class="subtitle">Interactive Protocol Example</p>
-  </header>
+  <div class="panel" style="margin-bottom: 24px;padding-bottom: 0px;">
+    <div class="header-icon">
+      <object
+        type="image/svg+xml"
+        data="/svgs/decree.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Decree Lifecycle</h1>
+  </div>
 
   <!-- Controls -->
   <div class="control-panel">
@@ -19,11 +26,15 @@
       <button onclick="startNewBallot()" class="btn-compact">
         🗳️ Try Ballot
       </button>
-      <button onclick="resetSimulation()" class="btn-compact" style="background: var(--color-bg-tertiary);">
+      <button
+        onclick="resetSimulation()"
+        class="btn-compact"
+        style="background: var(--color-bg-tertiary)"
+      >
         ↻ Reset
       </button>
 
-      <div style="flex: 1;"></div>
+      <div style="flex: 1"></div>
 
       <div class="status-item">
         <span class="label">Proposed Decree</span>
@@ -78,14 +89,22 @@
 
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
-    <a href="/synod/overview" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
+    <a
+      href="/synod/overview"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
       <span class="breadcrumb-arrow">←</span>
       <span class="breadcrumb-text">Section 2 Overview</span>
     </a>
     <div class="breadcrumb-current">
       <span class="breadcrumb-label">Decree Lifecycle</span>
     </div>
-    <a href="/synod/math-terms" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+    <a
+      href="/synod/math-terms"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
       <span class="breadcrumb-text">Math Terms</span>
       <span class="breadcrumb-arrow">→</span>
     </a>
@@ -134,8 +153,8 @@
       },
 
       onBallotStarted: function (ballot) {
-         renderBallotDisplay(ballot);
-       },
+        renderBallotDisplay(ballot);
+      },
 
       onPriestVoted: function (data) {
         updatePriestVoteDisplay(data.priestId, data.priestName);
@@ -154,10 +173,10 @@
   });
 
   function renderBallotDisplay(ballot) {
-     const container = document.getElementById("ballotContainer");
-     const { number, decree } = ballot;
+    const container = document.getElementById("ballotContainer");
+    const { number, decree } = ballot;
 
-     let html = `
+    let html = `
                  <div class="phase-marker prepare">
                      <span class="phase-name">Prepare</span>
                      <span class="phase-description">Ballot ${number}: Proposing "${decree}"</span>
@@ -166,19 +185,19 @@
                  <div class="priest-grid">
              `;
 
-     for (let i = 0; i < simulator.totalPriests; i++) {
-       html += `
+    for (let i = 0; i < simulator.totalPriests; i++) {
+      html += `
                      <div class="priest" id="priest-${i}">
                          <div class="priest-id">${simulator.priestNames[i]}</div>
                          <div class="priest-state">participation: ${(
-           simulator.priestParticipation[i] * 100
-         ).toFixed(0)}%</div>
+                           simulator.priestParticipation[i] * 100
+                         ).toFixed(0)}%</div>
                          <div id="priest-vote-${i}"></div>
                      </div>
                  `;
-     }
+    }
 
-     html += `
+    html += `
                  </div>
 
                  <div class="phase-marker accept">
@@ -189,8 +208,8 @@
                  <div id="learnPhase"></div>
              `;
 
-     container.innerHTML = html;
-   }
+    container.innerHTML = html;
+  }
 
   function updatePriestVoteDisplay(priestId, priestName) {
     const priestEl = document.getElementById(`priest-${priestId}`);
@@ -205,35 +224,35 @@
   }
 
   function renderBallotPhases(state) {
-     const ballot = state.currentBallotData;
-     const learnedValue = state.learnedValue;
-     
-     if (!ballot && !learnedValue) return;
+    const ballot = state.currentBallotData;
+    const learnedValue = state.learnedValue;
 
-     const voteCount = ballot ? ballot.votes.length : 0;
-     const isSuccess = ballot && voteCount >= state.quorumSize;
+    if (!ballot && !learnedValue) return;
 
-     // Update vote count
-     const voteCountEl = document.getElementById("voteCount");
-     if (voteCountEl && ballot) {
-       voteCountEl.textContent = `${voteCount}/${simulator.totalPriests} priests voted`;
-     }
+    const voteCount = ballot ? ballot.votes.length : 0;
+    const isSuccess = ballot && voteCount >= state.quorumSize;
 
-     // Update persistent learn phase container (only show once consensus is reached)
-     const learnPhaseContainer = document.getElementById("learnPhaseContainer");
-     if (learnPhaseContainer) {
-       if (learnedValue) {
-         learnPhaseContainer.innerHTML = `
+    // Update vote count
+    const voteCountEl = document.getElementById("voteCount");
+    if (voteCountEl && ballot) {
+      voteCountEl.textContent = `${voteCount}/${simulator.totalPriests} priests voted`;
+    }
+
+    // Update persistent learn phase container (only show once consensus is reached)
+    const learnPhaseContainer = document.getElementById("learnPhaseContainer");
+    if (learnPhaseContainer) {
+      if (learnedValue) {
+        learnPhaseContainer.innerHTML = `
            <div class="phase-marker learn">
              <span class="phase-name">Learn</span>
              <span class="phase-description">Decree chosen - all priests learn "${learnedValue}"</span>
            </div>
          `;
-       } else {
-         learnPhaseContainer.innerHTML = "";
-       }
-     }
-   }
+      } else {
+        learnPhaseContainer.innerHTML = "";
+      }
+    }
+  }
 </script>
 <script>
   // Render KaTeX math when DOM is ready

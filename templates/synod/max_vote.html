@@ -1,6 +1,4 @@
-{% extends "base.html" %}
-{% block title %}Paxos Max Vote Function{% endblock %}
-
+{% extends "base.html" %} {% block title %}Paxos Max Vote Function{% endblock %}
 {% block extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -8,12 +6,17 @@
 />
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <div class="container">
   <div class="panel">
-    <h1>Section 2. MaxVote Function</h1>
+    <div class="header-icon">
+      <object
+        type="image/svg+xml"
+        data="/svgs/max_vote.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Section 2. MaxVote Function</h1>
 
     <h2>$\text{MaxVote}(b, p, \mathcal{B})$</h2>
     <p>
@@ -34,8 +37,8 @@
 
     <p>
       In words: this reads the vote from the set of votes in $\mathcal{B}$ cast
-      by priest $p$ whose ballot number is less than $b$, or the null vote
-      if none exist.
+      by priest $p$ whose ballot number is less than $b$, or the null vote if
+      none exist.
     </p>
 
     <p>
@@ -48,37 +51,45 @@
     <p>
       This also explains why Lamport switches notation from $B_{\mathrm{bal}}$
       to $v_{\mathrm{bal}}$: he is referring to the ballot attached to the vote,
-      not the ballot itself. The vote here is just a technical construct to access
-      the associated ballot.
+      not the ballot itself. The vote here is just a technical construct to
+      access the associated ballot.
     </p>
-
-    <div class="nav-links">
-      <div class="prev">
-      <a
-          href="/synod/votes-function-b">Prev - Votes($\mathcal{B})$
-        </a>
-      </div>
-      <div class="next">
-        <a href="/synod/max-vote-quorum">Next - $\text{MaxVote}(b, Q, \mathcal{B})$ </a>
-      </div>
-    </div>
   </div>
 
-   
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/votes-function-b"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Votes Function</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Max Vote</span>
+    </div>
+    <a
+      href="/synod/quorum"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Quorum</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+  {% endblock %} {% block scripts %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+        });
+      }
+    });
+  </script>
+  {% endblock %}
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    if (window.renderMathInElement) {
-      renderMathInElement(document.body, {
-        delimiters: [
-          { left: "$$", right: "$$", display: true },
-          { left: "$", right: "$", display: false },
-        ],
-      });
-    }
-  });
-</script>
-{% endblock %}

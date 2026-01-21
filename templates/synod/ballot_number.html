@@ -16,7 +16,7 @@ extra_stylesheets %}
         class="math-logo"
       ></object>
     </div>
-    <h1>Ballot Number or <strong>$B$</strong>bal</h1>
+    <h1 class="panel-title">Ballot Number or <strong>$B$</strong>bal</h1>
     <div class="block">
       <p>
         A naive attempt to define a ballot number would be a simple integer [1,
@@ -62,14 +62,29 @@ extra_stylesheets %}
       </p>
     </div>
 
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/synod/ballot-definitions">Prev - Ballot</a>
-      </div>
-      <div class="next">
-        <a href="/synod/constraints">Next - The 3 Constraints </a>
-      </div>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/ballot-definitions"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Ballot Definition</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Ballot Number</span>
     </div>
+    <a
+      href="/synod/constraints"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Constraints</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
   </div>
 </div>
 

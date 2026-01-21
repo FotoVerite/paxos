@@ -9,11 +9,29 @@
 {% endblock %} {% block content %}
 <div class="container">
   <div class="panel">
-    <h1>$\text{Votes}(\mathcal{B})$ Function</h1>
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/votes.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">$\text{Votes}(\mathcal{B})$ Function</h1>
 
-    <blockquote>
-      For any votes $v$ and $v'$ , if $v$bal < $v'$ bal then $\lt$ $v'$
-    </blockquote>
+    <div class="quote-container">
+      <span class="inscription-label">Votes Definition</span>
+      <blockquote>
+        For any votes $v$ and $v'$ , if $v$bal < $v'$ bal then $\lt$ $v'$
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=7"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.1
+        </a>
+      </cite>
+    </div>
 
     <p>
       This simple state that for any two unique votes, if the ballot id of one
@@ -22,23 +40,29 @@
       can be ordered by their ballot id
     </p>
 
-    <blockquote>
-      For any set $\mathcal{B}$ of ballots, the set $\text{Votes}(\mathcal{B})$
-      of votes in $\mathcal{B}$ was defined to consist of all votes $\text{v}$
-      such that $\text{v}$pst $\in$ $\text{b}$vot, $\text{v}$bal = $B$bal , and
-      $v$dec = $B$dec for some $B$ $\in$ $B$.
-    </blockquote>
-    <p>
-      $\text{Votes}(\mathcal{B})$ is a name for a set, parameterized by a set of
-      ballots. Given a group of ballots, it refers to all votes that match any
-      of them. It outputs the set of votes for a ballot that were cast by the
-      priest that were of the ballot vote where the vote ballot id = the
-      round/ballot ballot id and the vote decree is equal to the ballot decree
-    </p>
+    <div class="quote-container">
+      <span class="inscription-label">Votes Set</span>
+      <blockquote>
+        For any set $\mathcal{B}$ of ballots, the set
+        $\text{Votes}(\mathcal{B})$ of votes in $\mathcal{B}$ was defined to
+        consist of all votes $\text{v}$ <br />
+        such that $\text{v}$pst $\in$ $\text{b}$vot, $\text{v}$bal = $B$bal ,
+        and $v$dec = $B$dec for some $B$ $\in$ $B$.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=7"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.1
+        </a>
+      </cite>
+    </div>
 
     <p>
-      Notice that this means that a vote itself contains it's own decree and
-      ballot id at least as a inditification and or as meta data
+      This defines a set of votes that exist within a given set of ballots. A
+      vote is defined by three properties, the priest/node that cast it, the
+      ballot id it is associated with and the decree/value it is voting for.
     </p>
 
     <div class="block">
@@ -55,31 +79,44 @@
       </ol>
     </div>
 
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/synod/ballot-number">Prev - Ballot Number</a>
-      </div>
-      <div class="next">
-        <a href="/synod/max-vote">Next - $\text{MaxVote}(b, p, \mathcal{B})$ </a>
-      </div>
-    </div>
+    <!-- Bottom Breadcrumb Navigation -->
   </div>
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/constraints"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Constraints</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Votes Function</span>
+    </div>
+    <a
+      href="/synod/max-vote"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Max Vote</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+  {% endblock %} {% block scripts %}
+
+  <script>
+    // Render KaTeX math when DOM is ready
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+        });
+      }
+    });
+  </script>
+
+  {% endblock %}
 </div>
-
-{% endblock %} {% block scripts %}
-
-<script>
-  // Render KaTeX math when DOM is ready
-  document.addEventListener("DOMContentLoaded", function () {
-    if (window.renderMathInElement) {
-      renderMathInElement(document.body, {
-        delimiters: [
-          { left: "$$", right: "$$", display: true },
-          { left: "$", right: "$", display: false },
-        ],
-      });
-    }
-  });
-</script>
-
-{% endblock %}

@@ -1,0 +1,28 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+  </defs>
+
+  <rect x="42" y="15" width="16" height="4" rx="1" fill="url(#mathGrad)" opacity="0.2" />
+  
+  <path d="M 42 19 L 25 45 M 58 19 L 75 45" stroke="url(#mathGrad)" stroke-width="1" stroke-dasharray="2 2" opacity="0.3" />
+
+  <path d="M 25 45 C 15 45, 18 53, 18 60 C 18 63, 8 65, 8 65 C 8 65, 18 67, 18 70 C 18 77, 15 85, 25 85" 
+    fill="none" 
+    stroke="url(#mathGrad)" 
+    stroke-width="1.5" 
+    stroke-linecap="round" />Ω
+  
+  <path d="M 75 45 C 85 45, 82 53, 82 60 C 82 63, 92 65, 92 65 C 92 65, 82 67, 82 70 C 82 77, 85 85, 75 85" 
+    fill="none" 
+    stroke="url(#mathGrad)" 
+    stroke-width="1.5" 
+    stroke-linecap="round" />
+
+  <circle cx="35" cy="65" r="3" fill="url(#mathGrad)" opacity="0.4" />
+  <circle cx="50" cy="65" r="3" fill="url(#mathGrad)" />
+  <circle cx="65" cy="65" r="3" fill="url(#mathGrad)" opacity="0.4" />
+</svg>
