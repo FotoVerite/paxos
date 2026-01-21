@@ -66,7 +66,7 @@ button:disabled {
 
 .inner-panel {
   position: relative;
-  background: var(--color-bg-secondary);
+  background: var(--color-bg-secondary-60);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
@@ -416,6 +416,11 @@ input[type="range"] {
   position: absolute;
   right: 40px;
   opacity: 0.5;
+
+  &.large {
+    width: 80px;
+    top: 65px;
+  }
 
   @media (max-width: 580px) {
     top: 80px;

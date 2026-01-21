@@ -1,43 +1,44 @@
 /* CSS Variables */
 :root {
-    /* Primary Colors */
-    --color-primary: #60a5fa;
-    --color-primary-hover: #3b82f6;
-    --color-primary-dark: #0f172a;
+  /* Primary Colors */
+  --color-primary: #60a5fa;
+  --color-primary-hover: #3b82f6;
+  --color-primary-dark: #0f172a;
 
-    /* Neutral Colors */
-    --color-bg-dark: #0a0e27;
-    --color-bg-secondary: #1e293b;
-    --color-bg-tertiary: #334155;
-    --color-text-primary: #e2e8f0;
-    --color-text-secondary: #cbd5e1;
-    --color-text-muted: #94a3b8;
-    --color-border: #334155;
+  /* Neutral Colors */
+  --color-bg-dark: #0a0e27;
+  --color-bg-secondary: #1e293b;
+  --color-bg-secondary-60: #172132;
+  --color-bg-tertiary: #334155;
+  --color-text-primary: #e2e8f0;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
 
-    /* Status Colors */
-    --color-success: #34d399;
-    --color-success-light: #10b981;
-    --color-error: #ef4444;
-    --color-error-light: #fca5a5;
-    --color-warning: #b58869;
-    --color-info: #8b5cf6;
-    --color-accent: #fbbf24;
+  /* Status Colors */
+  --color-success: #34d399;
+  --color-success-light: #10b981;
+  --color-error: #ef4444;
+  --color-error-light: #fca5a5;
+  --color-warning: #b58869;
+  --color-info: #8b5cf6;
+  --color-accent: #fbbf24;
 
-    /* Spacing */
-    --space-xs: 4px;
-    --space-sm: 8px;
-    --space-md: 12px;
-    --space-lg: 15px;
-    --space-xl: 20px;
-    --space-2xl: 30px;
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 15px;
+  --space-xl: 20px;
+  --space-2xl: 30px;
 
-    /* Border Radius */
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
-    --radius-xl: 12px;
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 
-    /* Transitions */
-    --transition-fast: 0.2s;
-    --transition-smooth: 0.3s;
+  /* Transitions */
+  --transition-fast: 0.2s;
+  --transition-smooth: 0.3s;
 }
