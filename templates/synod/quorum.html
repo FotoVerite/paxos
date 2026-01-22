@@ -1,89 +1,123 @@
-{% extends "base.html" %}
-
-{% block title %}Paxos Definitions{% endblock %}
-
-{% block extra_stylesheets %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+{% extends "base.html" %} {% block title %}Paxos Definitions{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-{% endblock %}
-
-
-{% block content %}
+{% endblock %} {% block content %}
 <div class="container">
-    <div class="panel">
-        <h1>Quorum or <strong>$B$</strong>qrm</h1>
-        <p>
-            It's easy to mistake the most common form for quorum; which is nodes length / 2 + 1 is about a majority of
-            nodes
-            agreeing with each other because that's how things are usually decided in government or in groups. But it's
-            that's not true necessity for a quorum.
-            A quorum is a required threshold of nodes, such that any group meeting that threshold will intersect with
-            any other such group.
-            This means in as plain english as it is possible, it is a class of possible sets, not a single concrete set.
-            Such rules for construction are decided by the Implementation. It is a critical concept in distributed
-            systems to
-            ensure that decisions cannot contradict previously chosen values.
-
-        </p>
-
-        <p>
-        <blockquote>
-            To maintain B2, a ballot’s quorum was chosen to contain a µαδζ∂ωριτ˘ιστ of
-            priests. Initially, µαδζ∂ωριτ˘ιστ just meant a simple majority. Later, it was observed that fat priests
-            were less mobile and spent more time in the Chamber than
-            thin ones, so a µαδζ∂ωριτ˘ιστ was taken to mean any set of priests whose total
-            weight was more than half the total weight of all priests, rather than a simple majority of the priests.
-            When a group of thin priests complained that this was unfair,
-            actual weights were replaced with symbolic weights based on a priest’s attendance
-            record. The primary requirement for a µαδζ∂ωριτ˘ιστ was that any two sets containing µαδζ∂ωριτ˘ιστ of
-            priests had at least one priest in common. To maintain
-            B2, the priest initiating a ballot B chose Bqrm to be a majority set.
-        </blockquote>
-        </p>
-
-        <p>First fatphobia, and just general. eww. But the last sentence is the vital one. Lets think about three nodes.
-            A, B, and C. We want to ensure that any two quorums have at least one node in common. If we pick a majority
-            set, then we are guaranteed that any two sets will have at least one node in common. This is because if we
-            have a set of 2 nodes out of 3, then any other set of 2 nodes will always have at least one node in common
-            with the first set. This is the vital requirement for maintaining B2 in Paxos. If a quorum of nodes are
-            queried in a future about a decree we can be sure one of them will have seen the associated value. There are
-            other less used examples of quorum such as weighted nodes but for the paper we will assume it to be the
-            simple form.</p>
-        <p>
-
-        </p>
-        <img src="/quorum.png" alt="Paxos Quorum Diagram"
-            style="max-width: 100%; height: auto;display:block;margin: auto;">
-        <p>
-
-        <div class="nav-links">
-            <div class="prev">
-                <a href="/synod/terms">Prev - Ballot</a>
-            </div>
-            <div class="next">
-                <a href="/synod/max-vote">Next - Max Vote </a>
-            </div>
-        </div>
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/quorum.svg"
+        class="math-logo"
+      ></object>
     </div>
+    <h1 class="panel-title">Quorum or <strong>$B$</strong>qrm</h1>
+    <p>
+      It's easy to mistake the most common form for quorum; which is nodes
+      length / 2 + 1 is about a majority of nodes agreeing with each other
+      because that's how things are usually decided in government or in groups.
+      But it's that's not true necessity for a quorum. A quorum is a required
+      threshold of nodes, such that any group meeting that threshold will
+      intersect with any other such group. This means in as plain english as it
+      is possible, it is a class of possible sets, not a single concrete set.
+      Such rules for construction are decided by the Implementation. It is a
+      critical concept in distributed systems to ensure that decisions cannot
+      contradict previously chosen values.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Preliminary Protocol 2.2</span>
+      <blockquote>
+        To maintain B2, a ballot’s quorum was chosen to contain a µαδζ∂ωριτ˘ιστ
+        of priests. Initially, µαδζ∂ωριτ˘ιστ just meant a simple majority.
+        Later, it was observed that fat priests were less mobile and spent more
+        time in the Chamber than thin ones, so a µαδζ∂ωριτ˘ιστ was taken to mean
+        any set of priests whose total weight was more than half the total
+        weight of all priests, rather than a simple majority of the priests.
+        When a group of thin priests complained that this was unfair, actual
+        weights were replaced with symbolic weights based on a priest’s
+        attendance record. The primary requirement for a µαδζ∂ωριτ˘ιστ was that
+        any two sets containing µαδζ∂ωριτ˘ιστ of priests had at least one priest
+        in common. To maintain B2, the priest initiating a ballot B chose Bqrm
+        to be a majority set.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=10"
+          target="_blank"
+        >
+          LAMPORT, P. 9 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      First fatphobia, and just general. eww. But the last sentence is the vital
+      one. Lets think about three nodes. A, B, and C. We want to ensure that any
+      two quorums have at least one node in common. If we pick a majority set,
+      then we are guaranteed that any two sets will have at least one node in
+      common. This is because if we have a set of 2 nodes out of 3, then any
+      other set of 2 nodes will always have at least one node in common with the
+      first set. This is the vital requirement for maintaining B2 in Paxos. If a
+      quorum of nodes are queried in a future about a decree we can be sure one
+      of them will have seen the associated value. There are other less used
+      examples of quorum such as weighted nodes but for the paper we will assume
+      it to be the simple form.
+    </p>
+    <p></p>
+    <img
+      src="/quorum.png"
+      alt="Paxos Quorum Diagram"
+      style="max-width: 100%; height: auto; display: block; margin: auto"
+    />
+    <p></p>
+
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/constraints"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Constraints</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Quorum</span>
+    </div>
+    <a
+      href="/synod/votes-function-b"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Votes Function</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
 </div>
 
-{% endblock %}
+{% endblock %} {% block scripts %}
 
-{% block scripts %}
-
-<script>
+  <script>
     // Render KaTeX math when DOM is ready
-    document.addEventListener('DOMContentLoaded', function () {
-        if (window.renderMathInElement) {
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },
-                    { left: '$', right: '$', display: false }
-                ]
-            });
-        }
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+        });
+      }
     });
-</script>
+  </script>
 
-{% endblock %}
+  {% endblock %}
+</div>
