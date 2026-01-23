@@ -22,7 +22,7 @@ endblock %} {% block body_class %}protocol-page{% endblock %} {% block content %
           </option>
         </select>
       </div>
-      <div class="control-group">
+      <div class="control-group"  style="display: none;">
         <h3>Speed</h3>
         <div class="speed-control">
           <input type="range" id="speed" value="1" min="0.25" max="2" step="0.25" />
@@ -80,13 +80,27 @@ endblock %} {% block body_class %}protocol-page{% endblock %} {% block content %
     <div id="eventLog"></div>
   </div>
 
-  <div class="nav-links">
-    <div class="prev">
-      <a href="/protocols/preliminary-protocol">Prev - Section 2.2 Preliminary Protocol </a>
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/protocols/preliminary-protocol"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Preliminary Protocol</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Preliminary Protocol Demo</span>
     </div>
-    <div class="next">
-      <a href="/protocols/basic-protocol">Next - Section 2.3 Basic Protocol </a>
-    </div>
+    <a
+      href="/protocols/basic-protocol"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Basic Protocol</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
   </div>
 </div>
 {% endblock %} {% block scripts %}

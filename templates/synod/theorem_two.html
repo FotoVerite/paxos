@@ -1,117 +1,177 @@
 {% extends "base.html" %} {% block title %}Paxos Theorem Two {% endblock %} {%
 block extra_stylesheets %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 {% endblock %} {% block content %}
+
 <div class="container">
-    <div class="panel">
-        <h1>Section 2. Theorem Two</h1>
-
-        <p>Assume the constraints B1(𝓑), B2(𝓑), and B3(𝓑) hold.</p>
-
-        <div class="key-concept">
-            <p>
-                Let $b$ be a ballot number larger than the largest successful ballot,
-                and let $Q$ be a set of priests such that $Q \cap B_{\mathrm{qrm}} \neq
-                \emptyset$ for all $B \in \mathcal{B}$.
-            </p>
-
-            <p>Then there exists a new ballot $B'$ with:</p>
-            <ul>
-                <li>$B'_{\mathrm{bal}} = b$</li>
-                <li>$B'_{\mathrm{qrm}} = B'_{\mathrm{vot}} = Q$</li>
-            </ul>
-
-            <p>
-                such that B1, B2, and B3 continue to hold for $\mathcal{B} \cup \{ B'
-                \}$.
-            </p>
-        </div>
-
-
-        <p>
-            This theorem guarantees that progress can continue: we can always create a
-            new ballot without violating the rules, preventing deadlock.
-        </p>
-
-        <p>
-            Lamport's Proof is shown below.
-        </p>
-
-        <div class="key-concept">
-            <h3>Key Concepts: Preserving B1, B2, B3 for a New Ballot</h3>
-            <ol>
-                <li>
-                    <strong>B1 — Ballot uniqueness:</strong>
-                    Each ballot number identifies a unique ballot. By choosing the new
-                    ballot number
-                    <span class="math">$B'_{\mathrm{bal}}$</span>
-                    larger than all existing ballots in
-                    <span class="math">𝓑</span>, there’s no conflict.
-                    B1 holds automatically.
-                </li>
-                <li>
-                    <strong>B2 — Quorums are subsets of votes:</strong>
-                    The quorum <span class="math">$B'_{\mathrm{qrm}} = Q$</span> is chosen
-                    carefully. Because <span class="math">Q</span> intersects all existing
-                    quorums as required, the property remains true.
-                    B2 is preserved.
-                </li>
-                <li>
-                    <strong>B3 — Decree consistency:</strong>
-                    Determine the decree for the new ballot as follows:
-                    <ul>
-                        <li>
-                            If <span class="math">$MaxVote(b, Q, \mathcal{B})_{\mathrm{bal}} = -\infty$</span>, no prior
-                            vote exists → pick <em>any decree</em>.
-                        </li>
-                        <li>
-                            Otherwise → pick
-                            <span class="math">$B'_{\mathrm{dec}} = MaxVote(b, Q,
-                                \mathcal{B})_{\mathrm{dec}}$
-                            </span>
-                            to maintain consistency.
-                        </li>
-                    </ul>
-                    B3 is preserved.
-                </li>
-                <li>
-                    <strong>Progress guarantee:</strong>
-                    This construction shows a new ballot can always be added without
-                    violating the invariants.
-                    Ensures the system can continue and never
-                    deadlocks due to running out of ballot numbers.
-                </li>
-            </ol>
-        </div>
-
-
-        <div class="nav-links">
-            <div class="prev">
-                <a href="/synod/theorem-one">Prev - Theorem One </a>
-            </div>
-            <div class="next">
-                <a href="/synod/recap">Next - Synod Recap </a>
-            </div>
-        </div>
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/theorem-two.svg"
+        class="math-logo"
+      ></object>
     </div>
+    <h1 class="panel-title">Theorem Two</h1>
+
+    <p class="highlight-box">
+      This theorem guarantees that progress can continue: we can always create a
+      new ballot without violating the rules, preventing deadlock.
+    </p>
+
+    <div class="inner-panel" style="padding-top: 0px">
+      <div class="quote-container">
+        <span class="inscription-label">Definition</span>
+        <blockquote>
+          <p>Assume the constraints B1(𝓑), B2(𝓑), and B3(𝓑) hold.</p>
+
+          <p>
+            Let $b$ be a ballot number larger than the largest successful
+            ballot, and let $Q$ be a set of priests such that $Q \cap
+            B_{\mathrm{qrm}} \neq \emptyset$ for all $B \in \mathcal{B}$.
+          </p>
+
+          <p>Then there exists a new ballot $B'$ with:</p>
+          <ul>
+            <li>$B'_{\mathrm{bal}} = b$</li>
+            <li>$B'_{\mathrm{qrm}} = B'_{\mathrm{vot}} = Q$</li>
+          </ul>
+
+          <p>
+            such that B1, B2, and B3 continue to hold for $\mathcal{B} \cup \{
+            B' \}$.
+          </p>
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=9"
+            target="_blank"
+          >
+            LAMPORT, P. 8 — §2.1
+          </a>
+        </cite>
+      </div>
+      <div class="quote-container">
+        <span class="inscription-label">Proof</span>
+        <blockquote>
+          <p>
+            Condition $B1(B \cup \{B'\})$ follows from $B1(B)$, the choice of
+            $B'_{bal}$, and the assumption about $b$.
+          </p>
+          <p>
+            Condition $B2(B \cup \{B'\})$ follows from $B2(B)$, the choice of
+            $B'_{qrm}$, and the assumption about $Q$.
+          </p>
+
+          <p>
+            If $\text{MaxVote}(b, Q, B)_{bal} = -\infty$ then let $B'_{dec}$ be
+            any decree, else let it equal $\text{MaxVote}(b, Q, B)_{dec}$.
+          </p>
+
+          <p>Condition $B3(B \cup \{B'\})$ then follows from $B3(B)$</p>
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=9"
+            target="_blank"
+          >
+            LAMPORT, P. 8 — §2.1
+          </a>
+        </cite>
+      </div>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Preserving B1, B2, B3 for a New Ballot</h2>
+      <ol>
+        <li>
+          <strong>B1 — Ballot uniqueness:</strong>
+          Each ballot number identifies a unique ballot. By choosing the new
+          ballot number
+          <span class="math">$B'_{\mathrm{bal}}$</span>
+          larger than all existing ballots in
+          <span class="math">𝓑</span>, there’s no conflict. B1 holds
+          automatically.
+        </li>
+        <li>
+          <strong>B2 — Quorums are subsets of votes:</strong>
+          The quorum <span class="math">$B'_{\mathrm{qrm}} = Q$</span> is chosen
+          carefully. Because <span class="math">Q</span> intersects all existing
+          quorums as required, the property remains true. B2 is preserved.
+        </li>
+        <li>
+          <strong>B3 — Decree consistency:</strong>
+          Determine the decree for the new ballot as follows:
+          <ul>
+            <li>
+              If
+              <span class="math"
+                >$MaxVote(b, Q, \mathcal{B})_{\mathrm{bal}} = -\infty$</span
+              >, no prior vote exists → pick <em>any decree</em>.
+            </li>
+            <li>
+              Otherwise → pick
+              <span class="math"
+                >$B'_{\mathrm{dec}} = MaxVote(b, Q, \mathcal{B})_{\mathrm{dec}}$
+              </span>
+              to maintain consistency.
+            </li>
+          </ul>
+          B3 is preserved.
+        </li>
+        <li>
+          <strong>Progress guarantee:</strong>
+          This construction shows a new ballot can always be added without
+          violating the invariants. Ensures the system can continue and never
+          deadlocks due to running out of ballot numbers.
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/theorem-one"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Theorem One</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Theorem Two</span>
+    </div>
+    <a
+      href="/synod/recap"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Synod Recap</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
 </div>
 
 {% endblock %} {% block scripts %}
 
 <script>
-    // Render KaTeX math when DOM is ready
-    document.addEventListener("DOMContentLoaded", function () {
-        if (window.renderMathInElement) {
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: "$$", right: "$$", display: true },
-                    { left: "$", right: "$", display: false },
-                ],
-            });
-        }
-    });
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
 </script>
 
 {% endblock %}

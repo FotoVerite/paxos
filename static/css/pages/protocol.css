@@ -5,7 +5,7 @@
     .demo-container {
         display: flex;
         flex-direction: column;
-        height: 100vh;
+        height: 95vh;
         padding: var(--space-xl);
         gap: var(--space-xl);
     }
@@ -153,7 +153,7 @@
 
         .control-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: 1fr;
             gap: var(--space-lg);
             margin-bottom: var(--space-lg);
 
@@ -184,10 +184,12 @@
                 display: flex;
                 gap: 8px;
                 align-items: flex-end;
+                flex-wrap: wrap;
+                min-width: 0;
 
                 button {
                     flex: 1;
-                    padding: 8px;
+                    padding: 8px 12px;
                     color: white;
                     border: none;
                     border-radius: var(--radius-sm);

@@ -502,3 +502,30 @@ input[type="range"] {
 }
 
 /* The Label (Stone Inscription Style) */
+hr.doric-taper {
+  border: 0;
+  height: 2px;
+  margin: 1.5rem 0;
+  background: linear-gradient(90deg, #ff71ce 0%, #01cdfe 100%);
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20%,
+    black 80%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20%,
+    black 80%,
+    transparent
+  );
+  opacity: 0.6;
+}
+
+.protocol-step {
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
