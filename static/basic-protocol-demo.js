@@ -261,27 +261,8 @@ function setupWebSocket() {
     } else if (message.Event) {
       const eventType = Object.keys(message.Event)[0];
 
-      // Handle partition events
-      if (eventType === "PartitionCreated") {
-        const event = message.Event.PartitionCreated;
-        console.log("Network partitioned:", event);
-        for (const nodeId of event.partition_b) {
-          partitionedNodes.add(nodeId);
-          visualizer.setNodePartitioned(nodeId, true);
-        }
-        statusDescription.textContent = `Partition: A=${JSON.stringify(
-          event.partition_a
-        )}, B=${JSON.stringify(event.partition_b)}`;
-      } else if (eventType === "PartitionHealed") {
-        console.log("Network healed");
-        for (const nodeId of partitionedNodes) {
-          visualizer.setNodePartitioned(nodeId, false);
-        }
-        partitionedNodes.clear();
-        statusDescription.textContent = "Network healed - all nodes connected";
-      } else {
-        handlePaxosEvent(message.Event);
-      }
+      // Queue all events including partition events for ordered processing
+      handlePaxosEvent(message.Event);
     }
   };
 
@@ -307,14 +288,20 @@ function handlePaxosEvent(eventData) {
 
   if (!event) return;
 
-  const colorInfo = eventColorMap[eventType];
-  if (!colorInfo) return;
+  // Handle partition events separately - they need special visualization
+  if (eventType === "PartitionCreated" || eventType === "PartitionHealed") {
+    console.log(`Queueing ${eventType} event (queue length: ${eventQueue.length})`);
+    eventQueue.push({ eventType, event, isPartitionEvent: true });
+  } else {
+    const colorInfo = eventColorMap[eventType];
+    if (!colorInfo) return;
 
-  console.log(
-    `Queueing ${eventType} event (queue length: ${eventQueue.length})`
-  );
-  // Queue the event for processing
-  eventQueue.push({ eventType, event, colorInfo });
+    console.log(
+      `Queueing ${eventType} event (queue length: ${eventQueue.length})`
+    );
+    // Queue the event for processing
+    eventQueue.push({ eventType, event, colorInfo });
+  }
 
   // Debounce processing - wait 5ms for more events to arrive before batching
   if (processingTimeout) {
@@ -344,8 +331,31 @@ async function processEventQueue() {
   }
 
   // Process all events in batch in parallel
-  const promises = batch.map(({ eventType, event, colorInfo }) => {
+  const promises = batch.map(({ eventType, event, colorInfo, isPartitionEvent }) => {
     console.log(`Event: ${eventType}`, event);
+
+    // Handle partition events separately
+    if (isPartitionEvent) {
+      if (eventType === "PartitionCreated") {
+        addEvent(`Network partitioned: A=${JSON.stringify(event.partition_a)}, B=${JSON.stringify(event.partition_b)}`, "#f87171");
+        for (const nodeId of event.partition_b) {
+          partitionedNodes.add(nodeId);
+          visualizer.setNodePartitioned(nodeId, true);
+        }
+        statusDescription.textContent = `Partition: A=${JSON.stringify(
+          event.partition_a
+        )}, B=${JSON.stringify(event.partition_b)}`;
+      } else if (eventType === "PartitionHealed") {
+        addEvent("Network healed - all nodes connected", "#6ee7b7");
+        const allNodesInPartitions = [...event.partition_a, ...event.partition_b];
+        for (const nodeId of allNodesInPartitions) {
+          visualizer.setNodePartitioned(nodeId, false);
+        }
+        partitionedNodes.clear();
+        statusDescription.textContent = "Network healed - all nodes connected";
+      }
+      return Promise.resolve();
+    }
 
     // Update counter
     eventCounts[eventType]++;

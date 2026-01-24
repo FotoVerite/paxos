@@ -1,0 +1,29 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad-scroll" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(0, -5)">
+   
+    <path d="M35 45 L35 57 M50 45 L50 57 M65 45 L65 57" 
+      stroke="url(#grad-scroll)" 
+      stroke-width="2" 
+      stroke-opacity="0.4" />
+
+    <path d="M20 45 C 10 45, 10 65, 20 65 C 25 65, 25 57, 20 57" 
+      stroke="url(#grad-scroll)" 
+      stroke-width="2.5" 
+      stroke-linecap="round" />
+      
+    <path d="M80 45 C 90 45, 90 65, 80 65 C 75 65, 75 57, 80 57" 
+      stroke="url(#grad-scroll)" 
+      stroke-width="2.5" 
+      stroke-linecap="round" />
+     <rect x="20" y="45" width="60" height="12" rx="2" stroke="url(#grad-scroll)" stroke-width="2.5" stroke-opacity="0.8" />
+    
+
+  </g>
+</svg>

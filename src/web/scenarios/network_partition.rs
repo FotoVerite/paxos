@@ -99,8 +99,15 @@ impl NetworkPartitionScenario {
             }
         }
 
-        // Emit partition healed event
+        // Partition A: nodes 0,1,2 (quorum)
+        let partition_a_vec: Vec<NodeId> = vec![0.into(), 1.into(), 2.into()];
+        // Partition B: nodes 3,4 (no quorum)
+        let partition_b_vec: Vec<NodeId> = vec![3.into(), 4.into()];
+
+        // Emit partition healed event with partition info
         observer.on_event(Event::PartitionHealed {
+            partition_a: partition_a_vec,
+            partition_b: partition_b_vec,
             created_at: current_timestamp_millis(),
         });
     }

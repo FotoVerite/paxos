@@ -2,6 +2,13 @@
 block content %}
 <div class="container">
   <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/hellenic-overview.svg"
+        class="math-logo"
+      ></object>
+    </div>
     <h1 class="panel-title">Section 3 Overview</h1>
     <p>
       Little Secret, the demos we've used throughout the site already are using
@@ -14,17 +21,28 @@ block content %}
       it serve. But that leads to difficult questions about the higher layer of
       ordering, timings and availability that will be discussed in this section.
     </p>
-
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/protocols/complete-protocol">Prev - 2.4 Complete Protocol</a>
-      </div>
-      <div class="next">
-        <a href="/multi-decree-parliament/protocol"
-          >Next - 3.1 The Protocol (Again)
-        </a>
-      </div>
+  </div>
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/protocols/complete-protocol"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Complete Protocol</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Section 3 Overview</span>
     </div>
+    <a
+      href="/multi-decree-parliament/protocol"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">The Protocol (Again)</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
   </div>
   {% endblock %}
 </div>

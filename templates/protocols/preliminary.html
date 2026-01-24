@@ -65,7 +65,7 @@
       <hr class="doric-taper" />
 
       <div class="protocol-step">
-        (2) $NextBallot(b)$ <br />
+        (2) $LastVote(b, v)$ <br />
         <p >
           A priest $q$ responds to the receipt of a $NextBallot(b)$ message by
           sending a $LastVote(b, v)$ message to $p$, where $v$ is the vote with
@@ -78,7 +78,7 @@
       <p style="margin-top: 12px;">
         The $NextBallot$ message is essentially a query: "What is the largest
         vote below this ballot number that you have cast?" Step three deals with
-        the collected data
+        the collected data sent back through these  $LastVote(b, v)$ messages.
       </p>
 
       <hr class="doric-taper" />
@@ -115,7 +115,7 @@
       <hr class="doric-taper" />
 
       <div class="protocol-step">
-        (4) $BeginBallot(b, d)$ <br />
+        (4) $Voted(b, q)$ <br />
         Upon receipt of the $BeginBallot(b, d)$ message, priest $q$ decides
         whether or not to cast his vote in ballot number $b$. (He may not cast
         the vote if doing so would violate a promise implied by a $LastVote(b',
@@ -133,7 +133,7 @@
       <hr class="doric-taper" />
 
       <div class="protocol-step">
-        (5) $Voted(b, q)$ <br />
+        (5) $Success(d)$ <br />
         If p has received a $Voted(b, q)$ message from every priest $q$ in $Q$
         (the quorum for ballot number $b$), then he writes $d$ (the decree of
         that ballot) in his ledger and sends a $Success(d)$ message to every

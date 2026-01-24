@@ -88,6 +88,8 @@ pub enum Event {
         created_at: u64,
     },
     PartitionHealed {
+        partition_a: Vec<NodeId>,
+        partition_b: Vec<NodeId>,
         created_at: u64,
     },
 }

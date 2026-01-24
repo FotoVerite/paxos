@@ -76,10 +76,11 @@ block extra_stylesheets %}
     </div>
 
     <div class="inner-panel">
-      <div class="key-concept">
-        (1) Priest $p$ chooses a new ballot number $b$ greater than
-        $lastTried[p]$, sets $lastTried[p]$ to $b$, and sends a $NextBallot(b)$
-        message to some set of priests
+      <div class="protocol-step">
+        (1) $NextBallot(b)$ <br />
+        Priest $p$ chooses a new ballot number $b$ greater than $lastTried[p]$,
+        sets $lastTried[p]$ to $b$, and sends a $NextBallot(b)$ message to some
+        set of priests
       </div>
 
       <p>
@@ -88,8 +89,11 @@ block extra_stylesheets %}
         mean less useless ballot rounds clogging up the system.
       </p>
 
-      <div class="key-concept">
-        (2) Upon receipt of a $NextBallot(b)$ message from $p$ with $b$ >
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
+        (2) $LastVote(b, v)$ <br />
+        Upon receipt of a $NextBallot(b)$ message from $p$ with $b$ >
         $nextBal[q]$, priest $q$ sets $nextBal[q]$ to $b$ and sends a
         $LastVote(b, v)$ message to $p$, where $v$ equals $prevVote[q]$. (A
         $NextBallot(b)$ message is ignored if $b$ ≤ $nextBal[q]$.)
@@ -102,8 +106,11 @@ block extra_stylesheets %}
         them would violate that promise.
       </p>
 
-      <div class="key-concept">
-        (3) After receiving a $LastVote(b, v)$ message from every priest in some
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
+        (3) $BeginBallot(b, d)$ <br />
+        After receiving a $LastVote(b, v)$ message from every priest in some
         majority set $Q$, where $b$ = $lastTried[p]$, priest $p$ initiates a new
         ballot with number $b$, quorum $Q$, and decree $d$, where $d$ is chosen
         to satisfy B3. He then sends a $BeginBallot(b, d)$ message to every
@@ -116,11 +123,14 @@ block extra_stylesheets %}
         unneeded message passing.
       </p>
 
-      <div class="key-concept">
-        (4) Upon receipt of a $BeginBallot(b, d)$ message with $b$ =
-        $nextBal[q]$, priest $q$ casts his vote in ballot number $b$, sets
-        $prevVote[q]$ to this vote, and sends a $Voted(b, q)$ message to $p$. (A
-        $BeginBallot(b, d)$ message is ignored if $b $\neq$ nextBal[q]$.)
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
+        (4) $Voted(b, q)$ <br />
+        Upon receipt of a $BeginBallot(b, d)$ message with $b$ = $nextBal[q]$,
+        priest $q$ casts his vote in ballot number $b$, sets $prevVote[q]$ to
+        this vote, and sends a $Voted(b, q)$ message to $p$. (A $BeginBallot(b,
+        d)$ message is ignored if $b $\neq$ nextBal[q]$.)
       </div>
 
       <p>
@@ -129,10 +139,13 @@ block extra_stylesheets %}
         violate that promise, so the vote is refused.
       </p>
 
-      <div class="key-concept">
-        (5) If $p$ has received a $Voted(b, q)$ message from every priest $q$ in
-        $Q$ (the quorum for ballot number $b$), where $b$ = $lastTried[p]$, then
-        he writes $d$ (the decree of that ballot) in his ledger and sends a
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
+        (5) $Success(d)$ <br />
+        If $p$ has received a $Voted(b, q)$ message from every priest $q$ in $Q$
+        (the quorum for ballot number $b$), where $b$ = $lastTried[p]$, then he
+        writes $d$ (the decree of that ballot) in his ledger and sends a
         $Success(d)$ message to every priest.
       </div>
 
@@ -141,7 +154,9 @@ block extra_stylesheets %}
         round.
       </p>
 
-      <div class="key-concept">
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
         (6) Upon receiving a $Success(d)$ message, a priest enters decree $d$ in
         his ledger.
       </div>

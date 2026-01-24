@@ -67,8 +67,8 @@ pub async fn run_web_server() {
         .route("/multi-decree-parliament/overview", get(m_p_overview))
         .route("/multi-decree-parliament/protocol", get(m_p_protocol))
         .route(
-            "/multi-decree-parliament/presidential-problems",
-            get(m_p_president),
+            "/multi-decree-parliament/ordering-of-decrees",
+            get(m_p_ordering_decrees),
         )
         .route(
             "/multi-decree-parliament/optimizations",

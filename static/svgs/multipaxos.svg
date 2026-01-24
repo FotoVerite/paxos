@@ -1,0 +1,39 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE"/>
+      <stop offset="100%" stop-color="#01CDFE"/>
+    </linearGradient>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE"/>
+      <stop offset="100%" stop-color="#01CDFE"/>
+    </linearGradient>
+     <g id="base-shaft">
+      <rect x="0" y="65" width="20" height="3" rx="0.5" fill="url(#mathGrad)" />
+      <rect x="4" y="32" width="3" height="33" fill="url(#mathGrad)" opacity="0.6" />
+      <rect x="8.5" y="32" width="3" height="33" fill="url(#mathGrad)" />
+      <rect x="13" y="32" width="3" height="33" fill="url(#mathGrad)" opacity="0.6" />
+    </g>
+    <g id="hellenic-pillar">
+      <use href="#base-shaft" />
+      <g stroke="url(#mathGrad)" stroke-width="1.5" fill="none" stroke-opacity="0.8">
+        <path d="M5 32 C5 28 0 28 2 24" />
+        <path d="M15 32 C15 28 20 26 17 24" />
+        <path d="M9 32 C8 28 6 26 5 27" />
+        <path d="M11 32 C12 28 15 26 16 27" />
+      </g>
+      <rect x="2" y="24" width="16" height="3" rx="0.5" fill="url(#mathGrad)" />
+    </g>
+    <g id="beacon">
+      <circle cx="50" cy="20" r="4" fill="url(#lineGrad)"/>
+       <circle cx="50" cy="20" r="8" stroke="url(#lineGrad)" stroke-width="1.5" fill="none" stroke-dasharray="3 2" stroke-opacity="0.5"/>
+      <circle cx="50" cy="20" r="12" stroke="url(#lineGrad)" stroke-width="1.5" fill="none" stroke-dasharray="3 2" stroke-opacity="0.5"/>
+    </g>
+  </defs>
+  <use href="#beacon" x="-25" y="8"/>
+  <use href="#hellenic-pillar" x="15" y="20"/>
+  <use href="#beacon" x="0" y="8"  opacity="0.75"/>
+  <use href="#hellenic-pillar" x="40" y="20"  opacity="0.75"/>
+  <use href="#beacon" x="25" y="8" opacity="0.5"/>
+  <use href="#hellenic-pillar" x="65" y="20"  opacity="0.5"/>
+</svg>

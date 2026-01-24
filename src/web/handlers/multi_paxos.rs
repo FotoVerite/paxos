@@ -29,9 +29,9 @@ page_template!(
 );
 
 page_template!(
-    m_p_president,
-    MPPresident,
-    "./multi_paxos/presidential_problems.html"
+    m_p_ordering_decrees,
+    MPOrderingDecrees,
+    "multi_paxos/ordering_of_decrees.html"
 );
 
 page_template!(

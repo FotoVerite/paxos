@@ -9,15 +9,24 @@ block extra_stylesheets %}
 {% endblock %} {% block content %}
 <div class="container">
   <div class="panel">
-    <h1>Section 3.3.2 Long Ledgers</h1>
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/long_ledger.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Section 3.3.2 Long Ledgers</h1>
 
     <p>
       Even though ledgers are finite, they grow over time and can become
       unwieldy without careful management.
     </p>
 
-    <blockquote>
-      As the years progressed and Parliament passed more and more decrees,
+    <div class="quote-container">
+      <span class="inscription-label">Optimized Sequence</span>
+      <blockquote>
+        As the years progressed and Parliament passed more and more decrees,
       Paxons had to pore over an ever longer list of decrees to find the current
       olive tax or what color goat could be sold. A legislator who returned to
       the Chamber after an extended voyage had to do quite a bit of copying to
@@ -25,7 +34,17 @@ block extra_stylesheets %}
       convert their ledgers from lists of decrees into law books that contained
       only the current state of the law and the number of the last decree whose
       passage was reflected in that state.
-    </blockquote>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=18"
+          xk
+          target="_blank"
+        >
+          LAMPORT, P. 17 — §3.3.2
+        </a>
+      </cite>
+    </div>
 
     <p>
       Lamport is describing what we now call a <strong>snapshot</strong>.
@@ -35,19 +54,31 @@ block extra_stylesheets %}
       replication in distributed systems.
     </p>
 
-    <div class="nav-links">
-      <div class="prev">
-        <a href="/further-developments/picking-a-president"
-          >Prev - 3.3.1 Picking a President
-        </a>
-      </div>
-      <div class="next">
-        <a href="/further-developments/bureaucrats"
-          >Next - 3.3.3 Bureaucrats
-        </a>
-      </div>
-    </div>
+  
   </div>
+
+   <!-- Bottom Breadcrumb Navigation -->
+    <div class="breadcrumb-nav">
+      <a
+        href="/further-developments/picking-a-president"
+        class="breadcrumb-link breadcrumb-prev"
+        title="Go to previous page"
+      >
+        <span class="breadcrumb-arrow">←</span>
+        <span class="breadcrumb-text">Picking a President</span>
+      </a>
+      <div class="breadcrumb-current">
+        <span class="breadcrumb-label">Long Ledgers</span>
+      </div>
+      <a
+        href="/further-developments/bureaucrats"
+        class="breadcrumb-link breadcrumb-next"
+        title="Go to next page"
+      >
+        <span class="breadcrumb-text">Bureaucrats</span>
+        <span class="breadcrumb-arrow">→</span>
+      </a>
+    </div>
 </div>
 {% endblock %} {% block scripts %}
 <script>

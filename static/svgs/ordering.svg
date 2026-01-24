@@ -1,0 +1,23 @@
+<svg  viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+    
+    <g id="mini-beacon">
+      <circle cx="0" cy="0" r="1.5" fill="url(#lineGrad)"/>
+      <circle cx="0" cy="0" r="3" stroke="url(#lineGrad)" stroke-width="0.8" fill="none" stroke-dasharray="1 1" stroke-opacity="0.5"/>
+      <circle cx="0" cy="0" r="4.5" stroke="url(#lineGrad)" stroke-width="0.8" fill="none" stroke-dasharray="1 1" stroke-opacity="0.3"/>
+    </g>
+  </defs>
+
+  <g transform="translate(0, -5)">
+    <path d="M35 45 L35 57 M50 45 L50 57 M65 45 L65 57" 
+      stroke="url(#lineGrad)" 
+      stroke-width="1.4" 
+      stroke-opacity="0.3" />
+
+    <use href="#mini-beacon" x="27.5" y="51" opacity="0.4" /> <use href="#mini-beacon" x="42.5" y="51" opacity="0.6" /> <use href="#mini-beacon" x="57.5" y="51" />               <use href="#mini-beacon" x="72.5" y="51" opacity="0.2" /> <rect x="20" y="45" width="60" height="12" rx="2" stroke="url(#lineGrad)" stroke-width="2." stroke-opacity="0.8" />
+  </g>
+</svg>

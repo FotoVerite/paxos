@@ -39,12 +39,7 @@ impl Decrees {
             .or_insert_with(|| LearnerQuorum::new(quorum_size, ballot));
         quorum.add_vote(from, ballot);
         if quorum.has_met_quorum() {
-            observer.on_event(Event::LearnedValue {
-                decree_num,
-                id: id,
-                value: value.clone(),
-                created_at: crate::monitor::current_timestamp_millis(),
-            });
+
             tracing::info!(
                 "[Node {}] Learner reached quorum for decree {}: {:?} from proposer {} (votes: {:?})",
                 id,
