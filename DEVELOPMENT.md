@@ -7,226 +7,330 @@
 git clone https://github.com/FotoVerite/paxos.git
 cd paxos
 
-# Run all 255 tests (~130 seconds)
+# Run all tests (~130 seconds)
 cargo test --tests
 
 # Start web visualizer
-cargo run --release
+cargo run -- web
 # Open http://localhost:3000
 ```
 
-## System Overview
-
-**Paxos consensus with 255 passing tests** in Rust using Tokio async runtime and SQLite persistence.
-
-### Three Core Roles
-
-- **Proposer** - Initiates consensus with ballot numbers
-- **Acceptor** - Votes on proposals, enforces ballot ordering
-- **Learner** - Detects quorum and records committed values
-
-### Protocol Flow (Single Decree)
-
-1. Proposer sends Prepare(ballot) → Acceptors respond Promise(ballot)
-2. If quorum of promises received → Proposer sends Accept(ballot, value)
-3. Acceptors respond Accepted(ballot, value)
-4. Quorum of acceptances → Value is chosen
-5. Learner detects quorum → Records to ledger
-
-## Key Files
+## Project Structure
 
 ```
-src/node/
-  ├── proposer.rs      - Phase 1 & 2 logic
-  ├── acceptor.rs      - Promise & Accept voting
-  ├── learner.rs       - Quorum detection & ledger
-  └── ledger.rs        - SQLite persistence
-
-src/cluster/
-  ├── cluster.rs       - Multi-node simulator
-  └── network_sim.rs   - Failure injection
-
+src/
+  node/
+    paxos_node.rs        - Main node implementation
+    paxos_state/         - Core Paxos logic
+      paxos_state.rs     - State orchestration
+      proposer/          - Phase 1 & 2 preparation
+      acceptor.rs        - Voting & promise tracking
+      learner.rs         - Quorum detection
+      ledger.rs          - SQLite persistence
+      ballot.rs          - Ballot ordering
+      decree_notes.rs    - Decree tracking
+    inflight_proposals.rs - Proposal tracking
+  cluster/
+    cluster.rs           - Multi-node simulator
+    network_simulator.rs - Network failure injection
+  web/
+    server.rs            - Axum web server
+    cluster_manager.rs   - Multi-Paxos management
+    websocket_observer.rs - Real-time events
+    handlers/            - HTTP endpoints
+    scenarios/           - Built-in demo scenarios
+  message.rs             - Message types (Prepare, Promise, Accept, Accepted)
+  monitor.rs             - Event observer interface
+  scenario*.rs           - Scenario loading & running
+  
 tests/
-  ├── paxos_consensus_tests.rs     - 150+ tests
-  ├── robust_scenarios_tests.rs    - Advanced scenarios
-  └── edge_case_tests.rs           - Edge cases
+  basic_paxos_test.rs           - Single node tests
+  concurrent_decrees_tests.rs   - Multi-decree scenarios
+  edge_case_tests.rs            - Edge cases & recovery
+  integration_tests.rs          - Full cluster tests
+  persistence_test.rs           - Ledger durability
+  scenarios_tests.rs            - Complex scenarios
+  test_helpers.rs               - Testing utilities
 ```
+
+## Core Components
+
+### PaxosState
+Orchestrates three roles within a single node:
+
+```rust
+pub struct PaxosState {
+    proposer: Proposer,   // Initiates ballots
+    acceptor: Acceptor,   // Votes on proposals
+    learner: Learner,     // Detects quorum
+    ledger: Ledger,       // Persists decisions
+}
+```
+
+### Message Types
+
+```rust
+Message::Prepare { from, decree_num, ballot }
+Message::Promise { from, ballot, max_ballot, max_value }
+Message::Accept { from, decree_num, ballot, value, quorum }
+Message::Accepted { from, ballot, max_ballot }
+```
+
+### Ballot System
+
+Ballots: `Ballot { number: u64, proposer: NodeId }`
+
+Total ordering: higher number wins; ties broken by lower NodeId.
 
 ## Testing
 
 ### Run Tests
 
 ```bash
-# All 255 tests
+# All tests
 cargo test --tests
 
-# Specific test file
-cargo test --test paxos_consensus_tests
+# Single test file
+cargo test --test basic_paxos_test
 
 # Single test with output
 cargo test --test FILE test_name -- --nocapture
 
-# With debug logging
+# With logging
 RUST_LOG=debug cargo test --test FILE test_name -- --nocapture
 ```
 
-### EventBarrier Framework
+### Test Files by Category
 
-Tests don't sleep—they wait for actual events:
+| File | Purpose |
+|------|---------|
+| `basic_paxos_test.rs` | Single-node prepare/promise/accept flow |
+| `concurrent_decrees_tests.rs` | Multiple decrees in flight |
+| `edge_case_tests.rs` | Out-of-order, duplicates, conflicts |
+| `integration_tests.rs` | Multi-node cluster scenarios |
+| `persistence_test.rs` | Ledger recovery after crash |
+| `scenarios_tests.rs` | Network partitions, failures |
+| `retry_mechanism_tests.rs` | Proposal retry logic |
+
+### Test Pattern
 
 ```rust
 #[tokio::test]
-async fn test_basic_consensus() {
-    let observer = Arc::new(RecordingObserver::new());
-    let barrier = observer.barrier.clone();
+async fn test_scenario() {
+    cleanup_persisted_state();
     
-    let mut cluster = Cluster::new(0, 5, observer.clone()).await?;
-    cluster.nodes.iter_mut().for_each(|n| n.start());
+    // Create nodes with NodeBuilder
+    let builder = NodeBuilder::new();
+    let proposer = builder.proposer(node_id, uuid).await?;
+    let acceptor = builder.acceptor(node_id).await?;
     
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    cluster.propose(cmd).await;
+    // Send messages
+    let msg = proposer.propose(DecreeId(0), value).await;
+    let response = acceptor.handle_message(msg).await;
     
-    // Wait for actual learned event (not arbitrary sleep)
-    barrier.wait_for_learned(0, Duration::from_secs(5)).await?;
-    observer.wait_for_events().await;
-    
-    let learned = observer.count_decrees_learned().await;
-    assert!(learned >= 1);
+    // Assert
+    assert!(matches!(response, Message::Promise { .. }));
 }
 ```
 
-### What's Tested
+## Running Scenarios
 
-✅ **255 tests passing** (100% success rate)
+### Web Server (Interactive)
 
-- Multi-node consensus (3-9 nodes)
-- Network partitions & recovery
-- Packet loss & latency
-- Out-of-order & duplicate messages
-- Conflicting proposals
-- State persistence & recovery
-- Edge cases (sparse decree numbers, etc.)
+```bash
+cargo run -- web
+# Opens http://localhost:3000
+# Choose scenario from dropdown
+# Watch real-time event stream
+```
 
-## Architecture Details
+### JSON Scenario
 
-### Ballot System
+```bash
+cargo run -- json /path/to/scenario.json
+```
 
-Ballots use `(number, proposer_id)` for total ordering:
-- `(10, 1) > (10, 0)` ← proposer ID breaks ties
-- `(11, 0) > (10, 9)` ← higher ballot always wins
+### Built-in Scenarios
 
-This prevents conflicts and ensures safety.
+Located in `src/web/scenarios/`:
+- `happy_path.rs` - Basic consensus
+- `network_partition.rs` - Partition recovery
+- `competing_proposers.rs` - Multiple proposers
+- `catch_up.rs` - Replica catching up
 
-### Data Persistence
+## Architecture Flow
 
-- **Ledger**: SQLite at `.paxos/node_N.db`
-- **Recovery**: Automatic on startup
-- **Gap handling**: Application must handle sparse decrees
+### Single Proposal (Decree)
 
-### Failure Scenarios
+```
+1. Client proposes value for decree N
+2. Proposer sends Prepare(ballot) → all acceptors
+3. Acceptors respond Promise(ballot) or NACK
+4. If quorum: Proposer sends Accept(ballot, value)
+5. Acceptors respond Accepted(ballot) or NACK
+6. If quorum: Learner detects, records to ledger
+7. Event: LearnedValue emitted
+```
 
-| Scenario | Outcome |
-|----------|---------|
-| Proposer fails | Other nodes detect timeout, use higher ballot |
-| Acceptor fails (minority) | No impact |
-| Acceptor fails (majority) | Consensus halts until recovery |
-| Network partition (majority) | Can reach quorum, continues |
-| Network partition (minority) | Can't reach quorum, halts |
-| Network heals | Minority catches up via ledger |
+### Multi-Decree (Multi-Paxos)
+
+Each decree (0, 1, 2, ...) runs independently.
+Proposer can pipeline: send Accept for decree N while Prepare for decree N+1.
+
+## Data Persistence
+
+**Ledger** (SQLite):
+- Location: `.paxos/node_{uuid}.db`
+- Stores: decree_number → PaxosCommand
+- Recovers on restart
+- Auto-created per node
+
+**Acceptor State**:
+- Currently in-memory only
+- Ballot tracking persisted via DecreeNotes
+
+**DecreeNotes**:
+- Persistent ballot tracking
+- Location: `.paxos/decree_notes_{uuid}.json`
+
+## Network Simulator
+
+Injects failures in `network_simulator.rs`:
+- Packet loss
+- Latency
+- Partition (asymmetric splits)
+- Transient failures
 
 ## Web Visualizer
 
-```bash
-cargo run --release
-```
-
-Opens http://localhost:3000 with:
-- Real-time event stream
-- Node status indicators
-- Proposal/acceptance tracking
-- Learned decrees visualization
+Runs on http://localhost:3000 (default):
+- Real-time event stream (WebSocket)
+- Node status (proposer, acceptor, learner)
+- Scenario selection
+- Manual proposal injection
+- Event filtering
 
 ## Building Release
 
 ```bash
-# Optimized binary
 cargo build --release
-
-# Binary location
 ./target/release/paxos
 
-# Run with custom scenario
-./target/release/paxos --scenario scenarios/partition_recovery.json
+# With logging
+RUST_LOG=debug ./target/release/paxos
 ```
 
-## Performance
+## Performance Characteristics
 
 | Metric | Value |
 |--------|-------|
-| Consensus latency | 10-100ms (network sim) |
+| Single decree latency | 10-100ms |
 | Throughput | 10-100 decrees/sec |
-| Memory per node | ~1MB |
-| Disk per decree | ~1KB |
-| Test execution | ~130 seconds (255 tests) |
+| Memory per node | ~1-5MB |
+| Disk per decree | ~100 bytes |
+| Test suite | ~130 seconds (all tests) |
 
-## Design Decisions
+## Code Statistics
 
-**Rust**: Type safety + Tokio async (no GC pauses)
-**SQLite**: Durability, ACID, no external dependencies
-**Arc<Mutex>**: Thread-safe state with clear ownership
+- Core Paxos: ~2000 lines
+- Tests: ~3000 lines
+- Web/UI: ~2000 lines
+- Total: ~7000 lines
 
-## Known Limitations
+## Failure Scenarios & Recovery
 
-1. Single-view (no dynamic reconfiguration)
-2. No value batching
-3. Proposers compete (no dedicated leader)
-4. Assumes honest nodes (not Byzantine-fault-tolerant)
+### Node Crash
 
-Production systems typically add:
-- Multi-Paxos for efficiency
-- Reconfiguration protocol
-- Client-side batching
-- Leader leases with exponential backoff
+Acceptor state: in-memory (lost on crash)
+Ledger: persisted (recovered on restart)
+Recovery: reads ledger, rejoins cluster
 
-## Code Quality
+### Network Partition
 
-| Category | Status |
-|----------|--------|
-| Concurrency | Safe (Arc<Mutex> patterns) |
-| Persistence | Partial (Ledger works; Acceptor doesn't save) |
-| Error handling | Good |
-| Test coverage | Excellent (255 tests) |
+Majority partition: continues (has quorum)
+Minority partition: halts (can't reach quorum)
+Healing: minority catches up via ledger
 
-### Pre-Commit Validation
+### Concurrent Proposals
 
-```bash
-# Run all tests
-cargo test --tests
+Same decree, different proposers:
+- Higher ballot preempts lower
+- NACK response triggers retry with higher ballot
+- Guarantees only one value chosen
 
-# Verify count
-cargo test --tests 2>&1 | grep "passed; 0 failed"
+## Key Abstractions
 
-# Check for inappropriate sleeps
-grep -r "sleep(" tests/*.rs
-```
+### PaxosObserver
 
-## Debugging
-
-Print events:
+Monitor for events:
 ```rust
-let events = barrier.get_events().await;
-for event in &events {
-    eprintln!("  {:?}", event);
+pub trait PaxosObserver: Send + Sync {
+    fn observe(&self, event: Event);
 }
 ```
 
-Inspect ledger:
-```bash
-sqlite3 .paxos/node_1.db
+Events: Prepare, Promise, Accept, Accepted, LearnedValue, etc.
+
+### InflightProposals
+
+Tracks proposals in-flight:
+```rust
+pub struct InflightProposal {
+    decree_num: DecreeId,
+    cmd: PaxosCommand,
+}
 ```
+
+## Debugging Tips
+
+**Print events**:
+```rust
+// In test_helpers
+let events = observer.get_events().await;
+for e in events { eprintln!("{:?}", e); }
+```
+
+**Inspect ledger**:
+```bash
+sqlite3 .paxos/node_*.db "SELECT * FROM decrees;"
+```
+
+**Logs**:
+```bash
+RUST_LOG=debug cargo test --test FILE -- --nocapture
+RUST_LOG=paxos=trace cargo run -- web
+```
+
+## Common Patterns
+
+**Create a proposer**:
+```rust
+let builder = NodeBuilder::new();
+let proposer = builder.proposer(node_id, uuid).await?;
+```
+
+**Propose a value**:
+```rust
+let cmd = PaxosCommand::SET { key: "x".to_string(), value: "1".to_string() };
+let msg = proposer.propose(DecreeId(0), cmd).await;
+```
+
+**Handle a message**:
+```rust
+let response = acceptor.handle_message(msg).await;
+```
+
+## Testing Checklist
+
+- [ ] All 255 tests pass: `cargo test --tests`
+- [ ] No panics in release build
+- [ ] Ledger recovers after crash
+- [ ] Network partitions handled correctly
+- [ ] Concurrent proposals don't corrupt state
+- [ ] Out-of-order messages don't crash nodes
 
 ## References
 
 - Lamport, L. (2001). Paxos Made Simple
-- Chandra, T., et al. (2007). Paxos Made Live
-- Implementation: ~7000 lines (protocol + tests + supporting systems)
+- Implementation: Consensus protocol in production-ready Rust
+- Web UI: Real-time visualization of distributed consensus
