@@ -1,14 +1,41 @@
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%" gradientUnits="userSpaceOnUse">
+    <linearGradient id="validityGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FF71CE" />
       <stop offset="100%" stop-color="#01CDFE" />
     </linearGradient>
-    <mask id="checkMask">
-      <rect   fill="white" />
-      <path d="M25 52 L42 69 L75 30 L82 38 L42 82 L16 57 Z" fill="black" />
-    </mask>
   </defs>
 
-  <path d="M15 50 L42 78 L85 25 L92 35 L42 90 L8 58 Z" fill="url(#mathGrad)" mask="url(#checkMask)" />
+  <!-- Incoming particles (left side) -->
+  <circle cx="15" cy="35" r="3" fill="url(#validityGrad)" opacity="0.5" />
+  <circle cx="15" cy="50" r="3" fill="url(#validityGrad)" opacity="0.8" />
+  <circle cx="15" cy="65" r="3" fill="url(#validityGrad)" opacity="0.5" />
+
+  <!-- Incoming arrows -->
+  <path d="M 20 35 L 35 35" stroke="url(#validityGrad)" stroke-width="1.5" fill="none" opacity="0.4" />
+  <path d="M 20 50 L 35 50" stroke="url(#validityGrad)" stroke-width="2" fill="none" opacity="0.8" />
+  <path d="M 20 65 L 35 65" stroke="url(#validityGrad)" stroke-width="1.5" fill="none" opacity="0.4" />
+
+  <!-- Filter gate in middle -->
+  <g transform="translate(45, 50)">
+    <!-- Gate opening (only middle) -->
+    <rect x="-12" y="-18" width="24" height="36" rx="2" fill="none" stroke="url(#validityGrad)" stroke-width="2" />
+    
+    <!-- Blockages (upper and lower) -->
+    <rect x="-10" y="-15" width="20" height="5" fill="url(#validityGrad)" opacity="0.4" />
+    <rect x="-10" y="10" width="20" height="5" fill="url(#validityGrad)" opacity="0.4" />
+    
+    <!-- Open passage (middle) -->
+    <rect x="-8" y="-2" width="16" height="4" fill="url(#validityGrad)" opacity="0.2" />
+  </g>
+
+  <!-- Output particles (right side) - only middle one passes -->
+  <circle cx="78" cy="50" r="3" fill="url(#validityGrad)" opacity="0.9" />
+
+  <!-- Output arrow (strong for passed value) -->
+
+
+  <!-- Rejected particles fading -->
+  <circle cx="62" cy="35" r="2" fill="url(#validityGrad)" opacity="0.15" />
+  <circle cx="62" cy="65" r="2" fill="url(#validityGrad)" opacity="0.15" />
 </svg>
