@@ -1,0 +1,30 @@
+<svg  viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE" />
+      <stop offset="100%" stop-color="#01CDFE" />
+    </linearGradient>
+  </defs>
+
+  <g id="shattered-pillar" transform="translate(40, -20) scale(1.5)">
+    <g id="pillar-top">
+      <path d="M 2 27 H 10 L 10.5 28.5 C 10.2 29.1 9.5 28.9 9 30 C 7.5 29.7 8.5 30.5 2 30 Z" fill="url(#mathGrad)" />
+      
+      <rect x="4" y="30" width="3" height="17.5" fill="url(#mathGrad)" opacity="0.6" />
+      <rect x="8.5" y="30" width="3" height="17.5" fill="url(#mathGrad)" />
+      <rect x="13" y="30" width="3" height="17.5" fill="url(#mathGrad)" opacity="0.6" />
+    </g>
+
+    <g transform="rotate(6, 10, 47.5)">
+      <path d="M 10 27 L 18 27 V 30 H 11.5 C 11.2 29.5 10.5 28.9 10 28.5 C 9.5 28.1 10.2 27.5 10 27 Z" fill="url(#mathGrad)" opacity="0.8" />
+      
+       <path d="M 4 47.5 L 5 49.5 L 6 48 L 7 49 V 65 H 4 Z" fill="url(#mathGrad)" opacity="0.6" />
+      <path d="M 8.5 47.5 L 9.5 49 L 10.5 47.5 L 11.5 49 V 65 H 8.5 Z" fill="url(#mathGrad)" />
+      <path d="M 13 47.5 L 14 49.5 L 15 48 L 16 49 V 65 H 13 Z" fill="url(#mathGrad)" opacity="0.6" />
+      
+      <rect x="0" y="65" width="20" height="3" rx="0.5" fill="url(#mathGrad)" />
+      
+      <rect x="9.5" y="52" width="1.2" height="1.2" fill="url(#mathGrad)" opacity="0.5" transform="rotate(30, 9.5, 52)" />
+    </g>
+  </g>
+</svg>
