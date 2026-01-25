@@ -1,0 +1,31 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF71CE"/>
+      <stop offset="100%" stop-color="#01CDFE"/>
+    </linearGradient>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#01CDFE"/>
+    </marker>
+  </defs>
+  <g transform="translate(-15, -15)">
+  <g id="doric-n3" transform="translate(15, 55) scale(0.8)">
+    <rect x="0" y="0" width="20" height="4" fill="url(#mathGrad)"/>
+    <rect x="3" y="5" width="3" height="18" fill="url(#mathGrad)" opacity="0.4"/>
+    <rect x="8.5" y="5" width="3" height="18" fill="url(#mathGrad)"/>
+    <rect x="14" y="5" width="3" height="18" fill="url(#mathGrad)" opacity="0.4"/>
+  </g>
+  <g opacity="0.3">
+    <circle cx="38" cy="65" r="1.5" fill="url(#mathGrad)"/>
+    <circle cx="48" cy="65" r="1.5" fill="url(#mathGrad)"/>
+    <circle cx="58" cy="65" r="1.5" fill="url(#mathGrad)"/>
+  </g>
+  <g id="doric-n" transform="translate(65, 55) scale(0.8)">
+    <rect x="0" y="0" width="20" height="4" fill="url(#mathGrad)"/>
+    <rect x="3" y="5" width="3" height="18" fill="url(#mathGrad)" opacity="0.4"/>
+    <rect x="8.5" y="5" width="3" height="18" fill="url(#mathGrad)"/>
+    <rect x="14" y="5" width="3" height="18" fill="url(#mathGrad)" opacity="0.4"/>
+  </g>
+  <path d="M 25 52 C 35 35, 65 35, 75 52" stroke="url(#mathGrad)" stroke-width="2" stroke-dasharray="4 3" fill="none" marker-end="url(#arrowhead)"/>
+  </g>
+</svg>

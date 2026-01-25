@@ -66,3 +66,9 @@ page_template!(
     FDDishonestLegislators,
     "./further_developments/dishonest_legislators.html"
 );
+
+page_template!(
+    f_d_choosing_new_legislators,
+    FDChoosingNewLegislators,
+    "./further_developments/choosing_new_legislators.html"
+);

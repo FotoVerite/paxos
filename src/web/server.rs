@@ -88,6 +88,10 @@ pub async fn run_web_server() {
             "/further-developments/dishonest-legislators",
             get(f_d_dishonest_legislators),
         )
+        .route(
+            "/further-developments/choosing-new-legislators",
+            get(f_d_choosing_new_legislators),
+        )
         .route("/the_problem", get(the_problem_handler))
         .route("/ws", get(websocket_handler))
         .route("/api/start-scenario", post(start_scenario_handler))
