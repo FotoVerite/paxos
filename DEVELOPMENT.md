@@ -179,19 +179,28 @@ Proposer can pipeline: send Accept for decree N while Prepare for decree N+1.
 
 ## Data Persistence
 
-**Ledger** (SQLite):
-- Location: `.paxos/node_{uuid}.db`
-- Stores: decree_number → PaxosCommand
+Persistence uses **bincode** (binary serialization) with atomic writes (temp file + rename).
+
+**Ledger** (when feature "persistence" enabled):
+- Location: `.paxos/ledger_{uuid}.bin`
+- Stores: Vec of Option<PaxosCommand> (sparse array)
 - Recovers on restart
 - Auto-created per node
 
-**Acceptor State**:
-- Currently in-memory only
-- Ballot tracking persisted via DecreeNotes
+**DecreeNotes** (ballot tracking):
+- Location: `.paxos/decree_notes_{uuid}.bin`
+- Stores: HashMap<DecreeId, DecreeNote>
+- Persisted when enabled via feature flag
 
-**DecreeNotes**:
-- Persistent ballot tracking
-- Location: `.paxos/decree_notes_{uuid}.json`
+**Feature Gating**:
+- Persistence is opt-in: `#[cfg(feature = "persistence")]`
+- Tests run without persistence by default
+- Production builds include `--features persistence`
+
+**Atomic Writes**:
+- Write to `.tmp` file first
+- Rename to final location (atomic on filesystems)
+- Prevents corruption on crash
 
 ## Network Simulator
 

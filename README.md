@@ -20,10 +20,10 @@ cargo run --release
 ## Features
 
 ✅ **Complete Paxos Protocol** - Prepare, Promise, Accept, Accepted phases  
-✅ **255 Passing Tests** - Comprehensive test suite with EventBarrier framework  
-✅ **Web Visualizer** - Real-time visualization of consensus  
+✅ **255 Passing Tests** - Comprehensive integration test suite  
+✅ **Web Visualizer** - Real-time visualization of consensus events  
 ✅ **Network Failure Simulation** - Partitions, packet loss, latency  
-✅ **SQLite Persistence** - Durable ledger with crash recovery  
+✅ **Durable Persistence** - Binary ledger & ballot tracking with atomic writes  
 ✅ **Multi-Node Clusters** - 3-9 node configurations  
 
 ## Documentation
@@ -46,7 +46,7 @@ RUST_LOG=debug ./target/release/paxos
 
 ### Data Persistence
 
-Ledger stored in `.paxos/` directory:
+Ledger stored in `.paxos/` directory (binary format):
 ```bash
 # Backup
 cp -r .paxos/ .paxos.backup/
@@ -54,8 +54,10 @@ cp -r .paxos/ .paxos.backup/
 # Clear ledger (fresh start)
 rm -rf .paxos/
 
-# Inspect
-sqlite3 .paxos/node_1.db
+# Files created per node
+ls -la .paxos/
+# ledger_{uuid}.bin        - Persisted decrees
+# decree_notes_{uuid}.bin  - Ballot tracking
 ```
 
 ### Docker
