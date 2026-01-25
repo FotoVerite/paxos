@@ -95,7 +95,7 @@ class AnimatedNodes {
                     radius: nodeRadius,
                     opacity: 0.8,
                     pulse: Math.random() * Math.PI * 2,
-                    color: this.getRandomVaporwaveColor(),
+                    color: this.getGradientColor(x, y, centerX, this.canvas.height / 2),
                     connected: [],
                     vx: (Math.random() - 0.5) * 0.1,
                     vy: (Math.random() - 0.5) * 0.1,
@@ -179,9 +179,28 @@ class AnimatedNodes {
         return [P, A, X, O, S];
     }
     
-    getRandomVaporwaveColor() {
-        // All pink for consistent vaporwave aesthetic
-        return 'rgba(255, 0, 110, 0.8)';  // Hot pink
+    getGradientColor(x, y, centerX, centerY) {
+        // Create smooth gradient from pink (left) to purple (center) to cyan (right)
+        // Based on horizontal position
+        const normalizedX = (x - 0) / this.canvas.width; // 0 to 1 left to right
+        
+        let r, g, b;
+        
+        if (normalizedX < 0.5) {
+            // Left side: pink to purple
+            const t = normalizedX * 2; // 0 to 1
+            r = Math.round(255 * (1 - t * 0.2)); // 255 to 204
+            g = Math.round(113 * (1 - t * 0.4)); // 113 to 68
+            b = Math.round(206 * (1 - t * 0.3)); // 206 to 144
+        } else {
+            // Right side: purple to cyan
+            const t = (normalizedX - 0.5) * 2; // 0 to 1
+            r = Math.round(204 * (1 - t) + 1 * t); // 204 to 1
+            g = Math.round(68 * (1 - t) + 205 * t); // 68 to 205
+            b = Math.round(144 * (1 - t) + 254 * t); // 144 to 254
+        }
+        
+        return `rgba(${r}, ${g}, ${b}, 0.8)`;
     }
     
     update() {
@@ -214,9 +233,10 @@ class AnimatedNodes {
             node.connected.forEach((connectedIndex) => {
                 const connectedNode = this.nodes[connectedIndex];
                 
-                // Base connection line with soft glow
+                // Base connection line with soft glow - use node's color
                 const baseOpacity = 0.15;
-                this.ctx.strokeStyle = `rgba(255, 0, 110, ${baseOpacity})`;
+                const nodeColor = this.getGradientColor(node.x, node.y, this.canvas.width / 2, this.canvas.height / 2);
+                this.ctx.strokeStyle = nodeColor.replace('0.8', baseOpacity.toString());
                 this.ctx.lineWidth = 1;
                 this.ctx.beginPath();
                 this.ctx.moveTo(node.x, node.y);
@@ -230,18 +250,19 @@ class AnimatedNodes {
                 const startX = node.x + (connectedNode.x - node.x) * flowPosition;
                 const startY = node.y + (connectedNode.y - node.y) * flowPosition;
                 
-                // Bright pulse marker - randomized per connection
+                // Bright pulse marker - use interpolated color between the two nodes
                 const pulsePhase = this.time * 4 + node.cycleOffset;
                 const pulseOpacity = Math.sin(pulsePhase) * 0.3 + 0.4;
-                this.ctx.fillStyle = `rgba(255, 0, 110, ${pulseOpacity})`;
+                const pulseColor = node.color.replace('0.8', pulseOpacity.toString());
+                this.ctx.fillStyle = pulseColor;
                 this.ctx.beginPath();
                 this.ctx.arc(startX, startY, 1.5, 0, Math.PI * 2);
                 this.ctx.fill();
                 
-                // Glow around pulse
+                // Glow around pulse - use node's color
                 const glowGradient = this.ctx.createRadialGradient(startX, startY, 0, startX, startY, 4);
-                glowGradient.addColorStop(0, `rgba(255, 0, 110, ${pulseOpacity * 0.5})`);
-                glowGradient.addColorStop(1, 'rgba(255, 0, 110, 0)');
+                glowGradient.addColorStop(0, node.color.replace('0.8', (pulseOpacity * 0.5).toString()));
+                glowGradient.addColorStop(1, node.color.replace('0.8', '0'));
                 this.ctx.fillStyle = glowGradient;
                 this.ctx.beginPath();
                 this.ctx.arc(startX, startY, 4, 0, Math.PI * 2);
@@ -249,14 +270,17 @@ class AnimatedNodes {
             });
         });
         
-        // Draw nodes - all pink
+        // Draw nodes - use their assigned color (pink or cyan)
         this.nodes.forEach((node) => {
+            // Get color based on position
+            const nodeColor = this.getGradientColor(node.x, node.y, this.canvas.width / 2, this.canvas.height / 2);
+            
             // Glow effect
             const glowSize = node.radius * 2.5;
             const gradient = this.ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, glowSize);
-            gradient.addColorStop(0, `rgba(255, 0, 110, ${node.opacity * 0.3})`);
-            gradient.addColorStop(0.6, `rgba(255, 0, 110, ${node.opacity * 0.1})`);
-            gradient.addColorStop(1, 'rgba(255, 0, 110, 0)');
+            gradient.addColorStop(0, nodeColor.replace('0.8', (node.opacity * 0.3).toString()));
+            gradient.addColorStop(0.6, nodeColor.replace('0.8', (node.opacity * 0.1).toString()));
+            gradient.addColorStop(1, nodeColor.replace('0.8', '0'));
             
             this.ctx.fillStyle = gradient;
             this.ctx.beginPath();
@@ -264,7 +288,7 @@ class AnimatedNodes {
             this.ctx.fill();
             
             // Core node
-            this.ctx.fillStyle = `rgba(255, 0, 110, ${node.opacity})`;
+            this.ctx.fillStyle = nodeColor.replace('0.8', node.opacity.toString());
             this.ctx.beginPath();
             this.ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
             this.ctx.fill();

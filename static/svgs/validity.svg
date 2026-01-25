@@ -5,7 +5,7 @@
       <stop offset="100%" stop-color="#01CDFE" />
     </linearGradient>
     <mask id="checkMask">
-      <rect width="100" height="100" fill="white" />
+      <rect   fill="white" />
       <path d="M25 52 L42 69 L75 30 L82 38 L42 82 L16 57 Z" fill="black" />
     </mask>
   </defs>

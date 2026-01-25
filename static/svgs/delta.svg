@@ -5,7 +5,7 @@
       <stop offset="100%" stop-color="#01CDFE" />
     </linearGradient>
     <mask id="deltaMask">
-      <rect width="100" height="100" fill="white" />
+      <rect   fill="white" />
       <path d="M50 24 L21 76 H70 Z" fill="black" />
     </mask>
   </defs>

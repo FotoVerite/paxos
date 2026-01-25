@@ -191,3 +191,30 @@ h3 {
         opacity: 0;
     }
 }
+
+/* Mobile - Panel titles */
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.6rem;
+    }
+
+    .panel-title {
+        padding: var(--space-lg);
+        margin: 0 0 var(--space-lg) 0;
+        font-size: 1.1rem;
+    }
+
+    h2 {
+        font-size: 1.1rem;
+        margin-bottom: var(--space-md);
+    }
+
+    h3 {
+        font-size: 0.95rem;
+        margin-bottom: var(--space-sm);
+    }
+
+    .subtitle {
+        font-size: 0.95rem;
+    }
+}

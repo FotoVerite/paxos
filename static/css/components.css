@@ -534,3 +534,97 @@ hr.doric-taper {
   font-size: 1rem;
   margin-bottom: 12px;
 }
+
+/* Mobile-first: Reduce padding below 480px */
+@media (max-width: 480px) {
+  .panel {
+    padding: var(--space-lg);
+  }
+
+  .highlight-box {
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+  }
+
+  .inner-panel {
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+  }
+
+  .quote-container {
+    margin: 1.5rem 0;
+    padding: 1rem;
+  }
+
+  .control-panel {
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+  }
+
+  button {
+    padding: var(--space-md) var(--space-lg);
+    font-size: 0.9rem;
+  }
+
+  .btn-compact {
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  input[type="number"],
+  input[type="text"],
+  input[type="range"],
+  select {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.85rem;
+  }
+
+  .header-icon {
+    width: 36px;
+    top: 40px;
+
+    &.large {
+      right: 30px;
+      top: 35px;
+      width: 45px;
+    }
+
+    &.xl {
+      width: 70px;
+      right:30px;
+      top: 30px;
+    }
+  }
+
+  .stat-card {
+    padding: var(--space-sm);
+  }
+
+  .event-log-container {
+    padding: var(--space-sm);
+    max-height: 200px;
+    font-size: 0.8rem;
+  }
+
+  .event-log-item {
+    padding: var(--space-xs) var(--space-sm);
+    margin-bottom: var(--space-xs);
+  }
+
+  .control-group {
+    gap: var(--space-sm);
+  }
+
+  .control-group label {
+    font-size: 0.8rem;
+  }
+
+  .panel h2 {
+    font-size: 1.1rem;
+    margin-bottom: var(--space-md);
+  }
+
+  .control-panel h2 {
+    font-size: 1rem;
+    margin-bottom: var(--space-md);
+  }
+}

@@ -239,6 +239,27 @@ header {
 }
 
 @media (max-width: 480px) {
+  header {
+    padding: var(--space-md) var(--space-md);
+
+    h1 {
+      font-size: 1.8rem;
+    }
+  }
+
+  .nav-container {
+    padding: var(--space-sm) var(--space-md);
+    gap: var(--space-md);
+  }
+
+  .nav-brand a {
+    font-size: 1.1rem;
+  }
+
+  .container {
+    padding: var(--space-lg) var(--space-md);
+  }
+
   .breadcrumb-nav {
     gap: 0;
     padding: var(--space-sm) var(--space-xs);
