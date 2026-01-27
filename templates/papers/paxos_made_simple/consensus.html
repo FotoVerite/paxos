@@ -1,0 +1,43 @@
+{% extends "papers/paxos_made_simple/base.html" %}
+
+{% block title %}The Consensus Algorithm - Paxos Made Simple{% endblock %}
+
+{% block body_class %}pms-page{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css">
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css">
+{% endblock %}
+
+{% block content %}
+<div class="pms-container">
+    <h1>The Consensus Algorithm</h1>
+    
+    <div class="pms-section">
+        <h3>Overview</h3>
+        <p>The Paxos algorithm consists of multiple related topics, each building on the previous one. This section explores the core algorithm step by step.</p>
+    </div>
+
+    <div class="pms-section">
+        <h3>Topics Covered</h3>
+        <ul>
+            <li><a href="/papers/paxos-made-simple/the-problem">The Problem</a> - Understanding the challenge</li>
+            <li><a href="/papers/paxos-made-simple/choosing-value">Choosing a Value</a> - How agreement is reached</li>
+            <li><a href="/papers/paxos-made-simple/learning-value">Learning a Chosen Value</a> - Spreading the decision</li>
+            <li><a href="/papers/paxos-made-simple/progress">Progress</a> - Ensuring the algorithm terminates</li>
+            <li><a href="/papers/paxos-made-simple/implementation">The Implementation</a> - Practical details</li>
+        </ul>
+    </div>
+
+    <nav class="pms-breadcrumb">
+        <ol class="breadcrumb-list">
+            <li class="breadcrumb-item">
+                <a href="/papers/paxos-made-simple/" class="breadcrumb-link">Home</a>
+            </li>
+            <li class="breadcrumb-item breadcrumb-current">
+                The Consensus Algorithm
+            </li>
+        </ol>
+    </nav>
+</div>
+{% endblock %}

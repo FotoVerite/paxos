@@ -1,0 +1,30 @@
+{% extends "papers/paxos_made_simple/base.html" %}
+
+{% block title %}Paxos Made Simple{% endblock %}
+
+{% block body_class %}pms-landing{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/landing.css">
+{% endblock %}
+
+{% block content %}
+<div class="pms-hero">
+    <div class="pms-title">
+        <h1 class="word-paxos">Paxos</h1>
+        <h1 class="word-paxos">Made</h1>
+        <div class="word-glitch"></div>
+    </div>
+    
+    <p class="pms-subtitle">The Paxos algorithm, when presented in plain English, is very simple.</p>
+    
+    <div class="pms-cta">
+        <a href="/papers/paxos-made-simple/abstract" class="primary">Start Learning</a>
+        <a href="/" class="secondary">Back to Home</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/js/papers/paxos_made_simple/glitch.js"></script>
+{% endblock %}

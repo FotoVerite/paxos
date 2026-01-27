@@ -1,0 +1,53 @@
+<!-- PMS Navigation Bar -->
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/nav.css">
+
+<nav class="pms-navbar">
+    <div class="nav-container">
+        <div class="nav-brand">
+            <a href="/papers/paxos-made-simple/" class="brand-link">
+                <span class="brand-text pms-brand">Paxos Made Simple</span>
+            </a>
+        </div>
+        
+        <button class="hamburger-menu" id="hamburgerBtn">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        
+        <div class="nav-menu" id="navMenu">
+            <div class="nav-item">
+                <a href="/papers/paxos-made-simple/" class="nav-link">Home</a>
+            </div>
+            <div class="nav-item">
+                <a href="/papers/paxos-made-simple/abstract" class="nav-link">Abstract</a>
+            </div>
+            <div class="nav-item">
+                <a href="/papers/paxos-made-simple/introduction" class="nav-link">Introduction</a>
+            </div>
+            <div class="nav-item">
+                <a href="/papers/paxos-made-simple/consensus" class="nav-link">Consensus Algorithm</a>
+            </div>
+            <div class="nav-item">
+                <a href="/papers/paxos-made-simple/state-machine" class="nav-link">State Machine</a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<script>
+    const hamburger = document.getElementById('hamburgerBtn');
+    const navMenu = document.getElementById('navMenu');
+    
+    hamburger.addEventListener('click', () => {
+        navMenu.classList.toggle('active');
+        hamburger.classList.toggle('active');
+    });
+
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            navMenu.classList.remove('active');
+            hamburger.classList.remove('active');
+        });
+    });
+</script>

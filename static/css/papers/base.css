@@ -1,0 +1,10 @@
+/* Shared paper base styles */
+
+:root {
+    --paper-primary: #60a5fa;
+    --paper-primary-light: #93c5fd;
+    --paper-text: #cbd5e1;
+    --paper-text-light: #e2e8f0;
+    --paper-bg-dark: #0f172a;
+    --paper-border: #333;
+}
