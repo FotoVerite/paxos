@@ -1,0 +1,134 @@
+{% extends "paxos/base.html" %} {% block title %}Paxos Theorem One {% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/theory-one.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Theorem One</h1>
+
+    <div class="inner-panel" style="padding-top: 0px">
+      <div class="quote-container">
+        <span class="inscription-label">Definition</span>
+        <blockquote>
+          <p>
+            If $B1(\mathcal{B}$), $B2(\mathcal{B}$), and $B3(\mathcal{B}$) hold,
+            then
+          </p>
+          <p>
+            (($B_{\text{qrm}}$ $\subseteq$ $B_{\text{vote}}$) $\wedge$ ($B'$qrm
+            $\subseteq$ $B'_\text{vote}))$ $\Rightarrow$ ($B'_{\text{dec}}$ =
+            $B_{\text{dec}}$)
+          </p>
+
+          <p>for any $B$, $B'$ in $\mathcal{B}$</p>
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=9"
+            target="_blank"
+          >
+            LAMPORT, P. 8 — §2.1
+          </a>
+        </cite>
+      </div>
+
+      <div class="quote-container">
+        <span class="inscription-label">Proof</span>
+        <blockquote>
+          <p>
+            If $B'_{\text{bal}}$ = $B_{\text{bal}}$ , then $B1(\mathcal{B})$
+            implies $B'$ = $B$.
+          </p>
+          <p>
+            If $B'_{\text{bal}}$ $\neq$ $B_{\text{bal}}$ , then the theorem
+            follows immediately from the lemma.
+          </p>
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=9"
+            target="_blank"
+          >
+            LAMPORT, P. 8 — §2.1
+          </a>
+        </cite>
+      </div>
+    </div>
+    <div class="inner-panel">
+      <p>
+        Assume the constraints B1(𝓑), B2(𝓑), and B3(𝓑) hold. Suppose two ballots
+        $B$ and $B'$ satisfy that their quorums are subsets of their votes.
+      </p>
+
+      <p>
+        - If $B'_{\mathrm{bal}} = B_{\mathrm{bal}}$, then B1 implies $B' = B$
+        (they are the same ballot).
+      </p>
+
+      <p>
+        - If $B'_{\mathrm{bal}} \neq B_{\mathrm{bal}}$, then the lemma ensures
+        $B'_{\mathrm{dec}} = B_{\mathrm{dec}}$.
+      </p>
+
+      <p>
+        Thus, in all cases, the two ballots agree on the decree/value. This
+        proves Theorem One. Either it's the same ballot, or by the lemma a null
+        vote. Hence safety is guaranteed
+      </p>
+    </div>
+
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/lemma"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Lemma</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Theorem One</span>
+    </div>
+    <a
+      href="/synod/theorem-two"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Theorem Two</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

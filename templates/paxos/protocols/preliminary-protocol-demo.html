@@ -1,0 +1,311 @@
+{% extends "paxos/base.html" %} {% block title %}Preliminary Protocol Demo - Paxos{%
+endblock %} {% block body_class %}protocol-page{% endblock %} {% block content %}
+<div class="demo-container">
+  <!-- Visualization -->
+  <div class="visualization">
+    <svg id="demovSvg"></svg>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-section">
+    <div class="control-grid">
+      <div class="control-group">
+        <h3>Scenario</h3>
+        <select id="scenarioSelect">
+          <option value="success">A: Clean Success</option>
+          <option value="quorum_fail">B: Quorum Fails</option>
+          <option value="higher_ballot">C: Higher Ballot Success</option>
+          <option value="two_proposers">D: Two Proposers (Interleaving)</option>
+          <option value="livelock">E: Livelock (No Progress)</option>
+          <option value="multi_proposer_progress">
+            F: Multiple Proposers, Both Make Progress
+          </option>
+        </select>
+      </div>
+      <div class="control-group"  style="display: none;">
+        <h3>Speed</h3>
+        <div class="speed-control">
+          <input type="range" id="speed" value="1" min="0.25" max="2" step="0.25" />
+          <span id="speedValue">1x</span>
+        </div>
+      </div>
+      <div class="button-group">
+        <button id="playBtn" onclick="playScenario()">Play</button>
+        <button id="pauseBtn" onclick="pauseScenario()" disabled>Pause</button>
+        <button id="resetBtn" onclick="resetScenario()">Reset</button>
+      </div>
+    </div>
+
+    <!-- Status Info -->
+    <div class="status-info">
+      <div id="phaseTitle">Ready</div>
+      <div id="phaseDescription">Select a scenario and click Play</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-section">
+    <h3>Protocol Events</h3>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="nextBallotCount">0</div>
+        <div class="stat-label">NextBallot(b)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="lastVoteCount">0</div>
+        <div class="stat-label">LastVote(b, v)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="beginBallotCount">0</div>
+        <div class="stat-label">BeginBallot(b, d)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="votedCount">0</div>
+        <div class="stat-label">Voted(b, q)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="learnedCount">0</div>
+        <div class="stat-label">Learned</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="successCount">0</div>
+        <div class="stat-label">Success(d)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event Log -->
+  <div class="event-log-section">
+    <h3>Event Log</h3>
+    <div id="eventLog"></div>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/protocols/preliminary-protocol"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Preliminary Protocol</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Preliminary Protocol Demo</span>
+    </div>
+    <a
+      href="/protocols/basic-protocol"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Basic Protocol</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script src="/paxos-visualizer.js"></script>
+<script src="/scenarios/success.js"></script>
+<script src="/scenarios/quorum-fail.js"></script>
+<script src="/scenarios/higher-ballot.js"></script>
+<script src="/scenarios/two-proposers.js"></script>
+<script src="/scenarios/livelock.js"></script>
+<script src="/scenarios/multi-proposer-progress.js"></script>
+<script>
+  // Adjust nodeRadius based on viewport
+  function adjustNodeRadiusForViewport() {
+    const svgContainer = document.getElementById("demovSvg");
+    if (!svgContainer) return;
+
+    const rect = svgContainer.getBoundingClientRect();
+    const containerHeight = rect.height;
+
+    // Adjust radius based on container height - leave padding
+    if (containerHeight < 300) {
+      return 80;
+    } else if (containerHeight < 400) {
+      return 120;
+    } else {
+      return 195;
+    }
+  }
+
+  // Initialize visualizer with responsive sizing
+  const eventColorsConfig = {
+    nextballot: "#60a5fa", // Blue
+    lastvote: "#ec4899", // Pink
+    beginballot: "#f59e0b", // Orange
+    voted: "#10b981", // Green
+    success: "#6366f1", // Indigo
+  };
+
+  const visualizer = new PaxosVisualizer("demovSvg", {
+    nodeRadius: adjustNodeRadiusForViewport(),
+    nodeCircleRadius: 26,
+    eventColors: eventColorsConfig,
+  });
+
+  const eventLog = document.getElementById("eventLog");
+  const speedSlider = document.getElementById("speed");
+  const speedValue = document.getElementById("speedValue");
+  const scenarioSelect = document.getElementById("scenarioSelect");
+  const phaseTitle = document.getElementById("phaseTitle");
+  const phaseDescription = document.getElementById("phaseDescription");
+  const playBtn = document.getElementById("playBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  let isRunning = false;
+  let currentScenario = null;
+  let eventCounts = {
+    nextballot: 0,
+    lastvote: 0,
+    beginballot: 0,
+    voted: 0,
+    learned: 0,
+    success: 0,
+  };
+
+  // Update speed display
+  speedSlider.addEventListener("change", (e) => {
+    speedValue.textContent = parseFloat(e.target.value).toFixed(2) + "x";
+  });
+
+  // Helper functions
+  function sleep(ms) {
+    return new Promise((resolve) =>
+      setTimeout(resolve, ms / speedSlider.value)
+    );
+  }
+
+  function addEvent(text, color) {
+    const item = document.createElement("div");
+    item.className = "event-item";
+    item.style.borderLeftColor = color;
+    item.textContent = text;
+    eventLog.insertBefore(item, eventLog.firstChild);
+    while (eventLog.children.length > 30) {
+      eventLog.removeChild(eventLog.lastChild);
+    }
+  }
+
+  function updateCounts() {
+    document.getElementById("nextBallotCount").textContent =
+      eventCounts.nextballot;
+    document.getElementById("lastVoteCount").textContent = eventCounts.lastvote;
+    document.getElementById("beginBallotCount").textContent =
+      eventCounts.beginballot;
+    document.getElementById("votedCount").textContent = eventCounts.voted;
+    document.getElementById("learnedCount").textContent = eventCounts.learned;
+    document.getElementById("successCount").textContent = eventCounts.success;
+  }
+
+  // Build scenarios from imported definitions
+  const scenarioUtils = {
+    visualizer,
+    addEvent,
+    sleep,
+    eventCounts,
+    updateCounts,
+  };
+
+  const scenarios = {
+    success: Object.assign({}, scenarioSuccess, {
+      phases: scenarioSuccess.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    quorum_fail: Object.assign({}, scenarioQuorumFail, {
+      phases: scenarioQuorumFail.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    higher_ballot: Object.assign({}, scenarioHigherBallot, {
+      phases: scenarioHigherBallot.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    two_proposers: Object.assign({}, scenarioTwoProposers, {
+      phases: scenarioTwoProposers.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    livelock: Object.assign({}, scenarioLivelock, {
+      phases: scenarioLivelock.getPhases(eventColorsConfig, scenarioUtils),
+    }),
+    multi_proposer_progress: Object.assign({}, scenarioMultiProposerProgress, {
+      phases: scenarioMultiProposerProgress.getPhases(
+        eventColorsConfig,
+        scenarioUtils
+      ),
+    }),
+  };
+
+  function resetScenario() {
+    isRunning = false;
+    playBtn.disabled = false;
+    pauseBtn.disabled = true;
+    // Reset properties instead of reassigning to preserve object reference
+    eventCounts.nextballot = 0;
+    eventCounts.lastvote = 0;
+    eventCounts.beginballot = 0;
+    eventCounts.voted = 0;
+    eventCounts.learned = 0;
+    eventCounts.success = 0;
+    updateCounts();
+    eventLog.innerHTML = "";
+    phaseTitle.textContent = "Ready";
+    phaseDescription.textContent = "Select a scenario and click Play";
+    phaseTitle.style.color = "#60a5fa";
+
+    const scenarioName = scenarioSelect.value;
+    const scenario = scenarios[scenarioName];
+    if (scenario) {
+      visualizer.nodeRadius = adjustNodeRadiusForViewport();
+      visualizer.render({ total_nodes: scenario.nodeCount });
+      // Clear beams and reset all node states to default
+      visualizer.clearBeams();
+      for (let i = 0; i < scenario.nodeCount; i++) {
+        visualizer.setNodeState(i, '--');
+        visualizer.setNodeColor(i, '#3b82f6');
+      }
+    }
+  }
+
+  async function playScenario() {
+    if (isRunning) return;
+
+    const scenarioName = scenarioSelect.value;
+    currentScenario = scenarios[scenarioName];
+
+    if (!currentScenario) return;
+
+    isRunning = true;
+    playBtn.disabled = true;
+    pauseBtn.disabled = false;
+    scenarioSelect.disabled = true;
+
+    visualizer.nodeRadius = adjustNodeRadiusForViewport();
+    visualizer.render({ total_nodes: currentScenario.nodeCount });
+
+    for (const phase of currentScenario.phases) {
+      if (!isRunning) break;
+
+      phaseTitle.textContent = phase.title;
+      phaseDescription.textContent = phase.description;
+      phaseTitle.style.color = "#60a5fa";
+
+      await phase.action();
+    }
+
+    isRunning = false;
+    playBtn.disabled = false;
+    pauseBtn.disabled = true;
+    scenarioSelect.disabled = false;
+    phaseTitle.textContent = "Complete";
+    phaseTitle.style.color = "#34d399";
+  }
+
+  function pauseScenario() {
+    isRunning = false;
+    playBtn.disabled = false;
+    pauseBtn.disabled = true;
+    scenarioSelect.disabled = false;
+  }
+
+  // Initialize
+  resetScenario();
+</script>
+{% endblock %}

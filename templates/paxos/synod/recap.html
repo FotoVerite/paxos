@@ -1,0 +1,104 @@
+{% extends "paxos/base.html" %} {% block title %}Section 2. Recap{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/ionic-overview.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Mathematical Results Recap</h1>
+
+    <div class="inner-panel">
+      <h2>Ballot</h2>
+      <div class="key-concept">
+        <ul>
+          <li>a <em>ballot number</em> (unique identifier),</li>
+          <li>a <em>decree</em> (proposed value),</li>
+          <li>and <em>votes</em> from other nodes in the system.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Constraints</h2>
+      <div class="key-concept">
+        <ul>
+          <li>
+            once a value is chosen, all future ballots will agree on that value,
+          </li>
+          <li>
+            consistency (safety) is maintained across the distributed system.
+          </li>
+        </ul>
+
+        <p>
+          Theorems One and Two formally prove that if the constraints are
+          upheld, the protocol is safe. Message passing between nodes, combined
+          with ballot management, guarantees agreement even if multiple ballots
+          are active or nodes fail.
+        </p>
+      </div>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Theorems</h2>
+      <div class="key-concept">
+        
+        <p>
+          Theorems One and Two formally prove that if the constraints are
+          upheld, the protocol is safe. Message passing between nodes, combined
+          with ballot management, guarantees agreement even if multiple ballots
+          are active or nodes fail.
+        </p>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/theorem-two"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Theorem Two</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Synod Recap</span>
+    </div>
+    <a
+      href="/protocols/preliminary-protocol"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Preliminary Protocol</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+{% endblock %}

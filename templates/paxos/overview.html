@@ -1,0 +1,165 @@
+{% extends "paxos/base.html" %} {% block title %}A Broad Overview{% endblock %} {%
+block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/tri-overview.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Overview of the Paper</h1>
+    <p class="highlight-box">
+      Paxos is broken up into three main sections plus appendix
+    </p>
+    <div class="block">
+      <h2  class="doric-icon">The Problem</h2>
+      <ul>
+        <li>
+          <h3>
+            <strong>1.1:</strong> The Island Of Paxos<a
+              href="/the-problem/the-island-of-paxos"
+            >
+              ↗</a
+            >
+          </h3>
+          <p>Flavor text for the setting</p>
+        </li>
+        <li>
+          <h3>
+            <strong>1.2:</strong>Requirements<a
+              href="/the-problem/requirements"
+            >
+              ↗</a
+            >
+          </h3>
+          <p>The wants of the system and the protocol</p>
+        </li>
+        <li>
+          <h3>
+            <strong>1.3:</strong>Assumptions<a href="/the-problem/assumptions">
+              ↗</a
+            >
+          </h3>
+          <p>
+            Explains the need of persistent memory and message passing between
+            priests.
+          </p>
+        </li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <h2 class="ionic-icon" >The Single-Decree Synod</h2>
+      <p>
+        <small
+          >Deals with the Mathematics for Safety for choosing a single
+          Decree</small
+        >
+      </p>
+      <ul>
+        <li>
+          <h3>
+            <strong>2.1:</strong> Mathematical Results<a href="/synod/overview">
+              ↗</a
+            >
+          </h3>
+          <p>See overview for this section</p>
+        </li>
+        <li>
+          <h3>
+            <strong>2.2:</strong>The Preliminary Protocol<a
+              href="/protocols/preliminary-protocol"
+            >
+              ↗</a
+            >
+          </h3>
+          <p>Outlines the preliminary paxos protocol steps and messages</p>
+        </li>
+        <li>
+          <h3>
+            <strong>2.4:</strong>The Complete Synod Protocol<a
+              href="/protocols/complete-protocol"
+            >
+              ↗</a
+            >
+          </h3>
+          <p>
+            Adds the attributes of leadership and talks about how without
+            live-locks are much more likely.
+          </p>
+        </li>
+      </ul>
+    </div>
+
+    <div class="block">
+      <h2  class="hellenic-icon">Multi Decree Parliament</h2>
+      <p>
+        <small
+          >Builds on the Protocol to show how it's repeatable and can build up a
+          safe and progressive state with additional optimizations.</small
+        >
+      </p>
+      <ul>
+        <li>
+          <h3>
+            <strong>3.1:</strong>Protocol<a
+              href="/protocols/preliminary-protocol"
+            >
+              ↗</a
+            >
+          </h3>
+          <p>
+            Outlines how the complete protocol can be used in sequence with
+            leadership.
+          </p>
+        </li>
+        <li>
+          <h3>
+            <strong>3.2:</strong>Properties of the Protocol<a
+              href="/multi-decree-parliament/presidential-problems"
+            >
+              ↗</a
+            >
+          </h3>
+          <p>
+            Goes into detail on the importance of decree ordering and the
+            difficulties of leadership assignment
+          </p>
+        </li>
+
+        <li>
+          <h3>
+            <strong>3.3:</strong>Further Development<a
+              href="/multi-decree-parliament/protocol"
+            >
+              ↗</a
+            >
+          </h3>
+          <p>
+            See Overview for various optimizations that he proposes in the
+            abstract for further consideration.
+          </p>
+        </li>
+      </ul>
+    </div>
+
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    <div class="breadcrumb-nav">
+      <a href="/publishing-history" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
+        <span class="breadcrumb-arrow">←</span>
+        <span class="breadcrumb-text">Publishing History</span>
+      </a>
+      <div class="breadcrumb-current">
+        <span class="breadcrumb-label">Paper Overview</span>
+      </div>
+      <a href="/the-problem/the-island-of-paxos" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+        <span class="breadcrumb-text">The Island of Paxos</span>
+        <span class="breadcrumb-arrow">→</span>
+      </a>
+    </div>
+    </div>
+    {% endblock %}

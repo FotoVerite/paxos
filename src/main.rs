@@ -83,7 +83,7 @@ async fn run_json_scenario() -> anyhow::Result<()> {
 
 async fn run_with_web_server() -> anyhow::Result<()> {
     println!("Starting Paxos with Web Visualizer...\n");
-    println!("Open http://localhost:3000 in your browser\n");
+    println!("Open http://localhost:3001 in your browser\n");
     
     // Start web server in a background task
     tokio::spawn(async move {

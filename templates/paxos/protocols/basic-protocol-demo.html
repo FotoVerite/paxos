@@ -1,0 +1,115 @@
+{% extends "paxos/base.html" %} {% block title %}Basic Protocol Demo - Paxos{% endblock %}
+{% block body_class %}protocol-page{% endblock %}
+{% block content %}
+<div class="demo-container">
+  <!-- Visualization -->
+  <div class="visualization">
+    <div id="decree-viewer">
+      <div id="proposalStatsContainer"></div>
+      <div id="decreePanel"></div>
+    </div>
+
+    <svg id="basicProtocolSvg"></svg>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-section">
+    <div class="control-grid">
+      <div class="control-group">
+        <h3>Scenario</h3>
+        <select id="scenarioSelect">
+          <option value="happy_path">Happy Path (5 nodes)</option>
+          <option value="competing_proposers">
+            Competing Proposers (5 nodes)
+          </option>
+          <option value="network_partition">Network Partition (5 nodes)</option>
+          <option value="catch_up">Catch-up Scenario (5 nodes)</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <h3>Speed</h3>
+        <div class="speed-control">
+          <input type="range" id="speed" value="0.5" min="0.25" max="2" step="0.25" />
+          <span id="speedValue">0.5x</span>
+        </div>
+      </div>
+      <div class="button-group">
+        <button id="playBtn" onclick="playScenario()">Play</button>
+        <button id="pauseBtn" onclick="pauseScenario()" disabled>Pause</button>
+        <button id="resetBtn" onclick="resetScenario()">Reset</button>
+      </div>
+    </div>
+
+    <!-- Status Info -->
+    <div class="status-info">
+      <div id="statusTitle">Ready</div>
+      <div id="statusDescription">Click Play to start the demonstration</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-section">
+    <h3>Protocol Events</h3>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="nextBallotCount">0</div>
+        <div class="stat-label">NextBallot(b)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="lastVoteCount">0</div>
+        <div class="stat-label">LastVote(b, v)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="beginBallotCount">0</div>
+        <div class="stat-label">BeginBallot(b, d)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="votedCount">0</div>
+        <div class="stat-label">Voted(b, q)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="learnedCount">0</div>
+        <div class="stat-label">Learned</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="successCount">0</div>
+        <div class="stat-label">Success(d)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event Log -->
+  <div class="event-log-section">
+    <h3>Event Log</h3>
+    <div id="eventLog"></div>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/protocols/basic-protocol"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Basic Protocol</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Basic Protocol Demo</span>
+    </div>
+    <a
+      href="/protocols/complete-protocol"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Complete Protocol</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+<script src="/websocket-helper.js"></script>
+<script src="/paxos-visualizer.js"></script>
+<script src="/basic-protocol-demo.js"></script>
+{% endblock %}

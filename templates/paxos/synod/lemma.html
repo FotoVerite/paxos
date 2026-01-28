@@ -1,0 +1,201 @@
+{% extends "paxos/base.html" %} {% block title %}Paxos Lemma{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/lemma.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Lemma</h1>
+
+    <div class="inner-panel" style="padding-top: 0px">
+      <div class="quote-container">
+        <span class="inscription-label">Definition</span>
+        <blockquote>
+          <p>
+            If $\mathbf{B1}(\mathcal{B})$, $\mathbf{B2}(\mathcal{B})$, and
+            $\mathbf{B3}(\mathcal{B})$ hold, then for any $B, B' \in
+            \mathcal{B}$:
+          </p>
+          <p class="math">
+            $\big((B_{\text{qrm}} \subseteq B'_{\text{vot}}) \wedge
+            (B'_{\text{bal}} > B_{\text{bal}})\big) \Rightarrow (B'_{\text{dec}}
+            = B_{\text{dec}})$
+          </p>
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=8"
+            target="_blank"
+          >
+            LAMPORT, P. 7 — §2.1
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        If a quorum of votes for $B$ is included in the votes of $B'$ and $B'$
+        has a higher ballot number, then the decree chosen by $B'$ must be the
+        same as the decree of $B$.
+      </p>
+    </div>
+
+    <div class="block">
+      <h2>Proof Via Contradiction</h2>
+      <ol>
+        <li>
+          Choose $C \in \Psi(B, B)$ such that $C_{\mathrm{bal}} = \min\{
+          B'_{\mathrm{bal}} : B' \in \Psi(B, B) \}$.
+          <br />
+          <strong>Proof:</strong> $C$ exists because $\Psi(B, B)$ is nonempty
+          and finite.
+        </li>
+        <li>
+          $C_{\mathrm{bal}} > B_{\mathrm{bal}}$.
+          <br />
+          <strong>Proof:</strong> By step 1 and the definition of $\Psi(B, B)$.
+        </li>
+        <li>
+          $B_{\mathrm{vot}} \cap C_{\mathrm{qrm}} = \emptyset$.
+          <br />
+          <strong>Proof:</strong> By $B2(B)$ and the hypothesis that
+          $B_{\mathrm{qrm}} \subseteq B_{\mathrm{vot}}$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}},
+          B)_{\mathrm{bal}} \ge B_{\mathrm{bal}}$.
+          <br />
+          <strong>Proof:</strong> By steps 2, 3 and the definition of
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B) \in
+          \mathrm{Votes}(B)$.
+          <br />
+          <strong>Proof:</strong> By step 4 (which implies that
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)$ is not a
+          null vote) and the definition of $\mathrm{MaxVote}(C_{\mathrm{bal}},
+          C_{\mathrm{qrm}}, B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}},
+          B)_{\mathrm{dec}} = C_{\mathrm{dec}}$.
+          <br />
+          <strong>Proof:</strong> By step 5 and $B3(B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}},
+          B)_{\mathrm{dec}} = B_{\mathrm{dec}}$.
+          <br />
+          <strong>Proof:</strong> By step 6, step 1, and the definition of
+          $\Psi(B, B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}},
+          B)_{\mathrm{bal}} > B_{\mathrm{bal}}$.
+          <br />
+          <strong>Proof:</strong> By step 4, since steps 7 and $B1(B)$ imply
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}},
+          B)_{\mathrm{bal}} = B_{\mathrm{bal}}$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B) \in
+          \mathrm{Votes}(\Psi(B, B))$.
+          <br />
+          <strong>Proof:</strong> By steps 7, 8, and the definition of $\Psi(B,
+          B)$.
+        </li>
+        <li>
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}},
+          B)_{\mathrm{bal}} < C_{\mathrm{bal}}$. <br />
+          <strong>Proof:</strong> By definition of
+          $\mathrm{MaxVote}(C_{\mathrm{bal}}, C_{\mathrm{qrm}}, B)$.
+        </li>
+        <li>
+          Contradiction.
+          <br />
+          <strong>Proof:</strong> By steps 9, 10, and 1.
+        </li>
+      </ol>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Simplified Proof</h2>
+      <ol>
+        <li>
+          Let's Assume a counterexample exists: There’s a valid ballot C which
+          comes after a valid ballot with a different decree. Let Ψ(B, B) be the
+          set of all such later ballots.
+        </li>
+        <li>
+          Given Constraint B2 Ballot C quorum includes the quorum of Ballot B
+          and will be able to use MaxVote to find said vote
+        </li>
+        <li>
+          $\text{MaxVote}(Cbal, Cqrm, \mathcal{B})$ selects the largest prior
+          vote in $C’$s quorum. By B3, C must adopt the decree of that vote.
+        </li>
+        <li>
+          Observe the conflict: The vote chosen by MaxVote is either in $B’$s
+          votes (so it has decree B_dec) or is null. Either way, C cannot
+          legitimately choose a different decree than B.
+        </li>
+        <li>
+          Contradiction arises: Our assumption that $C$ picks a different decree
+          is impossible, because the rules force it to pick $B’$s decree. Ψ(B,
+          B) can only be empty.
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/max-vote-quorum"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">MaxVote</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Lemma</span>
+    </div>
+    <a
+      href="/synod/theorem-one"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Theorem One</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

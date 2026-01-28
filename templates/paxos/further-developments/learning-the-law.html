@@ -1,0 +1,234 @@
+{% extends "paxos/base.html" %} {% block title %}3.3.4 Learning the Law{% endblock %}
+{% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/learner.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Section 3.3.4 Learning the Law</h1>
+
+    <p>
+      While safety and consensus are of paramount importance, the ability for
+      external clients to read the ledger is also important and introduces its
+      own consistency concerns.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Monotonicity Problem</span>
+      <blockquote>
+        A farmer named ∆ωλ&#955;φ got Parliament to pass the decree 77: The sale
+        of black goats is permitted ∆ωλ&#955;φ then instructed his goatherd to
+        sell some black goats to a merchant named Σκν. As a law-abiding citizen,
+        Σκν asked legislator Στωκµ˘ιρ if such a sale would be legal. But
+        Στωκµ˘ιρ had been out of the Chamber and had no entry in his ledger past
+        decree 76. He advised Σκν that the sale would be illegal under the
+        current law, so Σκν refused to buy the goats. This incident led to the
+        formulation of the following monotonicity condition on inquiries about
+        the law. If one inquiry precedes a second inquiry, then the second
+        inquiry cannot reveal an earlier state of the law than the first. If a
+        citizen learns that a particular decree has been passed, then the
+        process of acquiring that knowledge is considered to be an implicit
+        inquiry to which this condition applies.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=20"
+          target="_blank"
+        >
+          LAMPORT, P. 19 — §3.3.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      What is being described here is linearizability. Given a timeline requests
+      should always be able to be put into a defined sequence.
+    </p>
+
+    <p class="highlight-box">
+      If one inquiry precedes a second inquiry, then the second inquiry cannot
+      reveal an earlier state of the law than the first.
+    </p>
+
+    <p>
+      The simplest way to achieve this is to have the ledger itself record the
+      read. This guarantees monotonicity because the read cannot occur until the
+      ledger has reached the required state.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Naive Monotonicity</span>
+      <blockquote>
+        Initially, the monotonicity condition was achieved by passing a decree
+        for each inquiry. If Σ∂ν˘ιδρ wanted to know the current tax on olives,
+        he would get Parliament to pass a decree such as
+
+        <p>87: Citizen Σ∂ν˘ιδρ is reading the law</p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=20"
+          target="_blank"
+        >
+          LAMPORT, P. 19 — §3.3.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This works because for the read to happen the ledger must have first
+      caught up with the decree. There will be no gaps and full consensus would
+      have been reached.
+    </p>
+
+    <p>
+      Reaching consensus for all reads and writes depending on the system can be
+      very slow. For systems that don't need such guarantees, one can loosen the
+      definition to allow a different guarantee only for writes.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Causal Consistency</span>
+      <blockquote>
+        Passing a decree for every inquiry soon proved too cumbersome. The
+        Paxons realized that a simpler method was possible if they weakened the
+        monotonicity condition by changing the interpretation of precedes. They
+        decided that for one event to precede another, the first event not only
+        had to happen at an earlier time, but it had to be able to causally
+        affect the second event.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=21"
+          target="_blank"
+        >
+          LAMPORT, P. 20 — §3.3.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This is known as causal consistency. Operations are ordered only when a
+      causal relationship exists; concurrent reads may observe different states.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Versioned Reads</span>
+      <blockquote>
+        For example, farmer ∆ωλφ, whose flock included many nonwhite goats, got
+        Parliament to pass the decree 277: The sale of brown goats is permitted
+        When selling his brown goats to Σκν, he informed the merchant that the
+        sale was legal as of decree number 277. Σκν then asked legislator
+        Στωκµ˘ιρ if the sale were legal under the law through at least decree
+        277. If Στωκµ˘ιρ's ledger was not complete through decree 277, he would
+        either wait until it was or else tell Σκν to ask someone else. If
+        Στωκµ˘ιρ's ledger went through decree 298, then he would tell Σκν that
+        the sale was legal as of decree number 298. Merchant Σκν would remember
+        the number 298 for use in his next business transaction or inquiry about
+        the law.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=21"
+          target="_blank"
+        >
+          LAMPORT, P. 20 — §3.3.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A client requests to read a state no earlier than a specific decree
+      number. The node either has caught up to that decree or not. If it has, it
+      can answer. If not, the client can wait or ask another node with a more
+      up-to-date ledger. Clients remember the last decree they saw, so there can
+      never be regression.
+    </p>
+
+    <p>
+      Causal consistency is useful but doesn't work for all applications. For
+      simpler management, Lamport introduced the idea of specialists, which
+      would anticipates later ideas such as sharding to reduce load.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Specialists</span>
+      <blockquote>
+        The Paxons had satisfied the monotonicity condition, but ordinary
+        citizens disliked having to remember decree numbers. Again, the Paxons
+        solved the problem by re-interpreting the monotonicity condition—this
+        time, by changing the meaning of state of the law. They divided the law
+        into separate areas, and a legislator was chosen as specialist for each
+        area. The current state of each area of the law was determined by that
+        specialist's ledger. For example, suppose decree 1517 changed the tariff
+        law and decree 1518 changed the tax law. The tax law would change first
+        if the tax-law specialist learned of both decrees before the tariff-law
+        specialist learned of either, yielding a state of the law that could not
+        be obtained by enacting the decrees in numerical order.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=21"
+          target="_blank"
+        >
+          LAMPORT, P. 20 — §3.3.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Lamport's allegory is quite different from modern sharding approaches, but
+      the principle is clear: partition by domain to reduce the burden of what
+      downstream systems need to track.
+    </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/further-developments/bureaucrats"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Bureaucrats</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Learning the Law</span>
+    </div>
+    <a
+      href="/further-developments/dishonest-legislators"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Dishonest Legislators</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+{% endblock %}

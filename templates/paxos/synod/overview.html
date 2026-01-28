@@ -1,0 +1,208 @@
+{% extends "paxos/base.html" %} {% block title %}The Single-Decree Synod: Overview{%
+endblock %} {% block content %} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %}
+
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/ionic-overview.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">The Single-Decree Synod: Overview</h1>
+
+    <p class="highlight-box">
+      The Single-Decree Synod is the foundational protocol for nodes to agree on
+      a single value and that all additional protocols are built upon.
+    </p>
+
+    <p>
+      Of course, Lamport doesn't want to spell that out simply. We're suddenly
+      thrust us back even further in time. Now instead of legislators we have
+      priests in a synod coming up with the original protocol.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">2 The Single-Decree Synod</span>
+      <blockquote>
+        The Paxon Parliament evolved from an earlier ceremonial Synod of priests
+        that was convened every 19 years to choose a single, symbolic decree.
+        For centuries, the Synod had chosen the decree by a conventional
+        procedure that required all priests to be present. But as commerce
+        flourished, priests began wandering in and out of the Chamber while the
+        Synod was in progress. Finally, the old protocol failed, and a Synod
+        ended with no decree chosen. To prevent a repetition of this theological
+        disaster, Paxon religious leaders asked mathematicians to formulate a
+        protocol for choosing the Synod’s decree. The protocol’s requirements
+        and assumptions were essentially the same as those of the later
+        Parliament except that instead of containing a sequence of decrees, a
+        ledger would have at most one decree.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=4"
+          target="_blank"
+        >
+          LAMPORT, P. 5 — §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Bluntly this layer to the allegory is just fucking stupid it adds nothing
+      of value and additional cognitive overhead. Legislators or Priests they're
+      all nodes. The religious overtones mean nothing besides maybe a slight
+      node to Math being a religion onto itself and how this implementation
+      requires a bit of faith on the constraints holding. The paper's main
+      concern in why the algorithm works not how to actually implement it.
+      Leslie conceives of solutions from first principles and correctness more
+      then anything else. As he remarked in a lecture about paxos in Russia in
+      2019:
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">This Piece of Magic</span>
+      <blockquote>
+        What's important now is to understand - and I don't expect you to
+        understand it now. But as you are reading now and go back and read the
+        lectures the important thing is to think about it's not how this piece
+        of magic is implemented but that given this piece of magic we've
+        satisfied consensus.
+      </blockquote>
+      <cite class="quote-source">
+        Lamport, Leslie.
+        <em
+          >Leslie Lamport — The Paxos algorithm or how to win a Turing Award.
+          Part 1.</em
+        >
+        YouTube video, 2019. Quoted at 1:12:32–1:12:52.
+        <a href="https://www.youtube.com/watch?v=tw3gsBms-f8&t=4352">
+          Source
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Below is a overview of what Section 2 covers in what I hope is an
+      understandable format.
+    </p>
+
+    <div class="block">
+      <ul>
+        <li>
+          <h2 class="delta-icon">§2.1 Mathematical Results</h2>
+          <p>
+            By far one of the most overloaded section of the white paper which
+            is doing the following
+          </p>
+          <ol>
+            <li>
+              Defining the Ballot Concept/Container/Set formally $\mathcal{B}$
+            </li>
+            <li>
+              Three constraints on a set of ballots that if true would guarantee
+              consistency as shown by the latter sections.
+            </li>
+            <li>The proof proving this logically which consists of</li>
+            <ol>
+              <li>The formal definitions of the three constraints</li>
+              <li>The formal definition of three functions</li>
+              <li>
+                A lemma proving the point that for any successful ballot with a
+                larger id with a different decree it must be part of the null
+                set. Hence it cannot exist.
+              </li>
+              <li>Proof of the Lemma by contradiction</li>
+              <li>
+                A theorem that states that any decree that comes from a ballot
+                greater than a successful ballot must have the same decree.
+              </li>
+
+              <li>
+                A theorem that states that any decree that comes from a ballot
+                greater than a successful ballot must have the same decree.
+              </li>
+
+              <li>
+                A final theorem that this will hold for all future ballots for
+                this decree.
+              </li>
+            </ol>
+          </ol>
+        </li>
+        <li>
+          <h2 class="doric-icon">§2.2 The Preliminary Protocol</h2>
+          <p>
+            This section introduces the preliminary protocol that satisfies
+            these three constraints and hence guarantees safety for a single
+            decree.
+          </p>
+        </li>
+        <li>
+          <h2 class="ionic-icon">§2.3 The Basic Protocol</h2>
+          <p>
+            Refines the Preliminary Protocol for crash resistance and metadata storage with the addition of simplifying what information a node need to stores to be correct and more easily ignore stale messages.
+          </p>
+        </li>
+        <li>
+          <h2 class="hellenic-icon">§2.4 The Complete Protocol</h2>
+          <p>
+            Refines the Basic Protocol with the idea of of leadership and timers to optimize for performance while maintaining safety and increasing liveliness.
+          </p>
+        </li>
+      </ul>
+    </div>
+
+    <p class="highlight-box">We have a lot of ground to cover.</p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/the-problem/assumptions"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Assumptions</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Synod Overview</span>
+    </div>
+    <a
+      href="/synod/decree-example"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Decree Example</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "paxos/base.html" %} {% block title %}3.3.1 Picking a President{% endblock
+%} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/president.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Section 3.3.1 Picking a President</h1>
+
+    <p>
+      Lamport here states that such optimizations are up for future
+      considerations and while there are arguments for nodes with the most
+      resources vs most up to date log and that there is ongoing arguments.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Selection of a President</span>
+      <blockquote>
+        Paxons urged that once a legislator became president, he should remain
+        president until he left the Chamber. An influential group of citizens
+        wanted the richest legislator in the Chamber to be president, since he
+        could afford to hire more scribes and other servants to help him with
+        the presidential duties. They argued that once a rich legislator had
+        brought his ledger up to date, there was no reason for him not to assume
+        the presidency. Others, however, argued that the most upstanding citizen
+        should be made president, regardless of wealth. Upstanding probably
+        meant less likely to be dishonest, although no Paxon would publicly
+        admit the possibility of official malfeasance. Unfortunately, the
+        outcome of this debate is not known; no record exists of the
+        presidential selection protocol that was ultimately used.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=18"
+          target="_blank"
+        >
+          LAMPORT, P. 17— §3.3.1
+        </a>
+      </cite>
+    </div>
+  </div>
+
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/multi-decree-parliament/optimizations"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Optimizations</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Picking a President</span>
+    </div>
+    <a
+      href="/further-developments/long-ledgers"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Long Ledgers</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+{% endblock %}

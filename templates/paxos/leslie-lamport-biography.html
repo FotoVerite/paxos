@@ -1,0 +1,146 @@
+{% extends "paxos/base.html" %} {% block title %}Leslie Lamport - Paxos Pioneer{%
+endblock %} {% block body_class %}leslie-page{% endblock %} {% block background_grid %}data-background-grid{% endblock
+%}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/paxos/pages/leslie.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="bio-header">
+      <div class="bio-title">
+        <h1>Leslie Lamport</h1>
+        <p class="bio-subtitle">
+          Pioneer of Distributed Systems & 2013 Turing Award Winner
+        </p>
+      </div>
+    </div>
+
+    <div class="bio-content">
+      <p>
+        Leslie Lamport is one of the towering figures in distributed computing.
+        Born in Brooklyn in 1941, he spent decades at the frontier of solving
+        one of computer science's hardest problems: how do you make thousands of
+        independent computers agree on a single truth, even when some are lying,
+        slow, or silent? His answer—or rather, answers—form the bedrock of
+        modern databases, cloud systems, and replicated services.
+      </p>
+
+      <p>
+        Lamport's career at industrial research labs (Compaq, SRI, Digital
+        Equipment Corporation, and Microsoft Research) was deliberate. As he
+        explained, "If I just work by myself and come up with problems, I'd come
+        up with a small number of things, but if I go out into the world where
+        people are working on real systems, there are a million problems out
+        there." This real-world grounding shaped his work. He introduced
+        <strong>logical clocks</strong> and the "happens-before" relation in
+        <a href="https://lamport.azurewebsites.net/pubs/time-clocks.pdf" target="_blank">Time, Clocks, and the Ordering
+          of Events in a Distributed System</a>
+        (1978), showing how to order events across machines without a global
+        clock. He formalized the challenge of reaching agreement despite
+        arbitrary failures in
+        <a href="https://lamport.azurewebsites.net/pubs/pubs.html#bgp" target="_blank">The Byzantine Generals
+          Problem</a>
+        (1982)—a paper that pioneered Lamport's distinctive use of narrative and
+        metaphor to explain subtle logic.
+      </p>
+
+      <p>
+        Then came Paxos. In
+        <a href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-original" target="_blank">The Part-Time
+          Parliament</a>
+        (1989, published 1998), Lamport wrapped the consensus algorithm in an
+        allegory about an ancient Greek parliament. Senators propose decrees,
+        accept or reject them, and learn the final verdict—all with messages
+        that can be lost or delayed. The story wasn't decoration. It was a
+        deliberate pedagogical choice: allegory made the abstract logic of
+        quorums, ballots, and consistency proofs more intuitive without changing
+        the mathematics. This approach, built on his success with Byzantine
+        Generals, became his signature. When his first explanation didn't land
+        (Paxos was famously hard to understand), he rewrote it as
+        <a href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-simple" target="_blank">Paxos Made Simple</a>,
+        then later showed how multiple instances work together—the foundation
+        for systems at Google, Amazon, and Microsoft.
+      </p>
+
+      <p>
+        Lamport's influence extends far beyond Paxos. His work on state machine
+        replication, sequential consistency, and formal verification underpins
+        virtually every replicated system built today. In 2013, the Association
+        for Computing Machinery awarded him the Turing Award—computer science's
+        highest honor—"for fundamental contributions to the theory and practice
+        of distributed and concurrent systems." He was recognized not just for
+        inventing algorithms, but for "imposing clear, well-defined coherence on
+        the seemingly chaotic behavior of distributed computing."
+      </p>
+
+      <div class="key-papers">
+        <h3>Essential Papers</h3>
+        <ul>
+          <li>
+            <a href="https://lamport.azurewebsites.net/pubs/time-clocks.pdf" target="_blank">Time, Clocks, and the
+              Ordering of Events in a Distributed
+              System</a>
+            (1978)
+          </li>
+          <li>
+            <a href="https://lamport.azurewebsites.net/pubs/pubs.html#bgp" target="_blank">The Byzantine Generals
+              Problem</a>
+            (1982)
+          </li>
+          <li>
+            <a href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-original" target="_blank">The Part-Time
+              Parliament</a>
+            (1989/1998)
+          </li>
+          <li>
+            <a href="https://lamport.azurewebsites.net/pubs/pubs.html#paxos-simple" target="_blank">Paxos Made
+              Simple</a>
+            (2001)
+          </li>
+        </ul>
+      </div>
+
+      <div class="quote-container">
+        <span class="inscription-label">distribution</span>
+        <blockquote>
+          A distributed system is one in which the failure of a computer you
+          didn't even know existed can render your own computer unusable.
+        </blockquote>
+        <cite class="quote-source">
+          <a href="https://lamport.azurewebsites.net/pubs/distributed-system.txt" target="_blank">
+            8705281923.AA09105@jumbo.dec.com
+          </a>
+        </cite>
+      </div>
+    </div>
+
+    <div class="bio-footer">
+      <p>
+        Information sourced from
+        <a href="https://en.wikipedia.org/wiki/Leslie_Lamport" target="_blank">Leslie Lamport - Wikipedia</a>
+        and the
+        <a href="https://amturing.acm.org/award_winners/lamport_1205376.cfm" target="_blank">ACM Turing Award</a>
+        biography.
+      </p>
+    </div>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a href="/" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Home</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Leslie Lamport</span>
+    </div>
+    <a href="/publishing-history" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+      <span class="breadcrumb-text">Publishing History</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+{% endblock %}

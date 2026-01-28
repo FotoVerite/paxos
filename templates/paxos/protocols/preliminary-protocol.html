@@ -1,0 +1,206 @@
+{% extends "paxos/base.html" %} {% block title %}Paxos Preliminary Protocol{% endblock
+%} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/preliminary.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">2.2 Preliminary Protocol</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Purpose</span>
+      <blockquote>
+        <p>
+          Steps 1–6 describe how an individual ballot is conducted. The
+          preliminary protocol allows any priest to initiate a new ballot at any
+          time. Each step maintains B1(B)– B3(B), so the entire protocol also
+          maintains these conditions. Since a priest enters a decree in his
+          ledger only if it is the decree of a successful ballot, Theorem 1
+          implies that the priests’ ledgers are consistent. The protocol does
+          not address the question of progress.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=12"
+          target="_blank"
+        >
+          LAMPORT, P. 11 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p class="highlight-box">
+      This protocol is used to demonstrate that the paxos protocol is safe. It
+      does not yet prove that deadlocks will not happen only that decrees will
+      not be overwritten.
+    </p>
+
+    <div class="inner-panel">
+      <div class="protocol-step">
+        (1) $NextBallot(b)$ <br />
+        Priest $p$ chooses a new ballot number b and sends a $NextBallot(b)$
+        message to some set of priests.
+      </div>
+
+      <p>
+        Said set of priest can and usually includes itself. You can think of
+        message functions as small data payloads including all the needed data.
+        Notice that the ballot number b can be any number including ones lower
+        than previously used or even ones previously used. This is why this
+        protocol is about safety not about progress.
+      </p>
+
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
+        (2) $LastVote(b, v)$ <br />
+        <p >
+          A priest $q$ responds to the receipt of a $NextBallot(b)$ message by
+          sending a $LastVote(b, v)$ message to $p$, where $v$ is the vote with
+          the largest ballot number less than $b$ that $q$ has cast, or his null
+          vote null $q$ if $q$ did not vote in any ballot numbered less than
+          $b$.
+        </p>
+      </div>
+
+      <p style="margin-top: 12px;">
+        The $NextBallot$ message is essentially a query: "What is the largest
+        vote below this ballot number that you have cast?" Step three deals with
+        the collected data sent back through these  $LastVote(b, v)$ messages.
+      </p>
+
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
+        (3) $BeginBallot(b, d)$ <br />
+        After receiving a $LastVote(b, v)$ message from every priest in some
+        majority set $Q$, priest $p$ initiates a new ballot with number $b$,
+        quorum $Q$, and decree $d$, where $d$ is chosen to satisfy B3. He then
+        records the ballot in the back of his ledger and sends a $BeginBallot(b,
+        d)$ message to every priest in $Q$.
+      </div>
+
+      <p>
+        If there are enough nodes that meet the quorum threshold, the node will
+        broadcast to all nodes that replied with LastVote with a BeginBallot
+        message that contains the ballot id and decree that fulfils B3.
+      </p>
+
+      <div class="protocol-step">
+        In step 3, if the decree d is determined by condition B3, then it is
+        possible that this decree is already written in the ledger of some
+        priest. That priest need not be in the quorum Q; he could have left the
+        Chamber. Thus, consistency would not be guaranteed if step 3 allowed any
+        greater freedom in choosing d.
+      </div>
+
+      <p>
+        For safety, if any nodes have voted, $p$ must assume those votes may be
+        accepted eventually. Only if no votes have been recorded from any nodes
+        can $p$ freely choose a decree.
+      </p>
+
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
+        (4) $Voted(b, q)$ <br />
+        Upon receipt of the $BeginBallot(b, d)$ message, priest $q$ decides
+        whether or not to cast his vote in ballot number $b$. (He may not cast
+        the vote if doing so would violate a promise implied by a $LastVote(b',
+        v')$ message he has sent for some other ballot.) If $q$ decides to vote
+        for ballot number $b$, then he sends a $Voted(b, q)$ message to p and
+        records the vote in the back of his ledger.
+      </div>
+
+      <p>
+        When a node receives BeginBallot and has not recorded a ballot larger
+        than the ballot id given in the message it will send back Voted and
+        record this vote.
+      </p>
+
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
+        (5) $Success(d)$ <br />
+        If p has received a $Voted(b, q)$ message from every priest $q$ in $Q$
+        (the quorum for ballot number $b$), then he writes $d$ (the decree of
+        that ballot) in his ledger and sends a $Success(d)$ message to every
+        priest.
+      </div>
+
+      <p>
+        If quorum threshold is again reached the node will record the decree as
+        successful and send another broadcast to every known node to update
+        their ledger even if they did not participate in the vote
+      </p>
+
+      <hr class="doric-taper" />
+
+      <div class="protocol-step">
+        (6) Upon receiving a $Success(d)$ message, a priest enters decree $d$ in
+        his ledger.
+      </div>
+
+      <p>
+        The node will record given decree. Notice it does not need the ballot id
+        for safety. This is due to the quorum rule that already makes sure at
+        least one of the responding nodes will have that information for any
+        future ballot.
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/recap"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Synod Recap</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Preliminary Protocol</span>
+    </div>
+    <a
+      href="/protocols/preliminary-protocol-demo"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Preliminary Protocol Demo</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+
+  {% endblock %} {% block scripts %}
+
+  <script>
+    // Render KaTeX math when DOM is ready
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+        });
+      }
+    });
+  </script>
+
+  {% endblock %}
+</div>

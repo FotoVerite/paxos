@@ -1,0 +1,158 @@
+{% extends "paxos/base.html" %} {% block title %}Paxos Terms{% endblock %} {% block
+content %}
+<div class="container">
+  <div class="panel">
+    <h1>A Breakdown of Terms</h1>
+    <p class="highlight-box">
+      The paxos paper does a poor job of explaining itself at times, coding in
+      general is jargon heavy and works more on vibes a lot of the time instead
+      of actually explaining shit. Here's some decent definitions on various
+      terms and ideas distributed systems/paxos brings up.
+    </p>
+
+    <div class="block">
+      <p>
+        <strong>Distributed System:</strong> Leslie Lamport famously defined it
+        as:
+      </p>
+
+      <blockquote>
+        “A distributed system is one in which the failure of a computer you
+        didn’t even know existed can render your own computer unusable.”
+      </blockquote>
+
+      <p>
+        See
+        <a href="https://lamport.azurewebsites.net/pubs/distributed-system.txt">
+          https://lamport.azurewebsites.net/pubs/distributed-system.txt
+        </a>
+      </p>
+
+      <p>
+        Informally, a distributed system looks like a normal system whose logic
+        is spread across multiple machines. Once parts of the system are
+        separated by distance, you must deal with message delays, packet loss,
+        and partial failures — all of which can interact in weird and
+        hard-to-debug ways.
+      </p>
+    </div>
+
+    <div class="block">
+      <p>
+        <strong>Safety vs Liveness:</strong> In distributed systems, guarantees
+        are often divided into safety and liveness. Safety means that nothing
+        bad ever happens. Liveness means that something good eventually happens.
+      </p>
+
+      <p>
+        Paxos is a safety-first algorithm. It guarantees that nodes will never
+        disagree on the chosen value. Whether progress is eventually made
+        depends on additional assumptions about timing and failures. As we go
+        through the paper will see how paxos ensures safety and what assumptions
+        it makes about liveness.
+      </p>
+    </div>
+
+    <div class="block">
+      <p>
+        <strong>Monotonic:</strong> A sequence is monotonic if it never
+        decreases with respect to a defined ordering. Values may stay the same
+        or increase. For example, <code>[1, 2, 2, 3]</code> is monotonic.
+      </p>
+
+      <p>
+        A sequence is
+        <strong>strictly monotonic (strictly increasing)</strong> if each value
+        is greater than the previous one. Values never repeat, but gaps are
+        allowed. For example, <code>[1, 2, 3, 5, 6]</code> is strictly
+        monotonic.
+      </p>
+
+      <p>
+        In distributed systems literature, the word “monotonic” is often used
+        informally to mean strictly increasing. This shorthand is
+        context-dependent and should not be assumed. In Paxos, for example,
+        ballots issued by a proposer must be strictly increasing, while values
+        stored by acceptors are only required to be monotonic.
+      </p>
+    </div>
+
+    <div class="block">
+      <p>
+        <strong>Node:</strong> A node is a participant in a distributed system
+        that can communicate with other nodes over a network. A node might be a
+        physical machine, a virtual machine, or even a process running on a
+        single computer.
+      </p>
+
+      <p>
+        Nodes may perform different jobs or all run the same logic. What makes
+        them “nodes” is not their role, but the fact that they communicate over
+        a network and can fail independently.
+      </p>
+
+      <p>
+        In the Paxos metaphor, a <em>Priest</em> represents a participating
+        node. In practice, a single node may play multiple Paxos roles at once.
+      </p>
+    </div>
+
+    <div class="block">
+      <p>
+        <strong>Consensus:</strong> Consensus means that nodes agree on a single
+        value, even in the presence of failures. Once a value is chosen, it
+        cannot be changed.
+      </p>
+
+      <p>
+        Paxos does not decide what value should be chosen; only a systematic
+        approach how a value can be reached safely.
+      </p>
+    </div>
+
+    <div class="block">
+      <p>
+        <strong>Paxos:</strong> At its core, Paxos is an algorithm for reaching
+        consensus among nodes on a single value. It is not designed to be
+        convenient or efficient; it is designed to be correct.
+      </p>
+
+      <p>
+        Paxos continues to work even when some nodes fail or messages are
+        delayed or lost. Its primary guarantee is safety: no matter what
+        happens, nodes will not disagree on the chosen value.
+      </p>
+
+      <p>
+        By itself, Paxos does not look very useful. That is intentional. Paxos
+        is a building block — a minimal consensus primitive that larger,
+        practical systems are built on top of.
+      </p>
+    </div>
+
+    <div class="block">
+      <p>
+        <strong>Multi-Paxos:</strong> “Multi-Paxos” is not a single algorithm,
+        but a collection of extensions and optimizations built on top of basic
+        Paxos. Its purpose is to use Paxos repeatedly to agree on a sequence of
+        values rather than just one.
+      </p>
+
+      <p>
+        This allows systems to implement replicated logs and state machines.
+        Most real-world systems described as “using Paxos” are actually using
+        some form of Multi-Paxos.
+      </p>
+    </div>
+
+    <div class="nav-links">
+      <div class="prev">
+        <a href="/setting_of_paper">Prev - Setting</a>
+      </div>
+      <div class="next">
+        <a href="/the_problem">Next - The Problem </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

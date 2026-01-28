@@ -1,0 +1,60 @@
+{% extends "paxos_made_simple/base.html" %}
+{% import "macros/nav.html" as nav %}
+
+{% block title %}Introduction - Paxos Made Simple{% endblock %}
+{% block body_class %}pms-page{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %}
+
+{% block content %}
+<div class="pms-container">
+  <h1>Introduction</h1>
+
+  <div class="pms-section">
+    <div class="quote-container">
+      <span class="inscription-label">Introduction</span>
+      <blockquote>
+        To The Paxos algorithm for implementing a fault-tolerant distributed
+        system has been regarded as difficult to understand, perhaps because the
+        original presentation was Greek to many readers. In fact, it is among
+        the simplest and most obvious of distributed algorithms. At its heart is
+        a consensus algorithm—the “synod” algorithm of. The next section shows
+        that this consensus algorithm follows almost unavoidably from the
+        properties we want it to satisfy. The last section explains the complete
+        Paxos algorithm, which is obtained by the straightforward application of
+        consensus to the state machine approach for building a distributed
+        system—an approach that should be well-known, since it is the subject of
+        what is probably the most often-cited article on the theory of
+        distributed systems.
+      </blockquote>
+      <cite class="quote-source">
+        <a href="https://https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=4" target="_blank">
+          LAMPORT, P. 1 — Introduction
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      The fundamental challenge is: how can we ensure all computers agree on a
+      decision, even when some fail?
+    </p>
+
+    <p>
+      This is the consensus problem, and Paxos provides an elegant solution.
+    </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+
+  {{ nav::breadcrumb(
+  prev_url="/papers/paxos-made-simple/",
+  prev_label="Ballot Definition",
+  current_label="Introduction",
+  next_url="/papers/paxos-made-simple/constraints",
+  next_label="Constraints"
+  ) }}
+</div>
+{% endblock %}

@@ -16,7 +16,7 @@ tower-http = { version = "0.5.2", features = ["fs"] }
 serde_json = "1.0.128"
 async-trait = "0.1"
 colored = "2.1.0"
-askama = "0.12.1"
+tera = "1"
 dashmap = "5.5"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "ansi", "env-filter"] }

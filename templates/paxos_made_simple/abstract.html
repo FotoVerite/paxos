@@ -1,0 +1,36 @@
+{% extends "paxos_made_simple/base.html" %}
+
+{% block title %}Abstract - Paxos Made Simple{% endblock %}
+
+{% block body_class %}pms-page{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/components.css">
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css">
+{% endblock %}
+
+{% block content %}
+<div class="pms-container">
+    <h1>Abstract</h1>
+
+    <div class="pms-section">
+        <p>This paper presents the Paxos algorithm, a practical and elegant solution to the Byzantine Generals Problem.
+            Paxos enables a group of computers to reliably agree on a single value, even when some computers fail or
+            messages are delayed or lost.</p>
+
+        <p>The algorithm is presented in a way that emphasizes understanding over formalism, making it accessible to
+            practitioners who need to implement consensus in distributed systems.</p>
+    </div>
+
+    <nav class="pms-breadcrumb">
+        <ol class="breadcrumb-list">
+            <li class="breadcrumb-item">
+                <a href="/papers/paxos-made-simple/" class="breadcrumb-link">Home</a>
+            </li>
+            <li class="breadcrumb-item breadcrumb-current">
+                Abstract
+            </li>
+        </ol>
+    </nav>
+</div>
+{% endblock %}

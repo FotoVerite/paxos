@@ -1,0 +1,122 @@
+{% extends "paxos/base.html" %} {% block title %} Votes($\mathcal{B})$ {% endblock %}
+{% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large">
+      <object
+        type="image/svg+xml"
+        data="/svgs/votes.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">$\text{Votes}(\mathcal{B})$ Function</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Votes Definition</span>
+      <blockquote>
+        For any votes $v$ and $v'$ , if $v$bal < $v'$ bal then $\lt$ $v'$
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=7"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.1
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This simple state that for any two unique votes, if the ballot id of one
+      is less than the other then it is less than the other then the vote is
+      less then that other one. This is just a formal way of saying that votes
+      can be ordered by their ballot id
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Votes Set</span>
+      <blockquote>
+        For any set $\mathcal{B}$ of ballots, the set
+        $\text{Votes}(\mathcal{B})$ of votes in $\mathcal{B}$ was defined to
+        consist of all votes $\text{v}$ <br />
+        such that $\text{v}$pst $\in$ $\text{b}$vot, $\text{v}$bal = $B$bal ,
+        and $v$dec = $B$dec for some $B$ $\in$ $B$.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=7"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.1
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This defines a set of votes that exist within a given set of ballots. A
+      vote is defined by three properties, the priest/node that cast it, the
+      ballot id it is associated with and the decree/value it is voting for.
+    </p>
+
+    <div class="block">
+      <p>
+        A formal definition might read. <br />
+        A vote $v$ belongs to $\mathrm{Votes}(\mathcal{B})$ exactly when all of
+        the following hold for some $B \in \mathcal{B}$:
+      </p>
+
+      <ol>
+        <li>$v.\mathrm{pst} \in B.\mathrm{vot}$</li>
+        <li>$v.\mathrm{bal} = B.\mathrm{bal}$</li>
+        <li>$v.\mathrm{dec} = B.\mathrm{dec}$</li>
+      </ol>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/constraints"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Constraints</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Votes Function</span>
+    </div>
+    <a
+      href="/synod/max-vote"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Max Vote</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+  {% endblock %} {% block scripts %}
+
+  <script>
+    // Render KaTeX math when DOM is ready
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+        });
+      }
+    });
+  </script>
+
+  {% endblock %}
+</div>

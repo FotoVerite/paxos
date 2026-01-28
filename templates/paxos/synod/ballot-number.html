@@ -1,0 +1,107 @@
+{% extends "paxos/base.html" %} {% block title %}Ballot Number{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon">
+      <object
+        type="image/svg+xml"
+        data="/svgs/ballot_number.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Ballot Number or <strong>$B$</strong>bal</h1>
+    <div class="block">
+      <p>
+        A naive attempt to define a ballot number would be a simple integer [1,
+        2, 3, ...]. However, this approach is insufficient because it does not
+        provide a way to compare ballots from different nodes or ensure
+        uniqueness across the network. Even if nodes start their sequences
+        randomly, eventually collisions occur.
+      </p>
+
+      <div class="quote-container">
+        <span class="inscription-label">BALLOT DEFINITION 2.2</span>
+        <blockquote>
+          To keep different priests from initiating ballots with the same
+          number, the set of possible ballot numbers was partitioned amongthe
+          priests.While it is not known how this was done, an obvious method
+          would have been to let a ballot number be a pair consisting of an
+          integer and a priest, using a lexicographical ordering, where<br />
+          (13, Γρα˘ι) &le; (13, Λινσ˘ι) &le; (15, Γρα˘ι) since Γ came before Λ
+          in the Paxon alphabet. In any case, it is known that every priest had
+          an unbounded set of ballot numbers reserved for his use
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=10"
+            target="_blank"
+          >
+            LAMPORT, P. 10 — §2.2
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Implementation is not as important as what a ballot number must
+        accomplish. It can be a complex number, a hash set or most simply a
+        monotonically increasing id and a node id. (id, node_id).
+      </p>
+
+      <p>(1,1) &le; (1,2), &le; (3,1).</p>
+
+      <p>
+        This ensures that ballot identifiers are totally ordered, discrete, and
+        easy to reason about.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/synod/ballot-definitions"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Ballot Definition</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Ballot Number</span>
+    </div>
+    <a
+      href="/synod/constraints"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Constraints</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

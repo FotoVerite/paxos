@@ -1,82 +1,61 @@
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{get, post, MethodRouter},
     response::Redirect,
 };
 use std::net::SocketAddr;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
+
 use super::handlers::{
-    AppState, multi_paxos::*, page::*, scenario::*, websocket::websocket_handler,
+    AppState, scenario::*, websocket::websocket_handler,
+    tera_handler::paxos_handler,
 };
 use super::papers;
 
 // Redirect / to the paxos paper
-async fn root_redirect() -> Redirect {
-    Redirect::permanent("/papers/paxos-made-simple")
-}
+// async fn root_redirect() -> Redirect {
+//     Redirect::permanent("/papers/paxos-made-simple")
+// }
 
 /// Run the web server on 0.0.0.0:3001
 pub async fn run_web_server() {
-    let static_files_service = ServeDir::new("static");
     let app_state = AppState::new();
 
     // Main app router
     let app = Router::new()
-        .route("/", get(root_redirect))
-        
-        // All papers nested under /papers
-        .nest("/papers", papers::router())
-        
-        // Legacy paxos routes (TODO: migrate to papers/paxos)
-        .route("/whitepapers", get(whitepapers_handler))
-        .route("/leslie-lamport-biography", get(leslie_handler))
-        .route("/publishing-history", get(setting_of_paper_handler))
-        .route("/visualizer", get(visualizer_handler))
-        .route("/senate", get(senate_handler))
-        .route("/terms", get(terms_handler))
-        .route("/overview", get(overview_handler))
-        .route("/the-problem/the-island-of-paxos", get(tiop_handler))
-        .route("/the-problem/requirements", get(requirements_handler))
-        .route("/the-problem/assumptions", get(assumptions_handler))
-        .route("/synod/overview", get(synod_overview_handler))
-        .route("/synod/decree-example", get(synod_decree_handler))
-        .route("/synod/ballot-definitions", get(synod_ballot_definition_handler))
-        .route("/synod/math-terms", get(synod_math_terms_handler))
-        .route("/synod/ballot", get(synod_ballot_handler))
-        .route("/synod/ballot-number", get(synod_ballot_number_handler))
-        .route("/synod/votes-function-b", get(synod_votes_function_handler))
-        .route("/synod/max-vote", get(synod_max_vote_handler))
-        .route("/synod/max-vote-quorum", get(synod_max_vote_quorum_handler))
-        .route("/synod/theorem-one", get(synod_theorem_one_handler))
-        .route("/synod/theorem-two", get(synod_theorem_two_handler))
-        .route("/synod/recap", get(synod_recap_handler))
-        .route("/protocols/preliminary-protocol", get(protocol_preliminary_handler))
-        .route("/protocols/preliminary-protocol-demo", get(preliminary_protocol_demo_handler))
-        .route("/protocols/basic-protocol", get(protocol_basic_handler))
-        .route("/protocols/basic-protocol-demo", get(basic_protocol_demo_handler))
-        .route("/protocols/complete-protocol", get(complete_protocol_handler))
-        .route("/multi-decree-parliament/overview", get(m_p_overview))
-        .route("/multi-decree-parliament/protocol", get(m_p_protocol))
-        .route("/multi-decree-parliament/ordering-of-decrees", get(m_p_ordering_decrees))
-        .route("/multi-decree-parliament/optimizations", get(m_p_optimizations))
-        .route("/further-developments/picking-a-president", get(f_d_picking_a_president))
-        .route("/further-developments/long-ledgers", get(f_d_long_ledgers))
-        .route("/further-developments/bureaucrats", get(f_d_bureaucrats))
-        .route("/further-developments/learning-the-law", get(f_d_learning_the_law))
-        .route("/further-developments/dishonest-legislators", get(f_d_dishonest_legislators))
-        .route("/further-developments/choosing-new-legislators", get(f_d_choosing_new_legislators))
-        .route("/the_problem", get(the_problem_handler))
-        .route("/ws", get(websocket_handler))
+        // API Routes (Specific)
         .route("/api/start-scenario", post(start_scenario_handler))
         .route("/api/stop-scenario", post(stop_scenario_handler))
-        .route("/synod/constraints", get(synod_constraints_handler))
-        .route("/synod/lemma", get(synod_lemma_handler))
-        .route("/synod/quorum", get(synod_quorum_handler))
         .route("/api/propose", post(propose_handler))
+        .route("/ws", get(websocket_handler))
         
-        .fallback_service(static_files_service)
+        // Papers Sub-router
+        .nest("/papers", papers::router())
+
+        // Static Files (Explicit Priority)
+        .nest_service("/css", ServeDir::new("static/css"))
+        .nest_service("/js", ServeDir::new("static/js"))
+        .nest_service("/svgs", ServeDir::new("static/svgs"))
+        .nest_service("/scenarios", ServeDir::new("static/scenarios"))
+        
+        // Root Static Files
+        .route_service("/favicon.svg", ServeFile::new("static/favicon.svg"))
+        .route_service("/logo.svg", ServeFile::new("static/logo.svg"))
+        .route_service("/style.css", ServeFile::new("static/style.css"))
+        // Legacy JS files at root (should ideally be in /js)
+        .route_service("/basic-protocol-demo.js", ServeFile::new("static/basic-protocol-demo.js"))
+        .route_service("/decree-simulator.js", ServeFile::new("static/decree-simulator.js"))
+        .route_service("/paxos-visualizer.js", ServeFile::new("static/paxos-visualizer.js"))
+        .route_service("/websocket-helper.js", ServeFile::new("static/websocket-helper.js"))
+        .route_service("/scenario-loader.js", ServeFile::new("static/scenario-loader.js"))
+        .route_service("/animated-nodes.js", ServeFile::new("static/animated-nodes.js"))
+
+        // Fallback to Tera Handler for everything else (Pages)
+        // This catches /, /overview, /whitepapers, etc.
+        .fallback(paxos_handler)
+        
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await.unwrap();

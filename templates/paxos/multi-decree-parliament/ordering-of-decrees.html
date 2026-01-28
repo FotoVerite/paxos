@@ -1,0 +1,132 @@
+{% extends "paxos/base.html" %} {% block title %}3.2.1 The Ordering of Decrees{%
+endblock %} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/ordering.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Section 3.2.1 The Ordering of Decrees</h1>
+
+    <div class="highlight-box">
+      <p>
+        Even with a leader, multiple nodes may temporarily believe they are
+        president, which can lead to concurrent ballots. However, the protocol
+        ensures that the ordering of important decrees remains correct despite
+        this concurrency.
+      </p>
+    </div>
+
+    <div class="quote-container">
+      <span class="inscription-label">Ordering of Decrees</span>
+      <blockquote>
+        The Ordering of Decrees Balloting could take place concurrently for many
+        different decree numbers, with ballots initiated by different
+        legislators—each thinking he was president when he initiated the ballot.
+        We cannot say precisely in what order decrees would be passed,
+        especially without knowing how a president was selected. However, there
+        is one important property about the ordering of decrees that can be
+        deduced
+
+        <hr class="doric-taper" />
+        A decree was said to be proposed when it was chosen by the president in
+        step 3 of the corresponding instance of the Synod protocol. The decree
+        was said to be passed when it was written for the first time in a
+        ledger. Before a president could propose any new decrees, he had to
+        learn from all the members of a majority set what decrees they had voted
+        for. Any decree that had already been passed must have been voted for by
+        at least one legislator in the majority set. Therefore, the president
+        must have learned about all previously passed decrees before initiating
+        any new decree. The president would not fill a gap in the ledgers with
+        an important decree—that is, with any decree other than the "olive-day"
+        decree. He would also not propose decrees out of order. Therefore, the
+        protocol satisfied the following decree-ordering property.
+
+        <hr class="doric-taper" />
+        If decrees A and B are important and decree A was passed before decree B
+        was proposed, then A has a lower decree number than B.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=17"
+          target="_blank"
+        >
+          LAMPORT, P. 16 — §3.2.1
+        </a>
+      </cite>
+    </div>
+
+    <p>Despite concurrent ballots, safety and order are preserved.</p>
+
+    <p>
+      Before proposing any new decrees, a president must learn which decrees
+      have already been passed from a majority of legislators. This ensures no
+      previously passed decree is skipped or reordered.
+    </p>
+
+    <p>
+      If a gap exists in the ledger, the president fills it with a special
+      "olive-day" decree, ensuring continuity without disrupting the order of
+      important decrees. These gaps can only exist if said numbered decrees
+      never met quorum due to partition or other failures.
+    </p>
+
+    <p class="highlight-box">
+      Before a president could propose any new decrees, he had to learn from all
+      the members of a majority set what decrees they had voted for. Any decree
+      that had already been passed must have been voted for by at least one
+      legislator in the majority set.
+    </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/multi-decree-parliament/protocol"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">The Protocol (Again)</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">The Ordering of Decrees</span>
+    </div>
+    <a
+      href="/multi-decree-parliament/optimizations"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Optimizations</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

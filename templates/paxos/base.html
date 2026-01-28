@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Paxos{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="/style.css">
+    {% block extra_stylesheets %}{% endblock %}
+</head>
+
+<body class="{% block body_class %}{% endblock %}" {% block background_grid %}{% endblock %}>
+    {% include "paxos/nav.html" %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+    <script src="/js/background-grid.js"></script>
+</body>
+
+</html>

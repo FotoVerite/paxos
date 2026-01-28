@@ -1,0 +1,126 @@
+{% extends "paxos/base.html" %} {% block title %}3.2.2 Behind Closed Doors{% endblock
+%} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/optimization.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Section 3.2.2 Behind Closed Doors</h1>
+
+    <p class="highlight-box">
+      With a stable system and a fixed quorum, the president can optimize
+      message passing to reduce network chatter while maintaining safety and
+      progress. This can be streamlined to 3 messages passed between the
+      president and the quorum
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Optimized Sequence</span>
+      <blockquote>
+        (3) The president sent a BeginBallot message to each legislator in a
+        quorum. <br />
+        (4) Each legislator in the quorum sent a Voted message to the president.
+        <br />
+        (5) The president sent a Success message to every legislator.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=18"
+          xk
+          target="_blank"
+        >
+          LAMPORT, P. 17 — §3.2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      In a large system, the total number of messages can grow quickly. By
+      piggybacking messages, the protocol reduces the total message count to
+      about 2N messages per decree, where N is the number of legislators in the
+      parliament.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Piggybacking</span>
+      <blockquote>
+        This is a total of three message delays and about 3N messages, assuming
+        a parliament of N legislators and a quorum of about N/2. Moreover, if
+        Parliament was busy, the president would combine the BeginBallot message
+        for one decree with the Success message for a previous one, for a total
+        of only 2N messages per decree.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=18"
+          target="_blank"
+        >
+          LAMPORT, P. 17 — §3.2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      The key optimization is batching. A single message can carry both the
+      BeginBallot for a new decree and the Success notifications for decrees
+      that have already reached consensus. When the leader handles multiple
+      decrees simultaneously, it can batch several BeginBallot and Success
+      messages together, reducing overall message traffic while maintaining
+      correctness.
+    </p>
+
+    <p class="highlight-box">
+      These optimizations rely on the assumption of a stable quorum — no
+      legislators enter or leave the Chamber during these exchanges. This is why
+      the process is described as “behind closed doors.”
+    </p>
+  </div>
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/multi-decree-parliament/ordering-of-decrees"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">The Ordering of Decrees</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Optimizations</span>
+    </div>
+    <a
+      href="/further-developments/picking-a-president"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Picking a President</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends "paxos/base.html" %} {% block title %}3.3.3 Bureaucrats{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="panel">
+    <div class="header-icon large" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/bureaucrats.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Section 3.3.3 Bureaucrats</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">What is a Bureaucrat</span>
+      <blockquote>
+        Parliament could no longer handle all details of government, so a
+        bureaucracy was established. Instead of passing a decree to declare
+        whether each lot of cheese was fit for sale, Parliament passed a decree
+        appointing a cheese inspector to make those decisions.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=19"
+          target="_blank"
+        >
+          LAMPORT, P. 18 — §3.3.3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A bureaucrat in a Paxos-based system is a program that has been delegated
+      authority to act on behalf of the system. Rather than participating in
+      consensus or voting, it applies decisions once they have been agreed upon.
+      Examples include components that manage leases or apply agreed-upon
+      operations; state machine replication (SMR) is a common use case. Many
+      such bureaucrats can be built on top of Paxos, but they are not the
+      primary focus of the paper.
+    </p>
+
+    <p>
+      The paper instead focuses on how safety can be maintained when authority
+      is transferred from one bureaucrat to another.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Appointing a Bureaucrat</span>
+      <blockquote>
+        It soon became evident that selecting bureaucrats was not as simple as
+        it first seemed. Parliament passed a decree making ∆˘ικστρα the first
+        cheese inspector. After some months, merchants complained that ∆˘ικστρα
+        was too strict and was rejecting perfectly good cheese. Parliament then
+        replaced him by passing the decree 1375: Γωυδα is the new cheese
+        inspector But ∆˘ικστρα did not pay close attention to what Parliament
+        did, so he did not learn of this decree right away. There was a period
+        of confusion in the cheese market when both ∆˘ικστρα and Γωυδα were
+        inspecting cheese and making conflicting decisions. To prevent such
+        confusion, the Paxons had to guarantee that a position could be held by
+        at most one bureaucrat at any time. To do this, a president included as
+        part of each decree the time and date when it was proposed.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=19"
+          target="_blank"
+        >
+          LAMPORT, P. 18 — §3.3.3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      His solution is to appoint bureaucrats for fixed terms, with explicit
+      start and end times.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Delay of Appointment</span>
+      <blockquote>
+        A bureaucrat was appointed for a short term, so he could be replaced
+        quickly— for example, if he left the island. Parliament would pass a
+        decree to extend the bureaucrat’s term if he was doing a satisfactory
+        job. A bureaucrat needed to tell time to determine if he currently held
+        a post. Mechanical clocks were unknown on Paxos, but Paxons could tell
+        time accurately to within 15 minutes by the position of the sun or the
+        stars.13 If ∆˘ικστρα’s term began at 8:30, he would not start inspecting
+        cheese until his celestial observations indicated that it was 8:45.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/lamport-paxos.pdf#page=19"
+          target="_blank"
+        >
+          LAMPORT, P. 18 — §3.3.3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Terms begin after a delay to ensure that the decree has propagated to all
+      relevant nodes, preventing conflicting bureaucrats from acting
+      simultaneously due to stale information.
+    </p>
+
+    <p>
+      This is more a thought experiment than a recipe. He's laying out ground
+      work about how this is safe but this isn't a full working spec.
+    </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  <div class="breadcrumb-nav">
+    <a
+      href="/further-developments/long-ledgers"
+      class="breadcrumb-link breadcrumb-prev"
+      title="Go to previous page"
+    >
+      <span class="breadcrumb-arrow">←</span>
+      <span class="breadcrumb-text">Long Ledgers</span>
+    </a>
+    <div class="breadcrumb-current">
+      <span class="breadcrumb-label">Bureaucrats</span>
+    </div>
+    <a
+      href="/further-developments/learning-the-law"
+      class="breadcrumb-link breadcrumb-next"
+      title="Go to next page"
+    >
+      <span class="breadcrumb-text">Learning the Law</span>
+      <span class="breadcrumb-arrow">→</span>
+    </a>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+{% endblock %}

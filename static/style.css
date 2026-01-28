@@ -1,12 +1,12 @@
-@import "css/vars.css";
+@import "css/paxos/vars.css";
 
 @import "css/base.css";
-@import "css/animations/background-grid.css";
-@import "css/layout.css";
-@import "css/components.css";
-@import "css/pages/landing.css";
-@import "css/pages/leslie.css";
-@import "css/pages/senate.css";
-@import "css/pages/protocol.css";
-@import "css/pages/decree.css";
-@import "css/pages/visualizer.css";
+@import "css/paxos/animations/background-grid.css";
+@import "css/paxos/layout.css";
+@import "css/paxos/components.css";
+@import "css/paxos/pages/landing.css";
+@import "css/paxos/pages/leslie.css";
+@import "css/paxos/pages/senate.css";
+@import "css/paxos/pages/protocol.css";
+@import "css/paxos/pages/decree.css";
+@import "css/paxos/pages/visualizer.css";

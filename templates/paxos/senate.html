@@ -1,0 +1,227 @@
+{% extends "paxos/base.html" %}
+
+{% block title %}Senate Visualizer - Paxos{% endblock %}
+
+{% block body_class %}senate-page{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/paxos/pages/senate.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="visualization">
+        <svg id="senateSvg"></svg>
+    </div>
+
+    <div class="control-panel">
+        <div>
+            <div class="status-indicator">
+                <div class="status-dot" id="connectionStatus"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+
+        <div>
+            <h2>Controls</h2>
+            <div class="control-group">
+                <label for="nodeCount">Nodes:</label>
+                <input type="number" id="nodeCount" value="5" min="3" max="20">
+            </div>
+            <div class="control-group">
+                <label for="duration">Duration (sec):</label>
+                <input type="number" id="duration" value="120" min="10">
+            </div>
+            <div class="control-group">
+                <label for="randomness">Randomness:</label>
+                <input type="range" id="randomness" value="0.3" min="0" max="1" step="0.1">
+                <small style="color: #94a3b8;" id="randomnessValue">0.3</small>
+            </div>
+            <button id="startBtn" onclick="startScenario()">Start</button>
+        </div>
+
+        <div>
+            <h2>Stats</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="value" id="proposalCount">0</div>
+                    <div class="label">Proposals</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="promiseCount">0</div>
+                    <div class="label">Promises</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="acceptCount">0</div>
+                    <div class="label">Accepts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="learnCount">0</div>
+                    <div class="label">Learned</div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h2>Events</h2>
+            <div class="event-log-container" id="eventLog"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/websocket-helper.js"></script>
+<script src="/paxos-visualizer.js"></script>
+<script>
+    // Initialize visualizer
+    const visualizer = new PaxosVisualizer('senateSvg', {
+        nodeRadius: 150,
+        nodeCircleRadius: 20,
+        eventColors: {
+            proposal: '#8b5cf6',  // Purple
+            promise: '#fbbf24',   // Amber
+            accept: '#f87171',    // Red
+            learn: '#34d399'      // Emerald
+        }
+    });
+
+    const connectionStatus = document.getElementById('connectionStatus');
+    const statusText = document.getElementById('statusText');
+    const eventLog = document.getElementById('eventLog');
+    const randomnessSlider = document.getElementById('randomness');
+    const randomnessValue = document.getElementById('randomnessValue');
+
+    // UI event listeners
+    randomnessSlider.addEventListener('change', (e) => {
+        randomnessValue.textContent = parseFloat(e.target.value).toFixed(1);
+    });
+
+    const ws = new WebSocket(getWebSocketURL("/ws"));
+
+    ws.onopen = function () {
+        connectionStatus.classList.add('connected');
+        statusText.textContent = '✓ Connected';
+    };
+
+    ws.onmessage = function (event) {
+        try {
+            const data = JSON.parse(event.data);
+
+            if (data.ClusterInitialized) {
+                visualizer.render(data.ClusterInitialized);
+                return;
+            }
+
+            if (data.Event) {
+                handleEvent(data.Event);
+            }
+        } catch (e) {
+            console.error('Parse error:', e);
+        }
+    };
+
+    ws.onclose = function () {
+        connectionStatus.classList.remove('connected');
+        statusText.textContent = '✗ Disconnected';
+    };
+
+    function handleEvent(eventData) {
+        let eventType = 'event';
+        let nodeId = null;
+        let colorClass = 'proposal';
+        let color = '#8b5cf6';  // Purple default
+
+        if (eventData.Proposal) {
+            eventType = 'Proposal';
+            nodeId = eventData.Proposal.id;
+            colorClass = 'proposal';
+            color = '#8b5cf6';
+            visualizer.incrementEventCount(nodeId, 'proposal');
+        } else if (eventData.Promise) {
+            eventType = 'Promise';
+            nodeId = eventData.Promise.id;
+            colorClass = 'promise';
+            color = '#fbbf24';
+            visualizer.incrementEventCount(nodeId, 'promise');
+        } else if (eventData.Accept) {
+            eventType = 'Accept';
+            nodeId = eventData.Accept.id;
+            colorClass = 'accept';
+            color = '#f87171';
+            visualizer.incrementEventCount(nodeId, 'accept');
+        } else if (eventData.Learn) {
+            eventType = 'Learn';
+            nodeId = eventData.Learn.id;
+            colorClass = 'learn';
+            color = '#34d399';
+            visualizer.incrementEventCount(nodeId, 'learn');
+        }
+
+        // Update counts in UI
+        document.getElementById('proposalCount').textContent = visualizer.getEventCount('proposal');
+        document.getElementById('promiseCount').textContent = visualizer.getEventCount('promise');
+        document.getElementById('acceptCount').textContent = visualizer.getEventCount('accept');
+        document.getElementById('learnCount').textContent = visualizer.getEventCount('learn');
+
+        // Activate node
+        if (nodeId !== null) {
+            visualizer.activateNode(nodeId, color);
+
+            // Draw beam with randomness factor
+            const randomness = parseFloat(randomnessSlider.value);
+            if (Math.random() < 0.7 + randomness * 0.3) {
+                const targetNode = Math.floor(Math.random() * visualizer.nodeCount);
+                if (targetNode !== nodeId) {
+                    const delayMs = randomness > 0 ? Math.random() * randomness * 100 : 0;
+                    setTimeout(() => {
+                        visualizer.drawBeam(nodeId, targetNode, color);
+                    }, delayMs);
+                }
+            }
+        }
+
+        // Add to event log
+        const item = document.createElement('div');
+        item.className = `event-log-item ${colorClass}`;
+        item.textContent = `[${eventType}] Node ${nodeId}`;
+        eventLog.insertBefore(item, eventLog.firstChild);
+        while (eventLog.children.length > 20) {
+            eventLog.removeChild(eventLog.lastChild);
+        }
+    }
+
+    async function startScenario() {
+        const nodeCount = parseInt(document.getElementById('nodeCount').value);
+        const duration = parseInt(document.getElementById('duration').value);
+
+        const btn = document.getElementById('startBtn');
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/start-scenario', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    node_count: nodeCount,
+                    duration_secs: duration
+                })
+            });
+
+            if (response.ok) {
+                setTimeout(() => {
+                    btn.disabled = false;
+                }, 2000);
+            }
+        } catch (e) {
+            console.error('Error:', e);
+            btn.disabled = false;
+        }
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        visualizer.onResize();
+    });
+</script>
+{% endblock %}
