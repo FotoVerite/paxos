@@ -1,0 +1,159 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Learning a Chosen
+Value - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{%
+endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/learner.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Leaning a Chosen Value</h1>
+    <div class="quote-container">
+      <span class="inscription-label">To Learn a Value</span>
+      <blockquote>
+        To learn that a value has been chosen, a learner must find out that a
+        proposal has been accepted by a majority of acceptors.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=9"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      The obviousness of this sentence hides a changeover about how lamport been
+      talking about interactions in the previous sections. Before it was
+      interactions between roles and now it's just a dictation about what a
+      learner must do and also strangely putting the onus on the learner which
+      cannot actually act. Learner are passive observers who receive they don't
+      ask for values they receive value messages.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">To Learn a Value</span>
+      <blockquote>
+        The obvious algorithm is to have each acceptor, whenever it accepts a
+        proposal, respond to all learners, sending them the proposal. This
+        allows learners to find out about a chosen value as soon as possible,
+        but it requires each acceptor to respond to each learner—a number of
+        responses equal to the product of the number of acceptors and the number
+        of learners.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=9"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Sure, go off king. This is the obvious algo. Naive sure, but not obvious.
+      I do take umbrage with the idea that this even in the most optimistic
+      system would be the fastest per node to learn value. What it gives is not
+      needing more logic to deal with chosen value transmission. Once a value is
+      accepted it will be sent to all learners, no additional messages, no other
+      hoops. The disadvantage of this setup is the amount of chatter it
+      produces.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">To Learn a Value</span>
+      <blockquote>
+        The assumption of non-Byzantine failures makes it easy for one learner
+        to find out from another learner that a value has been accepted. We can
+        have the acceptors respond with their acceptances to a distinguished
+        learner, which in turn informs the other learners when a value has been
+        chosen. This approach requires an extra round for all the learners to
+        discover the chosen value. It is also less reliable, since the
+        distinguished learner could fail. But it requires a number of responses
+        equal only to the sum of the number of acceptors and the number of
+        learners.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=9"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This is the closest description to the protocol as described in Part Time
+      Parliament. You have one Learner who learns and then would send out a
+      Success Message to all other learners. It's downside is that if this
+      Learner crashes or fails the value could be delayed from being
+      disseminated.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">To Learn a Value</span>
+      <blockquote>
+        More generally, the acceptors could respond with their acceptances to
+        some set of distinguished learners, each of which can then inform all
+        the learners when a value has been chosen. Using a larger set of
+        distinguished learners provides greater reliability at the cost of
+        greater communication complexity.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=9"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This is just a refinement to the previous mechanism with additional
+      robustness.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">To Learn a Value</span>
+      <blockquote>
+        Because of message loss, a value could be chosen with no learner ever
+        finding out. The learner could ask the acceptors what proposals they
+        have accepted, but failure of an acceptor could make it impossible to
+        know whether or not a majority had accepted a particular proposal. In
+        that case, learners will find out what value is chosen only when a new
+        proposal is chosen. If a learner needs to know whether a value has been
+        chosen, it can have a proposer issue a proposal, using the algorithm
+        described above.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=9"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+     This is a movement from a learner being a part of the system to it being a client of the system. Notice a learner needs to find out, a learner can ask a proposer. The learner is no longer a core part of the system. He is removing it from the three constraints and locating them all within the proposer and acceptor logic. 
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
+  prev_label="Introduction", current_label="Constraints",
+  next_url="/papers/paxos-made-simple/the-problem/requirements",
+  next_label="Requirements" ) }} {% endblock %}
+</div>

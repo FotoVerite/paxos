@@ -1,0 +1,127 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Constraints -
+The Problem - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{%
+endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <h1 class="panel-title">Constraints</h1>
+    <div class="quote-container">
+      <span class="inscription-label">The Problem</span>
+      <blockquote>
+        Assume a collection of processes that can propose values. A consensus
+        algorithm ensures that a single one among the proposed values is chosen.
+        If no value is proposed, then no value should be chosen. If a value has
+        been chosen, then processes should be able to learn the chosen value.
+        The safety requirements for consensus are:
+        <hr class="glitch-taper" />
+        <ul>
+          <li>Only a value that has been proposed may be chosen,</li>
+          <li>Only a single value is chosen, and,</li>
+          <li>
+            A process never learns that a value has been chosen unless it
+            actually has been
+          </li>
+        </ul>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=4"
+          target="_blank"
+        >
+          LAMPORT, P. 1 — §2.1
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This is a reframing in plain language of the three constraints from the
+      Part-Time Parliament constraints in terms of values rather than ballots.
+      <br />
+      <a href="/synod/constraints" target="_blank">
+        Original constraints explanation
+      </a>
+    </p>
+
+    <div class="key-concept block">
+      <div class="block-icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/paxos-made-simple/proposer.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Nontriviality</h2>
+
+      <strong>Only a value that has been proposed may be chosen</strong>
+
+      <p>
+        Paxos must not invent values. Any chosen value must have been explicitly
+        proposed by some process.
+      </p>
+
+      <p>
+        This maps to the B1, Ballot Uniqueness. Both ensure that values
+        originate from valid proposals and are not introduced or altered outside
+        the protocol.
+      </p>
+    </div>
+
+    <div class="key-concept block">
+      <div class="block-icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/paxos-made-simple/quorum.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Consistency</h2>
+
+      <strong>Only a single value is chosen</strong>
+
+      <p>
+        Once a value is chosen for a given instance, no other value may be
+        chosen for that instance.
+      </p>
+
+      <p>This maps to the B2, Quorum.</p>
+    </div>
+
+    <div class="key-concept block">
+      <div class="block-icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/paxos-made-simple/learner.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Validity</h2>
+
+      <p>
+        <strong>
+          A process never learns that a value has been chosen unless it actually
+          has been</strong
+        >
+      </p>
+      <p>
+        Validity does not introduce a new safety property about which values may
+        be chosen. Instead, it constrains how and when processes may learn that
+        a value has been chosen.
+      </p>
+
+      <p>
+        Given nontriviality (B1) and consistency (B2), validity follows as long
+        as learning occurs only through protocol-defined agreement. It exists to
+        rule out false positives caused by faulty learners, messengers, or
+        premature conclusions.
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
+  prev_label="Introduction", current_label="Constraints",
+  next_url="/papers/paxos-made-simple/the-problem/requirements", next_label="Requirements" )
+  }} {% endblock %}
+</div>

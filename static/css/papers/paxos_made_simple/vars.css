@@ -27,13 +27,27 @@
   --pms-section-shadow: rgba(34, 197, 94, 0.1);
 
   /* Container */
-  --pms-container-max-width: 900px;
+  --pms-container-max-width: 1200px;
   --pms-container-padding: 3rem 2rem;
 
   /* Legacy Colors for compatibility */
   --pms-bg-dark: #0a1a0a;
   --pms-bg-darker: #050f05;
   --pms-border: #22c55e;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 15px;
+  --space-xl: 20px;
+  --space-2xl: 30px;
 }
 
 @media (max-width: 768px) {

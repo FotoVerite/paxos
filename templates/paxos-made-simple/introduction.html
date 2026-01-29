@@ -1,0 +1,73 @@
+{% extends "paxos-made-simple/base.html" %} {% import "macros/nav.html" as nav
+%} {% block title %}Introduction - Paxos Made Simple{% endblock %} {% block
+body_class %}pms-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <h1 class="panel-title">Introduction</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Introduction</span>
+      <blockquote>
+        To The Paxos algorithm for implementing a fault-tolerant distributed
+        system has been regarded as difficult to understand, perhaps because the
+        original presentation was Greek to many readers. In fact, it is among
+        the simplest and most obvious of distributed algorithms. At its heart is
+        a consensus algorithm—the “synod” algorithm of. The next section shows
+        that this consensus algorithm follows almost unavoidably from the
+        properties we want it to satisfy. The last section explains the complete
+        Paxos algorithm, which is obtained by the straightforward application of
+        consensus to the state machine approach for building a distributed
+        system—an approach that should be well-known, since it is the subject of
+        what is probably the most often-cited article on the theory of
+        distributed systems.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=4"
+          target="_blank"
+        >
+          LAMPORT, P. 1 — Introduction
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      <em>Let me stop you right there chief.</em>
+    </p>
+
+    <p>
+      Hi there it's me, the writer of the site breaking from trying to be non
+      biased and just explaining to state as explicitly as possible that this
+      here is Lamport taking the worst lessons from the past twenty years of people
+      trying to understand Paxos through his papers. Lamport is one of the most
+      important CS people of our times but he isn't the best teacher and part of
+      that is his unwillingness to understand why people have issues
+      understanding Paxos.
+    </p>
+
+    <p>
+      Lamport teaches from a bottom up approach. He cares more about theory then
+      implementation details. Which is exactly the wrong way to deal with paxos
+      to CS people because implementing it is how most of them learn. Not
+      axioms, not math. Instead of being honest with the failing of the previous
+      paper he just takes the piss out of it and continues with the same sins.
+    </p>
+
+    <p>
+      I say this as someone who has spent months on learning these papers. It
+      isn't you, these systems and concepts are incredibly difficult and
+      nuanced. He is at fault here, not you. Do not let yourself be frustrated
+      by how obtuse some of it comes across. That why I built this site.
+    </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/", prev_label="Ballot
+  Definition", current_label="Introduction",
+  next_url="/papers/paxos-made-simple/the-problem/constraints", next_label="Constraints" )
+  }}
+</div>
+{% endblock %}

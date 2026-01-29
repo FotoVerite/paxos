@@ -1,0 +1,117 @@
+{% extends "paxos-made-simple/base.html" %} 
+{% block title %}Roles - Proposer - Paxos Made Simple{% endblock %} 
+{% block body_class %}pms-page{% endblock %} 
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/themes/prism-tomorrow.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-rust.min.js"></script>
+{% endblock %} 
+{% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <h1 class="panel-title">Proposer</h1>
+    <p>
+      A proposer's main job is to increment the ballot number and collate
+      proposal values from all other reachable nodes. From the collated values,
+      it will choose the latest voted-on value, or its own if none have been
+      proposed.
+    </p>
+
+    {% raw %}
+    <pre><code class="language-rust">
+struct Ballot {
+    pub number: i32,
+    pub node_id: i32,
+}
+    </code></pre>
+
+    <pre><code class="language-rust">
+pub struct Proposer {
+    id: i32,
+    last_tried: i32,
+}
+    </code></pre>
+    {% endraw %}
+
+    <p>
+      A proposer needs to keep track of two things: its ID and its last_tried
+      ballot number. From there, it can always generate its next ballot.
+    </p>
+
+    <p>It can send two messages and receive one message:</p>
+
+    <div class="inner-panel">
+      <h2>Prepare</h2>
+
+      {% raw %}
+      <pre><code class="language-rust">
+Prepare { from: NodeId, ballot: Ballot }
+      </code></pre>
+      {% endraw %}
+
+      <p>
+        Prepare is all about enforcing the nontriviality and consistency of the ballot.
+        It asks acceptors if this ballot is the largest they have seen, and if so,
+        to send back their last vote if it exists.
+      </p>
+
+      <p>
+        All messages include a <code>from</code> identifier to disambiguate messages
+        from different nodes that might contain identical information besides this identifier.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Promise</h2>
+
+      {% raw %}
+      <pre><code class="language-rust">
+Promise { from: NodeId, ballot: Ballot, last_voted: Option<(Ballot, Value)> }
+      </code></pre>
+      {% endraw %}
+
+      <p>
+        Promise also enforces the nontriviality and consistency of the ballot.
+        It sends back information on what it last voted, if any. From this, the proposer
+        can determine if its current ballot is greater than any seen before. If so, it
+        can send the Accept message; if not, it can increment its ballot and try again.
+        A simple optimization is to 1+ the greatest last_voted number observed.
+      </p>
+
+      <p>
+        All messages after Promise include the ballot to validate that the message
+        is non-stale. In the proposer, this is compared to <code>last_tried</code>.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Accept</h2>
+
+      {% raw %}
+      <pre><code class="language-rust">
+Accept {
+    from: NodeId,
+    ballot: Ballot,
+    value: PaxosCommand,
+}
+      </code></pre>
+      {% endraw %}
+
+      <p>
+        Accept is sent to acceptors to ask if their promise is still valid. If so,
+        they reply with Accepted to one or more learners depending on the implementation.
+        (We will cover learners in detail later.)
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( 
+      prev_url="/papers/paxos-made-simple/roles/hi-its-me-again",
+      prev_label="Overview", 
+      current_label="Proposer",
+      next_url="/papers/paxos-made-simple/roles/acceptor",
+      next_label="Acceptor" 
+  ) }} 
+{% endblock %}
+</div>

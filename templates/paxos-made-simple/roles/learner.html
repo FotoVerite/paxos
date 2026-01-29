@@ -1,0 +1,61 @@
+{% extends "paxos-made-simple/base.html" %} 
+{% block title %}Roles - Learner - Paxos Made Simple{% endblock %} 
+{% block body_class %}pms-page{% endblock %} 
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/themes/prism-tomorrow.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/components/prism-rust.min.js"></script>
+{% endblock %} 
+{% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <h1 class="panel-title">Learner</h1>
+    <p>
+     A learner's job is to tally Accepted messages and record a value once quorum is reached.
+    </p>
+
+    {% raw %}
+    <pre><code class="language-rust">
+pub struct Learner {
+    id: i32,
+    quorum_number: i32,
+    votes: HashMap<Ballot, HashSet<i32>>
+}
+    </code></pre>
+    {% endraw %}
+
+    <p>
+      Learners track votes for each ballot. To know it has met quorum, it must compare the votes for a value. Since messages can arrive asynchronously, this naive implementation tracks all received messages because they can come out of order. As soon as any ballot meets quorum, the learner can infer, from the protocol constraints, that any future ballot will contain the same value. This enforces consistency and validity.
+    </p>
+
+    <p>It can receive one message:</p>
+
+    <div class="inner-panel">
+      <h2>Accepted</h2>
+
+      {% raw %}
+      <pre><code class="language-rust">
+Accepted {
+    from: NodeId,
+    ballot: Ballot,
+    value: PaxosCommand,
+}
+      </code></pre>
+      {% endraw %}
+
+      <p>
+        Accepted is sent to all learners or a distinguished learner, where it tallies Accepted messages to ensure quorum is reached. 
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( 
+      prev_url="/papers/paxos-made-simple/roles/acceptor",
+      prev_label="Acceptor", 
+      current_label="Learner",
+      next_url="/papers/paxos-made-simple/protocol",
+      next_label="Protocol" 
+  ) }} 
+{% endblock %}
+</div>

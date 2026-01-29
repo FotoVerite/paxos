@@ -1,0 +1,139 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %}The Problem -
+Requirements - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{%
+endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <h1 class="panel-title">Requirements</h1>
+    <div class="inner-panel">
+      <div class="quote-container">
+        <span class="inscription-label">Liveness</span>
+        <blockquote>
+          We won’t try to specify precise liveness requirements. However, the
+          goal is to ensure that some proposed value is eventually chosen and,
+          if a value has been chosen, then a process can eventually learn the
+          value.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=5"
+            target="_blank"
+          >
+            LAMPORT, P. 2 — §2.1
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Liveness is not specified formally in this paper. It is treated as an
+        underlying goal: if a value is chosen, it should eventually be
+        learnable.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="quote-container">
+        <span class="inscription-label">Agents/Process</span>
+        <blockquote>
+          Agents operate at arbitrary speed, may fail by stopping, and may
+          restart. Since all agents may fail after a value is chosen and then
+          restart, a solution is impossible unless some information can be
+          remembered by an agent that has failed and restarted
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=5"
+            target="_blank"
+          >
+            LAMPORT, P. 2 — §2.1
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Agents can fail and must have non-volatile memory to allow restarts to
+        deal with crashes and other errors. Without which liveliness cannot be
+        ensured.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="quote-container">
+        <span class="inscription-label">Non-Byzantine Messages</span>
+        <blockquote>
+          Messages can take arbitrarily long to be delivered, can be duplicated,
+          and can be lost, but they are not corrupted.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=5"
+            target="_blank"
+          >
+            LAMPORT, P. 2 — §2.1
+          </a>
+        </cite>
+      </div>
+
+      <p>Agents will not lie or act maliciously.</p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="quote-container">
+        <span class="inscription-label">Agent Roles</span>
+        <blockquote>
+          We let the three roles in the consensus algorithm be performed by
+          three classes of agents:
+          <hr class="glitch-taper" />
+
+          <ul>
+            <li>Proposer</li>
+            <li>Acceptor</li>
+            <li>Learner</li>
+          </ul>
+          <hr class="glitch-taper" />
+
+          In an implementation, a single process may act as more than one agent,
+          but the mapping from agents to processes does not concern us here.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=5"
+            target="_blank"
+          >
+            LAMPORT, P. 2 — §2.1
+          </a>
+        </cite>
+      </div>
+
+      <p>Agents can have multiple roles but each role has a separate concern</p>
+
+      <p>
+        Proposers proposes values to acceptors and acts as a filter for the
+        correct value if there have been previous votes. If quorum is possible
+        it then will call for a round of votes. This role enforces Nontriviality
+        by the proposal mechanism and Consistency by collecting previous votes
+        from the acceptors.
+      </p>
+
+      <p>
+        Acceptors receive proposals from proposers and check whether the ballot
+        is consistent with respect to their promises. This role enforces
+        Consistency by preventing conflicting acceptances.
+      </p>
+
+      <p>
+        Learners tally votes and learn a value if quorum is reached and if so
+        learn the value. This roles enforces Consistency and Validity
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb(
+  prev_url="/papers/paxos-made-simple/the-problem/constraints",
+  prev_label="Constraints", current_label="Requirements",
+  next_url="/papers/paxos-made-simple/choosing-a-value/the-idea",
+  next_label="The Idea" ) }} {% endblock %}
+</div>

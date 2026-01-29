@@ -1,0 +1,22 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} A confession -
+Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {%
+block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <h1 class="panel-title">A Confession</h1>
+    <div class="inner-panel">
+      <p>
+        Hi it's me again, the writer of this site. I really tried here, but the paper is unteachable without a long tangent on what these actual roles are and how they work together. So I'm going to break with my convention of following the paper slavishly to actually talk through the implementation of the agent roles before we get to Lamport's definitions invariants in  Part 2.2.
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
+    prev_label="Introduction", current_label="Constraints",
+    next_url="/papers/paxos-made-simple/requirements", next_label="Requirements"
+    ) }} {% endblock %}
+  </div>
+</div>

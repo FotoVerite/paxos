@@ -1,0 +1,34 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="horizontalHatch" width="100" height="2.5" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="100" y2="0" stroke="#00FF41" stroke-width="0.7" />
+    </pattern>
+
+    <pattern id="dotMatrix" width="2" height="2" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="0.55" fill="#00FF41" />
+    </pattern>
+
+    <pattern id="dotMatrixlarge" width="2" height="2" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="0.8" fill="#00FF41" />
+    </pattern>
+
+    <mask id="filterMask">
+      <rect x="25" y="55" width="50" height="6" rx="2" fill="white" />
+    </mask>
+  </defs>
+
+  <path d="M 30 25 Q 50 15 70 25 L 60 50 L 40 50 Z" 
+        fill="url(#dotMatrix)" opacity="0.6" />
+
+  <path d="M 30 25 L 40 55 M 70 25 L 60 55" 
+        fill="none" stroke="#00FF41" stroke-width="1" stroke-dasharray="3 2" />
+
+  <rect x="25" y="55" width="50" height="6" rx="2" 
+        fill="url(#horizontalHatch)" stroke="#00FF41" stroke-width="1" />
+
+ <g id="beacon">
+      <circle cx="50" cy="77" r="4"  fill="url(#dotMatrix)"/>
+       <circle cx="50" cy="77" r="8" stroke="url(#dotMatrixlarge)" stroke-width="1.5" fill="none" stroke-dasharray="3 2" stroke-opacity="0.5"/>
+      <circle cx="50" cy="77" r="12" stroke="url(#dotMatrixlarge)" stroke-width="1.5" fill="none" stroke-dasharray="3 2" stroke-opacity="0.5"/>
+    </g>
+</svg>

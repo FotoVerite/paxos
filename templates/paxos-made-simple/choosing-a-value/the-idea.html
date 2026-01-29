@@ -1,0 +1,53 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %}The Problem -
+Constraints - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{%
+endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <h1 class="panel-title">Choosing a Value</h1>
+    <div class="inner-panel">
+      <div class="quote-container">
+        <span class="inscription-label">The Idea</span>
+        <blockquote>
+          The easiest way to choose a value is to have a single acceptor agent.
+          A proposer sends a proposal to the acceptor, who chooses the first
+          proposed value that it receives. Although simple, this solution is
+          unsatisfactory because the failure of the acceptor makes any further
+          progress impossible.
+
+          <hr class="glitch-taper" />
+
+          So, let’s try another way of choosing a value. Instead of a single
+          acceptor, let’s use multiple acceptor agents. A proposer sends a
+          proposed value to a set of acceptors. An acceptor may accept the
+          proposed value. The value is chosen when a large enough set of
+          acceptors have accepted it. How large is large enough? To ensure that
+          only a single value is chosen, we can let a large enough set consist
+          of any majority of the agents. Because any two majorities have at
+          least one acceptor in common, this works if an acceptor can accept at
+          most one value.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=5"
+            target="_blank"
+          >
+            LAMPORT, P. 2 — §2.2
+          </a>
+        </cite>
+      </div>
+
+      <p>
+       Dealing with synchronized/singular agents is easy. The difficulty comes with asynchronous multiple agents working together.
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
+  prev_label="Introduction", current_label="Constraints",
+  next_url="/papers/paxos-made-simple/requirements", next_label="Requirements" )
+  }} {% endblock %}
+</div>

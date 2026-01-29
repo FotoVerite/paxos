@@ -51,9 +51,9 @@ pub async fn paxos_made_simple_handler(
     
     // Check if it's a directory-like path (index)
     let template_name = if path.is_empty() || path == "index" {
-        "paxos_made_simple/index.html".to_string()
+        "paxos-made-simple/index.html".to_string()
     } else {
-        format!("paxos_made_simple/{}.html", path)
+        format!("paxos-made-simple/{}.html", path)
     };
     
     render_template(&state.tera, &template_name)
