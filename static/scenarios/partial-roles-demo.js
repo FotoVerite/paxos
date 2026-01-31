@@ -253,6 +253,9 @@ function selectNode(nodeId) {
      updateProposalStats();
 }
 
+// Expose to global scope for onclick handlers
+window.selectNode = selectNode;
+
 function updateDecreeDisplay() {
      const decreePanel = document.getElementById("decreePanel");
      if (!decreePanel) return;
