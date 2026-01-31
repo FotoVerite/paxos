@@ -74,35 +74,20 @@ impl Learner {
                     )
                     .await;
                 
-                // When quorum is reached locally, emit Success event and insert into ledger
-                // Note: the Success message will also be broadcast, but learn_decree will
-                // deduplicate by checking if already in ledger
+                // When quorum is reached locally, just insert into ledger
+                // The Success message will be broadcast and received back via learn_decree,
+                // which will emit the events (only when first inserted, to avoid cascade)
                 if let Message::Success {
                     decree_num: success_decree_num,
                     value: success_value,
                     ..
                 } = &reply {
-                    if ledger.insert(*success_decree_num, success_value.clone()).await {
-                        // Only emit if this is the first insertion
-                        self.observer.on_event(Event::Success {
-                            decree_num: *success_decree_num,
-                            from: self.id,
-                            id: self.id,
-                            value: success_value.clone(),
-                            created_at: crate::monitor::current_timestamp_millis(),
-                        });
-                        self.observer.on_event(Event::LearnedValue {
-                            decree_num: *success_decree_num,
-                            id: self.id,
-                            value: success_value.clone(),
-                            created_at: crate::monitor::current_timestamp_millis(),
-                        });
-                        tracing::info!(
-                            "[Node {}] Reached quorum for decree {}",
-                            self.id,
-                            success_decree_num
-                        );
-                    }
+                    ledger.insert(*success_decree_num, success_value.clone()).await;
+                    tracing::info!(
+                        "[Node {}] Reached quorum for decree {}",
+                        self.id,
+                        success_decree_num
+                    );
                 }
                 
                 return reply;
