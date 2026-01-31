@@ -49,17 +49,21 @@ impl Learner {
                 ballot,
                 value,
             } => {
-                // Only check lastTried if we have decree_notes (proposer+learner node)
-                if let Some(decree_notes_arc) = &self.decree_notes {
-                    let decree_notes = decree_notes_arc.lock().await;
-                    if let Some(notes) = decree_notes.state.get(&decree_num) {
-                        if ballot != notes.last_tried {
-                            // Proposer+Learner: only count votes for our own ballots
-                            return Message::NACK;
-                        }
+                // For proposers with learner role: count votes to determine quorum
+                // For pure learners: ignore Accepted messages (only receive Success via learn_decree)
+                if self.decree_notes.is_none() {
+                    // Pure learner - no voting logic needed
+                    return Message::NACK;
+                }
+
+                // Proposer+Learner: only count votes for our own ballots
+                let decree_notes_arc = self.decree_notes.as_ref().unwrap();
+                let decree_notes = decree_notes_arc.lock().await;
+                if let Some(notes) = decree_notes.state.get(&decree_num) {
+                    if ballot != notes.last_tried {
+                        return Message::NACK;
                     }
                 }
-                // Pure learners (no decree_notes) count all ballots
 
                 let reply = self
                     .state
@@ -74,15 +78,14 @@ impl Learner {
                     )
                     .await;
                 
-                // When quorum is reached locally, emit events and insert into ledger
-                // Only this node's learner will emit (other learners get broadcast Success later)
+                // When quorum is reached (proposer learns it reached quorum), 
+                // emit Success and insert into ledger
                 if let Message::Success {
                     decree_num: success_decree_num,
                     value: success_value,
                     ..
                 } = &reply {
                     if ledger.insert(*success_decree_num, success_value.clone()).await {
-                        // First insertion for this node - emit the learning events
                         self.observer.on_event(Event::Success {
                             decree_num: *success_decree_num,
                             from: self.id,
@@ -97,7 +100,7 @@ impl Learner {
                             created_at: crate::monitor::current_timestamp_millis(),
                         });
                         tracing::info!(
-                            "[Node {}] Reached quorum for decree {}",
+                            "[Node {}] Proposer reached quorum for decree {}",
                             self.id,
                             success_decree_num
                         );
