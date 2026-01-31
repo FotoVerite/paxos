@@ -27,6 +27,8 @@ pub struct ScenarioRequest {
     pub duration_secs: u64,
     #[serde(default)]
     pub scenario_type: String,
+    #[serde(default)]
+    pub learning_strategy: String, // "ProposerManaged" or "Direct"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

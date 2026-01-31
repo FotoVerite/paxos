@@ -24,6 +24,7 @@ const resetBtn = document.getElementById("resetBtn");
 const topologyDetails = document.getElementById("topologyDetails");
 const circleLayoutBtn = document.getElementById("circleLayoutBtn");
 const gridLayoutBtn = document.getElementById("gridLayoutBtn");
+const learningStrategySelect = document.getElementById("learningStrategySelect");
 
 let ws = null;
 let scenarioTimeout = null;
@@ -309,6 +310,7 @@ async function playScenario() {
                  node_count: 9,
                  duration_secs: 60,
                  scenario_type: "partial_roles",
+                 learning_strategy: learningStrategySelect.value,
              }),
          });
 

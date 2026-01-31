@@ -33,8 +33,13 @@ pub async fn start_scenario_handler(
 
     let cm = get_cm(state, addr, headers).await;
     let cm = cm.lock().await;
+    let learning_strategy = if req.learning_strategy.is_empty() {
+        "ProposerManaged"
+    } else {
+        &req.learning_strategy
+    };
     match cm
-        .start_scenario(ip, req.node_count, req.duration_secs, scenario_type)
+        .start_scenario(ip, req.node_count, req.duration_secs, scenario_type, learning_strategy)
         .await
     {
         Ok(_) => {

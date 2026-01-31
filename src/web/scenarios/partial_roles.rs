@@ -8,40 +8,45 @@ use crate::node::config::{NodeConfig, Roles, LearningStrategy};
 pub struct PartialRolesScenario;
 
 impl PartialRolesScenario {
-    pub async fn init_cluster(id: usize, ip: std::net::IpAddr, observer: Arc<dyn crate::monitor::PaxosObserver>) -> anyhow::Result<Cluster> {
+    pub async fn init_cluster(
+        id: usize, 
+        ip: std::net::IpAddr, 
+        observer: Arc<dyn crate::monitor::PaxosObserver>,
+        learning_strategy: LearningStrategy,
+    ) -> anyhow::Result<Cluster> {
         let mut configs = Vec::new();
         
         // Node 0-1: Proposers only
-         for _ in 0..2 {
-             configs.push(NodeConfig {
-                 roles: Roles { proposer: true, acceptor: false, learner: false },
-                 learning_strategy: LearningStrategy::ProposerManaged,
-             });
-         }
-         
-         // Node 2-4: Acceptors only
-         for _ in 0..3 {
-             configs.push(NodeConfig {
-                 roles: Roles { proposer: false, acceptor: true, learner: false },
-                 learning_strategy: LearningStrategy::ProposerManaged,
-             });
-         }
-         
-         // Node 5-6: Learners only
-         for _ in 0..2 {
-             configs.push(NodeConfig {
-                 roles: Roles { proposer: false, acceptor: false, learner: true },
-                 learning_strategy: LearningStrategy::ProposerManaged,
-             });
-         }
-         
-         // Node 7-8: Full nodes (proposers + acceptors + learners)
-         for _ in 0..2 {
-             configs.push(NodeConfig {
-                 roles: Roles { proposer: true, acceptor: true, learner: true },
-                 learning_strategy: LearningStrategy::ProposerManaged,
-             });
-         }
+        for _ in 0..2 {
+            configs.push(NodeConfig {
+                roles: Roles { proposer: true, acceptor: false, learner: false },
+                learning_strategy: learning_strategy.clone(),
+            });
+        }
+        
+        // Node 2-4: Acceptors only
+        for _ in 0..3 {
+            configs.push(NodeConfig {
+                roles: Roles { proposer: false, acceptor: true, learner: false },
+                learning_strategy: learning_strategy.clone(),
+            });
+        }
+        
+        // Node 5-6: Learners only
+        for _ in 0..2 {
+            configs.push(NodeConfig {
+                roles: Roles { proposer: false, acceptor: false, learner: true },
+                learning_strategy: learning_strategy.clone(),
+            });
+        }
+        
+        // Node 7-8: Full nodes (proposers + acceptors + learners)
+        for _ in 0..2 {
+            configs.push(NodeConfig {
+                roles: Roles { proposer: true, acceptor: true, learner: true },
+                learning_strategy: learning_strategy.clone(),
+            });
+        }
 
         Cluster::new_with_configs(id, ip, configs, observer).await
     }

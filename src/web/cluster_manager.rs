@@ -38,6 +38,7 @@ impl ClusterManager {
         node_count: usize,
         duration_secs: u64,
         scenario_type: &str,
+        learning_strategy: &str,
     ) -> anyhow::Result<()> {
         println!(
             "Starting new scenario '{}' with {} nodes for {} seconds",
@@ -65,9 +66,15 @@ impl ClusterManager {
             *tx = Some(stop_tx.clone());
         }
 
+        // Parse learning strategy
+        let learning_strat = match learning_strategy {
+            "Direct" => crate::node::config::LearningStrategy::Direct,
+            _ => crate::node::config::LearningStrategy::ProposerManaged,
+        };
+
         // Create new cluster
         let mut cluster = if scenario_type == "partial_roles" {
-            PartialRolesScenario::init_cluster(0, ip, self.observer.clone()).await?
+            PartialRolesScenario::init_cluster(0, ip, self.observer.clone(), learning_strat).await?
         } else {
             Cluster::new(0, ip, node_count, self.observer.clone()).await?
         };
