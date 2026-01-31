@@ -74,20 +74,34 @@ impl Learner {
                     )
                     .await;
                 
-                // When quorum is reached locally, just insert into ledger
-                // The Success message will be broadcast and received back via learn_decree,
-                // which will emit the events (only when first inserted, to avoid cascade)
+                // When quorum is reached locally, emit events and insert into ledger
+                // Only this node's learner will emit (other learners get broadcast Success later)
                 if let Message::Success {
                     decree_num: success_decree_num,
                     value: success_value,
                     ..
                 } = &reply {
-                    ledger.insert(*success_decree_num, success_value.clone()).await;
-                    tracing::info!(
-                        "[Node {}] Reached quorum for decree {}",
-                        self.id,
-                        success_decree_num
-                    );
+                    if ledger.insert(*success_decree_num, success_value.clone()).await {
+                        // First insertion for this node - emit the learning events
+                        self.observer.on_event(Event::Success {
+                            decree_num: *success_decree_num,
+                            from: self.id,
+                            id: self.id,
+                            value: success_value.clone(),
+                            created_at: crate::monitor::current_timestamp_millis(),
+                        });
+                        self.observer.on_event(Event::LearnedValue {
+                            decree_num: *success_decree_num,
+                            id: self.id,
+                            value: success_value.clone(),
+                            created_at: crate::monitor::current_timestamp_millis(),
+                        });
+                        tracing::info!(
+                            "[Node {}] Reached quorum for decree {}",
+                            self.id,
+                            success_decree_num
+                        );
+                    }
                 }
                 
                 return reply;
@@ -98,25 +112,16 @@ impl Learner {
     pub async fn learn_decree(&self, msg: Message, ledger: &Ledger) {
         match msg {
             Message::Success {
-                from,
                 decree_num,
                 value,
                 ballot_proposer,
+                ..
             } => {
-                // This handles a *received* Message::Success
+                // This handles a *received* Message::Success broadcast from another learner
+                // The learner that reached quorum already emitted Success + LearnedValue in handle_message
+                // This node just needs to learn the value if it hasn't already
                 if ledger.insert(decree_num, value.clone()).await {
-                    if self.id != from {
-                        // Emit Event::Success only if it's from another node
-                        self.observer.on_event(Event::Success {
-                            decree_num,
-                            from, // 'from' is the sender of the Message::Success, not necessarily this learner
-                            id: self.id, // This is the ID of the learner that is processing the message
-                            value: value.clone(),
-                            created_at: crate::monitor::current_timestamp_millis(),
-                        });
-                    }
-                    // A Learner also "learns" locally when it receives a Success message,
-                    // so emit LearnedValue here as well.
+                    // Only emit LearnedValue - the first learner already emitted Success
                     self.observer.on_event(Event::LearnedValue {
                         decree_num,
                         id: self.id,
