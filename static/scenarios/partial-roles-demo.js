@@ -237,6 +237,12 @@ function updateProposalStats() {
      let html = "<div class='proposal-stats'>";
      for (let nodeId = 0; nodeId < snapshot.cluster.total_nodes; nodeId++) {
          const node = snapshot.nodes.get(nodeId);
+         
+         // Only show nodes with the Learner role
+         if (!node?.role?.roles || !node.role.roles.includes('Learner')) {
+             continue;
+         }
+         
          const decreeCount = node?.decrees.length || 0;
          const isSelected = selectedNodeId === nodeId;
          const selectClass = isSelected ? "selected" : "";
@@ -261,12 +267,19 @@ function updateDecreeDisplay() {
      if (!decreePanel) return;
 
      if (selectedNodeId === null) {
-         decreePanel.innerHTML = "<p class='decree-hint'>Click a node to view its learned decrees</p>";
+         decreePanel.innerHTML = "<p class='decree-hint'>Click a learner node to view its decrees</p>";
          return;
      }
 
      const snapshot = state.snapshot();
      const node = snapshot.nodes.get(selectedNodeId);
+     
+     // Check if node is a learner
+     if (!node?.role?.roles || !node.role.roles.includes('Learner')) {
+         decreePanel.innerHTML = `<p class='decree-hint'>Node ${selectedNodeId} is not a learner</p>`;
+         return;
+     }
+     
      if (!node || node.decrees.length === 0) {
          decreePanel.innerHTML = `<p class='decree-hint'>Node ${selectedNodeId} has not learned any decrees yet</p>`;
          return;
