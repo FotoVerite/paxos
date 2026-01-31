@@ -1,0 +1,115 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Base Algorithm -
+Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {%
+block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/proposer.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Proposal Algorithm</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Issuing Proposals</span>
+      <blockquote>
+        An acceptor can ignore any request without compromising safety. So, we
+        need to say only when it is allowed to respond to a request. It can
+        always respond to a prepare request. It can respond to an accept
+        request, accepting the proposal, iff it has not promised not to. In
+        other words:
+
+        <hr class="glitch-taper" />
+        P1a . An acceptor can accept a proposal numbered n iff it has not
+        responded to a prepare request having a number greater than n.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P. 3 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Because acceptors are filters Lamport's algorithm for them is all about
+      safety and what is allowed.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Prepare</span>
+      <blockquote>
+        The final algorithm is obtained by making one small optimization.
+        Suppose an acceptor receives a prepare request numbered n, but it has
+        already responded to a prepare request numbered greater than n, thereby
+        promising not to accept any new proposal numbered n. There is then no
+        reason for the acceptor to respond to the new prepare request, since it
+        will not accept the proposal numbered n that the proposer wants to
+        issue. So we have the acceptor ignore such a prepare request. We also
+        have it ignore a prepare request for a proposal it has already accepted.
+        <hr class="glitch-taper" />
+
+        With this optimization, an acceptor needs to remember only the highest
+        numbered proposal that it has ever accepted and the number of the
+        highest numbered prepare request to which it has responded.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P. 3 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      The optimization Lamport introduces combines a minimal state requirement
+      with a choice to silently ignore stale prepares. On the efficiency side
+      this is a massive failure and should never be done in a production system.
+      You want to return the previously seen greatest proposal. This would allow
+      the proposer to either abort such a request or to increase it's proposal
+      number to be larger then what it receives back. Without such an change you
+      could have a proposer spinning for minutes on end waiting to hear back
+      with no response from working acceptors. And he knows this as he adds a
+      page later.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Validation</span>
+      <blockquote>
+        It is probably a good idea to abandon a proposal if some proposer has
+        begun trying to issue a higher-numbered one. Therefore, if an acceptor
+        ignores a prepare or accept request because it has already received a
+        prepare request with a higher number, then it should probably inform the
+        proposer, who should then abandon its proposal. This is a performance
+        optimization that does not affect correctness.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=8"
+          target="_blank"
+        >
+          LAMPORT, P. 5 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Just what a fuck you. Once again the issues you are having with the paper
+      are not your fault this is written with a hostility to the reader.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
+  prev_label="Introduction", current_label="Constraints",
+  next_url="/papers/paxos-made-simple/the-problem/requirements",
+  next_label="Requirements" ) }} {% endblock %}
+</div>

@@ -213,7 +213,7 @@
 
 /* Glitch-inspired quote container border */
 .quote-container {
-  margin: 2.5rem 0;
+  margin: 2.5rem 0 2.5rem 1rem;
   padding: 1.5rem;
   position: relative;
   background: linear-gradient(
@@ -338,6 +338,12 @@ hr.glitch-taper {
     right: 30px;
     top: 30px;
   }
+
+   &.full {
+    width: 100px;
+    right: 30px;
+    top: 25px;
+  }
 }
 
 .block {
@@ -376,7 +382,7 @@ hr.glitch-taper {
 
 .inner-panel {
   position: relative;
-  background: var(--color-bg-secondary-60);
+  background: var(--pms-primary-dark);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
@@ -400,6 +406,7 @@ hr.glitch-taper {
   }
 
   p {
-    font-size: 0.9rem;
+    margin-left:0.5rem;
+    font-size: 1rem;
   }
 }

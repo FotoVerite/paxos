@@ -1,0 +1,127 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Base Algorithm -
+Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {%
+block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/proposer.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Proposal Algorithm</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Issuing Proposals</span>
+      <blockquote>
+        To maintain the invariance of P2c , a proposer that wants to issue a
+        proposal numbered n must learn the highest-numbered proposal with number
+        less than n, if any, that has been or will be accepted by each acceptor
+        in some majority of acceptors. Learning about proposals already accepted
+        is easy enough; predicting future acceptances is hard. Instead of trying
+        to predict the future, the proposer controls it by extracting a promise
+        that there won’t be any such acceptances. In other words, the proposer
+        requests that the acceptors not accept any more proposals numbered less
+        than n.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P. 3 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This is technically an optimization step. It causes the acceptor to ignore any proposals with numbers lower than the latest one, even if they are in flight or were previously accepted.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Prepare</span>
+      <blockquote>
+        1. A proposer chooses a new proposal number n and sends a request to
+        each member of some set of acceptors, asking it to respond with:
+        <hr class="glitch-taper" />
+
+        (a) A promise never again to accept a proposal numbered less than n, and
+        <br />
+        (b) The proposal with the highest number less than n that it has
+        accepted, if any.
+        <hr class="glitch-taper" />
+
+        I will call such a request a prepare request with number n.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P. 3 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A Prepare request queries all acceptors to report back its' highest known
+      proposal with value if any and to respond to any requests with a lower
+      number then this proposal as stale. The acceptor will use that proposal
+      number to check the freshness of the next response.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Validation</span>
+      <blockquote>
+        If the proposer receives the requested responses from a majority of
+        the acceptors, then it can issue a proposal with number n and value v,
+        where v is the value of the highest-numbered proposal among the
+        responses, or is any value selected by the proposer if the responders
+        reported no proposals.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=8"
+          target="_blank"
+        >
+          LAMPORT, P. 5 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A proposer collates responses, if it has met a quorum of response it can determine if a value has already been proposed and has consistency by selecting the largest previous proposals value in the response or use it's own if there are no previous proposals. 
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Accept</span>
+      <blockquote>
+        A proposer issues a proposal by sending, to
+        some set of acceptors, a request that the proposal be accepted. (This
+        need not be the same set of acceptors that responded to the initial
+        requests.) Let’s call this an accept request.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=8"
+          target="_blank"
+        >
+          LAMPORT, P. 5 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Accept is a message that contains the same proposal number with a proposed value that should match the constraints of consensus and nontriviality. <strong>Consensus</strong>, because a quorum has been used and <strong>Nontriviality</strong> because the value was either proposed before or through this proposer.  
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
+  prev_label="Introduction", current_label="Constraints",
+  next_url="/papers/paxos-made-simple/the-problem/requirements",
+  next_label="Requirements" ) }} {% endblock %}
+</div>

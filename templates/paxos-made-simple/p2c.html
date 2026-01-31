@@ -1,0 +1,95 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} P2C Definition -
+Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {%
+block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/proposer.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">P2C</h1>
+
+    <!-- Subquote 1: Setup & Induction -->
+    <div class="quote-container">
+      <span class="inscription-label">The Setup</span>
+      <blockquote>
+        To discover how to satisfy P2b, let’s consider how we would prove that
+        it holds. We would assume that some proposal with number m and value v
+        is chosen and show that any proposal issued with number n &gt; m also
+        has value v. We would make the proof easier by using induction on n, so
+        we can prove that proposal number n has value v under the additional
+        assumption that every proposal issued with a number in m..(n − 1) has
+        value v, where i..j denotes the set of numbers from i through j. For the
+        proposal numbered m to be chosen, there must be some set C consisting of
+        a majority of acceptors such that every acceptor in C accepted it.
+        <hr class="glitch-taper" />
+        Every acceptor in C has accepted a proposal with number in m..(n − 1),
+        and every proposal with number in m..(n − 1) accepted by any acceptor
+        has value v. Since any set S consisting of a majority of acceptors
+        contains at least one member of C, we can conclude that a proposal
+        numbered n has value v by ensuring that the following invariant is
+        maintained:
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+          >LAMPORT, P. 3 — §2.2</a
+        >
+      </cite>
+    </div>
+
+    <!-- Commentary after subquote 1 -->
+    <p>
+      Lamport here is pulling a rhetorical trick. He has already proved this in
+      Part-Time Parliament so he's asking you to just go with it. Without such
+      context this is actual gibberish it has no weight because he hasn't proven
+      this in this paper, it's a random assortment of values and variables with
+      no weight. The key idea he is stressing is
+      <strong>quorum intersection</strong>: any future majority will overlap
+      with the current majority (C). This guarantees that if a quorum has
+      accepted a value, at least one acceptor in any future quorum “carries”
+      that value forward.
+    </p>
+
+    <!-- Subquote 2: The invariant -->
+    <div class="quote-container">
+      <span class="inscription-label">Invariant (P2c)</span>
+      <blockquote>
+        P2c. For any v and n, if a proposal with value v and number n is issued,
+        then there is a set S consisting of a majority of acceptors such that
+        either (a) no acceptor in S has accepted any proposal numbered less than
+        n, or (b) v is the value of the highest-numbered proposal among all
+        proposals numbered less than n accepted by the acceptors in S.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+          >LAMPORT, P. 3 — §2.2</a
+        >
+      </cite>
+    </div>
+
+    <!-- Commentary after subquote 2 -->
+    <p>
+      What is actually interesting in this that he has no commentary on is S.
+      Consistency is only assured if there is overlap in acceptors between
+      consecutive quorums "S". As soon as you add nodes outside of previous
+      quorums without additional coordination, you lose all guarantees of
+      consistency.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
+  prev_label="Introduction", current_label="Constraints",
+  next_url="/papers/paxos-made-simple/the-problem/requirements",
+  next_label="Requirements" ) }} {% endblock %}
+</div>

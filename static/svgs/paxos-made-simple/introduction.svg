@@ -1,0 +1,43 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="b" width="100" height=".7" patternUnits="userSpaceOnUse">
+      <path stroke="#00ff41" stroke-width=".2" d="M0 0h100"/>
+    </pattern>
+    <pattern id="a" width="1" height="1" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r=".5" fill="#00ff41"/>
+    </pattern>
+    <mask id="d">
+      <path fill="#fff" d="M0 0h100v100H0z"/>
+      <circle cx="2" cy="28" r="3.5"/>
+      <circle cx="18" cy="28" r="3.5"/>
+    </mask>
+    <g id="c">
+      <path stroke="#00ff41" stroke-dasharray="2 1" opacity=".4" d="M4 31.5V65m12-33.5V65"/>
+      <path fill="url(#a)" stroke-width="2" d="M8 32h3v32H8z"/>
+      <path fill="url(#b)" stroke="#00ff41" stroke-width=".5" d="M0 65h20v4H0z"/>
+    </g>
+  </defs>
+  <g transform="translate(8)">
+    <use href="#c"/>
+    <path stroke="#00ff41" stroke-width=".5" fill="url(#b)" d="M2 26h16v4H2z"/>
+  </g>
+  <g transform="translate(40)">
+    <use href="#c"/>
+    <g mask="punchHole">
+      <path fill="url(#b)" stroke="#00ff41" stroke-width=".5" mask="url(#d)" d="M4 26h12v4H4z"/>
+    </g>
+    <circle cx="2" cy="28" r="3" fill="none" stroke="url(#b)"/>
+    <circle cx="18" cy="28" r="3" fill="none" stroke="url(#b)"/>
+    a
+    <circle cx="2" cy="28" r="1.5" fill="url(#b)"/>
+    )&quot; /&gt;
+    <circle cx="18" cy="28" r="1.5" fill="url(#b)"/>
+    )&quot; /&gt;
+  </g>
+  <g transform="translate(72)">
+    <use href="#c"/>
+    <path d="M2 26h16l-3 6H5Z" fill="url(#a)" stroke="#00ff41" stroke-width=".5"/>
+    <path d="M4 32c1-4-4-4-2-8m14 8c-1-4 4-6 1-8" stroke="#00ff41" fill="none" opacity=".8"/>
+    <path fill="#00ff41" opacity=".3" d="M2 24h16v1H2z"/>
+  </g>
+</svg>

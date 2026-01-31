@@ -1,0 +1,126 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} P2 Definition -
+Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {%
+block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/proposer.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">P2</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Base Definition</span>
+      <blockquote>
+        We can allow multiple proposals to be chosen, but we must guarantee that
+        all chosen proposals have the same value. By induction on the proposal
+        number, it suffices to guarantee:
+
+        <hr class="glitch-taper" />
+        P2. If a proposal with value v is chosen, then every higher-numbered
+        proposal that is chosen has value v.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P. 3 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Here he is stating that proposals are part of of an ordered set, if a
+      previous proposal has been accepted then all future values will contain
+      the same value. This is a simplified explanation of the
+      <strong>Consistency</strong> that is defined in Theorem Two of Part-Time
+      Parliament
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Nontriviality</span>
+      <blockquote>
+        Since numbers are totally ordered, condition P2 guarantees the crucial
+        safety property that only a single value is chosen.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P. 3 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This is all he will ever say again about <strong>Nontriviality</strong>.
+      The numbers are what provides the constraints
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Refinement</span>
+      <blockquote>
+        To be chosen, a proposal must be accepted by at least one acceptor. So,
+        we can satisfy P2 by satisfying:
+
+        <hr class="glitch-taper" />
+        P2a . If a proposal with value v is chosen, then every higher-numbered
+        proposal accepted by any acceptor has value v.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=8"
+          target="_blank"
+        >
+          LAMPORT, P. 5 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This refinement provides more clarity to how something is chosen. Lamport
+      is not done though and continues
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Refinement Deux</span>
+      <blockquote>
+        Because communication is asynchronous, a proposal could be chosen with
+        some particular acceptor c never having received any proposal. Suppose a
+        new proposer “wakes up” and issues a higher-numbered proposal with a
+        different value. P1 requires c to accept this proposal, violating P2a .
+        Maintaining both P1 and P2a requires strengthening P2a to:
+        <hr class="glitch-taper" />
+        P2b. If a proposal with value v is chosen, then every higher-numbered
+        proposal issued by any proposer has value v.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=8"
+          target="_blank"
+        >
+          LAMPORT, P. 5 — §2.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This is just a half step. He's trying to explain his thought pattern but
+      this mostly causes the explanation to be convoluted. He continues next
+      with another refinement into P2C
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
+  prev_label="Introduction", current_label="Constraints",
+  next_url="/papers/paxos-made-simple/the-problem/requirements",
+  next_label="Requirements" ) }} {% endblock %}
+</div>
