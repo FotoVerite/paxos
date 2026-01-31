@@ -75,6 +75,11 @@ pub enum Event {
         ballot: usize,
         learned_count: usize,
     },
+    NodeCapabilities {
+        id: NodeId,
+        roles: Vec<String>,
+        learning_strategy: String,
+    },
     // Message passing events for visualization
     MessageSent {
         from: NodeId,

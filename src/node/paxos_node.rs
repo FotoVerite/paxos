@@ -12,6 +12,7 @@ use crate::{
     message::Message,
     monitor::PaxosObserver,
     node::{
+        config::NodeConfig,
         inflight_proposals::{InflightProposal, InflightProposals},
         paxos_state::paxos_state::PaxosState,
     },
@@ -33,6 +34,8 @@ impl PaxosNode {
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
         quorum: usize,
+        config: NodeConfig,
+        topology: crate::node::peer_topology::PeerTopology,
     ) -> anyhow::Result<Self> {
         let inflight_proposals = Arc::new(InflightProposals::new());
         Ok(Self {
@@ -47,6 +50,8 @@ impl PaxosNode {
                     peers,
                     Arc::clone(&inflight_proposals),
                     observer,
+                    config,
+                    topology,
                 )
                 .await?,
             ),

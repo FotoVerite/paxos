@@ -19,7 +19,7 @@ use crate::{
 pub struct Learner {
     id: NodeId,
     quorum_number: usize,
-    decree_notes: Arc<Mutex<DecreeNotes>>,
+    decree_notes: Option<Arc<Mutex<DecreeNotes>>>,
     state: Decrees,
 
     observer: Arc<dyn PaxosObserver>,
@@ -29,7 +29,7 @@ impl Learner {
     pub fn new(
         id: NodeId,
         quorum_number: usize,
-        decree_notes: Arc<Mutex<DecreeNotes>>,
+        decree_notes: Option<Arc<Mutex<DecreeNotes>>>,
         observer: Arc<dyn PaxosObserver>,
     ) -> Self {
         Self {
@@ -49,15 +49,17 @@ impl Learner {
                 ballot,
                 value,
             } => {
-                let mut decree_notes = self.decree_notes.lock().await;
-                let notes = decree_notes
-                    .state
-                    .entry(decree_num)
-                    .or_insert(DecreeNote::new(self.id));
-                if ballot != notes.last_tried {
-                    return Message::NACK;
+                // Only check lastTried if we have decree_notes (proposer+learner node)
+                if let Some(decree_notes_arc) = &self.decree_notes {
+                    let decree_notes = decree_notes_arc.lock().await;
+                    if let Some(notes) = decree_notes.state.get(&decree_num) {
+                        if ballot != notes.last_tried {
+                            // Proposer+Learner: only count votes for our own ballots
+                            return Message::NACK;
+                        }
+                    }
                 }
-                drop(decree_notes);
+                // Pure learners (no decree_notes) count all ballots
 
                 return self
                     .state

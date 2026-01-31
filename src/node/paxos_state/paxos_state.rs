@@ -1,5 +1,5 @@
-use std::{sync::Arc};
-use tokio::{sync::Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
@@ -8,7 +8,9 @@ use crate::{
     message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
+        config::{NodeConfig, LearningStrategy},
         inflight_proposals::{InflightProposal, InflightProposals},
+        message_router::{MessageRouter, RoutingDecision},
         paxos_state::{
             acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, ledger::Ledger,
             proposer::proposer::Proposer,
@@ -19,12 +21,14 @@ use crate::{
 
 pub struct PaxosState {
     id: NodeId,
-    proposer: Proposer,
-    acceptor: Acceptor,
-    learner: Learner,
+    proposer: Option<Proposer>,
+    acceptor: Option<Acceptor>,
+    learner: Option<Learner>,
     ledger: Ledger,
     peers: Arc<NetworkSimulator>,
     inflight_proposals: Arc<InflightProposals>,
+    router: MessageRouter,
+    observer: Arc<dyn PaxosObserver>,
 }
 
 impl PaxosState {
@@ -35,23 +39,69 @@ impl PaxosState {
         peers: Arc<NetworkSimulator>,
         inflight_proposals: Arc<InflightProposals>,
         observer: Arc<dyn PaxosObserver>,
+        config: NodeConfig,
+        topology: crate::node::peer_topology::PeerTopology,
     ) -> anyhow::Result<Self> {
         let ledger = Ledger::init(id, uuid).await?;
         let decree_notes = Arc::new(Mutex::new(DecreeNotes::load_or_init(uuid).await?));
-        let state = Self {
-            id,
-            proposer: Proposer::new(
+
+        let proposer = if config.roles.proposer {
+            Some(Proposer::new(
                 id,
                 uuid,
                 quorum,
                 Arc::clone(&decree_notes),
                 Arc::clone(&observer),
-            ),
-            acceptor: Acceptor::new(id, uuid, Arc::clone(&observer)).await?,
-            learner: Learner::new(id, quorum, Arc::clone(&decree_notes), Arc::clone(&observer)),
+            ))
+        } else {
+            None
+        };
+
+        let acceptor = if config.roles.acceptor {
+            Some(Acceptor::new(id, uuid, Arc::clone(&observer)).await?)
+        } else {
+            None
+        };
+
+        // Learner gets decree_notes only if node has proposer role
+        let learner_decree_notes = if config.roles.proposer {
+            Some(Arc::clone(&decree_notes))
+        } else {
+            None
+        };
+
+        let learner = if config.roles.learner {
+            Some(Learner::new(id, quorum, learner_decree_notes, Arc::clone(&observer)))
+        } else {
+            None
+        };
+
+        // Emit capabilities event
+        let mut roles_str = Vec::new();
+        if config.roles.proposer { roles_str.push("Proposer".to_string()); }
+        if config.roles.acceptor { roles_str.push("Acceptor".to_string()); }
+        if config.roles.learner { roles_str.push("Learner".to_string()); }
+
+        observer.on_event(Event::NodeCapabilities {
+            id,
+            roles: roles_str,
+            learning_strategy: format!("{:?}", config.learning_strategy),
+        });
+
+        // Create message router
+        use crate::node::message_router::MessageRouter;
+        let router = MessageRouter::new(config.learning_strategy.clone(), topology);
+
+        let state = Self {
+            id,
+            proposer,
+            acceptor,
+            learner,
             ledger,
             peers,
             inflight_proposals,
+            router,
+            observer,
         };
         Ok(state)
     }
@@ -61,14 +111,24 @@ impl PaxosState {
             Some(num) => num,
             None => self.next().await,
         };
-        let msg = self.proposer.propose(num, cmd.clone()).await;
-        self.peers.broadcast(msg).await;
-        self.inflight_proposals.insert(num, cmd.clone()).await
+
+        if let Some(proposer) = &self.proposer {
+            let msg = proposer.propose(num, cmd.clone()).await;
+            self.peers.broadcast(msg).await;
+            self.inflight_proposals.insert(num, cmd.clone()).await
+        } else {
+            tracing::warn!("[Node {}] Attempted to propose without Proposer role", self.id);
+            // Return a dummy inflight proposal or handle error appropriately.
+            // For now, we'll insert it but nothing will happen network-wise.
+            self.inflight_proposals.insert(num, cmd.clone()).await
+        }
     }
 
     pub async fn retry_proposal(&self, inflight: InflightProposal)  {
-        let msg = self.proposer.propose(inflight.decree_num, inflight.cmd.clone()).await;
-        self.peers.broadcast(msg).await;
+        if let Some(proposer) = &self.proposer {
+            let msg = proposer.propose(inflight.decree_num, inflight.cmd.clone()).await;
+            self.peers.broadcast(msg).await;
+        }
     }
 
     pub async fn next(&self) -> DecreeId {
@@ -81,50 +141,70 @@ impl PaxosState {
 
     pub async fn handle_message(&self, msg: Message) {
         match msg {
-            Message::Promise { .. } => {
-                tracing::debug!("[Node {}] Handling Promise message", self.id);
-                let reply = self.proposer.handle_message(msg).await;
-                self.peers.broadcast(reply).await;
+            Message::Promise { from, .. } => {
+                if let Some(proposer) = &self.proposer {
+                    tracing::debug!("[Node {}] Handling Promise message", self.id);
+                    let reply = proposer.handle_message(msg).await;
+                    self.dispatch(&reply, from).await;
+                }
             }
             Message::Prepare { from, .. } | Message::Accept { from, .. } => {
-                tracing::debug!(
-                    "[Node {}] Handling Prepare/Accept from node {}",
-                    self.id,
-                    from
-                );
-                let reply = self.acceptor.handle_message(msg).await;
-                if let Message::Accepted { .. } = &reply {
-                    tracing::debug!(
-                        "[Node {}] Acceptor replied with Accepted, sending back to {}",
+                if let Some(acceptor) = &self.acceptor {
+                     tracing::debug!(
+                        "[Node {}] Handling Prepare/Accept from node {}",
                         self.id,
                         from
                     );
-                } else {
-                    tracing::debug!("[Node {}] Acceptor replied with NACK", self.id);
+                    let reply = acceptor.handle_message(msg).await;
+                    self.dispatch(&reply, from).await;
                 }
-                self.peers.send(from, reply).await;
             }
-            Message::Accepted { .. } => {
-                tracing::debug!("[Node {}] Handling Accepted message", self.id);
-                let reply = self.learner.handle_message(msg, &self.ledger).await;
-                if let Message::Success { .. } = &reply {
-                    tracing::debug!(
-                        "[Node {}] Learner reached quorum, broadcasting Success",
-                        self.id
-                    );
-                    self.peers.broadcast(reply).await;
-                } else {
-                    tracing::debug!("[Node {}] Learner did not reach quorum yet", self.id);
+            Message::Accepted { from, .. } => {
+                if let Some(learner) = &self.learner {
+                    tracing::debug!("[Node {}] Handling Accepted message", self.id);
+                    let reply = learner.handle_message(msg, &self.ledger).await;
+                    if let Message::Success { .. } = &reply {
+                        tracing::debug!(
+                            "[Node {}] Learner reached quorum, broadcasting Success",
+                            self.id
+                        );
+                        self.dispatch(&reply, from).await;
+                    } 
                 }
             }
             Message::Success { decree_num, .. } => {
-                tracing::debug!("[Node {}] Handling Success message", self.id);
-                self.learner.learn_decree(msg, &self.ledger).await;
+               if let Some(learner) = &self.learner {
+                    tracing::debug!("[Node {}] Handling Success message", self.id);
+                    learner.learn_decree(msg, &self.ledger).await;
+               }
+                // Proposers also need to clean up inflight proposals
                 self.inflight_proposals.cancel(decree_num).await
             }
             _ => {
                 tracing::debug!("[Node {}] Ignoring unhandled message type", self.id);
             }
+        }
+    }
+    
+    async fn dispatch(&self, msg: &Message, from: NodeId) {
+        if let Message::NACK = msg {
+            return;
+        }
+
+        let decision = self.router.route_response(msg, from);
+        match decision {
+            RoutingDecision::Broadcast => {
+                self.peers.broadcast(msg.clone()).await;
+            }
+            RoutingDecision::SendTo(to) => {
+                self.peers.send(to, msg.clone()).await;
+            }
+            RoutingDecision::SendToMany(nodes) => {
+                for node in nodes {
+                    self.peers.send(node, msg.clone()).await;
+                }
+            }
+            RoutingDecision::Drop => {}
         }
     }
 

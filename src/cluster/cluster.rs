@@ -8,7 +8,7 @@ use std::collections::HashSet;
 
 use crate::{
     cluster::network_simulator::{NetworkFailure, NetworkSimulator},
-    common::types::{DecreeId, NodeId}, message::Message, monitor::PaxosObserver, node::paxos_node::PaxosNode, paxos_command::PaxosCommand
+    common::types::{DecreeId, NodeId}, message::Message, monitor::PaxosObserver, node::{config::NodeConfig, paxos_node::PaxosNode}, paxos_command::PaxosCommand
 };
 
 pub struct Cluster {
@@ -20,7 +20,46 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub async fn new(id: usize, ip: IpAddr, total_number: usize, observer: Arc<dyn PaxosObserver>) -> anyhow::Result<Self> {
+    pub async fn new(
+        id: usize,
+        ip: IpAddr,
+        total_number: usize,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> anyhow::Result<Self> {
+        // Default: all nodes have all roles
+        let configs = vec![NodeConfig::default(); total_number];
+        Self::new_with_configs(id, ip, configs, observer).await
+    }
+
+    pub async fn new_with_configs(
+        id: usize,
+        ip: IpAddr,
+        configs: Vec<NodeConfig>,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> anyhow::Result<Self> {
+        let total_number = configs.len();
+        
+        // Build role-aware peer lists
+        let acceptor_ids: Vec<NodeId> = configs
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.roles.acceptor)
+            .map(|(i, _)| NodeId(i))
+            .collect();
+        
+        let learner_ids: Vec<NodeId> = configs
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.roles.learner)
+            .map(|(i, _)| NodeId(i))
+            .collect();
+        
+        use crate::node::peer_topology::PeerTopology;
+        let topology = PeerTopology::new(acceptor_ids.clone(), learner_ids);
+        
+        // Calculate quorum based on acceptor count
+        let quorum = acceptor_ids.len() / 2 + 1;
+
         let mut peers = Vec::<Sender<Message>>::with_capacity(total_number);
         let mut receivers = Vec::<Receiver<Message>>::with_capacity(total_number);
         for _ in 0..total_number {
@@ -32,7 +71,7 @@ impl Cluster {
         let mut nodes = Vec::new();
         let mut simulators = Vec::new();
 
-        for (i, rx) in receivers.into_iter().enumerate() {
+        for (i, (rx, config)) in receivers.into_iter().zip(configs.into_iter()).enumerate() {
             let simulator = Arc::new(NetworkSimulator::new(NodeId(i), peers.clone()));
             simulators.push(Arc::clone(&simulator));
 
@@ -45,7 +84,9 @@ impl Cluster {
                 rx,
                 Arc::clone(&observer),
                 simulator,
-                total_number / 2 + 1
+                quorum,
+                config,
+                topology.clone(),
             ).await?;
             nodes.push(node);
         }

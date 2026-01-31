@@ -155,6 +155,20 @@ impl PaxosObserver for ConsoleObserver {
             Event::InitialDecree {
                ..
             } => {},
+            Event::NodeCapabilities {
+                id,
+                roles,
+                learning_strategy,
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[NODE {}] Capabilities: roles={:?}, strategy={}",
+                        id, roles, learning_strategy
+                    )
+                    .purple()
+                );
+            }
         }
     }
 }
