@@ -1,7 +1,6 @@
 use axum::{
     Router,
-    routing::{get, post, MethodRouter},
-    response::Redirect,
+    routing::{get, post},
 };
 use std::net::SocketAddr;
 use tower_http::services::{ServeDir, ServeFile};
@@ -10,7 +9,7 @@ use tracing::info;
 
 use super::handlers::{
     AppState, scenario::*, websocket::websocket_handler,
-    tera_handler::paxos_handler,
+    paxos_handler, paxos_made_simple_handler,
 };
 use super::papers;
 
@@ -51,6 +50,17 @@ pub async fn run_web_server() {
         .route_service("/websocket-helper.js", ServeFile::new("static/websocket-helper.js"))
         .route_service("/scenario-loader.js", ServeFile::new("static/scenario-loader.js"))
         .route_service("/animated-nodes.js", ServeFile::new("static/animated-nodes.js"))
+        
+        // Refactored modules
+        .route_service("/demo-state.js", ServeFile::new("static/demo-state.js"))
+        .route_service("/event-visualizers.js", ServeFile::new("static/event-visualizers.js"))
+        .route_service("/scenario-helpers.js", ServeFile::new("static/scenario-helpers.js"))
+        .route_service("/event-queue.js", ServeFile::new("static/event-queue.js"))
+
+        // Pms Handler
+        .route("/paxos-made-simple", get(|s| paxos_made_simple_handler(None, s)))
+        .route("/paxos-made-simple/", get(|s| paxos_made_simple_handler(None, s)))
+        .route("/paxos-made-simple/*path", get(paxos_made_simple_handler))
 
         // Fallback to Tera Handler for everything else (Pages)
         // This catches /, /overview, /whitepapers, etc.

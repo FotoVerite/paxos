@@ -17,6 +17,7 @@ pub struct Cluster {
     pub nodes: Vec<PaxosNode>,
     _observer: Arc<dyn PaxosObserver>,
     simulators: Vec<Arc<NetworkSimulator>>,
+    quorum_size: usize,
 }
 
 impl Cluster {
@@ -97,6 +98,7 @@ impl Cluster {
             nodes,
             _observer: Arc::clone(&observer),
             simulators,
+            quorum_size: quorum,
         })
     }
 
@@ -105,7 +107,7 @@ impl Cluster {
     }
 
     pub fn quorum_size(&self) -> usize {
-        return self.total_number / 2 + 1;
+        return self.quorum_size;
     }
 
     pub fn get_simulator(&self, node_id: NodeId) -> Option<&Arc<NetworkSimulator>> {

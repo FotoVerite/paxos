@@ -15,11 +15,13 @@ class PaxosVisualizer {
         this.nodeCircleRadius = options.nodeCircleRadius || 20;
         this.nodeCount = 0;
         this.clusterInfo = null;
+        this.layoutMode = options.layoutMode || 'circle'; // 'circle' or 'role-grouped'
 
         // State
         this.nodeElements = {};
         this.center = { x: 0, y: 0 };
         this.eventCounts = {};
+        this.nodeCapabilities = {}; // Store role info per node
 
         // Event colors - customizable
         this.eventColors = options.eventColors || {
@@ -71,23 +73,60 @@ class PaxosVisualizer {
     }
 
     /**
-     * Render the cluster visualization with nodes arranged in a circle
+     * Set the layout mode and re-render
+     * @param {string} mode - 'circle' or 'role-grouped'
+     */
+    setLayoutMode(mode) {
+        this.layoutMode = mode;
+        if (this.clusterInfo) {
+            this.render(this.clusterInfo);
+        }
+    }
+
+    /**
+     * Set node capabilities for role-aware visualization
+     */
+    setNodeCapabilities(nodeId, roles, learningStrategy) {
+        this.nodeCapabilities[nodeId] = { roles, learningStrategy };
+    }
+
+    /**
+     * Get color based on node roles
+     * Full (3 roles): blue
+     * Acceptor only: orange
+     * Proposer only: purple
+     * Learner only: green
+     * Mixed (2 roles): gray
+     */
+    getColorForRoles(roles) {
+        if (!roles || roles.length === 0) return '#3b82f6'; // default blue
+        if (roles.length === 3) return '#3b82f6'; // full roles - blue
+        if (roles.length === 1) {
+            const role = roles[0];
+            if (role === 'Acceptor') return '#f59e0b';  // orange
+            if (role === 'Proposer') return '#8b5cf6';  // purple
+            if (role === 'Learner') return '#10b981';   // green
+        }
+        return '#6b7280'; // gray for mixed 2-role nodes
+    }
+
+    /**
+     * Render the cluster visualization
      * @param {Object} clusterInfo - Cluster information including total_nodes
      */
     render(clusterInfo) {
         this.clusterInfo = clusterInfo;
         this.nodeCount = clusterInfo.total_nodes;
 
-        // Check if we already have the right number of nodes
-        if (Object.keys(this.nodeElements).length === this.nodeCount) {
-            return; // Already rendered, don't re-render and clear beams
-        }
+        this.nodeCount = clusterInfo.total_nodes;
+
+        // Clear existing
 
         // Clear existing
         this.svg.innerHTML = '';
         this.nodeElements = {};
         this.eventCounts = {};
-        
+
         // Re-add defs
         this.setupSVG();
 
@@ -106,12 +145,14 @@ class PaxosVisualizer {
         const beamsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         beamsLayer.setAttribute('id', 'paxos-beams');
         this.svg.appendChild(beamsLayer);
-        
-        // Ring (optional decorative circle)
-        this.drawRing();
 
-        // Place nodes around the circle
-        this.placeNodes();
+        // Ring and node placement based on layout mode
+        if (this.layoutMode === 'circle') {
+            this.drawRing();
+            this.placeNodesCircle();
+        } else {
+            this.placeNodesRoleGrouped();
+        }
     }
 
     drawRing() {
@@ -139,7 +180,14 @@ class PaxosVisualizer {
         this.svg.appendChild(glow);
     }
 
-    placeNodes() {
+    placeNodesCircle() {
+        // Initialize capabilities if empty
+        if (Object.keys(this.nodeCapabilities).length === 0) {
+            for (let i = 0; i < this.nodeCount; i++) {
+                this.nodeCapabilities[i] = { roles: ['Proposer', 'Acceptor', 'Learner'] };
+            }
+        }
+
         const angleStep = (Math.PI * 2) / this.nodeCount;
 
         for (let i = 0; i < this.nodeCount; i++) {
@@ -163,12 +211,13 @@ class PaxosVisualizer {
             glowRing.setAttribute('class', 'paxos-node-glow');
             group.appendChild(glowRing);
 
-            // Main circle
+            // Main circle - color by roles
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', x);
             circle.setAttribute('cy', y);
             circle.setAttribute('r', this.nodeCircleRadius);
-            circle.setAttribute('fill', '#3b82f6');
+            const roleColor = this.getColorForRoles(this.nodeCapabilities[i]?.roles);
+            circle.setAttribute('fill', roleColor);
             circle.setAttribute('stroke', '#1e40af');
             circle.setAttribute('stroke-width', '2');
             circle.setAttribute('class', 'paxos-node-circle');
@@ -207,6 +256,187 @@ class PaxosVisualizer {
         }
     }
 
+    placeNodesRoleGrouped() {
+        const groups = {
+            proposers: [],
+            acceptors: [],
+            learners: []
+        };
+
+        for (let i = 0; i < this.nodeCount; i++) {
+            const caps = this.nodeCapabilities[i] || { roles: ['Proposer', 'Acceptor', 'Learner'] };
+            if (caps.roles.includes('Proposer')) groups.proposers.push(i);
+            if (caps.roles.includes('Acceptor')) groups.acceptors.push(i);
+            if (caps.roles.includes('Learner')) groups.learners.push(i);
+        }
+
+        const sectionHeight = 160;
+        const startY = 80;
+
+        this.placeRoleGrid(groups.proposers, startY, 'PROPOSERS', '#60a5fa');
+        this.placeRoleGrid(groups.acceptors, startY + sectionHeight, 'ACCEPTORS', '#f59e0b');
+        this.placeRoleGrid(groups.learners, startY + sectionHeight * 2, 'LEARNERS', '#10b981');
+    }
+
+    placeRoleGrid(nodeIds, startY, label, color) {
+        const nodesPerRow = 8;
+        const nodeSpacing = 80;
+        const rowHeight = 90;
+        const startX = 100;
+
+        // Section label
+        const sectionLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        sectionLabel.setAttribute('x', 20);
+        sectionLabel.setAttribute('y', startY - 20);
+        sectionLabel.setAttribute('fill', color);
+        sectionLabel.setAttribute('font-weight', 'bold');
+        sectionLabel.setAttribute('font-size', '14');
+        sectionLabel.textContent = label;
+        this.svg.appendChild(sectionLabel);
+
+        // Grid line
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', 20);
+        line.setAttribute('y1', startY - 10);
+        line.setAttribute('x2', this.svg.getBoundingClientRect().width - 20);
+        line.setAttribute('y2', startY - 10);
+        line.setAttribute('stroke', color);
+        line.setAttribute('stroke-width', '1');
+        line.setAttribute('opacity', '0.3');
+        this.svg.appendChild(line);
+
+        nodeIds.forEach((nodeId, index) => {
+            const col = index % nodesPerRow;
+            const row = Math.floor(index / nodesPerRow);
+            const x = startX + col * nodeSpacing;
+            const y = startY + row * rowHeight;
+
+            this.drawNode(nodeId, x, y, color);
+        });
+    }
+
+    drawNode(nodeId, x, y, color) {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.setAttribute('id', `paxos-node-${nodeId}`);
+        group.setAttribute('data-node-id', nodeId);
+
+        // Determine node color based on roles
+        const caps = this.nodeCapabilities[nodeId];
+        let nodeFill = '#3b82f6'; // Default Blue
+        let nodeStroke = '#1e40af';
+
+        if (caps) {
+            const roles = caps.roles;
+            if (roles.includes('Proposer') && roles.includes('Acceptor') && roles.includes('Learner')) {
+                nodeFill = '#6366f1'; // Indigo for full nodes
+                nodeStroke = '#4338ca';
+            } else if (roles.includes('Proposer')) {
+                nodeFill = '#3b82f6'; // Blue
+                nodeStroke = '#1e40af';
+            } else if (roles.includes('Acceptor')) {
+                nodeFill = '#f59e0b'; // Amber
+                nodeStroke = '#b45309';
+            } else if (roles.includes('Learner')) {
+                nodeFill = '#10b981'; // Emerald
+                nodeStroke = '#047857';
+            }
+        }
+
+        // Color can be overridden by param (used in Grid layout sections)
+        if (color && this.layoutMode === 'role-grouped') {
+            nodeFill = color;
+            nodeStroke = color;
+        }
+
+        // Node circle
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', this.nodeCircleRadius);
+        circle.setAttribute('fill', nodeFill);
+        circle.setAttribute('stroke', nodeStroke);
+        circle.setAttribute('stroke-width', '2');
+        circle.setAttribute('class', 'paxos-node-circle');
+        circle.setAttribute('data-base-color', nodeFill); // Store for later restoration
+        group.appendChild(circle);
+
+        // Label
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x);
+        text.setAttribute('y', y);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'middle');
+        text.setAttribute('fill', '#fff');
+        text.setAttribute('font-weight', 'bold');
+        text.setAttribute('font-size', '12');
+        text.textContent = nodeId;
+        group.appendChild(text);
+
+        // State text
+        const stateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        stateText.setAttribute('x', x);
+        stateText.setAttribute('y', y + 30);
+        stateText.setAttribute('text-anchor', 'middle');
+        stateText.setAttribute('fill', '#94a3b8');
+        stateText.setAttribute('font-size', '9');
+        stateText.setAttribute('class', 'paxos-node-state');
+        stateText.textContent = '--';
+        group.appendChild(stateText);
+
+        // Render role badges
+        this.renderNodeBadges(group, x, y, nodeId);
+
+        this.svg.appendChild(group);
+        this.nodeElements[nodeId] = { x, y, element: group };
+
+        if (!this.eventCounts[nodeId]) {
+            this.eventCounts[nodeId] = {};
+        }
+    }
+
+    renderNodeBadges(group, x, y, nodeId) {
+        const caps = this.nodeCapabilities[nodeId] || { roles: ['Proposer', 'Acceptor', 'Learner'] };
+        const badgeY = y - 38;
+        const badgeSize = 16;
+        const badgeSpacing = 18;
+
+        const roles = [
+            { id: 'Proposer', label: 'P', color: '#60a5fa' },
+            { id: 'Acceptor', label: 'A', color: '#f59e0b' },
+            { id: 'Learner', label: 'L', color: '#10b981' }
+        ];
+
+        let activeRoles = roles.filter(r => caps.roles.includes(r.id));
+        const totalWidth = activeRoles.length * badgeSpacing;
+        let startX = x - totalWidth / 2 + badgeSize / 2;
+
+        activeRoles.forEach((role, i) => {
+            const rx = startX + i * badgeSpacing;
+
+            const badge = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            badge.setAttribute('x', rx - badgeSize / 2);
+            badge.setAttribute('y', badgeY - badgeSize / 2);
+            badge.setAttribute('width', badgeSize);
+            badge.setAttribute('height', badgeSize);
+            badge.setAttribute('fill', role.color);
+            badge.setAttribute('stroke', '#0f172a');
+            badge.setAttribute('stroke-width', '1');
+            badge.setAttribute('rx', 3);
+            group.appendChild(badge);
+
+            const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            badgeText.setAttribute('x', rx);
+            badgeText.setAttribute('y', badgeY);
+            badgeText.setAttribute('text-anchor', 'middle');
+            badgeText.setAttribute('dominant-baseline', 'middle');
+            badgeText.setAttribute('fill', '#fff');
+            badgeText.setAttribute('font-size', '11');
+            badgeText.setAttribute('font-weight', 'bold');
+            badgeText.textContent = role.label;
+            group.appendChild(badgeText);
+        });
+    }
+
     /**
      * Activate a node with a flash animation
      * @param {number} nodeId - Node ID to activate
@@ -227,7 +457,8 @@ class PaxosVisualizer {
 
         // Return to default
         setTimeout(() => {
-            circle.setAttribute('fill', '#3b82f6');
+            const baseColor = circle.getAttribute('data-base-color') || '#3b82f6';
+            circle.setAttribute('fill', baseColor);
             circle.style.filter = '';
             glow.setAttribute('stroke', '#60a5fa');
             glow.setAttribute('opacity', '0');
@@ -345,7 +576,7 @@ class PaxosVisualizer {
             }
 
             let beamsLayer = document.getElementById('paxos-beams');
-            
+
             // Create beams layer if it doesn't exist
             if (!beamsLayer) {
                 beamsLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -358,17 +589,17 @@ class PaxosVisualizer {
                     this.svg.appendChild(beamsLayer);
                 }
             }
-            
+
             // Calculate control point for bezier curve (offset perpendicular to line)
             const dx = to.x - from.x;
             const dy = to.y - from.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+            const dist = Math.sqrt(dx * dx + dy * dy);
             const perpX = -dy / dist;
             const perpY = dx / dist;
             const curveOffset = 40 + ((fromId * 7 + toId * 11) % 30); // Varying curve for different beam pairs
-            const controlX = from.x + dx/2 + perpX * curveOffset;
-            const controlY = from.y + dy/2 + perpY * curveOffset;
-            
+            const controlX = from.x + dx / 2 + perpX * curveOffset;
+            const controlY = from.y + dy / 2 + perpY * curveOffset;
+
             // Create animated path (quadratic bezier)
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('stroke', color);
@@ -379,16 +610,16 @@ class PaxosVisualizer {
 
             // Set the full bezier path
             path.setAttribute('d', `M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`);
-            
+
             // Calculate path length for stroke-dasharray animation
             const pathLength = path.getTotalLength();
-            
+
             // All patterns animate the same way (draw from source to target)
             // Pattern styling applied after animation completes
             path.dataset.pattern = pattern;
             path.setAttribute('stroke-dasharray', pathLength);
             path.setAttribute('stroke-dashoffset', pathLength);
-            
+
             beamsLayer.appendChild(path);
 
             // Animate beam with duration control
@@ -397,19 +628,19 @@ class PaxosVisualizer {
             const animationInterval = setInterval(() => {
                 timeElapsed += 30;
                 progress = Math.min(1, timeElapsed / duration);
-                
+
                 if (progress >= 1) {
                     progress = 1;
                     clearInterval(animationInterval);
                     path.setAttribute('stroke-dashoffset', 0);
-                    
+
                     // Apply pattern styling after animation completes
                     if (path.dataset.pattern === 'dashed') {
                         path.setAttribute('stroke-dasharray', '8,4');
                     } else if (path.dataset.pattern === 'dotted') {
                         path.setAttribute('stroke-dasharray', '2,3');
                     }
-                    
+
                     // Keep beam visible for a bit longer
                     setTimeout(() => {
                         // Fade out
@@ -441,7 +672,7 @@ class PaxosVisualizer {
     setNodeState(nodeId, state) {
         const element = this.nodeElements[nodeId];
         if (!element) return;
-        
+
         const stateText = element.element.querySelector('.paxos-node-state');
         if (stateText) {
             stateText.textContent = state;

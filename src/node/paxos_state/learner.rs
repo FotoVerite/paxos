@@ -10,7 +10,7 @@ use crate::{
     message::Message,
     monitor::{Event, PaxosObserver},
     node::paxos_state::{
-        decree_notes::{DecreeNote, DecreeNotes},
+        decree_notes::DecreeNotes,
         learner::decrees::Decrees,
         ledger::Ledger,
     },
@@ -41,7 +41,7 @@ impl Learner {
         }
     }
 
-    pub async fn handle_message(&self, msg: Message, _ledger: &Ledger) -> Message {
+    pub async fn handle_message(&self, msg: Message, ledger: &Ledger) -> Message {
         match msg {
             Message::Accepted {
                 from,
@@ -61,7 +61,7 @@ impl Learner {
                 }
                 // Pure learners (no decree_notes) count all ballots
 
-                return self
+                let reply = self
                     .state
                     .add_vote(
                         self.id,
@@ -70,9 +70,42 @@ impl Learner {
                         ballot,
                         self.quorum_number,
                         Arc::clone(&self.observer),
-                        value,
+                        value.clone(),
                     )
                     .await;
+                
+                // When quorum is reached locally, emit Success event and insert into ledger
+                // Note: the Success message will also be broadcast, but learn_decree will
+                // deduplicate by checking if already in ledger
+                if let Message::Success {
+                    decree_num: success_decree_num,
+                    value: success_value,
+                    ..
+                } = &reply {
+                    if ledger.insert(*success_decree_num, success_value.clone()).await {
+                        // Only emit if this is the first insertion
+                        self.observer.on_event(Event::Success {
+                            decree_num: *success_decree_num,
+                            from: self.id,
+                            id: self.id,
+                            value: success_value.clone(),
+                            created_at: crate::monitor::current_timestamp_millis(),
+                        });
+                        self.observer.on_event(Event::LearnedValue {
+                            decree_num: *success_decree_num,
+                            id: self.id,
+                            value: success_value.clone(),
+                            created_at: crate::monitor::current_timestamp_millis(),
+                        });
+                        tracing::info!(
+                            "[Node {}] Reached quorum for decree {}",
+                            self.id,
+                            success_decree_num
+                        );
+                    }
+                }
+                
+                return reply;
             }
             _ => return Message::NACK,
         }

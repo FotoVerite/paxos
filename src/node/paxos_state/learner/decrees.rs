@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use crate::{
     common::types::{DecreeId, NodeId},
     message::Message,
-    monitor::{Event, PaxosObserver},
+    monitor::PaxosObserver,
     node::paxos_state::{ballot::Ballot, learner::learner_quorum::LearnerQuorum},
     paxos_command::PaxosCommand,
 };
@@ -28,7 +28,7 @@ impl Decrees {
         decree_num: DecreeId,
         ballot: Ballot,
         quorum_size: usize,
-        observer: Arc<dyn PaxosObserver>,
+        _observer: Arc<dyn PaxosObserver>,
         value: PaxosCommand,
     ) -> Message {
         let mut decrees = self.decrees.lock().await;
@@ -38,8 +38,8 @@ impl Decrees {
             .entry(decree_num)
             .or_insert_with(|| LearnerQuorum::new(quorum_size, ballot));
         quorum.add_vote(from, ballot);
+        
         if quorum.has_met_quorum() {
-
             tracing::info!(
                 "[Node {}] Learner reached quorum for decree {}: {:?} from proposer {} (votes: {:?})",
                 id,

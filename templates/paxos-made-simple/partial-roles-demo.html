@@ -1,0 +1,287 @@
+{% extends "paxos/base.html" %} {% block title %}Partial Roles Demo - Paxos Made Simple{% endblock %}
+{% block body_class %}protocol-page{% endblock %}
+{% block content %}
+<div class="demo-container partial-roles-demo">
+    <!-- Visualization -->
+    <div class="visualization-main">
+        <div id="topologyPanel" class="topology-info-panel">
+            <h3>Topology</h3>
+            <div id="topologyDetails">Loading topology...</div>
+            <div class="layout-toggle">
+                <button id="circleLayoutBtn" class="btn-compact active">Circle</button>
+                <button id="gridLayoutBtn" class="btn-compact">Grouped</button>
+            </div>
+            
+            <div class="role-legend">
+                <div class="legend-title">Node Colors</div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #3b82f6;"></div>
+                    <span>All Roles (P/A/L)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f59e0b;"></div>
+                    <span>Acceptor Only</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #8b5cf6;"></div>
+                    <span>Proposer Only</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #10b981;"></div>
+                    <span>Learner Only</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #6b7280;"></div>
+                    <span>Mixed (2 roles)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="viz-svg-container">
+            <svg id="partialRolesSvg"></svg>
+        </div>
+
+        <div id="decree-viewer" class="floating-decree-viewer">
+            <div id="proposalStatsContainer"></div>
+            <div id="decreePanel"></div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-section">
+        <div class="control-grid">
+            <div class="control-group">
+                <h3>Scenario</h3>
+                <select id="scenarioSelect" disabled>
+                    <option value="partial_roles" selected>Partial Roles (9 nodes)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <h3>Speed</h3>
+                <div class="speed-control">
+                    <input type="range" id="speed" value="0.75" min="0.25" max="2" step="0.25" />
+                    <span id="speedValue">0.75x</span>
+                </div>
+            </div>
+            <div class="button-group">
+                <button id="playBtn" class="btn-primary">Play</button>
+                <button id="pauseBtn" class="btn-secondary" disabled>Pause</button>
+                <button id="resetBtn" class="btn-secondary">Reset</button>
+            </div>
+        </div>
+
+        <!-- Status Info -->
+        <div class="status-info">
+            <div id="statusTitle">Ready</div>
+            <div id="statusDescription">Experience role-aware routing in a heterogeneous cluster.</div>
+        </div>
+    </div>
+
+    <div class="stats-and-logs">
+        <!-- Stats -->
+        <div class="stats-section">
+            <h3>Protocol Events</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="nextBallotCount">0</div>
+                    <div class="stat-label">NextBallot</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="lastVoteCount">0</div>
+                    <div class="stat-label">LastVote</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="beginBallotCount">0</div>
+                    <div class="stat-label">BeginBallot</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="votedCount">0</div>
+                    <div class="stat-label">Voted</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="learnedCount">0</div>
+                    <div class="stat-label">Learned</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Log -->
+        <div class="event-log-section">
+            <h3>Event Log</h3>
+            <div id="eventLog" class="scroll-log"></div>
+        </div>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    <div class="breadcrumb-nav">
+        <a href="/paxos-made-simple/implementation" class="breadcrumb-link breadcrumb-prev">
+            <span class="breadcrumb-arrow">←</span>
+            <span class="breadcrumb-text">Implementation</span>
+        </a>
+        <div class="breadcrumb-current">
+            <span class="breadcrumb-label">Partial Roles Demo</span>
+        </div>
+        <a href="/paxos-made-simple/summary" class="breadcrumb-link breadcrumb-next">
+            <span class="breadcrumb-text">Summary</span>
+            <span class="breadcrumb-arrow">→</span>
+        </a>
+    </div>
+</div>
+
+<style>
+    .partial-roles-demo {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    .visualization-main {
+        position: relative;
+        display: grid;
+        grid-template-columns: 250px 1fr 250px;
+        gap: 20px;
+        background: #0f172a;
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid #1e293b;
+        min-height: 500px;
+    }
+
+    .viz-svg-container {
+        width: 100%;
+        height: 100%;
+        min-height: 500px;
+    }
+
+    #partialRolesSvg {
+        width: 100%;
+        height: 100%;
+        border-radius: 8px;
+    }
+
+    .topology-info-panel {
+        background: #1e293b;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #334155;
+        color: #e2e8f0;
+    }
+
+    .topology-info-panel h3 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    #topologyDetails {
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .layout-toggle {
+        margin-top: 20px;
+        display: flex;
+        gap: 5px;
+    }
+
+    .layout-toggle .btn-compact {
+        flex: 1;
+        font-size: 11px;
+        background: #0f172a;
+        border: 1px solid #334155;
+        color: #94a3b8;
+    }
+
+    .layout-toggle .btn-compact.active {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+
+    .floating-decree-viewer {
+        background: #1e293b;
+        padding: 15px;
+        border-radius: 8px;
+        overflow-y: auto;
+        border: 1px solid #334155;
+    }
+
+    .stats-and-logs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .scroll-log {
+        height: 200px;
+        overflow-y: auto;
+        background: #0f172a;
+        padding: 10px;
+        border-radius: 8px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+    }
+
+    .role-tag {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: bold;
+        margin-right: 4px;
+        color: white;
+    }
+
+    .role-p {
+        background: #60a5fa;
+    }
+
+    .role-a {
+        background: #f59e0b;
+    }
+
+    .role-l {
+        background: #10b981;
+    }
+
+    .role-legend {
+        margin-top: 15px;
+        padding: 10px;
+        background: #0f172a;
+        border-radius: 6px;
+        border: 1px solid #334155;
+    }
+
+    .legend-title {
+        font-size: 12px;
+        font-weight: bold;
+        color: #94a3b8;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+        font-size: 12px;
+        color: #cbd5e1;
+    }
+
+    .legend-color {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        border: 1px solid #1e293b;
+    }
+    </style>
+
+{% endblock %} {% block scripts %}
+<script src="/websocket-helper.js"></script>
+<script src="/paxos-visualizer.js"></script>
+<script type="module" src="/scenarios/partial-roles-demo.js"></script>
+{% endblock %}

@@ -8,7 +8,7 @@ use crate::{
     message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
-        config::{NodeConfig, LearningStrategy},
+        config::NodeConfig,
         inflight_proposals::{InflightProposal, InflightProposals},
         message_router::{MessageRouter, RoutingDecision},
         paxos_state::{
@@ -114,7 +114,9 @@ impl PaxosState {
 
         if let Some(proposer) = &self.proposer {
             let msg = proposer.propose(num, cmd.clone()).await;
-            self.peers.broadcast(msg).await;
+            // Use dispatch to route Prepare messages through the MessageRouter
+            // This ensures Prepare messages only go to acceptors
+            self.dispatch(&msg, self.id).await;
             self.inflight_proposals.insert(num, cmd.clone()).await
         } else {
             tracing::warn!("[Node {}] Attempted to propose without Proposer role", self.id);
@@ -127,7 +129,7 @@ impl PaxosState {
     pub async fn retry_proposal(&self, inflight: InflightProposal)  {
         if let Some(proposer) = &self.proposer {
             let msg = proposer.propose(inflight.decree_num, inflight.cmd.clone()).await;
-            self.peers.broadcast(msg).await;
+            self.dispatch(&msg, self.id).await;
         }
     }
 

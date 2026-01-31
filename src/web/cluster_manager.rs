@@ -8,7 +8,7 @@ use crate::cluster::cluster::Cluster;
 use crate::paxos_command::PaxosCommand;
 use crate::web::websocket_observer::WebSocketObserver;
 use crate::decree_generator::DecreeGenerator;
-use crate::web::scenarios::{CatchUpScenario, CompetingProposersScenario, NetworkPartitionScenario, HappyPathScenario};
+use crate::web::scenarios::{CatchUpScenario, CompetingProposersScenario, NetworkPartitionScenario, HappyPathScenario, PartialRolesScenario};
 
 pub struct ClusterManager {
     cluster: Mutex<Option<Arc<Mutex<Cluster>>>>,
@@ -66,7 +66,14 @@ impl ClusterManager {
         }
 
         // Create new cluster
-        let mut cluster = Cluster::new(0, ip, node_count, self.observer.clone()).await?;
+        let mut cluster = if scenario_type == "partial_roles" {
+            PartialRolesScenario::init_cluster(0, ip, self.observer.clone()).await?
+        } else {
+            Cluster::new(0, ip, node_count, self.observer.clone()).await?
+        };
+
+        // Update node_count if it was changed by partial_roles (it uses 9 nodes)
+        let node_count = cluster.nodes.len();
 
         // Send cluster info to visualizer
         self.observer
@@ -133,6 +140,9 @@ impl ClusterManager {
                         if let Err(e) = CatchUpScenario::propose_gap_filler(&mut cluster, 0).await {
                             eprintln!("Error proposing gap filler: {}", e);
                         }
+                    }
+                    "partial_roles" => {
+                        PartialRolesScenario::execute_iteration(&cluster_for_runner, proposal_count, &mut decree_gen).await;
                     }
                     _ => {
                         // Default "happy_path"
