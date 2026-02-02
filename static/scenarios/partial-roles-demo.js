@@ -13,32 +13,35 @@ const visualizer = new PaxosVisualizer("partialRolesSvg", {
     layoutMode: 'circle'
 });
 
-const eventLog = document.getElementById("eventLog");
-const speedSlider = document.getElementById("speed");
-const speedValue = document.getElementById("speedValue");
-const statusTitle = document.getElementById("statusTitle");
-const statusDescription = document.getElementById("statusDescription");
-const playBtn = document.getElementById("playBtn");
-const pauseBtn = document.getElementById("pauseBtn");
-const resetBtn = document.getElementById("resetBtn");
-const topologyDetails = document.getElementById("topologyDetails");
-const circleLayoutBtn = document.getElementById("circleLayoutBtn");
-const gridLayoutBtn = document.getElementById("gridLayoutBtn");
-const learningStrategySelect = document.getElementById("learningStrategySelect");
-
+let eventLog, speedSlider, speedValue, statusTitle, statusDescription, playBtn, pauseBtn, resetBtn, topologyDetails, circleLayoutBtn, gridLayoutBtn, learningStrategySelect;
 let ws = null;
 let scenarioTimeout = null;
 let selectedNodeId = null;
+let eventQueue;
 
-// Event queue with custom handler
-const eventQueue = new EventQueue(handleEvent, 50);
-
-// Update speed display and state
-speedSlider.addEventListener("change", (e) => {
-    const speed = parseFloat(e.target.value);
-    speedValue.textContent = speed.toFixed(2) + "x";
-    state.setSpeed(speed);
-});
+function initializeElements() {
+    eventLog = document.getElementById("eventLog");
+    speedSlider = document.getElementById("speed");
+    speedValue = document.getElementById("speedValue");
+    statusTitle = document.getElementById("statusTitle");
+    statusDescription = document.getElementById("statusDescription");
+    playBtn = document.getElementById("playBtn");
+    pauseBtn = document.getElementById("pauseBtn");
+    resetBtn = document.getElementById("resetBtn");
+    topologyDetails = document.getElementById("topologyDetails");
+    circleLayoutBtn = document.getElementById("circleLayoutBtn");
+    gridLayoutBtn = document.getElementById("gridLayoutBtn");
+    learningStrategySelect = document.getElementById("learningStrategySelect");
+    
+    eventQueue = new EventQueue(handleEvent, 50);
+    
+    // Update speed display and state
+    speedSlider.addEventListener("change", (e) => {
+        const speed = parseFloat(e.target.value);
+        speedValue.textContent = speed.toFixed(2) + "x";
+        state.setSpeed(speed);
+    });
+}
 
 function setLayout(mode) {
     visualizer.setLayoutMode(mode);
@@ -303,14 +306,24 @@ async function playScenario() {
      pauseBtn.disabled = false;
 
      try {
+         const scenarioValue = document.getElementById("scenarioSelect").value;
+         let strategy = "ProposerManaged";
+         let scenarioType = "partial_roles";
+         
+         if (scenarioValue === "partial_roles_direct") {
+             strategy = "Direct";
+         } else if (scenarioValue === "partial_roles_proposer") {
+             strategy = "ProposerManaged";
+         }
+         
          const response = await fetch("/api/start-scenario", {
              method: "POST",
              headers: { "Content-Type": "application/json" },
              body: JSON.stringify({
                  node_count: 9,
                  duration_secs: 60,
-                 scenario_type: "partial_roles",
-                 learning_strategy: learningStrategySelect.value,
+                 scenario_type: scenarioType,
+                 learning_strategy: strategy,
              }),
          });
 
@@ -385,13 +398,16 @@ function pauseScenario() {
     statusTitle.style.color = "#f59e0b";
 }
 
-playBtn.onclick = playScenario;
-pauseBtn.onclick = pauseScenario;
-resetBtn.onclick = resetScenario;
-circleLayoutBtn.onclick = () => setLayout('circle');
-gridLayoutBtn.onclick = () => setLayout('role-grouped');
-
 document.addEventListener("DOMContentLoaded", () => {
+    initializeElements();
+    
+    // Set button click handlers
+    playBtn.onclick = playScenario;
+    pauseBtn.onclick = pauseScenario;
+    resetBtn.onclick = resetScenario;
+    circleLayoutBtn.onclick = () => setLayout('circle');
+    gridLayoutBtn.onclick = () => setLayout('role-grouped');
+    
     // Set initial speed from slider
     const initialSpeed = parseFloat(speedSlider.value);
     state.setSpeed(initialSpeed);

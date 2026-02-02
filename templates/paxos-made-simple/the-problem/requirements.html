@@ -14,33 +14,20 @@ endblock %} {% block extra_stylesheets %}
       ></object>
     </div>
     <h1 class="panel-title">Requirements</h1>
+
     <div class="inner-panel">
-      <div class="quote-container">
-        <span class="inscription-label">Liveness</span>
-        <blockquote>
-          We won’t try to specify precise liveness requirements. However, the
-          goal is to ensure that some proposed value is eventually chosen and,
-          if a value has been chosen, then a process can eventually learn the
-          value.
-        </blockquote>
-        <cite class="quote-source">
-          <a
-            href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=5"
-            target="_blank"
-          >
-            LAMPORT, P. 2 — §2.1
-          </a>
-        </cite>
+      <h2>Agents</h2>
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/paxos-made-simple/agent.svg"
+          class="math-logo"
+        ></object>
       </div>
-
       <p>
-        Liveness is not specified formally in this paper. It is treated as an
-        underlying goal: if a value is chosen, it should eventually be
-        learnable.
+        Lamport main idea in this paper is to split the operational concerns of
+        the algorithm into three separate roles.
       </p>
-    </div>
-
-    <div class="inner-panel">
       <div class="quote-container">
         <span class="inscription-label">Agents/Process</span>
         <blockquote>
@@ -67,26 +54,14 @@ endblock %} {% block extra_stylesheets %}
     </div>
 
     <div class="inner-panel">
-      <div class="quote-container">
-        <span class="inscription-label">Non-Byzantine Messages</span>
-        <blockquote>
-          Messages can take arbitrarily long to be delivered, can be duplicated,
-          and can be lost, but they are not corrupted.
-        </blockquote>
-        <cite class="quote-source">
-          <a
-            href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=5"
-            target="_blank"
-          >
-            LAMPORT, P. 2 — §2.1
-          </a>
-        </cite>
+      <h2>Roles</h2>
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/paxos-made-simple/introduction.svg"
+          class="math-logo"
+        ></object>
       </div>
-
-      <p>Agents will not lie or act maliciously.</p>
-    </div>
-
-    <div class="inner-panel">
       <div class="quote-container">
         <span class="inscription-label">Agent Roles</span>
         <blockquote>
@@ -136,11 +111,73 @@ endblock %} {% block extra_stylesheets %}
       </p>
     </div>
 
+    <div class="inner-panel">
+      <h2>Non-Byzantine</h2>
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/paxos-made-simple/non-byz.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <div class="quote-container">
+        <span class="inscription-label">Non-Byzantine Messages</span>
+        <blockquote>
+          Messages can take arbitrarily long to be delivered, can be duplicated,
+          and can be lost, but they are not corrupted.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=5"
+            target="_blank"
+          >
+            LAMPORT, P. 2 — §2.1
+          </a>
+        </cite>
+      </div>
+
+      <p>Agents will not lie or act maliciously.</p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Liveliness</h2>
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/paxos-made-simple/liveliness.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <p>
+        Liveliness while a major concern of a production system is a secondary
+        for the paper and comes up mostly when it pertains to safety. It is
+        treated as an underlying goal: if a value is chosen, it should
+        eventually be learnable.
+      </p>
+      <div class="quote-container">
+        <span class="inscription-label">Liveness</span>
+        <blockquote>
+          We won’t try to specify precise liveness requirements. However, the
+          goal is to ensure that some proposed value is eventually chosen and,
+          if a value has been chosen, then a process can eventually learn the
+          value.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=5"
+            target="_blank"
+          >
+            LAMPORT, P. 2 — §2.1
+          </a>
+        </cite>
+      </div>
+    </div>
+
     <!-- Bottom Breadcrumb Navigation -->
   </div>
   {{ nav::breadcrumb(
   prev_url="/papers/paxos-made-simple/the-problem/constraints",
   prev_label="Constraints", current_label="Requirements",
-  next_url="/papers/paxos-made-simple/choosing-a-value/the-idea",
-  next_label="The Idea" ) }} {% endblock %}
+  next_url="/papers/paxos-made-simple/roles/hi-its-me-again",
+  next_label="A Tangent" ) }} {% endblock %}
 </div>

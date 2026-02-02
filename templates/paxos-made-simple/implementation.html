@@ -1,27 +1,76 @@
-{% extends "paxos-made-simple/base.html" %}
-{% block title %}The Implementation - Paxos Made Simple{% endblock %}
-{% block body_class %}pms-page{% endblock %}
-{% block extra_stylesheets %}
-<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css">
-<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css">
-{% endblock %}
-{% block content %}
+{% extends "paxos-made-simple/base.html" %} {% block title %} Implementation -
+Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {%
+block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
 <div class="pms-container">
-    <h1>The Implementation</h1>
-    <div class="pms-section">
-        <h3>Key Components</h3>
-        <ul>
-            <li><strong>Proposer:</strong> Initiates consensus</li>
-            <li><strong>Acceptor:</strong> Votes on proposals</li>
-            <li><strong>Learner:</strong> Discovers chosen values</li>
-        </ul>
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/introduction.svg"
+        class="math-logo"
+      ></object>
     </div>
-    <nav class="pms-breadcrumb">
-        <ol class="breadcrumb-list">
-            <li class="breadcrumb-item"><a href="/papers/paxos-made-simple/" class="breadcrumb-link">Home</a></li>
-            <li class="breadcrumb-item"><a href="/papers/paxos-made-simple/consensus" class="breadcrumb-link">The Consensus Algorithm</a></li>
-            <li class="breadcrumb-item breadcrumb-current">The Implementation</li>
-        </ol>
-    </nav>
+    <h1 class="panel-title">Implementation</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+      <blockquote>
+        The Paxos algorithm assumes a network of processes. In its consensus
+        algorithm, each process plays the role of proposer, acceptor, and
+        learner. The algorithm chooses a leader, which plays the roles of the
+        distinguished proposer and the distinguished learner. The Paxos
+        consensus algorithm is precisely the one described above, where requests
+        and responses are sent as ordinary messages. (Response messages are
+        tagged with the corresponding proposal number to prevent confusion.)
+        Stable storage, preserved during failures, is used to maintain the
+        information that the acceptor must remember. An acceptor records its
+        intended response in stable storage before actually sending the
+        response.
+        <hr class="glitch-taper" />
+        All that remains is to describe the mechanism for guaranteeing that no
+        two proposals are ever issued with the same number. Different proposers
+        choose their numbers from disjoint sets of numbers, so two different
+        proposers never issue a proposal with the same number. Each proposer
+        remembers (in stable storage) the highest-numbered proposal it has tried
+        to issue, and begins phase 1 with a higher proposal number than any it
+        has already used
+        <hr class="glitch-taper" />
+        P1. An acceptor must accept the first proposal that it receives
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=11"
+          target="_blank"
+        >
+          LAMPORT, P. 7 — §2.5
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      For Lamport Paxos is this algorithm. All nodes have all roles, one node is
+      designated the lead and is the one that will have the ability to propose
+      and collate votes.
+    </p>
+
+    <p>
+      Secondarily he explains what a proposal number should contain. Why here,
+      why now, instead of at the beginning I'm confused about it's written
+      almost as a post script and I don't understand why he leaves it to here to
+      explain it's a simple combination of a node id and number.
+    </p>
+
+    <p>
+      But as shown previously Paxos does not need to subscribe to these
+      strictures. You can have many different combinations that allow for safety
+      and would be more useful in certain situations. I am confused why he now
+      is constraining paxos to this one configuration.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/progress", prev_label="Progress", current_label="Implementation", next_url="/papers/paxos-made-simple/state-machine",
+  next_label="Building A State Machine" ) }} {% endblock %}
 </div>
-{% endblock %}

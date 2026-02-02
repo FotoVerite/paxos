@@ -6,10 +6,10 @@ block extra_stylesheets %}
 {% endblock %} {% block content %}
 <div class="pms-container">
   <div class="panel">
-    <div class="header-icon xl">
+    <div class="header-icon full">
       <object
         type="image/svg+xml"
-        data="/svgs/paxos-made-simple/proposer.svg"
+        data="/svgs/paxos-made-simple/two-phase.svg"
         class="math-logo"
       ></object>
     </div>
@@ -17,30 +17,17 @@ block extra_stylesheets %}
 
     <p>Lamport now codifies these different algorithms into two steps.</p>
     <div class="quote-container">
-      <span class="inscription-label">Algorithm</span>
+      <span class="inscription-label">Phase 1</span>
       <blockquote>
-        Putting the actions of the proposer and acceptor together, we see that
-        the algorithm operates in the following two phases.
-
+        (a) A proposer selects a proposal number n and sends a prepare request
+        with number n to a majority of acceptors.
         <hr class="glitch-taper" />
 
-        Phase 1. (a) A proposer selects a proposal number n and sends a prepare
-        request with number n to a majority of acceptors. (b) If an acceptor
-        receives a prepare request with number n greater than that of any
-        prepare request to which it has already responded, then it responds to
-        the request with a promise not to accept any more proposals numbered
-        less than n and with the highest-numbered proposal (if any) that it has
-        accepted.
-
-        <hr class="glitch-taper" />
-        Phase 2. (a) If the proposer receives a response to its prepare requests
-        (numbered n) from a majority of acceptors, then it sends an accept
-        request to each of those acceptors for a proposal numbered n with a
-        value v, where v is the value of the highest-numbered proposal among the
-        responses, or is any value if the responses reported no proposals. (b)
-        If an acceptor receives an accept request for a proposal numbered n, it
-        accepts the proposal unless it has already responded to a prepare
-        request having a number greater than n.
+        (b) If an acceptor receives a prepare request with number n greater than
+        that of any prepare request to which it has already responded, then it
+        responds to the request with a promise not to accept any more proposals
+        numbered less than n and with the highest-numbered proposal (if any)
+        that it has accepted.
       </blockquote>
       <cite class="quote-source">
         <a
@@ -59,6 +46,25 @@ block extra_stylesheets %}
       previous value they accepted if applicable.
     </p>
 
+    <div class="quote-container">
+      <span class="inscription-label">Phase 2 A</span>
+      <blockquote>
+        (a) If the proposer receives a response to its prepare requests
+        (numbered n) from a majority of acceptors, then it sends an accept
+        request to each of those acceptors for a proposal numbered n with a
+        value v, where v is the value of the highest-numbered proposal among the
+        responses, or is any value if the responses reported no proposals.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P. 3 — §2.2
+        </a>
+      </cite>
+    </div>
+
     <p>
       Phase Two A is also understandable. If a <strong>quorum</strong> is reach
       from these promise messages by the proposer, the proposer will send an
@@ -66,14 +72,41 @@ block extra_stylesheets %}
       previous proposal or it's own if no previous proposal exists.
     </p>
 
+    <div class="quote-container">
+      <span class="inscription-label">Phase 2 B</span>
+      <blockquote>
+        (b) If an acceptor receives an accept request for a proposal numbered n,
+        it accepts the proposal unless it has already responded to a prepare
+        request having a number greater than n.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P. 3 — §2.2
+        </a>
+      </cite>
+    </div>
+
     <p>
-        Phase Two B is where the pedagogy breaks down. An acceptor “accepts” a proposal—but what does accepting actually mean here? In this phase, acceptance is only an internal state change. The acceptor records the proposal number and value in order to preserve safety invariants. This action has no externally visible effect. Accepting does not mean the value is chosen, learned, or made durable for the system. Where does the learner fit in which he has ignored so far for the entire paper. TAs written, the algorithm is complete only in the narrow sense of safety, which leaves it feeling unsatisfying and also not useful in a real world context. While he will tackle the learner in the next section it is also in the most roundabout manner.  
+      Phase Two B is where the pedagogy breaks down. An acceptor “accepts” a
+      proposal—but what does accepting actually mean here? In this phase,
+      acceptance is only an internal state change. The acceptor records the
+      proposal number and value in order to preserve safety invariants. This
+      action has no externally visible effect. Accepting does not mean the value
+      is chosen, learned, or made durable for the system. Where does the learner
+      fit in which he has ignored so far for the entire paper. TAs written, the
+      algorithm is complete only in the narrow sense of safety, which leaves it
+      feeling unsatisfying and also not useful in a real world context. While he
+      will tackle the learner in the next section it is also in the most
+      roundabout manner.
     </p>
 
     <!-- Bottom Breadcrumb Navigation -->
   </div>
-  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
-  prev_label="Introduction", current_label="Constraints",
-  next_url="/papers/paxos-made-simple/the-problem/requirements",
-  next_label="Requirements" ) }} {% endblock %}
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/acceptor-algorithm",
+  prev_label="Acceptor Algorithm", current_label="Base Algorithm",
+  next_url="/papers/paxos-made-simple/learning-a-chosen-value",
+  next_label="Learning A Chosen Value" ) }} {% endblock %}
 </div>

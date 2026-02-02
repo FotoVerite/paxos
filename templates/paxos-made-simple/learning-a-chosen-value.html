@@ -6,7 +6,7 @@ endblock %} {% block extra_stylesheets %}
 {% endblock %} {% block content %}
 <div class="pms-container">
   <div class="panel">
-    <div class="header-icon xl">
+    <div class="header-icon full">
       <object
         type="image/svg+xml"
         data="/svgs/paxos-made-simple/learner.svg"
@@ -15,7 +15,7 @@ endblock %} {% block extra_stylesheets %}
     </div>
     <h1 class="panel-title">Leaning a Chosen Value</h1>
     <div class="quote-container">
-      <span class="inscription-label">To Learn a Value</span>
+      <span class="inscription-label">Definition</span>
       <blockquote>
         To learn that a value has been chosen, a learner must find out that a
         proposal has been accepted by a majority of acceptors.
@@ -40,7 +40,7 @@ endblock %} {% block extra_stylesheets %}
     </p>
 
     <div class="quote-container">
-      <span class="inscription-label">To Learn a Value</span>
+      <span class="inscription-label">Naive Algorithm</span>
       <blockquote>
         The obvious algorithm is to have each acceptor, whenever it accepts a
         proposal, respond to all learners, sending them the proposal. This
@@ -70,7 +70,7 @@ endblock %} {% block extra_stylesheets %}
     </p>
 
     <div class="quote-container">
-      <span class="inscription-label">To Learn a Value</span>
+      <span class="inscription-label">Proposer Learning Algorithm</span>
       <blockquote>
         The assumption of non-Byzantine failures makes it easy for one learner
         to find out from another learner that a value has been accepted. We can
@@ -101,7 +101,7 @@ endblock %} {% block extra_stylesheets %}
     </p>
 
     <div class="quote-container">
-      <span class="inscription-label">To Learn a Value</span>
+      <span class="inscription-label">Distinguished Learners Algorithm</span>
       <blockquote>
         More generally, the acceptors could respond with their acceptances to
         some set of distinguished learners, each of which can then inform all
@@ -125,7 +125,7 @@ endblock %} {% block extra_stylesheets %}
     </p>
 
     <div class="quote-container">
-      <span class="inscription-label">To Learn a Value</span>
+      <span class="inscription-label">Client Based</span>
       <blockquote>
         Because of message loss, a value could be chosen with no learner ever
         finding out. The learner could ask the acceptors what proposals they
@@ -152,8 +152,8 @@ endblock %} {% block extra_stylesheets %}
 
     <!-- Bottom Breadcrumb Navigation -->
   </div>
-  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
-  prev_label="Introduction", current_label="Constraints",
-  next_url="/papers/paxos-made-simple/the-problem/requirements",
-  next_label="Requirements" ) }} {% endblock %}
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/two-phase",
+  prev_label="Base Algorithm", current_label="Learning a Chosen Value",
+  next_url="/papers/paxos-made-simple/progress",
+  next_label="Progress" ) }} {% endblock %}
 </div>

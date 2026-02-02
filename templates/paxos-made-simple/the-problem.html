@@ -6,10 +6,17 @@ endblock %} {% block extra_stylesheets %}
 {% endblock %} {% block content %}
 <div class="pms-container">
   <div class="panel">
-    <h1 class="panel-title">Choosing a Value</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/quorum.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">The Problem: Choosing a Value</h1>
     <div class="inner-panel">
       <div class="quote-container">
-        <span class="inscription-label">The Idea</span>
+        <span class="inscription-label">The Problem</span>
         <blockquote>
           The easiest way to choose a value is to have a single acceptor agent.
           A proposer sends a proposal to the acceptor, who chooses the first
@@ -40,14 +47,15 @@ endblock %} {% block extra_stylesheets %}
       </div>
 
       <p>
-       Dealing with synchronized/singular agents is easy. The difficulty comes with asynchronous multiple agents working together.
+        Dealing with synchronized/singular agents is easy. The difficulty comes
+        with asynchronous multiple agents working together.
       </p>
     </div>
 
     <!-- Bottom Breadcrumb Navigation -->
   </div>
   {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
-  prev_label="Introduction", current_label="Constraints",
-  next_url="/papers/paxos-made-simple/requirements", next_label="Requirements" )
+  prev_label="Introduction", current_label="The Problem",
+  next_url="/papers/paxos-made-simple/the-problem/constraints", next_label="Constraints" )
   }} {% endblock %}
 </div>

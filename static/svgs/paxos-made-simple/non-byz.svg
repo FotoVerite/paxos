@@ -1,0 +1,29 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="horizontalHatch" width="100" height="1" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="100" y2="0" stroke="#00FF41" stroke-width="0.3"/>
+    </pattern>
+    <pattern id="dotMatrix" width="1.2" height="1.2" patternUnits="userSpaceOnUse">
+      <circle cx="0.6" cy="0.6" r="0.4" fill="#00FF41"/>
+    </pattern>
+    
+    <mask id="crashMask">
+      <rect x="0" y="0" width="100" height="100" fill="white"/>
+      <rect x="10" y="47" width="80" height="6" fill="black"/>
+    </mask>
+  </defs>
+
+  <circle cx="50" cy="50" r="40" fill="none" stroke="#00FF41" stroke-width="0.5" opacity="0.2" />
+
+  <line x1="50" y1="15" x2="50" y2="85" stroke="#00FF41" stroke-width="1" />
+
+  <g mask="url(#crashMask)">
+    <path d="M 20 50 A 30 30 0 0 1 80 50 Z" fill="url(#horizontalHatch)" stroke="#00FF41" stroke-width="1" />
+    
+    <path d="M 20 50 A 30 30 0 0 0 80 50 Z" fill="url(#dotMatrix)" stroke="#00FF41" stroke-width="1" />
+  </g>
+
+  <path d="M 45 15 L 55 15 M 45 85 L 55 85" fill="none" stroke="#00FF41" stroke-width="1" />
+  
+
+</svg>

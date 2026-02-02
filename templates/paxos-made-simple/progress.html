@@ -1,22 +1,77 @@
-{% extends "paxos-made-simple/base.html" %}
-{% block title %}Progress - Paxos Made Simple{% endblock %}
-{% block body_class %}pms-page{% endblock %}
-{% block extra_stylesheets %}
-<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css">
-<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css">
-{% endblock %}
-{% block content %}
+{% extends "paxos-made-simple/base.html" %} {% block title %} Progress - Paxos
+Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {% block
+extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
 <div class="pms-container">
-    <h1>Progress</h1>
-    <div class="pms-section">
-        <p>To guarantee progress and avoid infinite competition, designate one proposer as the "distinguished proposer" to attempt getting values accepted.</p>
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/progress.svg"
+        class="math-logo"
+      ></object>
     </div>
-    <nav class="pms-breadcrumb">
-        <ol class="breadcrumb-list">
-            <li class="breadcrumb-item"><a href="/papers/paxos-made-simple/" class="breadcrumb-link">Home</a></li>
-            <li class="breadcrumb-item"><a href="/papers/paxos-made-simple/consensus" class="breadcrumb-link">The Consensus Algorithm</a></li>
-            <li class="breadcrumb-item breadcrumb-current">Progress</li>
-        </ol>
-    </nav>
+    <h1 class="panel-title">Progress</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Live-locking</span>
+      <blockquote>
+        It’s easy to construct a scenario in which two proposers each keep
+        issuing a sequence of proposals with increasing numbers, none of which
+        are ever chosen. Proposer p completes phase 1 for a proposal number n1.
+        Another proposer q then completes phase 1 for a proposal number n2 > n1.
+        Proposer p’s phase 2 accept requests for a proposal numbered n1 are
+        ignored because the acceptors have all promised not to accept any new
+        proposal numbered less than n2. So, proposer p then begins and completes
+        phase 1 for a new proposal number n3 > n2, causing the second phase 2
+        accept requests of proposer q to be ignored. And so on.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=9"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Lamport is describing live-locking here. Proposals come in so fast that
+      the protocol never completes but continually is short circuited by the
+      next client request.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Leadership</span>
+      <blockquote>
+        To guarantee progress, a distinguished proposer must be selected as the
+        only one to try issuing proposals. If the distinguished proposer can
+        communicate successfully with a majority of acceptors, and if it uses a
+        proposal with number greater than any already used, then it will succeed
+        in issuing a proposal that is accepted.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=9"
+          target="_blank"
+        >
+          LAMPORT, P. 6 — §2.4
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Because of this issue Lamport argues that the only way to circumvent this
+      is to designate a leader to issue all proposals instead of leaving it up
+      to chance.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/learning-a-chosen-value",
+  prev_label="Learning A Chosen Value", current_label="Progress",
+  next_url="/papers/paxos-made-simple/implementation",
+  next_label="Implementation" ) }} {% endblock %}
 </div>
-{% endblock %}

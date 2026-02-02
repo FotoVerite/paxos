@@ -14,6 +14,10 @@ endblock %} {% block extra_stylesheets %}
       ></object>
     </div>
     <h1 class="panel-title">What does P stand for</h1>
+
+    <p>
+       When Lamport starts sketching out the Algorithm he starts by defining P variables.
+      </p>
     <div class="quote-container">
       <span class="inscription-label">Requirement? Parameter? Constraint</span>
       <blockquote>
@@ -38,18 +42,18 @@ endblock %} {% block extra_stylesheets %}
     </div>
 
     <p>
-      Lamport decides to create this new, variable? tag? invariant?, known as P
+      These  new, variable? tag? invariant?, known as P
       that he calls a requirement. It's not. You can even see him split it from
       the value requirements in the next paragraph. What he actually are using
       these for are properties of a role that must be true for the constraints
       of nontriviality, consensus and validity to remain true. P1 refers to the
-      acceptor, P2 to the proposer. P3 the learner is ignored. Which is it's own problem. 
+      acceptor, P2 to the proposer. P3 the learner is ignored. Which is it's own problem. I'm being very direct here because the sloppiness of his descriptions causes major splits in what can be assumed vs what must be made explicit. 
     </p>
 
     <!-- Bottom Breadcrumb Navigation -->
   </div>
-  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
-  prev_label="Introduction", current_label="Constraints",
-  next_url="/papers/paxos-made-simple/the-problem/requirements",
-  next_label="Requirements" ) }} {% endblock %}
+  {{ nav::breadcrumb( prev_url="/pa´pers/paxos-made-simple/roles/learner",
+  prev_label="Leaner", current_label="What does P Stand For",
+  next_url="/papers/paxos-made-simple/p1",
+  next_label="P1" ) }} {% endblock %}
 </div>

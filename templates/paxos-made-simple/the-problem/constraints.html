@@ -1,5 +1,5 @@
-{% extends "paxos-made-simple/base.html" %} {% block title %} Constraints -
-The Problem - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{%
+{% extends "paxos-made-simple/base.html" %} {% block title %} Constraints - The
+Problem - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{%
 endblock %} {% block extra_stylesheets %}
 <link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
 <link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
@@ -47,8 +47,9 @@ endblock %} {% block extra_stylesheets %}
       Part-Time Parliament constraints in terms of values rather than ballots.
       <br />
       <a href="/synod/constraints" target="_blank">
-        Original constraints explanation
-      </a>
+        Original constraints explanation </a
+      >. They are the guiding principles of the algorithm and the main goals it
+      sets out to accomplish.
     </p>
 
     <div class="key-concept block">
@@ -127,8 +128,8 @@ endblock %} {% block extra_stylesheets %}
 
     <!-- Bottom Breadcrumb Navigation -->
   </div>
-  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/introduction",
-  prev_label="Introduction", current_label="Constraints",
-  next_url="/papers/paxos-made-simple/the-problem/requirements", next_label="Requirements" )
-  }} {% endblock %}
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/the-problem",
+  prev_label="The Problem", current_label="Constraints",
+  next_url="/papers/paxos-made-simple/roles/requirements",
+  next_label="Requirements" ) }} {% endblock %}
 </div>

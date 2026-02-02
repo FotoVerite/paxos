@@ -52,8 +52,9 @@
         <div class="control-grid">
             <div class="control-group">
                 <h3>Scenario</h3>
-                <select id="scenarioSelect" disabled>
-                    <option value="partial_roles" selected>Partial Roles (9 nodes)</option>
+                <select id="scenarioSelect">
+                    <option value="partial_roles_direct" selected>Partial Roles - Direct (9 nodes)</option>
+                    <option value="partial_roles_proposer">Partial Roles - ProposerManaged (9 nodes)</option>
                 </select>
             </div>
             <div class="control-group">
@@ -364,6 +365,11 @@
         color: #cbd5e1;
         font-family: 'JetBrains Mono', monospace;
         word-break: break-word;
+    }
+
+    select {
+        pointer-events: auto;
+        cursor: pointer;
     }
     </style>
 
