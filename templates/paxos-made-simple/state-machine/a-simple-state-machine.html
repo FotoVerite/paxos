@@ -1,0 +1,80 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} A Simple State
+Machines - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{%
+endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/replication.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">A State Machines</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">The Core Concept</span>
+      <blockquote>
+        A simple way to implement a distributed system is as a collection of
+        clients that issue commands to a central server. The server can be
+        described as a deterministic state machine that performs client commands
+        in some sequence. The state machine has a current state; it performs a
+        step by taking as input a command and producing an output and a new
+        state. For example, the clients of a distributed banking system might be
+        tellers, and the state-machine state might consist of the account
+        balances of all users. A withdrawal would be performed by executing a
+        state machine command that decreases an account’s balance if and only if
+        the balance is greater than the amount withdrawn, producing as output
+        the old and new balances
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=11"
+          target="_blank"
+        >
+          LAMPORT, P. 8 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A simple state machine acts as a server to multiple clients that are
+      concerned with coordinating values that depend on linearazation of
+      actions. Hence why he talks about account balance withdraw with is a
+      stateful value and depends on both current balance to allow withdraws.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Why Replication Works</span>
+      <blockquote>
+        Because the state machine is deterministic, all the servers will produce
+        the same sequences of states and outputs if they all execute the same
+        sequence of commands. A client issuing a command can then use the output
+        generated for it by any server.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=11"
+          target="_blank"
+        >
+          LAMPORT, P. 8 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This is reiterating the problem that paxos is trying to solve, Synchronous
+      is easy, distributed is hard. But synchronous has exactly one point of
+      failure
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/implementation",
+  prev_label="Implementation", current_label="Simple State Machines",
+  next_url="/papers/paxos-made-simple/state-machine/replication",
+  next_label="Replication" ) }} {% endblock %}
+</div>

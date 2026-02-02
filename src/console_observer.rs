@@ -169,6 +169,12 @@ impl PaxosObserver for ConsoleObserver {
                     .purple()
                 );
             }
+            Event::LeaderElected { id, .. } => {
+                println!(
+                    "{}",
+                    format!("[LEADER] Node {} elected as leader", id).yellow().bold()
+                );
+            }
         }
     }
 }

@@ -13,11 +13,17 @@ const visualizer = new PaxosVisualizer("partialRolesSvg", {
     layoutMode: 'circle'
 });
 
-let eventLog, speedSlider, speedValue, statusTitle, statusDescription, playBtn, pauseBtn, resetBtn, topologyDetails, circleLayoutBtn, gridLayoutBtn, learningStrategySelect;
+let eventLog, speedSlider, speedValue, statusTitle, statusDescription, playBtn, pauseBtn, resetBtn, topologyDetails, circleLayoutBtn, gridLayoutBtn, learningStrategySelect, scenarioSelect, scenarioDetails;
 let ws = null;
 let scenarioTimeout = null;
 let selectedNodeId = null;
 let eventQueue;
+
+const scenarioDescriptions = {
+    "simple_happy_path": "A 5-node cluster with one designated leader. Watch the leader propose commands, all nodes reach consensus, and learners execute them in order.",
+    "asymmetric_proposers": "Two dedicated proposer/learner nodes compete against 4 acceptor-only nodes. Proposers simultaneously propose values every iteration, demonstrating consensus with role separation.",
+    "network_partition": "A network partition occurs and the cluster recovers. Watch how Paxos maintains safety even with partial connectivity, then resumes consensus."
+};
 
 function initializeElements() {
     eventLog = document.getElementById("eventLog");
@@ -32,6 +38,8 @@ function initializeElements() {
     circleLayoutBtn = document.getElementById("circleLayoutBtn");
     gridLayoutBtn = document.getElementById("gridLayoutBtn");
     learningStrategySelect = document.getElementById("learningStrategySelect");
+    scenarioSelect = document.getElementById("scenarioSelect");
+    scenarioDetails = document.getElementById("scenarioDetails");
     
     eventQueue = new EventQueue(handleEvent, 50);
     
@@ -41,6 +49,17 @@ function initializeElements() {
         speedValue.textContent = speed.toFixed(2) + "x";
         state.setSpeed(speed);
     });
+    
+    // Update scenario description
+    scenarioSelect.addEventListener("change", (e) => {
+        const scenarioValue = e.target.value;
+        const description = scenarioDescriptions[scenarioValue] || "";
+        scenarioDetails.textContent = description;
+    });
+    
+    // Set initial scenario description
+    const initialScenario = scenarioSelect.value;
+    scenarioDetails.textContent = scenarioDescriptions[initialScenario] || "";
 }
 
 function setLayout(mode) {
@@ -129,6 +148,14 @@ function handlePaxosEvent(eventData) {
 }
 
 /**
+ * Check if two nodes can communicate (no network partition)
+ */
+function canCommunicate(fromId, toId) {
+    // TODO: Implement network partition checking if needed
+    return true;
+}
+
+/**
  * Handle a single event - called by EventQueue
  */
 async function handleEvent(queuedEvent) {
@@ -144,52 +171,28 @@ async function handleEvent(queuedEvent) {
     state.incrementEventCount(eventType);
     updateCounts();
     
-    // Visualize (custom logic for partial-roles-demo)
+    // Visualize using the visualizer's visualize method
     const snapshot = state.snapshot();
     const speed = snapshot.simulation.speed;
     const delayMs = Math.max(300, 400 / speed);
     
+    // Call the visualizer's visualize method if available
+    if (viz.visualize) {
+        await viz.visualize(eventData, visualizer, state, canCommunicate);
+    }
+    
+    // Additional custom logic for specific events
     switch (eventType) {
-        case "Proposal":
-            visualizer.activateNode(eventData.id, viz.color);
-            break;
-        case "Promise":
-            if (eventData.from !== undefined && eventData.from !== eventData.id) {
-                await visualizer.drawBeam(eventData.id, eventData.from, viz.color, 350, 'dashed');
-            }
-            break;
-        case "Accept":
-            const acceptBeams = (eventData.quorum || []).map(to =>
-                visualizer.drawBeam(eventData.id, to, viz.color, 350, 'solid')
-            );
-            await Promise.all(acceptBeams);
-            break;
-        case "Accepted":
-            if (eventData.from !== undefined && eventData.from !== eventData.id) {
-                await visualizer.drawBeam(eventData.id, eventData.from, viz.color, 350, 'dotted');
-            }
-            break;
-        case "Learn":
-             visualizer.setNodeState(eventData.id, "learn");
-             visualizer.activateNode(eventData.id, viz.color);
-             break;
-        
         case "LearnedValue":
-             visualizer.setNodeState(eventData.id, "learned");
-             visualizer.activateNode(eventData.id, viz.color);
-             if (eventData.decree_num !== undefined) {
-                 state.addDecree(eventData.id, {
-                     decree_num: eventData.decree_num,
-                     decree: formatDecree(eventData),
-                     timestamp: Date.now()
-                 });
-             }
-             break;
-         
-        case "Success":
-             visualizer.setNodeState(eventData.id, "success");
-             visualizer.activateNode(eventData.id, viz.color);
-             break;
+            // Track decrees learned by each node
+            if (eventData.decree_num !== undefined) {
+                state.addDecree(eventData.id, {
+                    decree_num: eventData.decree_num,
+                    decree: formatDecree(eventData),
+                    timestamp: Date.now()
+                });
+            }
+            break;
     }
     
     await new Promise(r => setTimeout(r, delayMs));
@@ -238,7 +241,7 @@ function updateProposalStats() {
      const statsContainer = document.getElementById("proposalStatsContainer");
      if (!statsContainer) return;
 
-     let html = "<div class='proposal-stats'>";
+     let learnerItems = [];
      for (let nodeId = 0; nodeId < snapshot.cluster.total_nodes; nodeId++) {
          const node = snapshot.nodes.get(nodeId);
          
@@ -250,10 +253,15 @@ function updateProposalStats() {
          const decreeCount = node?.decrees.length || 0;
          const isSelected = selectedNodeId === nodeId;
          const selectClass = isSelected ? "selected" : "";
-         html += `<div class='proposal-stat-item ${selectClass}' data-node-id='${nodeId}' onclick='selectNode(${nodeId})'><span class='node-id'>N${nodeId}:</span> ${decreeCount}</div>`;
+         learnerItems.push(`<div class='proposal-stat-item ${selectClass}' data-node-id='${nodeId}' onclick='selectNode(${nodeId})'><span class='node-id'>N${nodeId}:</span> ${decreeCount}</div>`);
      }
-     html += "</div>";
-     statsContainer.innerHTML = html;
+     
+     if (learnerItems.length === 0) {
+         statsContainer.style.display = 'none';
+     } else {
+         statsContainer.style.display = 'block';
+         statsContainer.innerHTML = `<div class='proposal-stats'>${learnerItems.join('')}</div>`;
+     }
 
      updateDecreeDisplay();
 }
@@ -306,25 +314,20 @@ async function playScenario() {
      pauseBtn.disabled = false;
 
      try {
-         const scenarioValue = document.getElementById("scenarioSelect").value;
-         let strategy = "ProposerManaged";
-         let scenarioType = "partial_roles";
+         const scenarioValue = scenarioSelect.value;
+         const strategy = learningStrategySelect.value;
          
-         if (scenarioValue === "partial_roles_direct") {
-             strategy = "Direct";
-         } else if (scenarioValue === "partial_roles_proposer") {
-             strategy = "ProposerManaged";
-         }
+         const payload = {
+             node_count: 9,
+             duration_secs: 60,
+             scenario_type: scenarioValue,
+             learning_strategy: strategy,
+         };
          
          const response = await fetch("/api/start-scenario", {
              method: "POST",
              headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({
-                 node_count: 9,
-                 duration_secs: 60,
-                 scenario_type: scenarioType,
-                 learning_strategy: strategy,
-             }),
+             body: JSON.stringify(payload),
          });
 
          if (!response.ok) {

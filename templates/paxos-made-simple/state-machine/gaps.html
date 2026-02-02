@@ -1,0 +1,75 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Filling Gaps - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/learner.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Filling Gaps</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">No-op Commands</span>
+      <blockquote>
+        The leader could take the next two commands requested by clients to be
+        commands 136 and 137. Instead, we let it fill the gap immediately by
+        proposing, as commands 136 and 137, a special "noop" command that leaves
+        the state unchanged. (It does this by executing phase 2 of instances 136
+        and 137 of the consensus algorithm.) Once these no-op commands have been
+        chosen, commands 138–140 can be executed.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=12"
+          target="_blank"
+        >
+          LAMPORT, P. 9 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      When gaps appear in the command sequence (due to failures or lost messages), 
+      the leader fills them with no-op commands that leave the state unchanged. 
+      This allows all replicas to execute commands in order without waiting for 
+      missing commands to be proposed.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Resuming Normal Operation</span>
+      <blockquote>
+        Commands 1–140 have now been chosen. The leader has also completed phase
+        1 for all instances greater than 140 of the consensus algorithm, and it
+        is free to propose any value in phase 2 of those instances. It assigns
+        command number 141 to the next command requested by a client, proposing
+        it as the value in phase 2 of instance 141 of the consensus algorithm.
+        It proposes the next client command it receives as command 142, and so
+        on.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=13"
+          target="_blank"
+        >
+          LAMPORT, P. 10 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      With all gaps filled, the leader resumes normal operation, assigning sequence 
+      numbers to the next client commands.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/state-machine/leader-coordination",
+  prev_label="Leader Coordination", current_label="Filling Gaps",
+  next_url="/papers/paxos-made-simple/state-machine/proposal-window",
+  next_label="Proposal Window" ) }} {% endblock %}
+</div>

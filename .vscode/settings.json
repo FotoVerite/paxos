@@ -1,7 +1,9 @@
 {
     "cSpell.words": [
         "inditification",
-        "Lamport"
+        "Lamport",
+        "linearazation",
+        "unitelligatibale"
     ],
     "rust-analyzer.checkOnSave.enable": true,
     "rust-analyzer.procMacro.enable": true,

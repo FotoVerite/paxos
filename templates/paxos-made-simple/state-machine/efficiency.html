@@ -1,0 +1,93 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} A SImple State
+Machines - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{%
+endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/learner.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Efficiency</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">The Core Concept</span>
+      <blockquote>
+        The new leader, being a learner in all instances of the consensus
+        algorithm, should know most of the commands that have already been
+        chosen. Suppose it knows commands 1–134, 138, and 139—that is, the
+        values chosen in instances 1–134, 138, and 139 of the consensus
+        algorithm.
+        <hr class="glitch-taper" />
+
+        (We will see later how such a gap in the command sequence could arise.)
+
+        <hr class="glitch-taper" />
+        It then executes phase 1 of instances 135–137 and of all instances
+        greater than 139. (I describe below how this is done.) Suppose that the
+        outcome of these executions determine the value to be proposed in
+        instances 135 and 140, but leaves the proposed value unconstrained in
+        all other instances. The leader then executes phase 2 for instances 135
+        and 140, thereby choosing commands 135 and 140.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=12"
+          target="_blank"
+        >
+          LAMPORT, P. 9 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Lamport here is stating given the state a command value is in the proposer
+      can execute the phase 2 for 135 and 140 which have already had their value
+      chosen.
+    </p>
+
+    <p>
+      When a leader fails and recovers, it may have incomplete knowledge of
+      which commands were chosen. There may be gaps in the sequence (e.g.,
+      135-137 are unknown). The new leader must fill these gaps.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Why Replication Works</span>
+      <blockquote>
+        The leader, as well as any other server that learns all the commands the
+        leader knows, can now execute commands 1–135. However, it can’t execute
+        commands 138–140, which it also knows, because commands 136 and 137 have
+        yet to be chosen
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=12"
+          target="_blank"
+        >
+          LAMPORT, P. 9 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Since there are no gaps in the commands all servers can execute up to 135
+      and be up to date to this command. The leader also knows that it needs to
+      hold off on future values till previous values have reached consensus.
+      These commands such as a withdrawal might depend on these in flight
+      commands.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb(
+  prev_url="/papers/paxos-made-simple/state-machine/leader-coordination",
+  prev_label="Leader Coordination", current_label="Efficiency",
+  next_url="/papers/paxos-made-simple/state-machine/gaps", next_label="gaps" )
+  }} {% endblock %}
+</div>

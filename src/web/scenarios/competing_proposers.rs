@@ -10,7 +10,7 @@ pub struct CompetingProposersScenario;
 
 impl CompetingProposersScenario {
     /// Execute one iteration of competing proposers scenario
-    /// Nodes 0 and 1 propose simultaneously every 2 iterations
+    /// Random proposers propose simultaneously every 2 iterations
     pub async fn execute_iteration(
         cluster: &Arc<tokio::sync::Mutex<Cluster>>,
         proposal_count: usize,

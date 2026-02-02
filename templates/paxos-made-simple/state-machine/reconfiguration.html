@@ -1,0 +1,70 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Reconfiguration - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/introduction.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Reconfiguration</h1>
+    
+    <div class="quote-container">
+      <span class="inscription-label">Dynamic Membership</span>
+      <blockquote>
+        If the set of servers can change, then there must be some way of determining 
+        what servers implement what instances of the consensus algorithm.
+        The easiest way to do this is through the state machine itself. The current
+        set of servers can be made part of the state and can be changed with ordinary state-machine commands.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=13"
+          target="_blank"
+        >
+          LAMPORT, P. 10 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Rather than treating server membership as external configuration, incorporate it into the state machine. 
+      Changes to membership become just another command that must reach consensus—ensuring all replicas agree 
+      on who participates in each instance.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Staged Configuration Changes</span>
+      <blockquote>
+        We can allow a leader to get α commands ahead by letting the set of servers that 
+        execute instance i + α of the consensus algorithm be specified by the state after execution 
+        of the i<sup>th</sup> state machine command. This permits a simple implementation of an arbitrarily 
+        sophisticated reconfiguration algorithm.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=13"
+          target="_blank"
+        >
+          LAMPORT, P. 10 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      By using the proposal window (pipelining up to α instances ahead), membership changes can be staged. 
+      Each state machine command can specify the configuration for instances far in the future, allowing 
+      complex scenarios like replacing all servers without losing safety or liveness.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/state-machine/optimization", 
+  prev_label="Optimization", current_label="Reconfiguration",
+  next_url="/papers/paxos-made-simple/partial-roles-demo",
+  next_label="State Machine Demo" ) }} {% endblock %}
+</div>

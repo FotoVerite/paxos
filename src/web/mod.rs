@@ -29,6 +29,8 @@ pub struct ScenarioRequest {
     pub scenario_type: String,
     #[serde(default)]
     pub learning_strategy: String, // "ProposerManaged" or "Direct"
+    #[serde(default)]
+    pub leader_node: Option<usize>, // Optional: designate which node is the leader
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

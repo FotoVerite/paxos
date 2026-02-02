@@ -455,14 +455,7 @@ class PaxosVisualizer {
         glow.setAttribute('stroke', color);
         glow.setAttribute('opacity', '0.8');
 
-        // Return to default
-        setTimeout(() => {
-            const baseColor = circle.getAttribute('data-base-color') || '#3b82f6';
-            circle.setAttribute('fill', baseColor);
-            circle.style.filter = '';
-            glow.setAttribute('stroke', '#60a5fa');
-            glow.setAttribute('opacity', '0');
-        }, 300);
+        // Note: Event visualizers handle color reset via resetNodeToRoleColor
     }
 
     /**
@@ -477,6 +470,29 @@ class PaxosVisualizer {
         const circle = element.element.querySelector('.paxos-node-circle');
         if (circle) {
             circle.style.fill = color;
+        }
+    }
+
+    /**
+     * Reset node to its topology color based on roles
+     * @param {number} nodeId - Node ID to reset
+     */
+    resetNodeToRoleColor(nodeId) {
+        const element = this.nodeElements[nodeId];
+        if (!element) return;
+
+        const circle = element.element.querySelector('.paxos-node-circle');
+        if (!circle) return;
+
+        const roles = this.nodeCapabilities[nodeId]?.roles || [];
+        const color = this.getColorForRoles(roles);
+        circle.setAttribute('fill', color);
+        circle.style.filter = '';
+
+        const glow = element.element.querySelector('.paxos-node-glow');
+        if (glow) {
+            glow.setAttribute('stroke', '#60a5fa');
+            glow.setAttribute('opacity', '0');
         }
     }
 
@@ -498,6 +514,39 @@ class PaxosVisualizer {
             circle.setAttribute('fill', '#3b82f6');
             circle.style.opacity = '1';
             if (label) label.style.opacity = '1';
+        }
+    }
+
+    /**
+     * Mark a node as the leader with a bright border and glow
+     * @param {number} nodeId - Node ID to mark as leader
+     */
+    setLeader(nodeId) {
+        const element = this.nodeElements[nodeId];
+        if (!element) return;
+
+        const circle = element.element.querySelector('.paxos-node-circle');
+        if (circle) {
+            // Add a bright border and glow to indicate leadership
+            circle.setAttribute('stroke', '#fbbf24');
+            circle.setAttribute('stroke-width', '4');
+            circle.style.filter = 'drop-shadow(0 0 8px #fbbf24)';
+        }
+    }
+
+    /**
+     * Remove leader marking from a node
+     * @param {number} nodeId - Node ID to unmark as leader
+     */
+    clearLeader(nodeId) {
+        const element = this.nodeElements[nodeId];
+        if (!element) return;
+
+        const circle = element.element.querySelector('.paxos-node-circle');
+        if (circle) {
+            circle.setAttribute('stroke', '#64748b');
+            circle.setAttribute('stroke-width', '2');
+            circle.style.filter = 'none';
         }
     }
 

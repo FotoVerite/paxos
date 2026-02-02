@@ -97,6 +97,11 @@ pub enum Event {
         partition_b: Vec<NodeId>,
         created_at: u64,
     },
+    // Leadership event
+    LeaderElected {
+        id: NodeId,
+        created_at: u64,
+    },
 }
 
 pub trait PaxosObserver: Send + Sync {

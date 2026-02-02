@@ -48,6 +48,11 @@ export const EVENT_VISUALIZERS = {
         }
       }
       await Promise.all(beams);
+      
+      // Reset to topology color after animation
+      setTimeout(() => {
+        visualizer.resetNodeToRoleColor(event.id);
+      }, duration + 50);
     }
   },
 
@@ -68,6 +73,11 @@ export const EVENT_VISUALIZERS = {
         const speed = snapshot.simulation.speed;
         const duration = Math.max(200, (500 / speed) * 0.67);
         await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
+        
+        // Reset to topology color after animation
+        setTimeout(() => {
+          visualizer.resetNodeToRoleColor(event.id);
+        }, duration + 50);
       }
     }
   },
@@ -98,59 +108,79 @@ export const EVENT_VISUALIZERS = {
         }
       }
       await Promise.all(beams);
+      
+      // Reset to topology color after animation
+      setTimeout(() => {
+        visualizer.resetNodeToRoleColor(event.id);
+      }, duration + 50);
     }
   },
 
   Accepted: {
-    color: '#10b981', // Green
-    name: 'Voted',
+   color: '#10b981', // Green
+   name: 'Voted',
 
-    format(event) {
-      return `[Voted] Node ${event.id} → Node ${event.from}: Ballot ${event.ballot}`;
-    },
+   format(event) {
+     return `[Voted] Node ${event.id} → Node ${event.from}: Ballot ${event.ballot}`;
+   },
 
-    async visualize(event, visualizer, state, canCommunicate) {
-      visualizer.setNodeState(event.id, 'voted');
-      visualizer.activateNode(event.id, this.color);
+   async visualize(event, visualizer, state, canCommunicate) {
+     visualizer.setNodeState(event.id, 'voted');
+     visualizer.activateNode(event.id, this.color);
 
-      if (event.from !== undefined && event.from !== event.id) {
-        const snapshot = state.snapshot();
-        const speed = snapshot.simulation.speed;
-        const duration = Math.max(200, (500 / speed) * 0.67);
-        await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
-      }
-    }
+     if (event.from !== undefined && event.from !== event.id) {
+       const snapshot = state.snapshot();
+       const speed = snapshot.simulation.speed;
+       const duration = Math.max(200, (500 / speed) * 0.67);
+       await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
+       
+       // Reset to topology color after animation
+       setTimeout(() => {
+         visualizer.resetNodeToRoleColor(event.id);
+       }, duration + 50);
+     }
+   }
   },
 
   Learn: {
+   color: '#34d399', // Emerald
+   name: 'Learn',
+
+   format(event) {
+     const decree = formatDecree(event);
+     return `[Learn] Node ${event.id}: "${decree}"`;
+   },
+
+   async visualize(event, visualizer, state, canCommunicate) {
+     visualizer.setNodeState(event.id, 'learn');
+     visualizer.activateNode(event.id, this.color);
+     
+     // Reset to topology color after activation
+     setTimeout(() => {
+       visualizer.resetNodeToRoleColor(event.id);
+     }, 350);
+   }
+  },
+
+  LearnedValue: {
     color: '#34d399', // Emerald
-    name: 'Learn',
+    name: 'LearnedValue',
 
     format(event) {
       const decree = formatDecree(event);
-      return `[Learn] Node ${event.id}: "${decree}"`;
+      return `[LearnedValue] Node ${event.id}: "${decree}"`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
       visualizer.setNodeState(event.id, 'learn');
       visualizer.activateNode(event.id, this.color);
+      
+      // Reset to topology color after activation
+      setTimeout(() => {
+        visualizer.resetNodeToRoleColor(event.id);
+      }, 350);
     }
   },
-
-  LearnedValue: {
-     color: '#34d399', // Emerald
-     name: 'LearnedValue',
-
-     format(event) {
-       const decree = formatDecree(event);
-       return `[LearnedValue] Node ${event.id}: "${decree}"`;
-     },
-
-     async visualize(event, visualizer, state, canCommunicate) {
-       visualizer.setNodeState(event.id, 'learn');
-       visualizer.activateNode(event.id, this.color);
-     }
-   },
 
   InitialDecree: {
     color: '#8b5cf6', // Purple
@@ -167,18 +197,35 @@ export const EVENT_VISUALIZERS = {
   },
 
   Success: {
-    color: '#6366f1', // Indigo
-    name: 'Success',
+   color: '#6366f1', // Indigo
+   name: 'Success',
 
-    format(event) {
-      const proposerInfo = event.ballot_proposer !== undefined ? ` (proposed by node ${event.ballot_proposer})` : '';
-      return `[Success] Node ${event.id}: Decree #${event.decree_num} chosen${proposerInfo}`;
-    },
+   format(event) {
+     const proposerInfo = event.ballot_proposer !== undefined ? ` (proposed by node ${event.ballot_proposer})` : '';
+     return `[Success] Node ${event.id}: Decree #${event.decree_num} chosen${proposerInfo}`;
+   },
 
-    async visualize(event, visualizer, state, canCommunicate) {
-      visualizer.setNodeState(event.id, 'success');
-      visualizer.activateNode(event.id, this.color);
-    }
+   async visualize(event, visualizer, state, canCommunicate) {
+     visualizer.setNodeState(event.id, 'success');
+     visualizer.activateNode(event.id, this.color);
+     
+     // Draw beams from proposer to all other nodes (broadcast)
+     const snapshot = state.snapshot();
+     if (snapshot.cluster) {
+       const beams = [];
+       for (let i = 0; i < snapshot.cluster.total_nodes; i++) {
+         if (i !== event.id && canCommunicate(event.id, i)) {
+           beams.push(visualizer.drawBeam(event.id, i, this.color, 350, 'solid'));
+         }
+       }
+       await Promise.all(beams);
+       
+       // Reset to topology color after animation
+       setTimeout(() => {
+         visualizer.resetNodeToRoleColor(event.id);
+       }, 400);
+     }
+   }
   },
 
   // Partition events
@@ -212,6 +259,19 @@ export const EVENT_VISUALIZERS = {
       for (const nodeId of allNodesInPartitions) {
         visualizer.setNodePartitioned(nodeId, false);
       }
+    }
+  },
+
+  LeaderElected: {
+    color: '#fbbf24', // Amber
+    name: 'Leader',
+
+    format(event) {
+      return `[Leader] Node ${event.id} elected as leader`;
+    },
+
+    async visualize(event, visualizer, state, canCommunicate) {
+      visualizer.setLeader(event.id);
     }
   },
 };

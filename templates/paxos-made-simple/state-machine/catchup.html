@@ -1,0 +1,54 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Catchup
+- Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %}
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/learner.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Catchup</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Batch Stage One</span>
+      <blockquote>
+        A newly chosen leader executes phase 1 for infinitely many instances of
+        the consensus algorithm—in the scenario above, for instances 135–137 and
+        all instances greater than 139. Using the same proposal number for all
+        instances, it can do this by sending a single reasonably short message
+        to the other servers. In phase 1, an acceptor responds with more than a
+        simple OK only if it has already received a phase 2 message from some
+        proposer. (In the scenario, this was the case only for instances 135 and
+        140.) Thus, a server (acting as acceptor) can respond for all instances
+        with a single reasonably short message. Executing these infinitely many
+        instances of phase 1 therefore poses no problem.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=13"
+          target="_blank"
+        >
+          LAMPORT, P. 10 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      When a server becomes leader it needs to potentially catch up to the current state of the server. It does this by initiating Phase One for all current command slots that are currently missing and any greater then the current largest slot. This would be a special command that would fill in these missing gaps. Such implementation he leaves up to the reader to actually imagine. 
+    </p>
+
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb(
+  prev_url="/papers/paxos-made-simple/state-machine/leader-coordination",
+  prev_label="Leader Coordination", current_label="Recovery and Gaps",
+  next_url="/papers/paxos-made-simple/state-machine/reconfiguration",
+  next_label="Reconfiguration" ) }} {% endblock %}
+</div>

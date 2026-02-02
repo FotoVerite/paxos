@@ -1,0 +1,61 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Optimization -
+Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {%
+block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/learner.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Optimization</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Phase 2 is all you need</span>
+      <blockquote>
+        Since failure of the leader and election of a new one should be rare
+        events, the effective cost of executing a state machine command—that is,
+        of achieving consensus on the command/value—is the cost of executing
+        only phase 2 of the consensus algorithm. It can be shown that phase 2 of
+        the Paxos consensus algorithm has the minimum possible cost of any
+        algorithm for reaching agreement in the presence of faults. Hence, the
+        Paxos algorithm is essentially optimal.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=14"
+          target="_blank"
+        >
+          LAMPORT, P. 11 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Okay, so he's heavily referencing a Part Time Parliament here. If one
+      assumes failures of leadership is rare one can batch Phase 1 for all
+      future proposals. Meaning one can use the same proposal numbers
+      continually and just go through Phase 2 cutting down massively on chatter
+      and message passing.
+    </p>
+
+    <p>
+      Without out that knowledge this seems absolutely unitelligatibale and
+      unprovable. Much like the rest of the paper he's so stuck up his own ass
+      he doesn't care about actually explaining to the reader what the fuck he
+      actually is driving at.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb(
+  prev_url="/papers/paxos-made-simple/state-machine/proposal-window",
+  prev_label="Proposal Window", current_label="Optimization",
+  next_url="/papers/paxos-made-simple/state-machine/reconfiguration",
+  next_label="Reconfiguration" ) }} {% endblock %}
+</div>

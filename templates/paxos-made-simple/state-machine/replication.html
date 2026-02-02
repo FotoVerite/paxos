@@ -1,0 +1,49 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Replicated State Machines - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/replication.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Replicated State Machines</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">The Core Concept</span>
+      <blockquote>
+        To guarantee that all servers execute the same sequence of state machine
+        commands, we implement a sequence of separate instances of the Paxos
+        consensus algorithm, the value chosen by the i th instance being the i
+        th state machine command in the sequence. Each server plays all the
+        roles (proposer, acceptor, and learner) in each instance of the
+        algorithm.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=11"
+          target="_blank"
+        >
+          LAMPORT, P. 8 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Instead of relying on a single central server (which fails
+      catastrophically), we replicate the state machine across multiple servers.
+      Because state machines are deterministic, all replicas produce identical
+      results when executing the same sequence of commands.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/progress",
+  prev_label="Progress", current_label="Replicated State Machines",
+  next_url="/papers/paxos-made-simple/state-machine/leader-coordination",
+  next_label="Leader Coordination" ) }} {% endblock %}
+</div>

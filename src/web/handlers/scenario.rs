@@ -39,7 +39,7 @@ pub async fn start_scenario_handler(
         &req.learning_strategy
     };
     match cm
-        .start_scenario(ip, req.node_count, req.duration_secs, scenario_type, learning_strategy)
+        .start_scenario(ip, req.node_count, req.duration_secs, scenario_type, learning_strategy, req.leader_node)
         .await
     {
         Ok(_) => {

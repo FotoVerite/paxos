@@ -1,0 +1,71 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Leader Coordination - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/learner.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Leader Coordination</h1>
+    
+    <div class="quote-container">
+      <span class="inscription-label">The Single Leader Pattern</span>
+      <blockquote>
+        In normal operation, a single server is elected to be the leader, which
+        acts as the distinguished proposer (the only one that tries to issue proposals)
+        in all instances of the consensus algorithm. Clients send commands to the
+        leader, who decides where in the sequence each command should appear.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=12"
+          target="_blank"
+        >
+          LAMPORT, P. 8 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      The leader acts as the distinguished proposer, assigning sequence numbers to client commands. 
+      This avoids the livelock problem where multiple proposers continuously block each other.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Command Ordering</span>
+      <blockquote>
+        If the leader decides that a certain client command should be the 135th
+        command, it tries to have that command chosen as the value of the 135th
+        instance of the consensus algorithm. It will usually succeed. It might fail
+        because of failures, or because another server also believes itself to be the
+        leader and has a different idea of what the 135th command should be. But
+        the consensus algorithm ensures that at most one command can be chosen
+        as the 135th one.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=12"
+          target="_blank"
+        >
+          LAMPORT, P. 8 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Safety is guaranteed: even if multiple servers think they are the leader, Paxos ensures 
+      at most one value is chosen for each position. Liveness requires a single stable leader.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/state-machine/replication", 
+  prev_label="Replicated State Machines", current_label="Leader Coordination",
+  next_url="/papers/paxos-made-simple/state-machine/efficiency",
+  next_label="Efficiency" ) }} {% endblock %}
+</div>

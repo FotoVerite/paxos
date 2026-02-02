@@ -1,0 +1,77 @@
+{% extends "paxos-made-simple/base.html" %} {% block title %} Proposal Window - Paxos Made Simple{% endblock %} {% block body_class %}pms-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_simple/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pms-container">
+  <div class="panel">
+    <div class="header-icon xl">
+      <object
+        type="image/svg+xml"
+        data="/svgs/paxos-made-simple/learner.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Proposal Window</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Pipeline Depth (α)</span>
+      <blockquote>
+        The leader can propose command 142 before it learns that its proposed
+        command 141 has been chosen. It's possible for all the messages it sent
+        in proposing command 141 to be lost, and for command 142 to be chosen
+        before any other server has learned what the leader proposed as command
+        141. When the leader fails to receive the expected response to its phase
+        2 messages in instance 141, it will retransmit those messages. If all
+        goes well, its proposed command will be chosen. However, it could fail
+        first, leaving a gap in the sequence of chosen commands. In general,
+        suppose a leader can get α commands ahead—that is, it can propose
+        commands i + 1 through i + α after commands 1 through i are chosen. A gap
+        of up to α−1 commands could then arise.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=13"
+          target="_blank"
+        >
+          LAMPORT, P. 10 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Alpha (α) represents the proposal window—how many commands ahead the leader can pipeline 
+      without waiting for confirmation. Larger α increases throughput but creates larger potential 
+      gaps if the leader fails, which must be filled with no-ops.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Bounded Execution</span>
+      <blockquote>
+        The leader, as well as any other server that learns all the commands the
+        leader knows, can now execute commands 1–135. However, it can't execute
+        commands 138–140, which it also knows, because commands 136 and 137 have
+        yet to be chosen.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/paxos-simple.pdf#page=12"
+          target="_blank"
+        >
+          LAMPORT, P. 9 — §3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Even though a server may know about commands far ahead, it cannot execute them until 
+      all earlier commands in the sequence have reached consensus. This preserves the 
+      deterministic ordering required for replicated state machines.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+  </div>
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-simple/state-machine/gaps",
+  prev_label="Filling Gaps", current_label="Proposal Window",
+  next_url="/papers/paxos-made-simple/state-machine/optimization",
+  next_label="Optimization" ) }} {% endblock %}
+</div>
