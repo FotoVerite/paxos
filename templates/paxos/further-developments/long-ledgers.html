@@ -1,5 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}3.3.2 Long Ledgers{% endblock %} {%
-block extra_stylesheets %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}3.3.2 Long Ledgers{% endblock %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -12,7 +13,7 @@ block extra_stylesheets %}
     <div class="header-icon xl">
       <object
         type="image/svg+xml"
-        data="/svgs/long_ledger.svg"
+        data="/svgs/paxos/long_ledger.svg"
         class="math-logo"
       ></object>
     </div>
@@ -60,7 +61,7 @@ block extra_stylesheets %}
    <!-- Bottom Breadcrumb Navigation -->
     <div class="breadcrumb-nav">
       <a
-        href="/further-developments/picking-a-president"
+        href="{{ nav::site_url(raw_url="/further-developments/picking-a-president") }}"
         class="breadcrumb-link breadcrumb-prev"
         title="Go to previous page"
       >
@@ -71,7 +72,7 @@ block extra_stylesheets %}
         <span class="breadcrumb-label">Long Ledgers</span>
       </div>
       <a
-        href="/further-developments/bureaucrats"
+        href="{{ nav::site_url(raw_url="/further-developments/bureaucrats") }}"
         class="breadcrumb-link breadcrumb-next"
         title="Go to next page"
       >

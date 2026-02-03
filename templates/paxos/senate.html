@@ -1,11 +1,11 @@
 {% extends "paxos/base.html" %}
-
+{% import "macros/nav.html" as nav %}
 {% block title %}Senate Visualizer - Paxos{% endblock %}
 
 {% block body_class %}senate-page{% endblock %}
 
 {% block extra_stylesheets %}
-<link rel="stylesheet" href="/css/paxos/pages/senate.css">
+<link rel="stylesheet" href="{{ nav::site_url(raw_url="/css/paxos/pages/senate.css") }}">
 {% endblock %}
 
 {% block content %}

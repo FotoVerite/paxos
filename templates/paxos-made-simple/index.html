@@ -1,4 +1,4 @@
-{% extends "paxos-made-simple/base.html" %}
+{% extends "paxos-made-simple/base.html" %} {% import "macros/nav.html" as nav %}
 
 {% block title %}Paxos Made Simple{% endblock %}
 
@@ -19,7 +19,7 @@
     <p class="pms-subtitle">The Paxos algorithm, when presented in plain English, is very simple.</p>
     
     <div class="pms-cta">
-        <a href="/papers/paxos-made-simple/introduction" class="primary">Start Learning</a>
+        <a href="{{ nav::site_url(raw_url="/introduction") }}" class="primary">Start Learning</a>
     </div>
 </div>
 {% endblock %}

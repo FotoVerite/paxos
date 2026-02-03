@@ -1,9 +1,9 @@
 {% extends "paxos/base.html" %}
-
+{% import "macros/nav.html" as nav %}
 {% block title %}Preliminary Protocol Visualizer - Paxos{% endblock %}
 
 {% block extra_stylesheets %}
-    <link rel="stylesheet" href="/senate.css">
+    <link rel="stylesheet" href="{{ nav::site_url(raw_url="/senate.css") }}">
 {% endblock %}
 
 {% block content %}

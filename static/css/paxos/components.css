@@ -41,7 +41,7 @@ button:disabled {
 }
 
 .delta-icon {
-  background-image: url("../svgs/delta.svg");
+  background-image: url("/svgs/paxos/delta.svg");
   background-repeat: no-repeat;
   background-size: contain;
   background-position: top right;

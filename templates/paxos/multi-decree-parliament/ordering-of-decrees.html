@@ -1,5 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}3.2.1 The Ordering of Decrees{%
-endblock %} {% block extra_stylesheets %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}3.2.1 The Ordering of Decrees{% endblock %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -12,7 +13,7 @@ endblock %} {% block extra_stylesheets %}
     <div class="header-icon xl">
       <object
         type="image/svg+xml"
-        data="/svgs/ordering.svg"
+        data="/svgs/paxos/ordering.svg"
         class="math-logo"
       ></object>
     </div>
@@ -92,7 +93,7 @@ endblock %} {% block extra_stylesheets %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/multi-decree-parliament/protocol"
+      href="{{ nav::site_url(raw_url="/multi-decree-parliament/protocol") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -103,7 +104,7 @@ endblock %} {% block extra_stylesheets %}
       <span class="breadcrumb-label">The Ordering of Decrees</span>
     </div>
     <a
-      href="/multi-decree-parliament/optimizations"
+      href="{{ nav::site_url(raw_url="/multi-decree-parliament/optimizations") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

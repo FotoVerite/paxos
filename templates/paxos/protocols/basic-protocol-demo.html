@@ -1,4 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}Basic Protocol Demo - Paxos{% endblock %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Basic Protocol Demo - Paxos{% endblock %} 
 {% block body_class %}protocol-page{% endblock %}
 {% block content %}
 <div class="demo-container">
@@ -87,7 +89,7 @@
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/protocols/basic-protocol"
+      href="{{ nav::site_url(raw_url="/protocols/basic-protocol") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -98,7 +100,7 @@
       <span class="breadcrumb-label">Basic Protocol Demo</span>
     </div>
     <a
-      href="/protocols/complete-protocol"
+      href="{{ nav::site_url(raw_url="/protocols/complete-protocol") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

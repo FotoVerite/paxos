@@ -1,4 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}Paxos Max Vote Function{% endblock %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Paxos Max Vote Function{% endblock %} 
 {% block extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -12,7 +14,7 @@
     <div class="header-icon large">
       <object
         type="image/svg+xml"
-        data="/svgs/max_vote.svg"
+        data="/svgs/paxos/max_vote.svg"
         class="math-logo"
       ></object>
     </div>
@@ -100,7 +102,7 @@
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/synod/votes-function-b"
+      href="{{ nav::site_url(raw_url="/synod/votes-function-b") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -111,7 +113,7 @@
       <span class="breadcrumb-label">Max Vote</span>
     </div>
     <a
-      href="/synod/lemma"
+      href="{{ nav::site_url(raw_url="/synod/lemma") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

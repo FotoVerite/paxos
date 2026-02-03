@@ -1,5 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}Paxos Definitions{% endblock %} {%
-block extra_stylesheets %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Paxos Definitions{% endblock %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -12,7 +13,7 @@ block extra_stylesheets %}
     <div class="header-icon">
       <object
         type="image/svg+xml"
-        data="/svgs/ballot.svg"
+        data="/svgs/paxos/ballot.svg"
         class="math-logo"
       ></object>
     </div>
@@ -43,7 +44,7 @@ block extra_stylesheets %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/synod/ballot-definitions"
+      href="{{ nav::site_url(raw_url="/synod/ballot-definitions") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -54,7 +55,7 @@ block extra_stylesheets %}
       <span class="breadcrumb-label">Ballot</span>
     </div>
     <a
-      href="/synod/ballot-number"
+      href="{{ nav::site_url(raw_url="/synod/ballot-number") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

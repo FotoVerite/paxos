@@ -1,11 +1,13 @@
-{% extends "paxos/base.html" %} {% block title %}Assumptions{% endblock %} {% block
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Assumptions{% endblock %} {% block 
 content %}
 <div class="container">
   <div class="panel">
     <div class="header-icon">
       <object
         type="image/svg+xml"
-        data="/svgs/square_bracket.svg"
+        data="/svgs/paxos/square_bracket.svg"
         class="math-logo"
       ></object>
     </div>
@@ -36,7 +38,7 @@ content %}
       <div class="icon">
         <object
           type="image/svg+xml"
-          data="/svgs/ledger.svg"
+          data="/svgs/paxos/ledger.svg"
           class="math-logo"
         ></object>
       </div>
@@ -73,7 +75,7 @@ content %}
       <div class="icon">
         <object
           type="image/svg+xml"
-          data="/svgs/note.svg"
+          data="/svgs/paxos/note.svg"
           class="math-logo"
         ></object>
       </div>
@@ -111,7 +113,7 @@ content %}
       <div class="icon">
         <object
           type="image/svg+xml"
-          data="/svgs/timer.svg"
+          data="/svgs/paxos/timer.svg"
           class="math-logo"
         ></object>
       </div>
@@ -146,7 +148,7 @@ content %}
       <div class="icon">
         <object
           type="image/svg+xml"
-          data="/svgs/message.svg"
+          data="/svgs/paxos/message.svg"
           class="math-logo"
         ></object>
       </div>
@@ -187,7 +189,7 @@ content %}
       <div class="icon">
         <object
           type="image/svg+xml"
-          data="/svgs/tampered.svg"
+          data="/svgs/paxos/tampered.svg"
           class="math-logo"
         ></object>
       </div>
@@ -222,7 +224,7 @@ content %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/the-problem/requirements"
+      href="{{ nav::site_url(raw_url="/the-problem/requirements") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -233,7 +235,7 @@ content %}
       <span class="breadcrumb-label">Assumptions</span>
     </div>
     <a
-      href="/synod/overview"
+      href="{{ nav::site_url(raw_url="/synod/overview") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

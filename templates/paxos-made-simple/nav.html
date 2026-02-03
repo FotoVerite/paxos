@@ -1,10 +1,11 @@
+{% import "macros/nav.html" as nav %}
 <!-- PMS Navigation Bar -->
 <link rel="stylesheet" href="/css/papers/paxos_made_simple/nav.css">
 
 <nav class="pms-navbar">
     <div class="nav-container">
         <div class="nav-brand">
-            <a href="/papers/paxos-made-simple/" class="brand-link">
+            <a href="{{ nav::site_url(raw_url="/") }}" class="brand-link">
                 <span class="brand-text pms-brand">Paxos Made Simple</span>
             </a>
         </div>
@@ -17,16 +18,16 @@
         
         <div class="nav-menu" id="navMenu">
             <div class="nav-item">
-                <a href="/papers/paxos-made-simple/" class="nav-link">Home</a>
+                <a href="{{ nav::site_url(raw_url="/") }}" class="nav-link">Home</a>
             </div>
             <div class="nav-item">
-                <a href="/papers/paxos-made-simple/introduction" class="nav-link">Introduction</a>
+                <a href="{{ nav::site_url(raw_url="/introduction") }}" class="nav-link">Introduction</a>
             </div>
             <div class="nav-item">
-                <a href="/papers/paxos-made-simple/consensus" class="nav-link">Consensus Algorithm</a>
+                <a href="{{ nav::site_url(raw_url="/consensus") }}" class="nav-link">Consensus Algorithm</a>
             </div>
             <div class="nav-item">
-                <a href="/papers/paxos-made-simple/state-machine" class="nav-link">State Machine</a>
+                <a href="{{ nav::site_url(raw_url="/state-machine") }}" class="nav-link">State Machine</a>
             </div>
         </div>
     </div>

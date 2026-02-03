@@ -1,5 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}3.3.6 Choosing New Legislators{%
-endblock %} {% block extra_stylesheets %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}3.3.6 Choosing New Legislators{% endblock %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -12,7 +13,7 @@ endblock %} {% block extra_stylesheets %}
     <div class="header-icon large">
       <object
         type="image/svg+xml"
-        data="/svgs/succession.svg"
+        data="/svgs/paxos/succession.svg"
         class="math-logo"
       ></object>
     </div>
@@ -103,7 +104,7 @@ endblock %} {% block extra_stylesheets %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/further-developments/dishonest-legislators"
+      href="{{ nav::site_url(raw_url="/further-developments/dishonest-legislators") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -113,7 +114,7 @@ endblock %} {% block extra_stylesheets %}
     <div class="breadcrumb-current">
       <span class="breadcrumb-label">Choosing New Legislators</span>
     </div>
-    <a href="/" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+    <a href="{{ nav::site_url(raw_url="/") }}" class="breadcrumb-link breadcrumb-next" title="Go to next page">
       <span class="breadcrumb-text">Home</span>
       <span class="breadcrumb-arrow">→</span>
     </a>

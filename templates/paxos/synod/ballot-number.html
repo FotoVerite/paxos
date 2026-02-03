@@ -1,4 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}Ballot Number{% endblock %} {% block
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Ballot Number{% endblock %} {% block 
 extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -12,7 +14,7 @@ extra_stylesheets %}
     <div class="header-icon">
       <object
         type="image/svg+xml"
-        data="/svgs/ballot_number.svg"
+        data="/svgs/paxos/ballot_number.svg"
         class="math-logo"
       ></object>
     </div>
@@ -67,7 +69,7 @@ extra_stylesheets %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/synod/ballot-definitions"
+      href="{{ nav::site_url(raw_url="/synod/ballot-definitions") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -78,7 +80,7 @@ extra_stylesheets %}
       <span class="breadcrumb-label">Ballot Number</span>
     </div>
     <a
-      href="/synod/constraints"
+      href="{{ nav::site_url(raw_url="/synod/constraints") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

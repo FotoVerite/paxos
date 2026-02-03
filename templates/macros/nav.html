@@ -1,7 +1,30 @@
+{% macro site_url(raw_url) -%}
+{%- if raw_url -%}
+{%- set url = raw_url -%}
+{%- if "http://" in url or "https://" in url or "mailto:" in url or "tel:" in url -%}
+{{- url | safe -}}
+{%- else -%}
+{%- if site_slug and site_slug != "paxos" -%}
+{%- set url = url | replace(from="/papers/" ~ site_slug, to="") -%}
+{%- set url = url | replace(from="/" ~ site_slug, to="") -%}
+{%- endif -%}
+{%- set final_url = url -%}
+{%- if site_root and site_root != "" -%}
+{%- if url == "/" -%}
+{%- set final_url = site_root ~ "/" -%}
+{%- else -%}
+{%- set final_url = site_root ~ url -%}
+{%- endif -%}
+{%- endif -%}
+{{- final_url | safe -}}
+{%- endif -%}
+{%- endif -%}
+{%- endmacro site_url %}
+
 {% macro breadcrumb(prev_url, prev_label, current_label, next_url, next_label) %}
 <div class="breadcrumb-nav">
     {% if prev_url %}
-    <a href="{{ prev_url }}" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
+    <a href="{{ self::site_url(raw_url=prev_url) }}" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
         <span class="breadcrumb-arrow">←</span>
         <span class="breadcrumb-text">{{ prev_label }}</span>
     </a>
@@ -12,7 +35,7 @@
     </div>
 
     {% if next_url %}
-    <a href="{{ next_url }}" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+    <a href="{{ self::site_url(raw_url=next_url) }}" class="breadcrumb-link breadcrumb-next" title="Go to next page">
         <span class="breadcrumb-text">{{ next_label }}</span>
         <span class="breadcrumb-arrow">→</span>
     </a>

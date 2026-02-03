@@ -1,8 +1,9 @@
 {% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
 {% block title %}Paxos - Understand the Part-Time Parliament{% endblock %}
 {% block body_class %}landing-page-vaporwave{% endblock %}
 {% block extra_stylesheets %}
-<link rel="stylesheet" href="/css/paxos/pages/landing-vaporwave.css">
+<link rel="stylesheet" href="{{ nav::site_url(raw_url="/css/paxos/pages/landing-vaporwave.css") }}">
 {% endblock %}
 {% block content %}
 <div class="vaporwave-container">
@@ -12,7 +13,7 @@
         <h1 class="vaporwave-title">PAXOS</h1>
         <p class="vaporwave-subtitle">Understand the 1998 Part-Time Parliament Paper</p>
 
-        <a href="/whitepapers" class="vaporwave-button">BEGIN</a>
+        <a href="{{ nav::site_url(raw_url="/whitepapers") }}" class="vaporwave-button">BEGIN</a>
     </div>
 </div>
 {% endblock %}

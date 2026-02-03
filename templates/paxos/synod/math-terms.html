@@ -1,5 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}Mathematical Terms{% endblock %} {%
-block extra_stylesheets %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Mathematical Terms{% endblock %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -12,7 +13,7 @@ block extra_stylesheets %}
       <div class="header-icon">
         <object
           type="image/svg+xml"
-          data="/svgs/delta.svg"
+          data="/svgs/paxos/delta.svg"
           class="math-logo"
         ></object>
       </div>
@@ -59,14 +60,14 @@ block extra_stylesheets %}
 
     <!-- Bottom Breadcrumb Navigation -->
     <div class="breadcrumb-nav">
-    <a href="/synod/decree-example" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
+    <a href="{{ nav::site_url(raw_url="/synod/decree-example") }}" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
       <span class="breadcrumb-arrow">←</span>
       <span class="breadcrumb-text">Decree Example</span>
     </a>
     <div class="breadcrumb-current">
       <span class="breadcrumb-label">Math Terms</span>
     </div>
-    <a href="/synod/ballot-definitions" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+    <a href="{{ nav::site_url(raw_url="/synod/ballot-definitions") }}" class="breadcrumb-link breadcrumb-next" title="Go to next page">
       <span class="breadcrumb-text">Ballot Terms</span>
       <span class="breadcrumb-arrow">→</span>
     </a>

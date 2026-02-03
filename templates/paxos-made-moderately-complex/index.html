@@ -1,4 +1,4 @@
-{% extends "paxos-made-moderately-complex/base.html" %}
+{% extends "paxos-made-moderately-complex/base.html" %} {% import "macros/nav.html" as nav %}
 
 {% block title %}Paxos Made Moderately Complex{% endblock %}
 
@@ -20,7 +20,7 @@
     <p class="pmc-subtitle">The full operational description of Multi-Paxos without shying away from implementation details.</p>
     
     <div class="pmc-cta">
-        <a href="/papers/paxos-made-moderately-complex/introduction" class="primary">Start Learning</a>
+        <a href="{{ nav::site_url(raw_url="/introduction") }}" class="primary">Start Learning</a>
     </div>
 </div>
 {% endblock %}

@@ -1,4 +1,5 @@
 {% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
 {% block title %}Paxos Max Vote Function{% endblock %}
 
 {% block extra_stylesheets %}
@@ -30,7 +31,7 @@
     <!-- Bottom Breadcrumb Navigation -->
     <div class="breadcrumb-nav">
       <a
-        href="/synod/max-vote"
+        href="{{ nav::site_url(raw_url="/synod/max-vote") }}"
         class="breadcrumb-link breadcrumb-prev"
         title="Go to previous page"
       >
@@ -41,7 +42,7 @@
         <span class="breadcrumb-label">Max Vote Quorum</span>
       </div>
       <a
-        href="/synod/lemma"
+        href="{{ nav::site_url(raw_url="/synod/lemma") }}"
         class="breadcrumb-link breadcrumb-next"
         title="Go to next page"
       >

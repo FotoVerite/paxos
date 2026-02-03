@@ -1,4 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}3.3.4 Learning the Law{% endblock %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}3.3.4 Learning the Law{% endblock %} 
 {% block extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -12,7 +14,7 @@
     <div class="header-icon large">
       <object
         type="image/svg+xml"
-        data="/svgs/learner.svg"
+        data="/svgs/paxos/learner.svg"
         class="math-logo"
       ></object>
     </div>
@@ -197,7 +199,7 @@
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/further-developments/bureaucrats"
+      href="{{ nav::site_url(raw_url="/further-developments/bureaucrats") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -208,7 +210,7 @@
       <span class="breadcrumb-label">Learning the Law</span>
     </div>
     <a
-      href="/further-developments/dishonest-legislators"
+      href="{{ nav::site_url(raw_url="/further-developments/dishonest-legislators") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

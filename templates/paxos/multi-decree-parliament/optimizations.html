@@ -1,4 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}3.2.2 Behind Closed Doors{% endblock
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}3.2.2 Behind Closed Doors{% endblock 
 %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -12,7 +14,7 @@
     <div class="header-icon xl">
       <object
         type="image/svg+xml"
-        data="/svgs/optimization.svg"
+        data="/svgs/paxos/optimization.svg"
         class="math-logo"
       ></object>
     </div>
@@ -89,7 +91,7 @@
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/multi-decree-parliament/ordering-of-decrees"
+      href="{{ nav::site_url(raw_url="/multi-decree-parliament/ordering-of-decrees") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -100,7 +102,7 @@
       <span class="breadcrumb-label">Optimizations</span>
     </div>
     <a
-      href="/further-developments/picking-a-president"
+      href="{{ nav::site_url(raw_url="/further-developments/picking-a-president") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

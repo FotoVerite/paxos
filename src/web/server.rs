@@ -58,8 +58,8 @@ pub async fn run_web_server() {
         .route_service("/event-queue.js", ServeFile::new("static/event-queue.js"))
 
         // Pms Handler
-        .route("/paxos-made-simple", get(|s| paxos_made_simple_handler(None, s)))
-        .route("/paxos-made-simple/", get(|s| paxos_made_simple_handler(None, s)))
+        .route("/paxos-made-simple", get(|uri, subdomain, state| paxos_made_simple_handler(uri, None, subdomain, state)))
+        .route("/paxos-made-simple/", get(|uri, subdomain, state| paxos_made_simple_handler(uri, None, subdomain, state)))
         .route("/paxos-made-simple/*path", get(paxos_made_simple_handler))
 
         // Fallback to Tera Handler for everything else (Pages)

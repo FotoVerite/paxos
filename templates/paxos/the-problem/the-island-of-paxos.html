@@ -1,11 +1,12 @@
-{% extends "paxos/base.html" %} {% block title %}The Island Of Paxos{% endblock %} {%
-block content %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}The Island Of Paxos{% endblock %} {% block content %}
 <div class="container">
   <div class="panel">
     <div class="header-icon">
       <object
         type="image/svg+xml"
-        data="/svgs/paxos_crest.svg"
+        data="/svgs/paxos/paxos_crest.svg"
         class="math-logo"
       ></object>
     </div>
@@ -62,7 +63,7 @@ block content %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/overview"
+      href="{{ nav::site_url(raw_url="/overview") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -73,7 +74,7 @@ block content %}
       <span class="breadcrumb-label">The Island of Paxos</span>
     </div>
     <a
-      href="/the-problem/requirements"
+      href="{{ nav::site_url(raw_url="/the-problem/requirements") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

@@ -1,5 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}Paxos Theorem Two {% endblock %} {%
-block extra_stylesheets %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Paxos Theorem Two {% endblock %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -13,7 +14,7 @@ block extra_stylesheets %}
     <div class="header-icon large">
       <object
         type="image/svg+xml"
-        data="/svgs/theorem-two.svg"
+        data="/svgs/paxos/theorem-two.svg"
         class="math-logo"
       ></object>
     </div>
@@ -137,7 +138,7 @@ block extra_stylesheets %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/synod/theorem-one"
+      href="{{ nav::site_url(raw_url="/synod/theorem-one") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -148,7 +149,7 @@ block extra_stylesheets %}
       <span class="breadcrumb-label">Theorem Two</span>
     </div>
     <a
-      href="/synod/recap"
+      href="{{ nav::site_url(raw_url="/synod/recap") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

@@ -1,5 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}3.3.3 Bureaucrats{% endblock %} {%
-block extra_stylesheets %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}3.3.3 Bureaucrats{% endblock %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -12,7 +13,7 @@ block extra_stylesheets %}
     <div class="header-icon large" style="margin-right: 20px">
       <object
         type="image/svg+xml"
-        data="/svgs/bureaucrats.svg"
+        data="/svgs/paxos/bureaucrats.svg"
         class="math-logo"
       ></object>
     </div>
@@ -119,7 +120,7 @@ block extra_stylesheets %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/further-developments/long-ledgers"
+      href="{{ nav::site_url(raw_url="/further-developments/long-ledgers") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -130,7 +131,7 @@ block extra_stylesheets %}
       <span class="breadcrumb-label">Bureaucrats</span>
     </div>
     <a
-      href="/further-developments/learning-the-law"
+      href="{{ nav::site_url(raw_url="/further-developments/learning-the-law") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

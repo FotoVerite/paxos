@@ -1,9 +1,10 @@
 {% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
 {% block title %}Paxos Explained{% endblock %}
 {% block body_class %}landing-page{% endblock %}
 
 {% block extra_stylesheets %}
-<link rel="stylesheet" href="/css/paxos/pages/landing.css">
+<link rel="stylesheet" href="{{ nav::site_url(raw_url="/css/paxos/pages/landing.css") }}">
 {% endblock %}
 
 {% block content %}
@@ -134,7 +135,7 @@
     <div class="breadcrumb-current">
       <span class="breadcrumb-label">Whitepapers</span>
     </div>
-    <a href="/leslie-lamport-biography" class="breadcrumb-link breadcrumb-next" title="Go to next page">
+    <a href="{{ nav::site_url(raw_url="/leslie-lamport-biography") }}" class="breadcrumb-link breadcrumb-next" title="Go to next page">
       <span class="breadcrumb-text">Leslie Lamport</span>
       <span class="breadcrumb-arrow">→</span>
     </a>

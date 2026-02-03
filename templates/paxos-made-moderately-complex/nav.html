@@ -1,10 +1,11 @@
+{% import "macros/nav.html" as nav %}
 <!-- PMC Navigation Bar -->
 <link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/nav.css">
 
 <nav class="pmc-navbar">
     <div class="nav-container">
         <div class="nav-brand">
-            <a href="/papers/paxos-made-moderately-complex/" class="brand-link">
+            <a href="{{ nav::site_url(raw_url="/") }}" class="brand-link">
                 <span class="brand-text pmc-brand">Paxos Made Moderately Complex</span>
             </a>
         </div>
@@ -17,19 +18,19 @@
         
         <div class="nav-menu" id="navMenu">
             <div class="nav-item">
-                <a href="/papers/paxos-made-moderately-complex/" class="nav-link">Home</a>
+                <a href="{{ nav::site_url(raw_url="/") }}" class="nav-link">Home</a>
             </div>
             <div class="nav-item">
-                <a href="/papers/paxos-made-moderately-complex/introduction" class="nav-link">Introduction</a>
+                <a href="{{ nav::site_url(raw_url="/introduction") }}" class="nav-link">Introduction</a>
             </div>
             <div class="nav-item">
-                <a href="/papers/paxos-made-moderately-complex/how-and-why" class="nav-link">How & Why</a>
+                <a href="{{ nav::site_url(raw_url="/how-and-why") }}" class="nav-link">How & Why</a>
             </div>
             <div class="nav-item">
-                <a href="/papers/paxos-made-moderately-complex/liveness" class="nav-link">Liveness</a>
+                <a href="{{ nav::site_url(raw_url="/liveness") }}" class="nav-link">Liveness</a>
             </div>
             <div class="nav-item">
-                <a href="/papers/paxos-made-moderately-complex/practical" class="nav-link">Practical</a>
+                <a href="{{ nav::site_url(raw_url="/practical") }}" class="nav-link">Practical</a>
             </div>
         </div>
     </div>

@@ -1,5 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}Paxos Basic Protocol{% endblock %} {%
-block extra_stylesheets %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Paxos Basic Protocol{% endblock %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -12,7 +13,7 @@ block extra_stylesheets %}
     <div class="header-icon large">
       <object
         type="image/svg+xml"
-        data="/svgs/basic-protocol.svg"
+        data="/svgs/paxos/basic-protocol.svg"
         class="math-logo"
       ></object>
     </div>
@@ -173,7 +174,7 @@ block extra_stylesheets %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/protocols/preliminary-protocol-demo"
+      href="{{ nav::site_url(raw_url="/protocols/preliminary-protocol-demo") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -184,7 +185,7 @@ block extra_stylesheets %}
       <span class="breadcrumb-label">Basic Protocol</span>
     </div>
     <a
-      href="/protocols/basic-protocol-demo"
+      href="{{ nav::site_url(raw_url="/protocols/basic-protocol-demo") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

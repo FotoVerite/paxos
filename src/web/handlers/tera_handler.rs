@@ -1,16 +1,49 @@
 use axum::{
     extract::{Path, State},
+    http::Uri,
     response::{Html, IntoResponse},
 };
 use tera::{Context, Tera};
 
 use super::utils::AppState;
+use crate::web::subdomain::Subdomain;
+
+fn site_root_for(site_slug: &str, uri_path: &str, subdomain: &str) -> String {
+    if site_slug == "paxos" {
+        return String::new();
+    }
+
+    if subdomain == site_slug {
+        return String::new();
+    }
+
+    let papers_prefix = format!("/papers/{}", site_slug);
+    if uri_path.starts_with(&papers_prefix) {
+        return papers_prefix;
+    }
+
+    let slug_prefix = format!("/{}", site_slug);
+    if uri_path.starts_with(&slug_prefix) {
+        return slug_prefix;
+    }
+
+    papers_prefix
+}
+
+fn build_site_context(site_slug: &str, uri: &Uri, subdomain: &str) -> Context {
+    let mut context = Context::new();
+    let site_root = site_root_for(site_slug, uri.path(), subdomain);
+    context.insert("site_slug", site_slug);
+    context.insert("site_root", &site_root);
+    context
+}
 
 /// Generic handler for Tera templates.
 /// This matches any path and tries to find a corresponding template.
 /// For example, access to /foo/bar will try to render templates/foo/bar.html.
 pub async fn tera_handler(
-    uri: axum::http::Uri,
+    uri: Uri,
+    Subdomain(subdomain): Subdomain,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let path = uri.path().trim_start_matches('/');
@@ -25,7 +58,8 @@ pub async fn tera_handler(
     };
 
     // Try to render the template
-    match state.tera.render(&template_name, &Context::new()) {
+    let context = build_site_context("paxos", &uri, &subdomain);
+    match state.tera.render(&template_name, &context) {
         Ok(html) => Html(html).into_response(),
         Err(e) => {
             tracing::error!("Template rendering error for {}: {}", template_name, e);
@@ -43,7 +77,9 @@ pub async fn tera_handler(
 /// For now, let's just make specific handlers for the known apps.
 
 pub async fn paxos_made_simple_handler(
+    uri: Uri,
     path: Option<Path<String>>,
+    Subdomain(subdomain): Subdomain,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let path = path.map(|p| p.0).unwrap_or_else(|| "index".to_string());
@@ -56,11 +92,14 @@ pub async fn paxos_made_simple_handler(
         format!("paxos-made-simple/{}.html", path)
     };
     
-    render_template(&state.tera, &template_name)
+    let context = build_site_context("paxos-made-simple", &uri, &subdomain);
+    render_template(&state.tera, &template_name, context)
 }
 
 pub async fn paxos_made_moderately_complex_handler(
+    uri: Uri,
     path: Option<Path<String>>,
+    Subdomain(subdomain): Subdomain,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let path = path.map(|p| p.0).unwrap_or_else(|| "index".to_string());
@@ -73,11 +112,13 @@ pub async fn paxos_made_moderately_complex_handler(
         format!("paxos-made-moderately-complex/{}.html", path)
     };
     
-    render_template(&state.tera, &template_name)
+    let context = build_site_context("paxos-made-moderately-complex", &uri, &subdomain);
+    render_template(&state.tera, &template_name, context)
 }
 
 pub async fn paxos_handler(
-    uri: axum::http::Uri,
+    uri: Uri,
+    Subdomain(subdomain): Subdomain,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let path = uri.path().trim_start_matches('/');
@@ -89,12 +130,13 @@ pub async fn paxos_handler(
         format!("paxos/{}.html", path)
     };
     
-    render_template(&state.tera, &template_name)
+    let context = build_site_context("paxos", &uri, &subdomain);
+    render_template(&state.tera, &template_name, context)
 }
 
 
-fn render_template(tera: &Tera, name: &str) -> axum::response::Response {
-     match tera.render(name, &Context::new()) {
+fn render_template(tera: &Tera, name: &str, context: Context) -> axum::response::Response {
+     match tera.render(name, &context) {
         Ok(html) => Html(html).into_response(),
         Err(e) => {
             tracing::error!("Template rendering error for {}: {}", name, e);

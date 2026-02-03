@@ -1,4 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}Paxos Preliminary Protocol{% endblock
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Paxos Preliminary Protocol{% endblock 
 %} {% block extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -12,7 +14,7 @@
     <div class="header-icon large">
       <object
         type="image/svg+xml"
-        data="/svgs/preliminary.svg"
+        data="/svgs/paxos/preliminary.svg"
         class="math-logo"
       ></object>
     </div>
@@ -166,7 +168,7 @@
 
   <div class="breadcrumb-nav">
     <a
-      href="/synod/recap"
+      href="{{ nav::site_url(raw_url="/synod/recap") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -177,7 +179,7 @@
       <span class="breadcrumb-label">Preliminary Protocol</span>
     </div>
     <a
-      href="/protocols/preliminary-protocol-demo"
+      href="{{ nav::site_url(raw_url="/protocols/preliminary-protocol-demo") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

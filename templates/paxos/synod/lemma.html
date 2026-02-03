@@ -1,4 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %}Paxos Lemma{% endblock %} {% block
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Paxos Lemma{% endblock %} {% block 
 extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -12,7 +14,7 @@ extra_stylesheets %}
     <div class="header-icon large">
       <object
         type="image/svg+xml"
-        data="/svgs/lemma.svg"
+        data="/svgs/paxos/lemma.svg"
         class="math-logo"
       ></object>
     </div>
@@ -161,7 +163,7 @@ extra_stylesheets %}
 
   <div class="breadcrumb-nav">
     <a
-      href="/synod/max-vote-quorum"
+      href="{{ nav::site_url(raw_url="/synod/max-vote-quorum") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -172,7 +174,7 @@ extra_stylesheets %}
       <span class="breadcrumb-label">Lemma</span>
     </div>
     <a
-      href="/synod/theorem-one"
+      href="{{ nav::site_url(raw_url="/synod/theorem-one") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

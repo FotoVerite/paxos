@@ -1,11 +1,13 @@
-{% extends "paxos/base.html" %} {% block title %}Requirements{% endblock %} {% block
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Requirements{% endblock %} {% block 
 content %}
 <div class="container">
   <div class="panel">
     <div class="header-icon">
       <object
         type="image/svg+xml"
-        data="/svgs/requirements.svg"
+        data="/svgs/paxos/requirements.svg"
         class="math-logo"
       ></object>
     </div>
@@ -15,7 +17,7 @@ content %}
       <div class="icon">
         <object
           type="image/svg+xml"
-          data="/svgs/consistancy.svg"
+          data="/svgs/paxos/consistancy.svg"
           class="math-logo"
         ></object>
       </div>
@@ -69,7 +71,7 @@ content %}
       <div class="icon">
         <object
           type="image/svg+xml"
-          data="/svgs/diamond.svg"
+          data="/svgs/paxos/diamond.svg"
           class="math-logo"
         ></object>
       </div>
@@ -104,7 +106,7 @@ content %}
       <div class="icon">
         <object
           type="image/svg+xml"
-          data="/svgs/validity.svg"
+          data="/svgs/paxos/validity.svg"
           class="math-logo"
         ></object>
       </div>
@@ -120,7 +122,7 @@ content %}
   <!-- Bottom Breadcrumb Navigation -->
   <div class="breadcrumb-nav">
     <a
-      href="/the-problem/the-island-of-paxos"
+      href="{{ nav::site_url(raw_url="/the-problem/the-island-of-paxos") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -131,7 +133,7 @@ content %}
       <span class="breadcrumb-label">Requirements</span>
     </div>
     <a
-      href="/the-problem/assumptions"
+      href="{{ nav::site_url(raw_url="/the-problem/assumptions") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >

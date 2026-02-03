@@ -1,4 +1,6 @@
-{% extends "paxos/base.html" %} {% block title %} Votes($\mathcal{B})$ {% endblock %}
+{% extends "paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %} Votes($\mathcal{B})$ {% endblock %} 
 {% block extra_stylesheets %}
 <link
   rel="stylesheet"
@@ -12,7 +14,7 @@
     <div class="header-icon large">
       <object
         type="image/svg+xml"
-        data="/svgs/votes.svg"
+        data="/svgs/paxos/votes.svg"
         class="math-logo"
       ></object>
     </div>
@@ -83,7 +85,7 @@
   </div>
   <div class="breadcrumb-nav">
     <a
-      href="/synod/constraints"
+      href="{{ nav::site_url(raw_url="/synod/constraints") }}"
       class="breadcrumb-link breadcrumb-prev"
       title="Go to previous page"
     >
@@ -94,7 +96,7 @@
       <span class="breadcrumb-label">Votes Function</span>
     </div>
     <a
-      href="/synod/max-vote"
+      href="{{ nav::site_url(raw_url="/synod/max-vote") }}"
       class="breadcrumb-link breadcrumb-next"
       title="Go to next page"
     >
