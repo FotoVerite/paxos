@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
-    common::types::{NodeId, DecreeId},
+    common::types::{DecreeId, NodeId},
     message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
@@ -71,16 +71,27 @@ impl PaxosState {
         };
 
         let learner = if config.roles.learner {
-            Some(Learner::new(id, quorum, learner_decree_notes, Arc::clone(&observer)))
+            Some(Learner::new(
+                id,
+                quorum,
+                learner_decree_notes,
+                Arc::clone(&observer),
+            ))
         } else {
             None
         };
 
         // Emit capabilities event
         let mut roles_str = Vec::new();
-        if config.roles.proposer { roles_str.push("Proposer".to_string()); }
-        if config.roles.acceptor { roles_str.push("Acceptor".to_string()); }
-        if config.roles.learner { roles_str.push("Learner".to_string()); }
+        if config.roles.proposer {
+            roles_str.push("Proposer".to_string());
+        }
+        if config.roles.acceptor {
+            roles_str.push("Acceptor".to_string());
+        }
+        if config.roles.learner {
+            roles_str.push("Learner".to_string());
+        }
 
         observer.on_event(Event::NodeCapabilities {
             id,
@@ -103,10 +114,15 @@ impl PaxosState {
             router,
             observer,
         };
+        state.emit_ledger_state().await;
         Ok(state)
     }
 
-    pub async fn propose(&self, cmd: PaxosCommand, decree_num: Option<DecreeId>) -> InflightProposal {
+    pub async fn propose(
+        &self,
+        cmd: PaxosCommand,
+        decree_num: Option<DecreeId>,
+    ) -> InflightProposal {
         let num = match decree_num {
             Some(num) => num,
             None => self.next().await,
@@ -119,16 +135,21 @@ impl PaxosState {
             self.dispatch(&msg, self.id).await;
             self.inflight_proposals.insert(num, cmd.clone()).await
         } else {
-            tracing::warn!("[Node {}] Attempted to propose without Proposer role", self.id);
+            tracing::warn!(
+                "[Node {}] Attempted to propose without Proposer role",
+                self.id
+            );
             // Return a dummy inflight proposal or handle error appropriately.
             // For now, we'll insert it but nothing will happen network-wise.
             self.inflight_proposals.insert(num, cmd.clone()).await
         }
     }
 
-    pub async fn retry_proposal(&self, inflight: InflightProposal)  {
+    pub async fn retry_proposal(&self, inflight: InflightProposal) {
         if let Some(proposer) = &self.proposer {
-            let msg = proposer.propose(inflight.decree_num, inflight.cmd.clone()).await;
+            let msg = proposer
+                .propose(inflight.decree_num, inflight.cmd.clone())
+                .await;
             self.dispatch(&msg, self.id).await;
         }
     }
@@ -152,7 +173,7 @@ impl PaxosState {
             }
             Message::Prepare { from, .. } | Message::Accept { from, .. } => {
                 if let Some(acceptor) = &self.acceptor {
-                     tracing::debug!(
+                    tracing::debug!(
                         "[Node {}] Handling Prepare/Accept from node {}",
                         self.id,
                         from
@@ -171,14 +192,14 @@ impl PaxosState {
                             self.id
                         );
                         self.dispatch(&reply, from).await;
-                    } 
+                    }
                 }
             }
             Message::Success { decree_num, .. } => {
-               if let Some(learner) = &self.learner {
+                if let Some(learner) = &self.learner {
                     tracing::debug!("[Node {}] Handling Success message", self.id);
                     learner.learn_decree(msg, &self.ledger).await;
-               }
+                }
                 // Proposers also need to clean up inflight proposals
                 self.inflight_proposals.cancel(decree_num).await
             }
@@ -187,7 +208,7 @@ impl PaxosState {
             }
         }
     }
-    
+
     async fn dispatch(&self, msg: &Message, from: NodeId) {
         if let Message::NACK = msg {
             return;
@@ -210,13 +231,35 @@ impl PaxosState {
         }
     }
 
-    pub async fn emit_ledger_state(&self, id: NodeId, observer: Arc<dyn PaxosObserver>) {
+    pub async fn emit_ledger_state(&self) {
         let initial_decrees = self.ledger.get_initial_decrees().await;
         for (decree_num, value) in initial_decrees {
-            observer.on_event(Event::InitialDecree {
-                id,
+            self.observer.on_event(Event::InitialDecree {
+                id: self.id,
                 decree_num,
                 value,
+                created_at: current_timestamp_millis(),
+            });
+        }
+    }
+
+    pub async fn emit_ledger_batch(&self) {
+        let initial_decrees = self.ledger.get_initial_decrees().await;
+        if !initial_decrees.is_empty() {
+            self.observer.on_event(Event::BatchInitialDecrees {
+                id: self.id,
+                decrees: initial_decrees,
+                created_at: current_timestamp_millis(),
+            });
+        }
+    }
+
+    pub async fn emit_full_ledger(&self) {
+        let all_decrees = self.ledger.get_all_decrees().await;
+        if !all_decrees.is_empty() {
+            self.observer.on_event(Event::LedgerDump {
+                id: self.id,
+                decrees: all_decrees,
                 created_at: current_timestamp_millis(),
             });
         }

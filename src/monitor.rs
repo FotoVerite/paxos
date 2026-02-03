@@ -69,6 +69,16 @@ pub enum Event {
         value: PaxosCommand,
         created_at: u64,
     },
+    BatchInitialDecrees { // Batch event for multiple initial decrees
+        id: NodeId,
+        decrees: Vec<(DecreeId, PaxosCommand)>,
+        created_at: u64,
+    },
+    LedgerDump { // Full ledger dump event
+        id: NodeId,
+        decrees: Vec<(DecreeId, PaxosCommand)>,
+        created_at: u64,
+    },
     NodeState {
         id: NodeId,
         role: String,

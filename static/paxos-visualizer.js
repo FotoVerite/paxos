@@ -93,9 +93,17 @@ class PaxosVisualizer {
     }
 
     /**
+     * Normalize nodeId to number for consistent object key lookup
+     */
+    #normalizeNodeId(nodeId) {
+        return Number(nodeId);
+    }
+
+    /**
      * Set node capabilities for role-aware visualization
      */
     setNodeCapabilities(nodeId, roles, learningStrategy) {
+        nodeId = this.#normalizeNodeId(nodeId);
         this.nodeCapabilities[nodeId] = { roles, learningStrategy };
     }
 
@@ -453,19 +461,17 @@ class PaxosVisualizer {
      * @param {string} color - Color to flash (defaults to blue)
      */
     activateNode(nodeId, color = '#60a5fa') {
+        nodeId = this.#normalizeNodeId(nodeId);
         const element = this.nodeElements[nodeId];
         if (!element) return;
 
         const circle = element.element.querySelector('.paxos-node-circle');
         const glow = element.element.querySelector('.paxos-node-glow');
 
-        // Flash color
         circle.setAttribute('fill', color);
         circle.style.filter = `drop-shadow(0 0 12px ${color})`;
         glow.setAttribute('stroke', color);
         glow.setAttribute('opacity', '0.8');
-
-        // Note: Event visualizers handle color reset via resetNodeToRoleColor
     }
 
     /**
@@ -474,6 +480,7 @@ class PaxosVisualizer {
      * @param {string} color - Color to set
      */
     setNodeColor(nodeId, color) {
+        nodeId = this.#normalizeNodeId(nodeId);
         const element = this.nodeElements[nodeId];
         if (!element) return;
 
@@ -488,6 +495,7 @@ class PaxosVisualizer {
      * @param {number} nodeId - Node ID to reset
      */
     resetNodeToRoleColor(nodeId) {
+        nodeId = this.#normalizeNodeId(nodeId);
         const element = this.nodeElements[nodeId];
         if (!element) return;
 
@@ -511,6 +519,7 @@ class PaxosVisualizer {
      * @param {number} nodeId - Node ID to partition
      */
     setNodePartitioned(nodeId, partitioned = true) {
+        nodeId = this.#normalizeNodeId(nodeId);
         const element = this.nodeElements[nodeId];
         if (!element) return;
 
@@ -532,12 +541,12 @@ class PaxosVisualizer {
      * @param {number} nodeId - Node ID to mark as leader
      */
     setLeader(nodeId) {
+        nodeId = this.#normalizeNodeId(nodeId);
         const element = this.nodeElements[nodeId];
         if (!element) return;
 
         const circle = element.element.querySelector('.paxos-node-circle');
         if (circle) {
-            // Add a bright border and glow to indicate leadership
             circle.setAttribute('stroke', '#fbbf24');
             circle.setAttribute('stroke-width', '4');
             circle.style.filter = 'drop-shadow(0 0 8px #fbbf24)';
@@ -549,6 +558,7 @@ class PaxosVisualizer {
      * @param {number} nodeId - Node ID to unmark as leader
      */
     clearLeader(nodeId) {
+        nodeId = this.#normalizeNodeId(nodeId);
         const element = this.nodeElements[nodeId];
         if (!element) return;
 
@@ -627,6 +637,9 @@ class PaxosVisualizer {
      */
     drawBeam(fromId, toId, color, duration = 500, pattern = 'solid') {
         return new Promise((resolve) => {
+            fromId = this.#normalizeNodeId(fromId);
+            toId = this.#normalizeNodeId(toId);
+            
             const from = this.nodeElements[fromId];
             const to = this.nodeElements[toId];
             if (!from || !to) {
@@ -729,6 +742,7 @@ class PaxosVisualizer {
      * @param {string} state - State text to display
      */
     setNodeState(nodeId, state) {
+        nodeId = this.#normalizeNodeId(nodeId);
         const element = this.nodeElements[nodeId];
         if (!element) return;
 

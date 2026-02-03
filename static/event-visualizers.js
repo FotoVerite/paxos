@@ -128,17 +128,18 @@ export const EVENT_VISUALIZERS = {
      visualizer.setNodeState(event.id, 'voted');
      visualizer.activateNode(event.id, this.color);
 
+     const snapshot = state.snapshot();
+     const speed = snapshot.simulation.speed;
+     const duration = Math.max(200, (500 / speed) * 0.67);
+
      if (event.from !== undefined && event.from !== event.id) {
-       const snapshot = state.snapshot();
-       const speed = snapshot.simulation.speed;
-       const duration = Math.max(200, (500 / speed) * 0.67);
        await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
-       
-       // Reset to topology color after animation
-       setTimeout(() => {
-         visualizer.resetNodeToRoleColor(event.id);
-       }, duration + 50);
      }
+     
+     // Always reset to topology color after animation
+     setTimeout(() => {
+       visualizer.resetNodeToRoleColor(event.id);
+     }, duration + 50);
    }
   },
 
@@ -192,7 +193,52 @@ export const EVENT_VISUALIZERS = {
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
-      // No visualization for initial decrees - they're just state
+      // Add decree to state
+      state.addDecree(event.id, {
+        decree_num: event.decree_num,
+        decree: formatDecree(event),
+        timestamp: Date.now()
+      });
+    }
+  },
+
+  BatchInitialDecrees: {
+    color: '#8b5cf6', // Purple
+    name: 'BatchInitialDecrees',
+
+    format(event) {
+      return `[Batch Init] Node ${event.id}: ${event.decrees.length} decrees loaded`;
+    },
+
+    async visualize(event, visualizer, state, canCommunicate) {
+      // Add all decrees to state
+      for (const [decree_num, value] of event.decrees) {
+        state.addDecree(event.id, {
+          decree_num,
+          decree: typeof value === 'string' ? value : JSON.stringify(value),
+          timestamp: Date.now()
+        });
+      }
+    }
+  },
+
+  LedgerDump: {
+    color: '#8b5cf6', // Purple
+    name: 'LedgerDump',
+
+    format(event) {
+      return `[Ledger Dump] Node ${event.id}: ${event.decrees.length} total decrees`;
+    },
+
+    async visualize(event, visualizer, state, canCommunicate) {
+      // Add all decrees to state
+      for (const [decree_num, value] of event.decrees) {
+        state.addDecree(event.id, {
+          decree_num,
+          decree: typeof value === 'string' ? value : JSON.stringify(value),
+          timestamp: Date.now()
+        });
+      }
     }
   },
 

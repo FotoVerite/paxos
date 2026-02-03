@@ -153,8 +153,36 @@ impl PaxosObserver for ConsoleObserver {
                 println!("{}", "[NETWORK] Partition healed".green());
             }
             Event::InitialDecree {
-               ..
+                ..
             } => {},
+            Event::BatchInitialDecrees {
+                id,
+                decrees,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[NODE {}] Batch Initial Decrees: {} decrees loaded",
+                        id, decrees.len()
+                    )
+                    .cyan()
+                );
+            },
+            Event::LedgerDump {
+                id,
+                decrees,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[NODE {}] Ledger Dump: {} total decrees",
+                        id, decrees.len()
+                    )
+                    .cyan()
+                );
+            },
             Event::NodeCapabilities {
                 id,
                 roles,

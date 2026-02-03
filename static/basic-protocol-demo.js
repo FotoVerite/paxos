@@ -188,6 +188,40 @@ async function handleEvent(queuedEvent) {
       setTimeout(() => visualizer.resetNodeToRoleColor(eventData.id), 400);
       break;
 
+    case "InitialDecree":
+      if (eventData.decree_num !== undefined) {
+        state.addDecree(eventData.id, {
+          decree_num: eventData.decree_num,
+          decree: formatDecree(eventData),
+          timestamp: Date.now()
+        });
+      }
+      break;
+
+    case "BatchInitialDecrees":
+      if (eventData.decrees && Array.isArray(eventData.decrees)) {
+        for (const [decree_num, value] of eventData.decrees) {
+          state.addDecree(eventData.id, {
+            decree_num,
+            decree: typeof value === 'string' ? value : JSON.stringify(value),
+            timestamp: Date.now()
+          });
+        }
+      }
+      break;
+
+    case "LedgerDump":
+      if (eventData.decrees && Array.isArray(eventData.decrees)) {
+        for (const [decree_num, value] of eventData.decrees) {
+          state.addDecree(eventData.id, {
+            decree_num,
+            decree: typeof value === 'string' ? value : JSON.stringify(value),
+            timestamp: Date.now()
+          });
+        }
+      }
+      break;
+
     case "PartitionCreated":
       for (const nodeId of (eventData.partition_b || [])) {
         state.setNodePartitioned(nodeId, true);
@@ -202,6 +236,11 @@ async function handleEvent(queuedEvent) {
         visualizer.setNodePartitioned(nodeId, false);
       }
       break;
+  }
+
+  // Update proposal stats for decree-related events
+  if (["LearnedValue", "InitialDecree", "BatchInitialDecrees", "LedgerDump"].includes(eventType)) {
+    updateProposalStats();
   }
 
   // Pause for readability

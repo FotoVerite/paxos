@@ -61,6 +61,41 @@
 }
 
 /* ========== BUTTONS & TOGGLES ========== */
+.btn-primary,
+.btn-secondary,
+.btn-compact {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-secondary {
+    background: #64748b;
+    color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #475569;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .btn-compact {
     flex: 1;
     font-size: 11px;
@@ -68,9 +103,6 @@
     border: 1px solid #334155;
     color: #94a3b8;
     padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
 }
 
 .btn-compact:hover {
@@ -249,6 +281,132 @@
     word-break: break-word;
 }
 
+/* ========== CONTROL SECTIONS ========== */
+.controls-section {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.control-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.control-group h3 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.speed-control {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.speed-control input[type="range"] {
+    flex: 1;
+}
+
+.speed-control span {
+    color: #94a3b8;
+    min-width: 40px;
+}
+
+.button-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.button-group button {
+    flex: 1;
+    min-width: 80px;
+}
+
+.status-info {
+    padding: 12px;
+    background: #1e293b;
+    border-left: 3px solid #3b82f6;
+    border-radius: 4px;
+}
+
+#statusTitle {
+    font-weight: bold;
+    color: #3b82f6;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+#statusDescription {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+/* ========== STATS ========== */
+.stats-section {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.stats-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px;
+}
+
+.stat-card {
+    background: #1e293b;
+    padding: 12px;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #334155;
+}
+
+.stat-value {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.2;
+}
+
+/* ========== EVENT LOG ========== */
+.event-log-section {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.event-log-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
 /* ========== FORMS & INPUTS ========== */
 select {
     pointer-events: auto;
@@ -257,8 +415,9 @@ select {
     color: #e2e8f0;
     border: 1px solid #334155;
     border-radius: 4px;
-    padding: 6px 8px;
+    padding: 8px 12px;
     font-size: 13px;
+    width: 100%;
 }
 
 select:hover {
@@ -268,6 +427,11 @@ select:hover {
 select:focus {
     outline: none;
     border-color: #3b82f6;
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: #3b82f6;
 }
 
 /* ========== DESCRIPTIONS & TEXT ========== */

@@ -124,6 +124,10 @@ impl Ledger {
             .collect()
     }
 
+    pub async fn get_all_decrees(&self) -> Vec<(DecreeId, PaxosCommand)> {
+        self.get_initial_decrees().await
+    }
+
     /// Pre-populate a ledger file with initial decrees (used for scenario setup)
     pub async fn prepopulate(uuid: Uuid, decrees: Vec<Option<PaxosCommand>>) -> Result<()> {
         let state = LedgerState {

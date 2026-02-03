@@ -314,15 +314,21 @@ async function playScenario() {
      pauseBtn.disabled = false;
 
      try {
-         const scenarioValue = scenarioSelect.value;
-         const strategy = learningStrategySelect.value;
-         
-         const payload = {
-             node_count: 9,
-             duration_secs: 60,
-             scenario_type: scenarioValue,
-             learning_strategy: strategy,
-         };
+          const scenarioValue = scenarioSelect.value;
+          const strategy = learningStrategySelect.value;
+          
+          // Set node count based on scenario type
+          let nodeCount = 9; // default for partial_roles and asymmetric_proposers
+          if (scenarioValue === "simple_happy_path") {
+              nodeCount = 5; // simple_happy_path uses 5 nodes
+          }
+          
+          const payload = {
+              node_count: nodeCount,
+              duration_secs: 60,
+              scenario_type: scenarioValue,
+              learning_strategy: strategy,
+          };
          
          const response = await fetch("/api/start-scenario", {
              method: "POST",
