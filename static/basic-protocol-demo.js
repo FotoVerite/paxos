@@ -121,6 +121,7 @@ async function handleEvent(queuedEvent) {
         }
       }
       if (proposalBeams.length > 0) await Promise.all(proposalBeams);
+      setTimeout(() => visualizer.resetNodeToRoleColor(eventData.id), duration + 50);
       break;
 
     case "Promise":
@@ -129,6 +130,7 @@ async function handleEvent(queuedEvent) {
       if (eventData.from !== undefined && eventData.from !== eventData.id) {
         await visualizer.drawBeam(eventData.id, eventData.from, viz.color, duration, "dashed");
       }
+      setTimeout(() => visualizer.resetNodeToRoleColor(eventData.id), duration + 50);
       break;
 
     case "Accept":
@@ -145,6 +147,7 @@ async function handleEvent(queuedEvent) {
         }
       }
       if (acceptBeams.length > 0) await Promise.all(acceptBeams);
+      setTimeout(() => visualizer.resetNodeToRoleColor(eventData.id), duration + 50);
       break;
 
     case "Accepted":
@@ -153,6 +156,7 @@ async function handleEvent(queuedEvent) {
       if (eventData.from !== undefined && eventData.from !== eventData.id) {
         await visualizer.drawBeam(eventData.id, eventData.from, viz.color, duration, "dotted");
       }
+      setTimeout(() => visualizer.resetNodeToRoleColor(eventData.id), duration + 50);
       break;
 
     case "LearnedValue":
@@ -165,18 +169,23 @@ async function handleEvent(queuedEvent) {
           timestamp: Date.now()
         });
       }
+      setTimeout(() => visualizer.resetNodeToRoleColor(eventData.id), 350);
       break;
 
     case "Success":
-      // Highlight the original proposer if different from the learner broadcasting
-      if (eventData.ballot_proposer !== undefined && eventData.ballot_proposer !== eventData.from) {
-        visualizer.activateNode(eventData.ballot_proposer, "#fbbf24"); // Yellow highlight
-      }
       visualizer.setNodeState(eventData.id, "success");
       visualizer.activateNode(eventData.id, viz.color);
-      if (eventData.from !== undefined && canCommunicate(eventData.from, eventData.id)) {
-        await visualizer.drawBeam(eventData.from, eventData.id, viz.color, duration, "dashed");
+      // Broadcast beams from the node that learned the value to all others
+      const successBeams = [];
+      for (let i = 0; i < snapshot.cluster.total_nodes; i++) {
+        if (i !== eventData.id && canCommunicate(eventData.id, i)) {
+          successBeams.push(
+            visualizer.drawBeam(eventData.id, i, viz.color, 350, "solid")
+          );
+        }
       }
+      if (successBeams.length > 0) await Promise.all(successBeams);
+      setTimeout(() => visualizer.resetNodeToRoleColor(eventData.id), 400);
       break;
 
     case "PartitionCreated":
@@ -264,6 +273,9 @@ function selectNode(nodeId) {
   selectedNodeId = selectedNodeId === nodeId ? null : nodeId;
   updateProposalStats();
 }
+
+// Make selectNode globally available for inline onclick handlers
+window.selectNode = selectNode;
 
 function updateDecreeDisplay() {
   const decreePanel = document.getElementById("decreePanel");

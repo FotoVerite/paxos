@@ -20,14 +20,70 @@
             <div class="nav-item">
                 <a href="{{ nav::site_url(raw_url="/") }}" class="nav-link">Home</a>
             </div>
+            
             <div class="nav-item">
                 <a href="{{ nav::site_url(raw_url="/introduction") }}" class="nav-link">Introduction</a>
             </div>
-            <div class="nav-item">
-                <a href="{{ nav::site_url(raw_url="/consensus") }}" class="nav-link">Consensus Algorithm</a>
+            
+            <!-- The Problem Section -->
+            <div class="nav-group">
+                <button class="nav-group-toggle" data-group="the-problem">
+                    <span class="nav-group-text">The Problem</span>
+                    <span class="nav-group-arrow">›</span>
+                </button>
+                <div class="nav-submenu" id="the-problem-menu">
+                    <a href="{{ nav::site_url(raw_url="/the-problem") }}" class="nav-link nav-sublink">Overview</a>
+                    <a href="{{ nav::site_url(raw_url="/the-problem/requirements") }}" class="nav-link nav-sublink">Requirements</a>
+                    <a href="{{ nav::site_url(raw_url="/the-problem/constraints") }}" class="nav-link nav-sublink">Constraints</a>
+                </div>
             </div>
-            <div class="nav-item">
-                <a href="{{ nav::site_url(raw_url="/state-machine") }}" class="nav-link">State Machine</a>
+            
+            <!-- Roles Section -->
+            <div class="nav-group">
+                <button class="nav-group-toggle" data-group="roles">
+                    <span class="nav-group-text">Roles</span>
+                    <span class="nav-group-arrow">›</span>
+                </button>
+                <div class="nav-submenu" id="roles-menu">
+                    <a href="{{ nav::site_url(raw_url="/roles/proposer") }}" class="nav-link nav-sublink">Proposer</a>
+                    <a href="{{ nav::site_url(raw_url="/roles/acceptor") }}" class="nav-link nav-sublink">Acceptor</a>
+                    <a href="{{ nav::site_url(raw_url="/roles/learner") }}" class="nav-link nav-sublink">Learner</a>
+                </div>
+            </div>
+            
+            <!-- Consensus Algorithm Section -->
+            <div class="nav-group">
+                <button class="nav-group-toggle" data-group="consensus">
+                    <span class="nav-group-text">Consensus Algorithm</span>
+                    <span class="nav-group-arrow">›</span>
+                </button>
+                <div class="nav-submenu" id="consensus-menu">
+                    <a href="{{ nav::site_url(raw_url="/two-phase") }}" class="nav-link nav-sublink">Two-Phase Protocol</a>
+                    <a href="{{ nav::site_url(raw_url="/proposal-algorithm") }}" class="nav-link nav-sublink">Proposal Algorithm</a>
+                    <a href="{{ nav::site_url(raw_url="/acceptor-algorithm") }}" class="nav-link nav-sublink">Acceptor Algorithm</a>
+                    <a href="{{ nav::site_url(raw_url="/learning-a-chosen-value") }}" class="nav-link nav-sublink">Learning a Chosen Value</a>
+                </div>
+            </div>
+            
+            <!-- State Machine Section -->
+            <div class="nav-group">
+                <button class="nav-group-toggle" data-group="state-machine">
+                    <span class="nav-group-text">State Machine</span>
+                    <span class="nav-group-arrow">›</span>
+                </button>
+                <div class="nav-submenu" id="state-machine-menu">
+                    <a href="{{ nav::site_url(raw_url="/implementation") }}" class="nav-link nav-sublink">Implementation</a>
+                    <a href="{{ nav::site_url(raw_url="/state-machine/a-simple-state-machine") }}" class="nav-link nav-sublink">A Simple State Machine</a>
+                    <a href="{{ nav::site_url(raw_url="/state-machine/replication") }}" class="nav-link nav-sublink">Replication</a>
+                    <a href="{{ nav::site_url(raw_url="/state-machine/catchup") }}" class="nav-link nav-sublink">Catchup</a>
+                    <a href="{{ nav::site_url(raw_url="/state-machine/gaps") }}" class="nav-link nav-sublink">Gaps</a>
+                    <a href="{{ nav::site_url(raw_url="/state-machine/leader-coordination") }}" class="nav-link nav-sublink">Leader Coordination</a>
+                    <a href="{{ nav::site_url(raw_url="/state-machine/optimization") }}" class="nav-link nav-sublink">Optimization</a>
+                    <a href="{{ nav::site_url(raw_url="/state-machine/efficiency") }}" class="nav-link nav-sublink">Efficiency</a>
+                    <a href="{{ nav::site_url(raw_url="/state-machine/proposal-window") }}" class="nav-link nav-sublink">Proposal Window</a>
+                    <a href="{{ nav::site_url(raw_url="/state-machine/reconfiguration") }}" class="nav-link nav-sublink">Reconfiguration</a>
+                    <a href="{{ nav::site_url(raw_url="/partial-roles-demo") }}" class="nav-link nav-sublink">Partial Roles Demo</a>
+                </div>
             </div>
         </div>
     </div>
@@ -36,12 +92,37 @@
 <script>
     const hamburger = document.getElementById('hamburgerBtn');
     const navMenu = document.getElementById('navMenu');
+    const navGroupToggles = document.querySelectorAll('.nav-group-toggle');
     
+    // Hamburger menu toggle
     hamburger.addEventListener('click', () => {
         navMenu.classList.toggle('active');
         hamburger.classList.toggle('active');
     });
 
+    // Nav group toggles
+    navGroupToggles.forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            const group = toggle.dataset.group;
+            const submenu = document.getElementById(`${group}-menu`);
+            const isActive = submenu.classList.contains('active');
+            
+            // Close all other submenus
+            document.querySelectorAll('.nav-submenu.active').forEach(menu => {
+                if (menu !== submenu) {
+                    menu.classList.remove('active');
+                    menu.parentElement.querySelector('.nav-group-toggle').classList.remove('active');
+                }
+            });
+            
+            // Toggle current submenu
+            submenu.classList.toggle('active');
+            toggle.classList.toggle('active');
+        });
+    });
+
+    // Close menu when clicking a link
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', () => {
             navMenu.classList.remove('active');

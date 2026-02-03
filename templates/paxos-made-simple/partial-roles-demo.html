@@ -1,5 +1,8 @@
-{% extends "paxos/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}Partial Roles Demo - Paxos Made Simple{% endblock %}
+{% extends "paxos-made-simple/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}Partial Roles Demo - Paxos Made Simple{% endblock %}
 {% block body_class %}protocol-page{% endblock %}
+{% block extra_stylesheets %}
+    <link rel="stylesheet" href="/css/demo.css">
+{% endblock %}
 {% block content %}
 <div class="demo-container partial-roles-demo">
     <!-- Visualization -->
@@ -141,261 +144,19 @@
 </div>
 
 <style>
-    .partial-roles-demo {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        padding: 20px;
-    }
+/* Demo-specific overrides for partial-roles-demo layout */
+.partial-roles-demo .visualization-main {
+    display: grid;
+    grid-template-columns: 250px 1fr 250px;
+    gap: 20px;
+}
 
-    .visualization-main {
-        position: relative;
-        display: grid;
-        grid-template-columns: 250px 1fr 250px;
-        gap: 20px;
-        background: #0f172a;
-        border-radius: 12px;
-        padding: 15px;
-        border: 1px solid #1e293b;
-        min-height: 500px;
+@media (max-width: 1200px) {
+    .partial-roles-demo .visualization-main {
+        grid-template-columns: 1fr;
     }
-
-    .viz-svg-container {
-        width: 100%;
-        height: 100%;
-        min-height: 500px;
-    }
-
-    #partialRolesSvg {
-        width: 100%;
-        height: 100%;
-        border-radius: 8px;
-    }
-
-    .topology-info-panel {
-        background: #1e293b;
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #334155;
-        color: #e2e8f0;
-    }
-
-    .topology-info-panel h3 {
-        margin: 0 0 10px 0;
-        font-size: 14px;
-        color: #94a3b8;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    #topologyDetails {
-        font-size: 13px;
-        line-height: 1.6;
-    }
-
-    .layout-toggle {
-        margin-top: 20px;
-        display: flex;
-        gap: 5px;
-    }
-
-    .layout-toggle .btn-compact {
-        flex: 1;
-        font-size: 11px;
-        background: #0f172a;
-        border: 1px solid #334155;
-        color: #94a3b8;
-    }
-
-    .layout-toggle .btn-compact.active {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-    }
-
-    .floating-decree-viewer {
-        background: #1e293b;
-        padding: 15px;
-        border-radius: 8px;
-        overflow-y: auto;
-        border: 1px solid #334155;
-    }
-
-    .stats-and-logs {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-    }
-
-    .scroll-log {
-        height: 200px;
-        overflow-y: auto;
-        background: #0f172a;
-        padding: 10px;
-        border-radius: 8px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
-    }
-
-    .role-tag {
-        display: inline-block;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: bold;
-        margin-right: 4px;
-        color: white;
-    }
-
-    .role-p {
-        background: #60a5fa;
-    }
-
-    .role-a {
-        background: #f59e0b;
-    }
-
-    .role-l {
-        background: #10b981;
-    }
-
-    .role-legend {
-        margin-top: 15px;
-        padding: 10px;
-        background: #0f172a;
-        border-radius: 6px;
-        border: 1px solid #334155;
-    }
-
-    .legend-title {
-        font-size: 12px;
-        font-weight: bold;
-        color: #94a3b8;
-        text-transform: uppercase;
-        margin-bottom: 8px;
-    }
-
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 6px;
-        font-size: 12px;
-        color: #cbd5e1;
-    }
-
-    .legend-color {
-        width: 14px;
-        height: 14px;
-        border-radius: 3px;
-        border: 1px solid #1e293b;
-    }
-
-    .proposal-stats {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-bottom: 12px;
-    }
-
-    .proposal-stat-item {
-        padding: 6px 8px;
-        background: #0f172a;
-        border: 1px solid #334155;
-        border-radius: 4px;
-        font-size: 12px;
-        color: #cbd5e1;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .proposal-stat-item:hover {
-        background: #1e293b;
-        border-color: #475569;
-    }
-
-    .proposal-stat-item.selected {
-        background: #3b82f6;
-        border-color: #3b82f6;
-        color: white;
-    }
-
-    .proposal-stat-item .node-id {
-        font-weight: bold;
-        color: #60a5fa;
-    }
-
-    .proposal-stat-item.selected .node-id {
-        color: white;
-    }
-
-    .decree-hint {
-        color: #94a3b8;
-        font-size: 13px;
-        text-align: center;
-        padding: 20px 10px;
-    }
-
-    .decree-content {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .decree-node-label {
-        font-size: 12px;
-        font-weight: bold;
-        color: #60a5fa;
-        padding: 6px;
-        background: #0f172a;
-        border-radius: 4px;
-    }
-
-    .decree-list {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .decree-item {
-        padding: 6px;
-        background: #0f172a;
-        border-left: 2px solid #34d399;
-        border-radius: 3px;
-    }
-
-    .decree-text {
-        font-size: 12px;
-        color: #cbd5e1;
-        font-family: 'JetBrains Mono', monospace;
-        word-break: break-word;
-    }
-
-    select {
-        pointer-events: auto;
-        cursor: pointer;
-    }
-
-    .scenario-description {
-        font-size: 13px;
-        line-height: 1.5;
-        color: #cbd5e1;
-    }
-
-    .scenario-description p {
-        margin: 0;
-        padding: 4px 0;
-    }
-
-    .scenario-description p:first-child {
-        color: #94a3b8;
-        font-size: 12px;
-    }
-
-    .scenario-description p:last-child {
-        color: #60a5fa;
-    }
-    </style>
+}
+</style>
 
 {% endblock %} {% block scripts %}
 <script src="/websocket-helper.js"></script>

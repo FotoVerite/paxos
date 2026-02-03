@@ -16,6 +16,7 @@ class PaxosVisualizer {
         this.nodeCount = 0;
         this.clusterInfo = null;
         this.layoutMode = options.layoutMode || 'circle'; // 'circle' or 'role-grouped'
+        this.topologyGradientColor = options.topologyGradientColor || '#1e40af'; // Default blue
 
         // State
         this.nodeElements = {};
@@ -63,10 +64,18 @@ class PaxosVisualizer {
         // Background gradient
         const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
         gradient.setAttribute('id', 'paxos-gradient');
-        gradient.innerHTML = `
-            <stop offset="0%" style="stop-color:#1e40af;stop-opacity:0.3" />
-            <stop offset="100%" style="stop-color:#1e40af;stop-opacity:0.1" />
-        `;
+        
+        // Create gradient stops with proper color
+        const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        stop1.setAttribute('offset', '0%');
+        stop1.setAttribute('style', `stop-color:${this.topologyGradientColor};stop-opacity:0.3`);
+        gradient.appendChild(stop1);
+        
+        const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+        stop2.setAttribute('offset', '100%');
+        stop2.setAttribute('style', `stop-color:${this.topologyGradientColor};stop-opacity:0.1`);
+        gradient.appendChild(stop2);
+        
         defs.appendChild(gradient);
 
         this.svg.appendChild(defs);
@@ -221,6 +230,7 @@ class PaxosVisualizer {
             circle.setAttribute('stroke', '#1e40af');
             circle.setAttribute('stroke-width', '2');
             circle.setAttribute('class', 'paxos-node-circle');
+            circle.setAttribute('data-base-color', roleColor); // Store for later restoration
             group.appendChild(circle);
 
             // Node label
