@@ -1,0 +1,59 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}Reconfiguration - Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+      <h1 class="panel-title">Reconfiguration</h1>
+      
+      <p>
+        Paxos assumes a fixed set of replicas. But real systems need to add nodes, remove nodes, or replace nodes. This is reconfiguration.
+      </p>
+
+      <p>
+        The naive approach—just change the replica set—breaks consensus. The majority quorum might shift, violating safety. You need a protocol for changing configurations safely.
+      </p>
+
+      <h2>The reconfiguration trick</h2>
+      
+      <p>
+        The solution is elegant: treat reconfiguration as a command. A special command that changes the replica set.
+      </p>
+
+      <p>
+        When you want to add a node, you propose a command "Add node 5" through the normal Synod protocol. Once it's decided and executed by a majority, the new node joins the system.
+      </p>
+
+      <p>
+        Similarly, "Remove node 3" becomes a decided command. Once executed, quorum calculations don't include that node anymore.
+      </p>
+
+      <h2>Why this works</h2>
+      
+      <p>
+        By using the consensus protocol itself to coordinate configuration changes, you ensure that all nodes agree on when to switch to the new configuration.
+      </p>
+
+      <p>
+        Here's the key: you can have a transition period where the system operates under a "joint consensus" rule. The old replica set and new replica set both need to agree. This ensures safety during the transition. Once everyone moves past the transition, the new quorum takes effect.
+      </p>
+
+      <h2>Practical considerations</h2>
+      
+      <p>
+        When adding a node, it starts empty. It needs to catch up on all previous decisions. The system can serve this new node's state transfer requests in parallel with normal operation, but the new node isn't counted toward quorum until it's caught up.
+      </p>
+
+      <p>
+        When removing a node, you actually want it to be slow or dead. Otherwise, if you remove a node that's still alive and talking to clients, it might confuse them by continuing to respond to requests even though it's no longer part of the cluster.
+      </p>
+
+      <p>
+        Van Renesse's paper mentions that full reconfiguration details are beyond the scope and points to other work. The main idea is: use consensus to coordinate, and be careful about quorum rules during transitions.
+      </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/practical/disk-storage", prev_label="Disk Storage & Recovery", current_label="Reconfiguration", next_url="/papers/paxos-made-moderately-complex/practical/read-only-commands", next_label="Read-Only Commands" ) }}
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}How & Why - Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+      <h1 class="panel-title">How & Why Paxos Works</h1>
+      
+      <p>
+        This section covers the core protocol. It's where you learn how replicas coordinate to agree on command ordering, and why the algorithm guarantees safety even when things go wrong.
+      </p>
+
+      <h2>The two pieces</h2>
+      
+      <p>
+        Multi-Paxos has two main components working together:
+      </p>
+
+      <ul>
+        <li><strong>Replicas:</strong> They receive client requests, propose commands for slots, and execute commands in order.</li>
+        <li><strong>The Synod Protocol:</strong> Acceptors reach consensus on which command goes in each slot using ballots.</li>
+      </ul>
+
+      <p>
+        Replicas are the public-facing layer. Clients talk to replicas. The Synod protocol is the engine underneath—it's what actually guarantees agreement.
+      </p>
+
+      <h2>What you'll read</h2>
+
+      <ul>
+        <li><a href="/papers/paxos-made-moderately-complex/how-and-why/replicas-and-slots">Replicas and Slots</a> — The structure that makes ordering work.</li>
+        <li><a href="/papers/paxos-made-moderately-complex/how-and-why/synod-protocol">The Synod Protocol</a> — Ballots, acceptors, and how consensus is reached.</li>
+        <li><a href="/papers/paxos-made-moderately-complex/how-and-why/ballots-and-acceptors">Ballots & Acceptors</a> — Deep dive into the state machines.</li>
+        <li><a href="/papers/paxos-made-moderately-complex/how-and-why/core-protocol-demo">Interactive Demo</a> — Watch the protocol in action.</li>
+      </ul>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/introduction", prev_label="Introduction", current_label="How & Why", next_url="/papers/paxos-made-moderately-complex/how-and-why/replicas-and-slots", next_label="Replicas and Slots" ) }}
+</div>
+{% endblock %}

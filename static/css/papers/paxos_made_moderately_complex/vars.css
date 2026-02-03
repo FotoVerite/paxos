@@ -1,0 +1,52 @@
+/* PMC Color Variables - Purple/Blue Theme */
+:root {
+  /* Brand Colors */
+  --pmc-primary: #8b5cf6;
+  --pmc-primary-light: #a78bfa;
+  --pmc-primary-dark: #1e1b4b;
+
+  /* Secondary Accents */
+  --pmc-secondary: #6366f1;
+  --pmc-secondary-light: #818cf8;
+
+  /* Navigation */
+  --pmc-nav-bg-start: #0f172a;
+  --pmc-nav-bg-end: #1e1b4b;
+  --pmc-nav-border: #8b5cf6;
+  --pmc-nav-text: #cbd5e1;
+  --pmc-nav-text-hover: #a78bfa;
+  --pmc-nav-bg-hover: rgba(139, 92, 246, 0.05);
+
+  /* Text */
+  --pmc-text-primary: #cbd5e1;
+  --pmc-text-muted: #94a3b8;
+
+  /* Sections */
+  --pmc-section-bg: rgba(139, 92, 246, 0.05);
+  --pmc-section-border: #8b5cf6;
+  --pmc-section-shadow: rgba(139, 92, 246, 0.1);
+
+  /* Container */
+  --pmc-container-max-width: 1200px;
+  --pmc-container-padding: 3rem 2rem;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 15px;
+  --space-xl: 20px;
+  --space-2xl: 30px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --pmc-container-padding: 2rem 1.5rem;
+  }
+}

@@ -1,0 +1,103 @@
+/* PMC Landing Page */
+@import './vars.css';
+
+.pmc-hero {
+    min-height: calc(100vh - 60px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3rem;
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.pmc-title {
+    display: flex;
+    gap: 1rem;
+    align-items: baseline;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.pmc-title h1 {
+    font-size: 3rem;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--pmc-primary);
+}
+
+.pmc-subtitle {
+    font-size: 1.25rem;
+    color: var(--pmc-text-primary);
+    margin: 0;
+    max-width: 600px;
+    line-height: 1.5;
+}
+
+.pmc-cta {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.pmc-cta a {
+    padding: 12px 32px;
+    border-radius: 4px;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: all 0.3s;
+    font-weight: 500;
+    border: 2px solid transparent;
+}
+
+.pmc-cta .primary {
+    background-color: var(--pmc-primary);
+    color: var(--pmc-primary-dark);
+}
+
+.pmc-cta .primary:hover {
+    background-color: var(--pmc-primary-light);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
+}
+
+.pmc-cta .secondary {
+    background-color: transparent;
+    color: var(--pmc-primary);
+    border-color: var(--pmc-primary);
+}
+
+.pmc-cta .secondary:hover {
+    background-color: var(--pmc-primary);
+    color: var(--pmc-primary-dark);
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .pmc-hero {
+        gap: 2rem;
+    }
+
+    .pmc-title h1 {
+        font-size: 2.5rem;
+    }
+
+    .pmc-subtitle {
+        font-size: 1rem;
+    }
+
+    .pmc-cta {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .pmc-cta a {
+        width: 100%;
+    }
+}

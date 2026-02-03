@@ -1,0 +1,69 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}Replicas and Slots - Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+      <h1 class="panel-title">Replicas and Slots</h1>
+      
+      <p>
+        Before we talk about consensus, we need to understand the structure that makes ordering work. That structure is built on two simple ideas: replicas and slots.
+      </p>
+
+      <h2>What is a replica?</h2>
+      
+      <p>
+        A replica is a state machine. It maintains application state. When a client sends a request, the replica receives it, executes the command, and returns a result.
+      </p>
+
+      <p>
+        In single-server systems, you'd have one replica. In Paxos, you have many replicas. They all maintain identical state and execute commands in the same order. From the client's perspective, they look like a single, fault-tolerant server.
+      </p>
+
+      <h2>The slot abstraction</h2>
+      
+      <p>
+        Here's the key insight: instead of replicas directly executing commands as they arrive (which would cause ordering problems), they execute commands from a sequence called a <em>log</em>.
+      </p>
+
+      <p>
+        Each position in the log is a <em>slot</em>. Slot 1, slot 2, slot 3. Each slot will eventually hold a command. Replicas execute slot 1, then slot 2, then slot 3, and so on.
+      </p>
+
+      <p>
+        The question is: which command goes in which slot? When multiple clients send requests concurrently, they might propose different commands for the same slot. The Synod protocol (which we'll see next) decides that.
+      </p>
+
+      <h2>How replicas handle requests</h2>
+      
+      <p>
+        When a replica receives a client request for command <code>c</code>, it does something simple: find the lowest slot that hasn't been filled yet, and propose command <code>c</code> for that slot.
+      </p>
+
+      <p>
+        Then the replica waits. It doesn't execute the command yet. It waits for a decision from the consensus mechanism (Synod). Once a decision arrives, the replica knows which command actually won the slot. It executes the command and sends a response to the client.
+      </p>
+
+      <p>
+        This is the core of state machine replication: all replicas see the same sequence of decisions, so they all execute the same sequence of commands in the same order, resulting in identical state.
+      </p>
+
+      <h2>Multiple clients, same slot</h2>
+      
+      <p>
+        Here's where it gets interesting. Suppose two clients send requests to different replicas at the same time. Replica A receives a request for command <code>c1</code>. Replica B receives a request for command <code>c2</code>. Both propose their commands for slot 1.
+      </p>
+
+      <p>
+        Now we have a conflict: which command should actually be in slot 1? The Synod protocol handles this. It ensures that one of them wins (only one value is chosen), and all replicas agree on the winner.
+      </p>
+
+      <p>
+        If replica A's command loses, it doesn't disappear. Replica A re-proposes it for a higher slot number. Eventually, all client commands get into the log, just in some order determined by Synod.
+      </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/how-and-why", prev_label="How & Why", current_label="Replicas and Slots", next_url="/papers/paxos-made-moderately-complex/how-and-why/synod-protocol", next_label="The Synod Protocol" ) }}
+</div>
+{% endblock %}

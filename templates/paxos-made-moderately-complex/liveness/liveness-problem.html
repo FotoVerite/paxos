@@ -1,0 +1,64 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}The Liveness Problem - Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+      <h1 class="panel-title">The Liveness Problem</h1>
+      
+      <p>
+        The protocol we've described so far is safe. All nodes agree on decisions. But there's a problem: it doesn't guarantee that anything actually decides.
+      </p>
+
+      <p>
+        It's possible to construct a scenario where the system gets stuck. Two leaders keep competing, and neither gets a decision through. This is the liveness problem.
+      </p>
+
+      <h2>The ping-pong scenario</h2>
+      
+      <p>
+        Imagine two leaders, λ and λ'. Both want to get value v proposed for slot 1. They keep fighting:
+      </p>
+
+      <ul>
+        <li>λ runs a scout in ballot (0, λ), gets a majority to adopt it.</li>
+        <li>λ' runs a scout in ballot (0, λ'), gets a majority to adopt it (because (0, λ') > (0, λ)).</li>
+        <li>Now λ can't get acceptors in the majority to accept its value—they've adopted λ's higher ballot.</li>
+        <li>λ tries a higher ballot (1, λ). Gets a majority to adopt it.</li>
+        <li>λ' tries (1, λ'), gets a majority to adopt it.</li>
+        <li>And on and on...</li>
+      </ul>
+
+      <p>
+        Neither leader completes. No value is chosen. The system is safe but stuck.
+      </p>
+
+      <h2>Why does this happen?</h2>
+      
+      <p>
+        The basic protocol has no built-in way to prevent leaders from constantly escalating ballots. Both leaders are acting correctly according to the protocol. But they're competing without coordination.
+      </p>
+
+      <p>
+        The FLP impossibility result (Fischer, Lynch, Paterson) tells us something important: in an asynchronous system with crashes, no protocol can guarantee both safety and liveness without additional assumptions.
+      </p>
+
+      <p>
+        Paxos is safe without any assumptions. But to get liveness, we need something extra: a way to prevent unbounded ballot escalation. We need a leader.
+      </p>
+
+      <h2>Why one leader solves it</h2>
+      
+      <p>
+        If only one leader is active at a time, the ping-pong never happens. That leader runs scouts and commanders without competition. Values get chosen. The system makes progress.
+      </p>
+
+      <p>
+        So the solution is to elect a leader. But in an asynchronous system, you can't really "elect" (that's an impossibility). Instead, Paxos uses a weaker concept called weak leader election, which we'll see next.
+      </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/liveness", prev_label="Liveness", current_label="The Liveness Problem", next_url="/papers/paxos-made-moderately-complex/liveness/leader-election", next_label="Leader Election" ) }}
+</div>
+{% endblock %}

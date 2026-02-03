@@ -1,0 +1,44 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}Introduction - Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+      <h1 class="panel-title">Introduction</h1>
+      
+      <p>
+        If you finished Paxos Made Simple, you now know the core algorithm. Lamport's paper is brilliant at stripping away implementation details and showing you the invariants. But there's a gap between understanding Paxos and implementing it.
+      </p>
+
+      <p>
+        That's where this paper comes in. Robbert van Renesse's "Paxos Made Moderately Complex" fills that gap. It gives you the full operational description of Multi-Paxos—the version that actually runs in production systems like Chubby and ZooKeeper.
+      </p>
+
+      <p>
+        The "moderately complex" part is honest. It's not simple anymore, but it's not impenetrably complex either. Van Renesse walks through the pseudocode, discusses the state machines, and explains the engineering decisions that make Paxos practical.
+      </p>
+
+      <h2>What you'll learn</h2>
+      
+      <ul>
+        <li><strong>Replicas and Slots:</strong> How commands are ordered across the system using a sequence of slots.</li>
+        <li><strong>The Synod Protocol:</strong> Ballots, acceptors, scouts, and commanders. The machinery that actually reaches consensus.</li>
+        <li><strong>Liveness:</strong> Why the basic protocol can livelock, and how weak leader election fixes it.</li>
+        <li><strong>Practical Details:</strong> Disk storage, crash recovery, reconfiguration, optimizations that make this work in the real world.</li>
+      </ul>
+
+      <h2>Prerequisites</h2>
+      
+      <p>
+        You should understand Paxos Made Simple first. If you haven't read it (or this site), go back and work through it. This builds directly on that foundation.
+      </p>
+
+      <p>
+        You also need to be comfortable with pseudocode and state machines. Van Renesse uses both extensively.
+      </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/", prev_label="Home", current_label="Introduction", next_url="/papers/paxos-made-moderately-complex/how-and-why", next_label="How & Why" ) }}
+</div>
+{% endblock %}

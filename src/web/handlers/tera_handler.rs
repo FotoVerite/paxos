@@ -59,6 +59,23 @@ pub async fn paxos_made_simple_handler(
     render_template(&state.tera, &template_name)
 }
 
+pub async fn paxos_made_moderately_complex_handler(
+    path: Option<Path<String>>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let path = path.map(|p| p.0).unwrap_or_else(|| "index".to_string());
+    let path = path.trim_end_matches('/'); // Remove trailing slash
+    
+    // Check if it's a directory-like path (index)
+    let template_name = if path.is_empty() || path == "index" {
+        "paxos-made-moderately-complex/index.html".to_string()
+    } else {
+        format!("paxos-made-moderately-complex/{}.html", path)
+    };
+    
+    render_template(&state.tera, &template_name)
+}
+
 pub async fn paxos_handler(
     uri: axum::http::Uri,
     State(state): State<AppState>,

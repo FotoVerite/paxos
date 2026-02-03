@@ -1,0 +1,76 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}The Synod Protocol - Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+      <h1 class="panel-title">The Synod Protocol</h1>
+      
+      <p>
+        The Synod protocol is the consensus mechanism. It solves this problem: given a set of proposed values (commands from replicas), choose one value such that all acceptors (nodes participating in consensus) agree.
+      </p>
+
+      <p>
+        The protocol has two phases. We'll see why you need both.
+      </p>
+
+      <h2>Phase 1: Scout (Prepare)</h2>
+      
+      <p>
+        A leader starts by running a scout. The scout talks to acceptors with a ballot number. The scout asks: "Will you adopt this ballot?"
+      </p>
+
+      <p>
+        Acceptors have rules: they will only adopt a ballot if it's higher than any ballot they've seen before. Once they adopt a ballot, they commit to not adopting any lower ballot.
+      </p>
+
+      <p>
+        If the scout gets a majority of acceptors to adopt the ballot, the scout reports back: "You're the leader for this ballot." The leader can now propose values.
+      </p>
+
+      <h2>Phase 2: Commander (Accept)</h2>
+      
+      <p>
+        Once the leader has a majority adopting its ballot, it can propose a value for a slot. The leader sends a message to acceptors saying: "Accept this value for this slot in this ballot."
+      </p>
+
+      <p>
+        Acceptors accept the value if they haven't adopted a higher ballot. Once a majority accepts, the value is chosen.
+      </p>
+
+      <p>
+        This is safety: the acceptor rules ensure that if a value is chosen, no other value will ever be chosen for that slot.
+      </p>
+
+      <h2>Why two phases?</h2>
+      
+      <p>
+        Phase 1 ensures the leader knows which values might have already been chosen. This is crucial. If a leader crashes and a new leader takes over, the new leader has to respect decisions made by the old leader.
+      </p>
+
+      <p>
+        Phase 2 is where the actual proposal happens. The two phases together guarantee that all replicas agree on the final value.
+      </p>
+
+      <h2>Acceptors remember</h2>
+      
+      <p>
+        Acceptors are dumb compared to leaders. They just follow rules:
+      </p>
+
+      <ul>
+        <li>Store the highest ballot number you've adopted.</li>
+        <li>Store the value you've accepted for each slot in each ballot.</li>
+        <li>Don't adopt a lower ballot than the highest one you've seen.</li>
+        <li>Don't accept a value in a ballot lower than the highest ballot you've adopted.</li>
+      </ul>
+
+      <p>
+        By following these rules, acceptors maintain the invariants that guarantee safety. The leader is smart (it runs Synod), but the acceptors are the ones who ensure consistency.
+      </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/how-and-why/replicas-and-slots", prev_label="Replicas and Slots", current_label="The Synod Protocol", next_url="/papers/paxos-made-moderately-complex/how-and-why/ballots-and-acceptors", next_label="Ballots & Acceptors" ) }}
+</div>
+{% endblock %}

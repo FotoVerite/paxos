@@ -1,0 +1,134 @@
+/* PMC Learn Page Components */
+@import "./vars.css";
+
+.panel {
+  position: relative;
+  background: var(--pmc-section-bg);
+  border: 1px solid var(--pmc-section-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+
+.panel-title {
+  background: linear-gradient(
+    135deg,
+    var(--pmc-nav-bg-start) 0%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+  padding: var(--space-xl);
+  margin: 0 0 var(--space-2xl) 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--pmc-primary);
+  border-radius: var(--radius-lg);
+  border-bottom: 2px solid var(--pmc-primary);
+  text-transform: none;
+  letter-spacing: -0.5px;
+}
+
+.panel h2 {
+  color: var(--pmc-primary);
+  font-size: 1.5rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  border-left: 3px solid var(--pmc-primary);
+  padding-left: var(--space-lg);
+}
+
+.panel h2:first-of-type {
+  margin-top: 0;
+}
+
+.panel p {
+  color: var(--pmc-text-primary);
+  line-height: 1.7;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.panel em {
+  color: var(--pmc-primary-light);
+  font-style: italic;
+}
+
+.panel strong {
+  color: var(--pmc-primary-light);
+  font-weight: 600;
+}
+
+.panel ul,
+.panel ol {
+  color: var(--pmc-text-primary);
+  margin-left: var(--space-xl);
+  margin-bottom: 1.5rem;
+}
+
+.panel li {
+  margin-bottom: var(--space-lg);
+  line-height: 1.6;
+}
+
+.panel a {
+  color: var(--pmc-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.3s;
+  border-bottom: 1px solid transparent;
+}
+
+.panel a:hover {
+  color: var(--pmc-primary-light);
+  border-bottom-color: var(--pmc-primary-light);
+}
+
+.panel code {
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--pmc-secondary-light);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.panel pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--pmc-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+.panel pre code {
+  background: none;
+  color: var(--pmc-primary-light);
+  padding: 0;
+}
+
+.panel blockquote {
+  border-left: 3px solid var(--pmc-primary);
+  padding-left: var(--space-lg);
+  margin-left: 0;
+  color: var(--pmc-text-muted);
+  font-style: italic;
+}
+
+.pmc-container {
+  max-width: var(--pmc-container-max-width);
+  margin: 0 auto;
+  padding: var(--pmc-container-padding);
+}
+
+@media (max-width: 768px) {
+  .panel-title {
+    font-size: 1.75rem;
+  }
+
+  .panel h2 {
+    font-size: 1.25rem;
+  }
+
+  .panel {
+    padding: var(--space-xl) var(--space-lg);
+  }
+}

@@ -1,0 +1,78 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}Implementations - Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+      <h1 class="panel-title">Real Implementations</h1>
+      
+      <p>
+        Paxos isn't just theory. It's deployed in some of the most critical systems in the world.
+      </p>
+
+      <h2>Google Chubby</h2>
+      
+      <p>
+        Chubby is Google's lock service. It uses Paxos to replicate lock state and configuration data. Chubby has been running for many years and powers much of Google's infrastructure.
+      </p>
+
+      <p>
+        Key insight: Chubby doesn't use all the optimizations. It prioritizes simplicity and correctness over raw throughput. This makes it a reliable building block for other systems.
+      </p>
+
+      <h2>Apache ZooKeeper</h2>
+      
+      <p>
+        ZooKeeper is the open-source equivalent of Chubby. It's used in Hadoop, Kafka, and many other distributed systems.
+      </p>
+
+      <p>
+        ZooKeeper implements Paxos-like consensus (it's called Zab, a variant optimized for totally ordered delivery). It provides a file-like interface for distributed coordination.
+      </p>
+
+      <h2>etcd and Raft</h2>
+      
+      <p>
+        etcd uses Raft, another consensus algorithm. Raft is simpler than Paxos to understand and implement, though it's less efficient in some scenarios.
+      </p>
+
+      <p>
+        etcd powers Kubernetes and is widely used for service discovery and coordination.
+      </p>
+
+      <h2>Amazon DynamoDB and other databases</h2>
+      
+      <p>
+        Many modern databases use Paxos or Paxos-like algorithms for replication. DynamoDB uses it for high availability across data centers.
+      </p>
+
+      <h2>Why Paxos (or variants)?</h2>
+      
+      <p>
+        These systems use Paxos or algorithms inspired by it because:
+      </p>
+
+      <ul>
+        <li><strong>Proven correctness:</strong> Paxos has been formally analyzed. You know it won't lose data or violate consistency.</li>
+        <li><strong>Asynchrony:</strong> It works in asynchronous networks with unbounded delays.</li>
+        <li><strong>Fault tolerance:</strong> It tolerates minorities of failures.</li>
+        <li><strong>Practical:</strong> With optimizations, it's fast enough for real systems.</li>
+      </ul>
+
+      <h2>Next steps</h2>
+      
+      <p>
+        If you want to go deeper:
+      </p>
+
+      <ul>
+        <li>Read the original Van Renesse paper in full (it has Java pseudocode).</li>
+        <li>Look at the Chubby or ZooKeeper papers for real implementation details.</li>
+        <li>Implement Paxos yourself. Nothing beats hands-on understanding.</li>
+      </ul>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/practical/optimizations", prev_label="Optimizations", current_label="Implementations", next_url="/papers/paxos-made-moderately-complex/", next_label="Home" ) }}
+</div>
+{% endblock %}

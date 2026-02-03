@@ -1,0 +1,35 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import "macros/nav.html" as nav %} {% block title %}Practical - Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/learn.css" />
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/breadcrumb.css" />
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+      <h1 class="panel-title">Making Paxos Practical</h1>
+      
+      <p>
+        The previous sections describe the core protocol. They show how Paxos reaches consensus and guarantees both safety and liveness. But they don't show how to actually build a system you'd run in production.
+      </p>
+
+      <p>
+        This section is about the engineering. Disk storage, crash recovery, configuration changes, optimizations. The things that separate a theoretical protocol from a system that works when things go wrong.
+      </p>
+
+      <p>
+        Van Renesse doesn't shy away from the details. He discusses invariants, state management, and the trade-offs you have to make.
+      </p>
+
+      <h2>What you'll read</h2>
+
+      <ul>
+        <li><a href="/papers/paxos-made-moderately-complex/practical/disk-storage">Disk Storage & Recovery</a> — How to make Paxos fault-tolerant to crashes.</li>
+        <li><a href="/papers/paxos-made-moderately-complex/practical/reconfiguration">Reconfiguration</a> — Changing the set of replicas while the system is running.</li>
+        <li><a href="/papers/paxos-made-moderately-complex/practical/read-only-commands">Read-Only Commands</a> — Optimizing queries without consensus.</li>
+        <li><a href="/papers/paxos-made-moderately-complex/practical/optimizations">Optimizations</a> — Batching, pipelining, and other techniques.</li>
+        <li><a href="/papers/paxos-made-moderately-complex/practical/full-system-demo">Full System Demo</a> — See everything working together.</li>
+      </ul>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/liveness", prev_label="Liveness", current_label="Practical", next_url="/papers/paxos-made-moderately-complex/practical/disk-storage", next_label="Disk Storage & Recovery" ) }}
+</div>
+{% endblock %}
