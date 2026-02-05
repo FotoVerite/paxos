@@ -23,6 +23,7 @@ class PaxosVisualizer {
         this.center = { x: 0, y: 0 };
         this.eventCounts = {};
         this.nodeCapabilities = {}; // Store role info per node
+        this.scheduledResets = new Map();
 
         // Event colors - customizable
         this.eventColors = options.eventColors || {
@@ -135,14 +136,11 @@ class PaxosVisualizer {
         this.clusterInfo = clusterInfo;
         this.nodeCount = clusterInfo.total_nodes;
 
-        this.nodeCount = clusterInfo.total_nodes;
-
-        // Clear existing
-
         // Clear existing
         this.svg.innerHTML = '';
         this.nodeElements = {};
         this.eventCounts = {};
+        this.clearScheduledResets();
 
         // Re-add defs
         this.setupSVG();
@@ -496,6 +494,7 @@ class PaxosVisualizer {
      */
     resetNodeToRoleColor(nodeId) {
         nodeId = this.#normalizeNodeId(nodeId);
+        this.clearNodeReset(nodeId);
         const element = this.nodeElements[nodeId];
         if (!element) return;
 
@@ -515,6 +514,44 @@ class PaxosVisualizer {
     }
 
     /**
+     * Schedule a node reset after a delay (clears any pending reset for the node).
+     * @param {number} nodeId - Node ID to reset
+     * @param {number} delayMs - Delay in milliseconds
+     */
+    scheduleNodeReset(nodeId, delayMs = 0) {
+        nodeId = this.#normalizeNodeId(nodeId);
+        this.clearNodeReset(nodeId);
+        const timeout = setTimeout(() => {
+            this.resetNodeToRoleColor(nodeId);
+            this.scheduledResets.delete(nodeId);
+        }, delayMs);
+        this.scheduledResets.set(nodeId, timeout);
+    }
+
+    /**
+     * Clear any scheduled reset for a node.
+     * @param {number} nodeId - Node ID to clear
+     */
+    clearNodeReset(nodeId) {
+        nodeId = this.#normalizeNodeId(nodeId);
+        const timeout = this.scheduledResets.get(nodeId);
+        if (timeout) {
+            clearTimeout(timeout);
+            this.scheduledResets.delete(nodeId);
+        }
+    }
+
+    /**
+     * Clear all scheduled resets.
+     */
+    clearScheduledResets() {
+        for (const timeout of this.scheduledResets.values()) {
+            clearTimeout(timeout);
+        }
+        this.scheduledResets.clear();
+    }
+
+    /**
      * Mark a node as partitioned (grey it out)
      * @param {number} nodeId - Node ID to partition
      */
@@ -530,7 +567,7 @@ class PaxosVisualizer {
             circle.style.opacity = '0.5';
             if (label) label.style.opacity = '0.5';
         } else {
-            circle.setAttribute('fill', '#3b82f6');
+            this.resetNodeToRoleColor(nodeId);
             circle.style.opacity = '1';
             if (label) label.style.opacity = '1';
         }

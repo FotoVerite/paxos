@@ -36,5 +36,9 @@ export function createEventCountsPlugin({ countMap = DEFAULT_COUNT_MAP } = {}) {
     onReset(ctx) {
       renderCounts(ctx.state, countMap);
     },
+
+    onRestore(_, ctx) {
+      renderCounts(ctx.state, countMap);
+    },
   };
 }

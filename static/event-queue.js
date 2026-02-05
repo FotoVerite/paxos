@@ -4,12 +4,13 @@
  */
 
 export class EventQueue {
-  constructor(handleEvent, batchWindow = 50) {
+  constructor(handleEvent, batchWindow = 50, options = {}) {
     this.queue = [];
     this.batchWindow = batchWindow; // Microseconds for batching window
     this.processing = false;
     this.processingTimeout = null;
-    this.handleEvent = handleEvent;
+    this.handleEvent = typeof handleEvent === 'function' ? handleEvent : null;
+    this.handleBatch = typeof options.handleBatch === 'function' ? options.handleBatch : null;
   }
 
   /**
@@ -46,8 +47,12 @@ export class EventQueue {
 
     try {
       const batch = this.extractBatch();
-      const promises = batch.map(event => this.handleEvent(event));
-      await Promise.all(promises);
+      if (this.handleBatch) {
+        await this.handleBatch(batch);
+      } else if (this.handleEvent) {
+        const promises = batch.map(event => this.handleEvent(event));
+        await Promise.all(promises);
+      }
     } catch (err) {
       console.error('Error processing event batch:', err);
     }

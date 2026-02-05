@@ -115,5 +115,9 @@ export function createDecreePanelPlugin({ statsContainer, decreePanel } = {}) {
       ctx.state.selectNode(null);
       renderAll(ctx.state, statsContainer, decreePanel);
     },
+
+    onRestore(_, ctx) {
+      renderAll(ctx.state, statsContainer, decreePanel);
+    },
   };
 }

@@ -247,6 +247,35 @@ export class DemoState {
   }
 
   /**
+   * Restore state from a snapshot
+   * @param {Object} snapshot - Snapshot from snapshot()
+   */
+  restoreSnapshot(snapshot) {
+    if (!snapshot) return;
+    this.cluster = snapshot.cluster ? { ...snapshot.cluster } : null;
+    this.nodes = new Map();
+    snapshot.nodes.forEach((node, id) => {
+      this.nodes.set(id, {
+        state: node.state,
+        partitioned: node.partitioned,
+        decrees: Array.isArray(node.decrees)
+          ? node.decrees.map((decree) => ({ ...decree }))
+          : [],
+        role: node.role
+          ? {
+              roles: Array.isArray(node.role.roles) ? [...node.role.roles] : [],
+              learningStrategy: node.role.learningStrategy,
+            }
+          : null,
+        color: node.color,
+      });
+    });
+    this.simulation = { ...snapshot.simulation };
+    this.eventCounts = { ...snapshot.eventCounts };
+    this.notify();
+  }
+
+  /**
    * Clear all state
    */
   clear() {

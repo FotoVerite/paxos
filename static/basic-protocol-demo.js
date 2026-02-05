@@ -4,17 +4,20 @@
  */
 
 import { state } from '/demo-state.js';
-import { createPaxosDemoController } from '/js/paxos-demo/paxos-demo-controller.js';
+import { createPaxosDemoController } from '/js/paxos-demo/core/runtime.js';
 import { createEventLogPlugin } from '/js/paxos-demo/plugins/event-log.js';
 import { createEventCountsPlugin } from '/js/paxos-demo/plugins/event-counts.js';
 import { createVisualizeEventsPlugin } from '/js/paxos-demo/plugins/visualize-events.js';
 import { createPartitionStatePlugin } from '/js/paxos-demo/plugins/partition-state.js';
 import { createDecreePanelPlugin } from '/js/paxos-demo/plugins/decree-panel.js';
 import { createPlaybackDelayPlugin } from '/js/paxos-demo/plugins/playback-delay.js';
+import { createNodeCapabilitiesPlugin } from '/js/paxos-demo/plugins/node-capabilities.js';
 
 let controller = null;
 let visualizer = null;
 let scenarioTimeout = null;
+let scenarioRunning = false;
+let scenarioStarted = false;
 
 let eventLog;
 let speedSlider;
@@ -22,11 +25,14 @@ let speedValue;
 let scenarioSelect;
 let statusTitle;
 let statusDescription;
-let playBtn;
-let pauseBtn;
+let togglePlayBtn;
 let resetBtn;
+let stepBackBtn;
+let stepForwardBtn;
 let statsContainer;
 let decreePanel;
+let playbackCursor;
+const FRAME_WINDOW_MICROS = 50;
 
 function adjustNodeRadiusForViewport() {
   const svgContainer = document.getElementById('basicProtocolSvg');
@@ -64,6 +70,8 @@ function buildController() {
     state,
     visualizer,
     canCommunicate,
+    frameWindowMicros: FRAME_WINDOW_MICROS,
+    onPlaybackUpdate: updatePlaybackControls,
     plugins: [
       clusterRenderPlugin,
       createEventLogPlugin({ eventLog }),
@@ -72,15 +80,45 @@ function buildController() {
         skip: new Set(['PartitionCreated', 'PartitionHealed']),
       }),
       createPartitionStatePlugin(),
+      createNodeCapabilitiesPlugin(),
       createDecreePanelPlugin({ statsContainer, decreePanel }),
       createPlaybackDelayPlugin(),
     ],
   });
 }
 
+function updatePlaybackControls(playbackState) {
+  if (!playbackState || !stepBackBtn || !stepForwardBtn || !togglePlayBtn) return;
+  const { batchCount, cursor, playerMode, isBusy } = playbackState;
+  const followLive = playerMode === 'follow';
+  stepBackBtn.disabled = followLive || isBusy || cursor < 0;
+  stepForwardBtn.disabled = followLive || isBusy || cursor + 1 >= batchCount;
+
+  if (followLive) {
+    togglePlayBtn.textContent = 'Pause';
+  } else if (batchCount > 0 && scenarioStarted) {
+    togglePlayBtn.textContent = 'Resume';
+  } else {
+    togglePlayBtn.textContent = 'Play';
+  }
+
+  if (playbackCursor) {
+    const displayIndex = Math.max(0, cursor + 1);
+    playbackCursor.textContent = `Batch ${displayIndex}/${batchCount}`;
+  }
+}
+
 async function resetScenario() {
   state.resetSimulation();
-  if (controller) controller.reset();
+  if (controller) {
+    controller.pause({ waitForFrame: false });
+    controller.pauseIngestion({ untilClusterInitialized: true });
+    controller.setCaptureEnabled(false);
+    controller.reset({ clearHistory: true });
+  }
+  scenarioRunning = false;
+  scenarioStarted = false;
+  state.setRunning(false);
   if (scenarioTimeout) {
     clearTimeout(scenarioTimeout);
     scenarioTimeout = null;
@@ -92,9 +130,10 @@ async function resetScenario() {
     console.error('Error stopping scenario:', error);
   }
 
-  playBtn.disabled = false;
-  pauseBtn.disabled = true;
   scenarioSelect.disabled = false;
+  if (togglePlayBtn) {
+    togglePlayBtn.textContent = 'Play';
+  }
   statusTitle.textContent = 'Ready';
   statusDescription.textContent = 'Click Play to start the demonstration';
   statusTitle.style.color = '#60a5fa';
@@ -102,11 +141,24 @@ async function resetScenario() {
 
 async function playScenario() {
   const scenarioName = scenarioSelect.value;
+  const startingNewScenario = !scenarioStarted;
 
+  scenarioStarted = true;
+
+  if (controller) {
+    if (startingNewScenario) {
+      controller.invalidate({ clearHistory: true });
+      controller.pauseIngestion({ untilClusterInitialized: true });
+    }
+    controller.setCaptureEnabled(true);
+    await controller.resume();
+  }
+  scenarioRunning = true;
   state.setRunning(true);
-  playBtn.disabled = true;
-  pauseBtn.disabled = false;
   scenarioSelect.disabled = true;
+  if (togglePlayBtn) {
+    togglePlayBtn.textContent = 'Pause';
+  }
 
   statusTitle.textContent = 'Running';
   statusDescription.textContent = 'Scenario in progress...';
@@ -129,6 +181,7 @@ async function playScenario() {
 
     await new Promise((resolve) => {
       scenarioTimeout = setTimeout(() => {
+        scenarioRunning = false;
         state.setRunning(false);
         resolve();
       }, 30000);
@@ -138,7 +191,13 @@ async function playScenario() {
     statusDescription.textContent = 'Waiting for all events to visualize...';
     statusTitle.style.color = '#f59e0b';
 
-    while (controller && (controller.eventQueue.length() > 0 || controller.eventQueue.isProcessing())) {
+    while (
+      controller &&
+      controller.getPlaybackState().playerMode === 'follow' &&
+      (controller.eventQueue.length() > 0 ||
+        controller.eventQueue.isProcessing() ||
+        controller.hasPendingBatches())
+    ) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
   } catch (error) {
@@ -148,30 +207,83 @@ async function playScenario() {
     statusDescription.textContent = error.message;
   }
 
+  scenarioRunning = false;
   state.setRunning(false);
-  playBtn.disabled = false;
-  pauseBtn.disabled = true;
+  if (controller) {
+    controller.setCaptureEnabled(false);
+    controller.pause({ waitForFrame: false });
+  }
   scenarioSelect.disabled = false;
+  if (togglePlayBtn) {
+    togglePlayBtn.textContent = 'Play';
+  }
 
-  const snapshot = state.snapshot();
-  const totalEvents = Object.values(snapshot.eventCounts).reduce((a, b) => a + b, 0);
+  const totalEvents = controller ? controller.getCapturedEventCount() : 0;
 
   statusTitle.textContent = 'Complete';
   statusTitle.style.color = '#34d399';
   statusDescription.textContent = `Scenario finished - ${totalEvents} total events visualized`;
 }
 
-function pauseScenario() {
-  state.setRunning(false);
-  playBtn.disabled = false;
-  pauseBtn.disabled = true;
+async function pauseScenario() {
+  if (controller) {
+    controller.pause({ waitForFrame: false });
+  }
   scenarioSelect.disabled = false;
-
-  if (scenarioTimeout) {
-    clearTimeout(scenarioTimeout);
+  if (togglePlayBtn) {
+    togglePlayBtn.textContent = scenarioStarted ? 'Resume' : 'Play';
   }
 
   statusTitle.textContent = 'Paused';
+  statusTitle.style.color = '#f59e0b';
+}
+
+async function resumePlayback() {
+  if (controller) {
+    controller.setCaptureEnabled(true);
+    await controller.resume();
+  }
+  if (scenarioRunning) {
+    state.setRunning(true);
+  }
+  scenarioSelect.disabled = true;
+  if (togglePlayBtn) {
+    togglePlayBtn.textContent = 'Pause';
+  }
+  statusTitle.textContent = 'Running';
+  statusTitle.style.color = '#60a5fa';
+}
+
+async function togglePlayPause() {
+  if (!controller) return;
+  const playback = controller.getPlaybackState();
+
+  if (playback.playerMode === 'follow') {
+    await pauseScenario();
+    return;
+  }
+
+  if (playback && playback.batchCount > 0 && scenarioStarted) {
+    await resumePlayback();
+    return;
+  }
+
+  await playScenario();
+}
+
+async function stepForward() {
+  if (!controller) return;
+  await controller.pause({ waitForFrame: true });
+  await controller.stepForward();
+  statusTitle.textContent = 'Stepping';
+  statusTitle.style.color = '#f59e0b';
+}
+
+async function stepBack() {
+  if (!controller) return;
+  await controller.pause({ waitForFrame: true });
+  await controller.stepBack();
+  statusTitle.textContent = 'Stepping';
   statusTitle.style.color = '#f59e0b';
 }
 
@@ -182,9 +294,11 @@ document.addEventListener('DOMContentLoaded', () => {
   scenarioSelect = document.getElementById('scenarioSelect');
   statusTitle = document.getElementById('statusTitle');
   statusDescription = document.getElementById('statusDescription');
-  playBtn = document.getElementById('playBtn');
-  pauseBtn = document.getElementById('pauseBtn');
+  togglePlayBtn = document.getElementById('togglePlayBtn');
   resetBtn = document.getElementById('resetBtn');
+  stepBackBtn = document.getElementById('stepBackBtn');
+  stepForwardBtn = document.getElementById('stepForwardBtn');
+  playbackCursor = document.getElementById('playbackCursor');
   statsContainer = document.getElementById('proposalStatsContainer');
   decreePanel = document.getElementById('decreePanel');
 
@@ -199,9 +313,17 @@ document.addEventListener('DOMContentLoaded', () => {
     state.setSpeed(speed);
   });
 
-  playBtn.addEventListener('click', playScenario);
-  pauseBtn.addEventListener('click', pauseScenario);
+  scenarioSelect.addEventListener('change', async () => {
+    if (!scenarioStarted) {
+      return;
+    }
+    await resetScenario();
+  });
+
+  if (togglePlayBtn) togglePlayBtn.addEventListener('click', togglePlayPause);
   resetBtn.addEventListener('click', resetScenario);
+  if (stepBackBtn) stepBackBtn.addEventListener('click', stepBack);
+  if (stepForwardBtn) stepForwardBtn.addEventListener('click', stepForward);
 
   const initialSpeed = parseFloat(speedSlider.value);
   state.setSpeed(initialSpeed);
@@ -209,4 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
   buildController();
   controller.connect();
   resetScenario();
+
+  if (controller) {
+    updatePlaybackControls(controller.getPlaybackState());
+  }
 });

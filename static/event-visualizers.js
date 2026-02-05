@@ -15,6 +15,47 @@ function formatDecree(event) {
   return `Decree #${event.decree_num}`;
 }
 
+function scheduleNodeReset(visualizer, nodeId, delayMs) {
+  if (!visualizer) return;
+  if (typeof visualizer.scheduleNodeReset === 'function') {
+    visualizer.scheduleNodeReset(nodeId, delayMs);
+    return;
+  }
+  setTimeout(() => {
+    if (typeof visualizer.resetNodeToRoleColor === 'function') {
+      visualizer.resetNodeToRoleColor(nodeId);
+    }
+  }, delayMs);
+}
+
+function getBeamDuration(snapshot, base = 500) {
+  const speed = snapshot?.simulation?.speed || 1;
+  return Math.max(200, (base / speed) * 0.67);
+}
+
+function getReachableTargets(fromId, totalNodes, canCommunicate) {
+  if (!Number.isFinite(totalNodes)) return [];
+  const targets = [];
+  for (let i = 0; i < totalNodes; i++) {
+    if (i !== fromId && canCommunicate(fromId, i)) {
+      targets.push(i);
+    }
+  }
+  return targets;
+}
+
+async function drawBeamsTo(visualizer, fromId, toIds, color, duration, pattern) {
+  if (!toIds || toIds.length === 0) return;
+  if (typeof visualizer.drawBeamsTo === 'function') {
+    await visualizer.drawBeamsTo(fromId, toIds, color, duration, pattern);
+    return;
+  }
+  const promises = toIds.map((toId) =>
+    visualizer.drawBeam(fromId, toId, color, duration, pattern)
+  );
+  await Promise.all(promises);
+}
+
 /**
  * Core event visualizers
  * Each visualizer defines:
@@ -37,22 +78,16 @@ export const EVENT_VISUALIZERS = {
       visualizer.activateNode(event.id, this.color);
 
       const snapshot = state.snapshot();
-      const speed = snapshot.simulation.speed;
-      const duration = Math.max(200, (500 / speed) * 0.67);
+      const duration = getBeamDuration(snapshot, 500);
 
-      // Draw beams to all reachable nodes
-      const beams = [];
-      for (let i = 0; i < snapshot.cluster.total_nodes; i++) {
-        if (i !== event.id && canCommunicate(event.id, i)) {
-          beams.push(visualizer.drawBeam(event.id, i, this.color, duration, 'solid'));
-        }
-      }
-      await Promise.all(beams);
-      
-      // Reset to topology color after animation
-      setTimeout(() => {
-        visualizer.resetNodeToRoleColor(event.id);
-      }, duration + 50);
+      const targets = getReachableTargets(
+        event.id,
+        snapshot.cluster?.total_nodes,
+        canCommunicate
+      );
+      await drawBeamsTo(visualizer, event.id, targets, this.color, duration, 'solid');
+
+      scheduleNodeReset(visualizer, event.id, duration + 50);
     }
   },
 
@@ -70,14 +105,11 @@ export const EVENT_VISUALIZERS = {
 
       if (event.from !== undefined && event.from !== event.id) {
         const snapshot = state.snapshot();
-        const speed = snapshot.simulation.speed;
-        const duration = Math.max(200, (500 / speed) * 0.67);
+        const duration = getBeamDuration(snapshot, 500);
         await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
-        
-        // Reset to topology color after animation
-        setTimeout(() => {
-          visualizer.resetNodeToRoleColor(event.id);
-        }, duration + 50);
+        scheduleNodeReset(visualizer, event.id, duration + 50);
+      } else {
+        scheduleNodeReset(visualizer, event.id, 200);
       }
     }
   },
@@ -95,24 +127,15 @@ export const EVENT_VISUALIZERS = {
       visualizer.activateNode(event.id, this.color);
 
       const snapshot = state.snapshot();
-      const speed = snapshot.simulation.speed;
-      const duration = Math.max(200, (500 / speed) * 0.67);
+      const duration = getBeamDuration(snapshot, 500);
 
-      // Draw beams to quorum nodes
-      const beams = [];
-      if (event.quorum && Array.isArray(event.quorum)) {
-        for (const nodeId of event.quorum) {
-          if (nodeId !== event.id && canCommunicate(event.id, nodeId)) {
-            beams.push(visualizer.drawBeam(event.id, nodeId, this.color, duration, 'solid'));
-          }
-        }
-      }
-      await Promise.all(beams);
-      
-      // Reset to topology color after animation
-      setTimeout(() => {
-        visualizer.resetNodeToRoleColor(event.id);
-      }, duration + 50);
+      const quorum = Array.isArray(event.quorum) ? event.quorum : [];
+      const targets = quorum.filter(
+        (nodeId) => nodeId !== event.id && canCommunicate(event.id, nodeId)
+      );
+      await drawBeamsTo(visualizer, event.id, targets, this.color, duration, 'solid');
+
+      scheduleNodeReset(visualizer, event.id, duration + 50);
     }
   },
 
@@ -129,17 +152,13 @@ export const EVENT_VISUALIZERS = {
      visualizer.activateNode(event.id, this.color);
 
      const snapshot = state.snapshot();
-     const speed = snapshot.simulation.speed;
-     const duration = Math.max(200, (500 / speed) * 0.67);
+     const duration = getBeamDuration(snapshot, 500);
 
      if (event.from !== undefined && event.from !== event.id) {
        await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
      }
-     
-     // Always reset to topology color after animation
-     setTimeout(() => {
-       visualizer.resetNodeToRoleColor(event.id);
-     }, duration + 50);
+
+     scheduleNodeReset(visualizer, event.id, duration + 50);
    }
   },
 
@@ -155,11 +174,8 @@ export const EVENT_VISUALIZERS = {
    async visualize(event, visualizer, state, canCommunicate) {
      visualizer.setNodeState(event.id, 'learn');
      visualizer.activateNode(event.id, this.color);
-     
-     // Reset to topology color after activation
-     setTimeout(() => {
-       visualizer.resetNodeToRoleColor(event.id);
-     }, 350);
+
+     scheduleNodeReset(visualizer, event.id, 350);
    }
   },
 
@@ -175,11 +191,8 @@ export const EVENT_VISUALIZERS = {
     async visualize(event, visualizer, state, canCommunicate) {
       visualizer.setNodeState(event.id, 'learn');
       visualizer.activateNode(event.id, this.color);
-      
-      // Reset to topology color after activation
-      setTimeout(() => {
-        visualizer.resetNodeToRoleColor(event.id);
-      }, 350);
+
+      scheduleNodeReset(visualizer, event.id, 350);
     }
   },
 
@@ -258,18 +271,13 @@ export const EVENT_VISUALIZERS = {
      // Draw beams from proposer to all other nodes (broadcast)
      const snapshot = state.snapshot();
      if (snapshot.cluster) {
-       const beams = [];
-       for (let i = 0; i < snapshot.cluster.total_nodes; i++) {
-         if (i !== event.id && canCommunicate(event.id, i)) {
-           beams.push(visualizer.drawBeam(event.id, i, this.color, 350, 'solid'));
-         }
-       }
-       await Promise.all(beams);
-       
-       // Reset to topology color after animation
-       setTimeout(() => {
-         visualizer.resetNodeToRoleColor(event.id);
-       }, 400);
+       const targets = getReachableTargets(
+         event.id,
+         snapshot.cluster.total_nodes,
+         canCommunicate
+       );
+       await drawBeamsTo(visualizer, event.id, targets, this.color, 350, 'solid');
+       scheduleNodeReset(visualizer, event.id, 400);
      }
    }
   },
