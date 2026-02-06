@@ -14,6 +14,7 @@ export class DemoState {
       selectedNode: null,
     };
     this.eventCounts = {};
+    this.leaderId = null;
     this.listeners = new Set();
   }
 
@@ -113,6 +114,15 @@ export class DemoState {
   }
 
   /**
+   * Set the current leader
+   * @param {number|null} nodeId - Node ID or null to clear
+   */
+  setLeader(nodeId) {
+    this.leaderId = nodeId === null || nodeId === undefined ? null : nodeId;
+    this.notify();
+  }
+
+  /**
    * Add decree learned by a node
    * @param {number} nodeId - Node ID
    * @param {Object} decree - { decree_num, decree, timestamp }
@@ -205,6 +215,7 @@ export class DemoState {
     }
     this.simulation.running = false;
     this.simulation.selectedNode = null;
+    this.leaderId = null;
     this.eventCounts = {};
     this.notify();
   }
@@ -243,6 +254,7 @@ export class DemoState {
       nodes: new Map(this.nodes),
       simulation: { ...this.simulation },
       eventCounts: { ...this.eventCounts },
+      leaderId: this.leaderId,
     };
   }
 
@@ -272,6 +284,7 @@ export class DemoState {
     });
     this.simulation = { ...snapshot.simulation };
     this.eventCounts = { ...snapshot.eventCounts };
+    this.leaderId = snapshot.leaderId ?? null;
     this.notify();
   }
 
@@ -287,6 +300,7 @@ export class DemoState {
       selectedNode: null,
     };
     this.eventCounts = {};
+    this.leaderId = null;
     this.notify();
   }
 }

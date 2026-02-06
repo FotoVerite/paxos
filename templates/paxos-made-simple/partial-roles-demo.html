@@ -76,9 +76,16 @@
                 </div>
             </div>
             <div class="button-group">
-                <button id="playBtn" class="btn-primary">Play</button>
-                <button id="pauseBtn" class="btn-secondary" disabled>Pause</button>
-                <button id="resetBtn" class="btn-secondary">Reset</button>
+                <div class="primary-controls">
+                    <button id="playBtn" class="btn-primary">Play</button>
+                    <button id="pauseBtn" class="btn-secondary" disabled>Pause</button>
+                    <button id="resetBtn" class="btn-secondary">Reset</button>
+                </div>
+                <div class="step-controls">
+                    <button id="stepBackBtn" class="btn-secondary" disabled>Step Back</button>
+                    <button id="stepForwardBtn" class="btn-secondary" disabled>Step Forward</button>
+                </div>
+                <div class="playback-cursor" id="playbackCursor">Batch 0/0</div>
             </div>
         </div>
 
@@ -122,8 +129,21 @@
 
         <!-- Event Log -->
         <div class="event-log-section">
-            <h3>Event Log</h3>
-            <div id="eventLog" class="scroll-log"></div>
+            <div class="event-log-header">
+                <h3>Event Log</h3>
+                <div class="event-log-actions">
+                    <span class="event-filter-status" id="eventFilterStatus">All events</span>
+                    <button type="button" class="event-filter-toggle" id="eventFilterToggle">Filters</button>
+                </div>
+            </div>
+            <div class="event-log-wrapper">
+                <div class="event-filter-bar" id="eventFilterBar">
+                    <div class="event-filter-title">Filter</div>
+                    <div class="event-filter-chips" id="eventFilterChips"></div>
+                    <button type="button" class="event-filter-close" id="eventFilterClose">Close</button>
+                </div>
+                <div id="eventLog"></div>
+            </div>
         </div>
     </div>
 

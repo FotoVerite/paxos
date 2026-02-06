@@ -53,6 +53,12 @@ export function syncVisualizerToState(snapshot, visualizer) {
       visualizer.resetNodeToRoleColor(nodeId);
     }
   });
+
+  if (snapshot.leaderId !== null && snapshot.leaderId !== undefined) {
+    if (typeof visualizer.setLeader === 'function') {
+      visualizer.setLeader(snapshot.leaderId);
+    }
+  }
 }
 
 export function restoreSnapshotState(snapshot, state, visualizer) {

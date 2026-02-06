@@ -68,6 +68,10 @@ function buildController() {
     onCluster(clusterInfo, ctx) {
       adjustNodeRadiusForViewport();
       ctx.visualizer.render(clusterInfo);
+      const snapshot = ctx.state.snapshot();
+      if (snapshot.leaderId !== null && snapshot.leaderId !== undefined) {
+        ctx.visualizer.setLeader(snapshot.leaderId);
+      }
     },
   };
 

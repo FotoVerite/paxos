@@ -41,6 +41,9 @@ export function createVisualizeEventsPlugin({ skip = new Set() } = {}) {
       if (stateLabel && eventData?.id !== undefined) {
         ctx.state.setNodeState(eventData.id, stateLabel);
       }
+      if (eventType === 'LeaderElected' && eventData?.id !== undefined) {
+        ctx.state.setLeader(eventData.id);
+      }
 
       const playbackMode = ctx.playbackMode;
       const visualizer =

@@ -18,39 +18,55 @@ function formatDecree(event) {
   return `Decree #${event.decree_num}`;
 }
 
-function renderStats(state, statsContainer) {
+function renderStats(state, statsContainer, options) {
   if (!statsContainer) return;
   const snapshot = state.snapshot();
   if (!snapshot.cluster) return;
 
   const selectedNodeId = snapshot.simulation.selectedNode;
   let html = "<div class='proposal-stats'>";
+  let visibleCount = 0;
 
   for (let nodeId = 0; nodeId < snapshot.cluster.total_nodes; nodeId++) {
     const node = snapshot.nodes.get(nodeId);
+    if (options?.nodeFilter && !options.nodeFilter(node, nodeId, snapshot)) {
+      continue;
+    }
     const decreeCount = node?.decrees.length || 0;
     const isSelected = selectedNodeId === nodeId;
     const selectClass = isSelected ? 'selected' : '';
     html += `<div class='proposal-stat-item ${selectClass}' data-node-id='${nodeId}'>`;
     html += `<span class='node-id'>N${nodeId}:</span> ${decreeCount}`;
     html += `</div>`;
+    visibleCount += 1;
   }
 
   html += '</div>';
   statsContainer.innerHTML = html;
+
+  if (options?.hideStatsWhenEmpty) {
+    statsContainer.style.display = visibleCount === 0 ? 'none' : 'block';
+  }
 }
 
-function renderDecreePanel(state, decreePanel) {
+function renderDecreePanel(state, decreePanel, options) {
   if (!decreePanel) return;
   const snapshot = state.snapshot();
   const selectedNodeId = snapshot.simulation.selectedNode;
 
   if (selectedNodeId === null || selectedNodeId === undefined) {
-    decreePanel.innerHTML = "<p class='decree-hint'>Click a node to view its learned decrees</p>";
+    const hint =
+      options?.emptySelectionHint || "Click a node to view its learned decrees";
+    decreePanel.innerHTML = `<p class='decree-hint'>${hint}</p>`;
     return;
   }
 
   const node = snapshot.nodes.get(selectedNodeId);
+  if (options?.nodeFilter && !options.nodeFilter(node, selectedNodeId, snapshot)) {
+    const hint = options?.invalidSelectionHint || `Node ${selectedNodeId} is not available`;
+    decreePanel.innerHTML = `<p class='decree-hint'>${hint}</p>`;
+    return;
+  }
   if (!node || node.decrees.length === 0) {
     decreePanel.innerHTML = `<p class='decree-hint'>Node ${selectedNodeId} has not learned any decrees yet</p>`;
     return;
@@ -69,12 +85,26 @@ function renderDecreePanel(state, decreePanel) {
   decreePanel.innerHTML = html;
 }
 
-function renderAll(state, statsContainer, decreePanel) {
-  renderStats(state, statsContainer);
-  renderDecreePanel(state, decreePanel);
+function renderAll(state, statsContainer, decreePanel, options) {
+  renderStats(state, statsContainer, options);
+  renderDecreePanel(state, decreePanel, options);
 }
 
-export function createDecreePanelPlugin({ statsContainer, decreePanel } = {}) {
+export function createDecreePanelPlugin({
+  statsContainer,
+  decreePanel,
+  nodeFilter,
+  hideStatsWhenEmpty = false,
+  emptySelectionHint,
+  invalidSelectionHint,
+} = {}) {
+  const options = {
+    nodeFilter,
+    hideStatsWhenEmpty,
+    emptySelectionHint,
+    invalidSelectionHint,
+  };
+
   function handleStatsClick(event, ctx) {
     const target = event.target.closest('[data-node-id]');
     if (!target || !statsContainer.contains(target)) return;
@@ -82,8 +112,16 @@ export function createDecreePanelPlugin({ statsContainer, decreePanel } = {}) {
     const nodeId = Number(target.dataset.nodeId);
     if (Number.isNaN(nodeId)) return;
 
+    if (nodeFilter) {
+      const snapshot = ctx.state.snapshot();
+      const node = snapshot.nodes.get(nodeId);
+      if (!nodeFilter(node, nodeId, snapshot)) {
+        return;
+      }
+    }
+
     ctx.state.selectNode(nodeId);
-    renderAll(ctx.state, statsContainer, decreePanel);
+    renderAll(ctx.state, statsContainer, decreePanel, options);
   }
 
   return {
@@ -94,7 +132,7 @@ export function createDecreePanelPlugin({ statsContainer, decreePanel } = {}) {
     },
 
     onCluster(_, ctx) {
-      renderAll(ctx.state, statsContainer, decreePanel);
+      renderAll(ctx.state, statsContainer, decreePanel, options);
     },
 
     onEvent({ eventType, eventData }, ctx) {
@@ -107,17 +145,17 @@ export function createDecreePanelPlugin({ statsContainer, decreePanel } = {}) {
       }
 
       if (DECREE_EVENTS.has(eventType)) {
-        renderAll(ctx.state, statsContainer, decreePanel);
+        renderAll(ctx.state, statsContainer, decreePanel, options);
       }
     },
 
     onReset(ctx) {
       ctx.state.selectNode(null);
-      renderAll(ctx.state, statsContainer, decreePanel);
+      renderAll(ctx.state, statsContainer, decreePanel, options);
     },
 
     onRestore(_, ctx) {
-      renderAll(ctx.state, statsContainer, decreePanel);
+      renderAll(ctx.state, statsContainer, decreePanel, options);
     },
   };
 }

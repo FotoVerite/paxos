@@ -17,6 +17,14 @@ export function createEventReader({
   let ingestionPaused = false;
   let resumeOnCluster = false;
 
+  const BOOTSTRAP_EVENTS = new Set([
+    'NodeCapabilities',
+    'LeaderElected',
+    'InitialDecree',
+    'BatchInitialDecrees',
+    'LedgerDump',
+  ]);
+
   const eventQueue = new EventQueue(null, frameWindowMicros, {
     handleBatch: handleBatch,
   });
@@ -54,7 +62,10 @@ export function createEventReader({
       const eventType = Object.keys(message.Event)[0];
       const eventData = message.Event[eventType];
       if (!eventData) return;
-      if (ingestionPaused) return;
+      if (ingestionPaused) {
+        if (!resumeOnCluster) return;
+        if (!BOOTSTRAP_EVENTS.has(eventType)) return;
+      }
       if (!captureEnabled) return;
 
       eventQueue.push({
