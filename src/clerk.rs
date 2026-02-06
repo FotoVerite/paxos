@@ -1,16 +1,45 @@
+mod types;
+
+use std::sync::Arc;
+
+use tokio::sync::mpsc::{Receiver, Sender};
+
+use crate::{
+    clerk::types::{ClerkRequest, ClerkResponse},
+    cluster::network_simulator::NetworkSimulator,
+};
+
 pub struct Clerk {
-    cid: Int,
-    sid: Int,
-    leader_id: Int,
-    replicas: &[Int],
-    tx: mpsc::Sender<ClerkRequest>,
-    rx: mpsc:: Receiver<ClerkResponse>
+    cid: usize,
+    sid: usize,
+    leader_id: Option<usize>,
+    replicas: Arc<NetworkSimulator>,
+    tx: Sender<ClerkRequest>,
+    rx: Receiver<ClerkResponse>,
 }
 
-pub fn Request(&self, cmd: PaxosCommand) {}
+impl Clerk {
+    pub fn create(
+        &self,
+        cid: usize,
+        replicas: Arc<NetworkSimulator>,
+        tx: Sender<ClerkRequest>,
+        rx: Receiver<ClerkResponse>,
+    ) -> Self {
+        Self {
+            cid,
+            sid: 0,
+            leader_id: None,
+            replicas,
+            tx,
+            rx,
+        }
+    }
+    pub fn Request(&self, cmd: PaxosCommand) {}
 
-pub fn HandleResponse(&self) -> Int {}
+    pub fn HandleResponse(&self) -> Int {}
 
-fn increment_sid(&self) {
-    self.sid += 1;
+    fn increment_sid(&mut self) {
+        self.sid += 1;
+    }
 }

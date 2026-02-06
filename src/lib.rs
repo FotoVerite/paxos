@@ -1,4 +1,5 @@
 pub mod common;
+pub mod clerk;
 pub mod cluster;
 pub mod message;
 pub mod monitor;
