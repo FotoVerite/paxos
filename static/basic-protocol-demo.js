@@ -32,6 +32,11 @@ let stepForwardBtn;
 let statsContainer;
 let decreePanel;
 let playbackCursor;
+let filterBar;
+let filterChips;
+let filterToggle;
+let filterClose;
+let filterStatus;
 const FRAME_WINDOW_MICROS = 50;
 
 function adjustNodeRadiusForViewport() {
@@ -74,7 +79,14 @@ function buildController() {
     onPlaybackUpdate: updatePlaybackControls,
     plugins: [
       clusterRenderPlugin,
-      createEventLogPlugin({ eventLog }),
+      createEventLogPlugin({
+        eventLog,
+        filterBar,
+        filterChips,
+        filterToggle,
+        filterClose,
+        filterStatus,
+      }),
       createEventCountsPlugin(),
       createVisualizeEventsPlugin({
         skip: new Set(['PartitionCreated', 'PartitionHealed']),
@@ -301,6 +313,11 @@ document.addEventListener('DOMContentLoaded', () => {
   playbackCursor = document.getElementById('playbackCursor');
   statsContainer = document.getElementById('proposalStatsContainer');
   decreePanel = document.getElementById('decreePanel');
+  filterBar = document.getElementById('eventFilterBar');
+  filterChips = document.getElementById('eventFilterChips');
+  filterToggle = document.getElementById('eventFilterToggle');
+  filterClose = document.getElementById('eventFilterClose');
+  filterStatus = document.getElementById('eventFilterStatus');
 
   visualizer = new PaxosVisualizer('basicProtocolSvg', {
     nodeRadius: 195,

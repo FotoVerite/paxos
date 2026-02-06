@@ -330,24 +330,135 @@
         flex-direction: column;
         max-height: 250px;
 
+        .event-log-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
         h3 {
-            margin: 0 0 10px 0;
+            margin: 0;
             font-size: 14px;
             color: var(--color-text-secondary);
+        }
+
+        .event-log-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .event-filter-status {
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+
+        .event-filter-toggle {
+            border: 1px solid var(--color-border);
+            background: var(--color-bg-secondary);
+            color: var(--color-text-secondary);
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, color 0.2s ease;
+        }
+
+        .event-filter-toggle:hover {
+            border-color: var(--color-primary);
+            color: var(--color-text-primary);
+        }
+
+        .event-log-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--color-primary-dark);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
         }
 
         #eventLog {
             flex: 1;
             overflow-y: auto;
-            background: var(--color-primary-dark);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
             padding: 10px;
         }
     }
 
+    .event-filter-bar {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        background: rgba(10, 18, 32, 0.95);
+        border-bottom: 1px solid var(--color-border);
+        flex-wrap: wrap;
+    }
+
+    .event-filter-bar.hidden {
+        display: none;
+    }
+
+    .event-filter-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--color-text-muted);
+    }
+
+    .event-filter-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        flex: 1;
+    }
+
+    .event-filter-chip {
+        border: 1px solid var(--color-border);
+        background: rgba(15, 23, 42, 0.7);
+        color: var(--color-text-secondary);
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .event-filter-chip .count {
+        font-weight: 600;
+        color: var(--color-text-primary);
+        font-size: 10px;
+    }
+
+    .event-filter-chip.active {
+        border-color: var(--color-primary);
+        color: var(--color-text-primary);
+        background: rgba(59, 130, 246, 0.12);
+    }
+
+    .event-filter-close {
+        border: none;
+        background: transparent;
+        color: var(--color-text-muted);
+        font-size: 11px;
+        cursor: pointer;
+        padding: 2px 6px;
+    }
+
     /* Event item matches components.css logic roughly, but keeps specific id hooks if needed */
     .event-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
         padding: 8px;
         margin: 2px 0;
         background: var(--color-bg-secondary);
@@ -363,6 +474,22 @@
     .event-item.future {
         opacity: 0.35;
         filter: grayscale(80%);
+    }
+
+    .event-item.filtered {
+        display: none;
+    }
+
+    .event-time {
+        font-size: 10px;
+        color: var(--color-text-muted);
+        min-width: 60px;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .event-text {
+        flex: 1;
     }
 
     /* Responsive - Smaller viewport heights (1080px and below) */

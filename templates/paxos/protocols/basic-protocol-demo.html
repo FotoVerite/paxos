@@ -87,8 +87,21 @@
 
   <!-- Event Log -->
   <div class="event-log-section">
-    <h3>Event Log</h3>
-    <div id="eventLog"></div>
+    <div class="event-log-header">
+      <h3>Event Log</h3>
+      <div class="event-log-actions">
+        <span class="event-filter-status" id="eventFilterStatus">All events</span>
+        <button type="button" class="event-filter-toggle" id="eventFilterToggle">Filters</button>
+      </div>
+    </div>
+    <div class="event-log-wrapper">
+      <div class="event-filter-bar" id="eventFilterBar">
+        <div class="event-filter-title">Filter</div>
+        <div class="event-filter-chips" id="eventFilterChips"></div>
+        <button type="button" class="event-filter-close" id="eventFilterClose">Close</button>
+      </div>
+      <div id="eventLog"></div>
+    </div>
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
