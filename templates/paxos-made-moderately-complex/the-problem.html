@@ -1,0 +1,87 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}The Problem - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/problem.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">The Problem</h1>
+    <p>
+      There are several ways to coordinate clients with a replicated state
+      machine. A naïve approach is client multicast.
+    </p>
+    <div class="quote-container">
+      <span class="inscription-label">SMR replication</span>
+
+      <blockquote>
+        In SMR replication, the stub routine is replaced with another to provide
+        the illusion of a single remote server that is highly available. The
+        stub routine sends the command to all replicas (at least one of which is
+        assumed to not crash) and returns only the first response to the
+        command.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=1"
+          target="_blank"
+        >
+          RENESSE, P. 2 §1
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Here a client will send to all known replicas and whichever response comes
+      back first will be the one exposed is returned to the client. It is
+      assumed that at least one replica processes the command correctly, even if
+      others are slow or crash.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Multi-Clients</span>
+
+      <blockquote>
+        The difficulty comes with multiple clients, as concurrent commands may
+        arrive in different orders at different replicas, and thus the replicas
+        may end up taking different transitions, producing different outputs as
+        a result and possibly ending up in different current states. A protocol
+        like Paxos ensures that this cannot happen: all replicas receive
+        commands in the same order and thus the replicated state machine behaves
+        logically identical to a single remote state machine that never crashes
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=1"
+          target="_blank"
+        >
+          RENESSE, P. 2 §1
+        </a>
+      </cite>
+    </div>
+    <p>
+      In an asynchronous environment as soon as one adds in multiple clients one
+      can not guarantee that messages sent in a certain order will be processed
+      in the same order. This can cause replicas to diverge and reach different
+      states. The Paxos algorithm is one solution to ensure that all replicas
+      agree on the ordering and hence remain consistent.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/",
+    prev_label="Abstract", current_label="Communication",
+    next_url="/papers/paxos-made-moderately-complex/introduction",
+    next_label="Introduction" ) }}
+  </div>
+  {% endblock %}
+</div>

@@ -1,0 +1,36 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="hatchA" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="white" stroke-width="0.5" />
+    </pattern>
+    <pattern id="hatchB" width="3" height="3" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="white" stroke-width="0.5" />
+    </pattern>
+  </defs>
+
+  <g opacity="0.6">
+    <path d="M 10 30 L 40 70" stroke="white" stroke-width="1.5" stroke-dasharray="2,2" />
+    <path d="M 10 70 L 40 30" stroke="white" stroke-width="1.5" stroke-dasharray="2,2" />
+    <circle cx="10" cy="30" r="2" fill="white" />
+    <circle cx="10" cy="70" r="2" fill="white" />
+  </g>
+
+  <g transform="translate(55, 15)">
+    <rect x="0" y="0" width="30" height="25" fill="none" stroke="white" stroke-width="2" />
+    <rect x="4" y="4" width="22" height="17" fill="url(#hatchA)" />
+  </g>
+
+  <g transform="translate(55, 60)">
+    <rect x="0" y="0" width="30" height="25" fill="none" stroke="white" stroke-width="2" />
+    <rect x="4" y="4" width="22" height="17" fill="url(#hatchB)" />
+  </g>
+
+  <g transform="translate(62, 45)" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round">
+    <line x1="0" y1="2" x2="15" y2="2" />
+    <line x1="0" y1="8" x2="15" y2="8" />
+    <line x1="12" y1="-2" x2="3" y2="12" />
+  </g>
+
+  <path d="M 90 20 V 80" stroke="#ffcc00" stroke-width="1" stroke-dasharray="1,1" />
+  <path d="M 87 20 H 93 M 87 80 H 93" stroke="#ffcc00" stroke-width="1" />
+</svg>
