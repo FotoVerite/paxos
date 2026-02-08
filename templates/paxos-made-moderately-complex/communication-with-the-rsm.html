@@ -1,0 +1,91 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Communication - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/communication.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Communication</h1>
+    <div class="quote-container">
+      <span class="inscription-label">RPC</span>
+
+      <blockquote>
+        A client process, using a library “stub routine,” can send a command to
+        such a server over a network and await an output.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=1"
+          target="_blank"
+        >
+          RENESSE, P. 1 §1
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Stub Routine here is referring to a RPC, a Remote Procedure Call. Think of
+      it as a function that acts like it's local but calls a remote server to
+      actually apply the inputs. Such as in our KVStore the
+      <code>GETS</code> and the <code>PUTS</code>
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Client Message</span>
+
+      <blockquote>
+        A command is a triple (κ, cid, operation), where κ is the identifier of
+        the client that issued the command and cid a client-local unique command
+        identifier (such as a sequence number). That is, there cannot be two
+        commands that have the same client identifier and command identifier but
+        have different operations.
+        <hr class="blueprint-taper" />
+        However, a client can issue the same operation more than once by using a
+        different command identifiers. The command identifier must be included
+        in the response from the server to a command so the client can match
+        responses with commands
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=1"
+          target="_blank"
+        >
+          RENESSE, P. 1 §1
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      RPCs should have the format of an client identifier which should be unique
+      per client, a command identifier which should increment per command and
+      the operation itself. Since this is an asynchronous environment the return
+      of the RPC must include the cid so that the client can match each response
+      to the command it issue.
+    </p>
+
+    <p>
+      If a client retries an operation using the same command identifier, the
+      state machine must treat it as the same command and avoid applying it
+      twice. Issuing the same operation with a new command identifier, however,
+      represents a new command and will be processed again by the replicated
+      state machine.
+    </p>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/",
+  prev_label="Abstract", current_label="Communication",
+  next_url="/papers/paxos-made-moderately-complex/the-problem",
+  next_label="The Problem" ) }}
+</div>
+{% endblock %}

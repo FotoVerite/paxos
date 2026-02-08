@@ -1,6 +1,31 @@
 /* PMC Learn Page Components */
 @import "./vars.css";
 
+.header-icon {
+  position: absolute;
+  width: 36px;
+  top: 40px;
+  z-index: 2;
+
+  &.large {
+    right: 30px;
+    top: 35px;
+    width: 45px;
+  }
+
+  &.xl {
+    width: 70px;
+    right: 30px;
+    top: 30px;
+  }
+
+  &.full {
+    width: 100px;
+    right: 30px;
+    top: 25px;
+  }
+}
+
 .panel {
   position: relative;
   background: var(--pmc-section-bg);
@@ -10,13 +35,11 @@
 }
 
 .panel-title {
-  background: linear-gradient(
-    135deg,
-    var(--pmc-nav-bg-start) 0%,
-    rgba(139, 92, 246, 0.05) 100%
-  );
+  position: relative; /* Context for the grid layer */
+  overflow: hidden; /* Clips the grid to the border-radius */
   padding: var(--space-xl);
-  margin: 0 0 var(--space-2xl) 0;
+  padding-bottom: 15px;
+  margin: 0 0 var(--space-xl) 0;
   font-size: 2.5rem;
   font-weight: 700;
   color: var(--pmc-primary);
@@ -24,15 +47,46 @@
   border-bottom: 2px solid var(--pmc-primary);
   text-transform: none;
   letter-spacing: -0.5px;
+
+  /* The Base Panel Color */
+  background: linear-gradient(
+    135deg,
+    var(--pmc-nav-bg-start) 0%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+  /* Fallback color for the blueprint look if var isn't set */
+  /* background-color: #003366;  */
 }
 
-.panel h2 {
-  color: var(--pmc-primary);
-  font-size: 1.5rem;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  border-left: 3px solid var(--pmc-primary);
-  padding-left: var(--space-lg);
+/* The Grid Layer - Self-contained within the title */
+.panel-title::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none; /* Ensures you can still highlight text */
+  z-index: 0;
+
+  /* Grid Drawing */
+  background-image:
+    linear-gradient(rgba(26, 92, 150, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 92, 150, 0.5) 1px, transparent 1px),
+    linear-gradient(rgba(26, 92, 150, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 92, 150, 0.2) 1px, transparent 1px);
+  background-size:
+    50px 50px,
+    50px 50px,
+    10px 10px,
+    10px 10px;
+  background-position: -1px -1px;
+
+  /* The Fade-In Effect: Solid on the right, fades to nothing on the left */
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 100%);
+
+  opacity: 0.8;
 }
 
 .panel h2:first-of-type {
@@ -86,7 +140,7 @@
   color: var(--pmc-secondary-light);
   padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 0.9em;
 }
 
@@ -103,14 +157,6 @@
   background: none;
   color: var(--pmc-primary-light);
   padding: 0;
-}
-
-.panel blockquote {
-  border-left: 3px solid var(--pmc-primary);
-  padding-left: var(--space-lg);
-  margin-left: 0;
-  color: var(--pmc-text-muted);
-  font-style: italic;
 }
 
 .pmc-container {
@@ -132,3 +178,172 @@
     padding: var(--space-xl) var(--space-lg);
   }
 }
+
+.quote-container {
+  margin: 2.5rem 0 2.5rem 1rem;
+  padding: 1.5rem;
+  position: relative;
+  background: linear-gradient(
+    to right,
+    rgba(13, 13, 14, 0.931),
+    rgba(27, 37, 30, 0.931)
+  );
+
+  border-left: 12px solid;
+  border-image-source: repeating-linear-gradient(
+    45deg,
+    var(--pmc-primary, white),
+    var(--pmc-primary, white) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  border-image-slice: 12;
+  overflow: visible;
+}
+
+/* Ensure content sits above the border effects */
+.quote-container .inscription-label,
+.quote-container blockquote,
+.quote-container .quote-source {
+  position: relative;
+  z-index: 3;
+}
+
+.quote-container .inscription-label {
+  display: block;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #ff71ce;
+  margin-bottom: 0.5rem;
+  opacity: 0.8;
+}
+
+.quote-container blockquote {
+  color: white;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  background: transparent;
+}
+
+.quote-container .quote-source {
+  display: block;
+  text-align: right;
+  margin-top: 0.75rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  font-style: normal;
+}
+
+.quote-container .quote-source a {
+  color: #01cdfe;
+  text-decoration: none;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.quote-container .quote-source a:hover {
+  opacity: 1;
+  border-bottom: 1px solid #01cdfe;
+}
+
+.inner-panel {
+  position: relative;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+
+  .icon {
+    width: 60px;
+    top: 5px;
+    position: absolute;
+    right: 10px;
+    opacity: 0.5;
+
+    @media (max-width: 580px) {
+      top: 15px;
+      width: 42px;
+    }
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  p {
+    margin-left: 0.5rem;
+    font-size: 1rem;
+  }
+
+  h2 {
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    border-bottom: 2px solid var(--pmc-section-border);
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+  }
+
+  .quote-container {
+    margin-left:0px;
+  }
+}
+
+hr.blueprint-taper {
+  border: 0;
+  height: 1px; /* Technical lines are thin and precise */
+  margin: 2rem 0;
+  position: relative;
+  overflow: visible;
+  
+  /* 1. The Line: A "Center Line" dash pattern (Long-Short-Long) */
+  background: repeating-linear-gradient(
+    90deg,
+    white 0,
+    white 40px,
+    transparent 40px,
+    transparent 50px,
+    white 50px,
+    white 55px,
+    transparent 55px,
+    transparent 65px
+  );
+
+  /* 2. The Taper: Smoothly fades out at the edges */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20%,
+    black 80%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 20%,
+    black 80%,
+    transparent
+  );
+  
+  opacity: 0.4;
+}
+
+/* 3. Architectural Ticks: The 45-degree slashes */
+hr.blueprint-taper::before,
+hr.blueprint-taper::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  width: 1px;
+  height: 10px;
+  background-color: white;
+  transform: rotate(45deg);
+}
+
+/* Position ticks at the 20% and 80% marks where the line is fully opaque */
+hr.blueprint-taper::before { left: 20%; }
+hr.blueprint-taper::after { right: 20%; }
