@@ -669,4 +669,52 @@ input[type="range"] {
     .scroll-log {
         height: 150px;
     }
+
+    .partial-roles-demo .controls-section {
+        padding: 14px;
+    }
+
+    .partial-roles-demo .event-log-section {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .partial-roles-demo #eventLog {
+        height: 160px;
+    }
+
+    .partial-roles-demo .event-filter-bar {
+        gap: 6px;
+        padding: 6px;
+    }
+
+    .partial-roles-demo .event-filter-chip {
+        padding: 3px 6px;
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 900px) {
+    .partial-roles-demo .control-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .partial-roles-demo .button-group {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 520px) {
+    .partial-roles-demo .button-group .primary-controls,
+    .partial-roles-demo .button-group .step-controls {
+        flex-direction: column;
+    }
+
+    .partial-roles-demo .event-filter-chip .count {
+        display: none;
+    }
+
+    .partial-roles-demo .event-time {
+        min-width: 48px;
+    }
 }

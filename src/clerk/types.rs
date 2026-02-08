@@ -1,3 +1,7 @@
+use std::any::Any;
+
+use crate::paxos_command::PaxosCommand;
+
 pub struct ClerkRequest {
     cid: usize, 
     sid: usize, 
@@ -5,7 +9,7 @@ pub struct ClerkRequest {
 }
 
 pub struct ClerkResponse {
-   error: Option<ErrorKind>,
-   value: Option<Any>,
-   leader_hint: Option<usize>
+//    error: Option<ClerkResponseError>,
+   value: Option<Box<dyn Any>>,
 }
+

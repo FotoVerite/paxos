@@ -8,6 +8,7 @@ pub mod paxos_command;
 pub mod console_observer;
 pub mod decree_factory;
 pub mod decree_generator;
+pub mod rsm;
 pub mod scenario;
 pub mod scenario_runner;
 pub mod scenario_loader;
