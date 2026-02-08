@@ -1,0 +1,47 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Abstract - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/learn.css"
+/>
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/introduction.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Abstract</h1>
+    <div class="quote-container">
+      <blockquote>
+        For anybody who has ever tried to implement it, Paxos is by no means a
+        simple protocol, even though it is based on relatively simple
+        invariants. 
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=1"
+          target="_blank"
+        >
+          RENESSE, P. 1
+      </cite>
+    </div>
+
+    <p>For people who have read the previous paper deep dives, this quote probably resonates. Lamport loves teaching from invariants without wanting to describe implementation. Luckily this time we shall finally see how Paxos actually workings in a full system and not just as a orphaned algorithm. </p>
+  </div>
+
+  <!-- Bottom Breadcrumb Navigation -->
+  {{ nav::breadcrumb( prev_url="/papers/paxos-made-moderately-complex/",
+  prev_label="Home", current_label="Abstract",
+  next_url="/papers/paxos-made-moderately-complex/introduction", next_label="Introduction" ) }}
+</div>
+{% endblock %}

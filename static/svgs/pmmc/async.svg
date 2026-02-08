@@ -1,0 +1,27 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="delayHatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="white" stroke-width="0.5" opacity="0.5" />
+    </pattern>
+  </defs>
+
+  <line x1="20" y1="20" x2="20" y2="80" stroke="white" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.6" />
+
+  <g transform="translate(20, 30)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="white" stroke-width="2.5" />
+    <path d="M 26 -3 L 30 0 L 26 3" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" />
+  </g>
+
+  <g transform="translate(20, 50)">
+    <rect x="0" y="-4" width="40" height="8" fill="url(#delayHatch)" opacity="0.4" />
+    <line x1="40" y1="0" x2="70" y2="0" stroke="white" stroke-width="2.5" />
+    <path d="M 66 -3 L 70 0 L 66 3" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" />
+  </g>
+
+  <g transform="translate(20, 70)">
+    <line x1="0" y1="0" x2="45" y2="0" stroke="white" stroke-width="2" stroke-dasharray="2,2" opacity="0.5" />
+    <circle cx="45" cy="0" r="2" fill="#ffcc00" />
+  </g>
+
+  <path d="M 50 25 L 90 50 L 50 75" fill="none" stroke="#ffcc00" stroke-width="1" stroke-dasharray="1,1" opacity="0.8" />
+</svg>

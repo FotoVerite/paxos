@@ -1,0 +1,51 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="draftHatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="white" stroke-width="0.4" opacity="0.5" />
+    </pattern>
+    
+    <pattern id="stipple" width="2" height="2" patternUnits="userSpaceOnUse">
+      <circle cx="0.5" cy="0.5" r="0.2" fill="white" opacity="0.6"/>
+    </pattern>
+
+    <mask id="punchHoldMask">
+      <rect x="0" y="0" width="20" height="40" fill="white" />
+      <circle cx="2" cy="28" r="2.5" fill="black" />
+      <circle cx="18" cy="28" r="2.5" fill="black" />
+    </mask>
+
+    <mask id="columnClipMask">
+      <rect x="0" y="0" width="100" height="100" fill="white" />
+      <path d="M2 26h16l-3 6H5Z" fill="black" />
+    </mask>
+
+    <g id="baseFoundation">
+      <path stroke="white" stroke-dasharray="1,1" opacity=".3" d="M4 31.5V65m12-33.5V65"/>
+      <path fill="url(#draftHatch)" stroke="white" stroke-width="0.5" d="M0 65h20v4H0z"/>
+    </g>
+  </defs>
+
+  <g transform="translate(8)">
+    <use href="#baseFoundation"/>
+    <path fill="url(#draftHatch)" stroke="white" stroke-width="0.3" d="M8 30.5h4v34.5H8z"/>
+    <path stroke="white" stroke-width="0.8" fill="url(#draftHatch)" d="M2 26h16v4H2z"/>
+  </g>
+
+  <g transform="translate(40)">
+    <use href="#baseFoundation"/>
+    <path fill="url(#draftHatch)" stroke="white" stroke-width="0.3" d="M8 30.5h4v34.5H8z"/>
+    <rect x="2" y="26" width="16" height="4" fill="url(#draftHatch)" stroke="white" mask="url(#punchHoldMask)" />
+    <circle cx="2" cy="28" r="2.5" fill="none" stroke="white" stroke-width="0.5" />
+    <circle cx="18" cy="28" r="2.5" fill="none" stroke="white" stroke-width="0.5" />
+    <circle cx="2" cy="28" r="0.8" fill="#ffcc00" />
+    <circle cx="18" cy="28" r="0.8" fill="#ffcc00" />
+  </g>
+
+  <g transform="translate(72)">
+    <use href="#baseFoundation"/>
+    <path fill="url(#draftHatch)" stroke="white" stroke-width="0.3" d="M8 30.5h4v34.5H8z" mask="url(#columnClipMask)" />
+    <path d="M2 26h16l-3 6H5Z" fill="url(#stipple)" stroke="white" stroke-width="0.5"/>
+    <path d="M4 32c1-4-4-4-2-8m14 8c-1-4 4-6 1-8" stroke="white" stroke-width="0.5" fill="none" opacity=".6"/>
+    <path fill="#ffcc00" opacity="0.8" d="M2 24h16v1H2z"/>
+  </g>
+</svg>
