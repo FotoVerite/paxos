@@ -1,0 +1,148 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Optimizations - Garbage Collection - Paxos
+Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock
+%} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/state-reduction.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Garbage Collection</h1>
+    <div class="quote-container">
+      <span class="inscription-label">
+        <span style="text-transform: none">NVM $\alpha.accepted$</span>
+        simplified
+      </span>
+
+      <blockquote>
+        <p>
+          When all replicas have learned that some slot has been decided, then
+          it is no longer necessary for an acceptor to maintain the
+          corresponding pvalues in its accepted set.
+        </p>
+        <hr class="blueprint-taper"/>
+        <p>
+          To enable garbage
+          collection, replicas could respond to leaders when they have performed
+          a command, and upon a leader learning that all replicas have done so
+          it could notify the acceptors to release the corresponding state. The
+          state of an acceptor would have to be extended with a new variable
+          that contains a slot number: all pvalues lower than that slot number
+          have been garbage collected. This slot number must be included in p1b
+          messages so that another leader does not mistakenly conclude that the
+          acceptors have not accepted any pvalues for those slots. 
+        </p>
+          <!-- This garbage
+          collection technique does not work if one of the replicas is faulty or
+          exceedingly slow, leaving the acceptors no other option but to
+          maintain state for all slots, just in case the replica recovers and
+          needs to learn the decisions it missed. A solution is to use 2f + 1 or
+          more replicas instead of just f + 1. Acceptor state is garbage
+          collected when more than f replicas have performed a command. If,
+          because of garbage collection, a replica is not able to learn the
+          decision for a slot that it needs, then it can always recently
+          accepted a pvalue containing c, possibly on different ballots.
+          However, such a conclusion would be wrong. 12 obtain a snapshot of the
+          state from another replica that has learned the operation and continue
+          on. Another solution is to make the set of replicas dynamic, by having
+          replicas themselves keep track of which f + 1 replicas are currently
+          active. A special command is used to change the set of replicas in
+          case one or more are suspected of having failed. Once all replicas in
+          a configuration of replicas have learned the decision for a slot, the
+          corresponding acceptor state can be garbage collected (as can be the
+          state maintained by replicas in old configurations). -->
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=12"
+          target="_blank"
+        >
+          RENESSE, P. 12 §4.1 - Paxos Made Pragmatic
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      For <strong>$\alpha.accepted$</strong>, we are only concerned about the
+      maximum tuple of (b, s, c). Any other tuple with a smaller b for a slot s
+      can be discarded. This alone is all the leader needs to enforce C2,
+      <strong>Command Consistency</strong>.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">
+        <span style="text-transform: none">NVM $\lambda.proposals$</span>
+        simplified
+      </span>
+
+      <blockquote>
+        <p>
+          Another large amount of overhead can be avoided if leaders keep track
+          of which slots have already been decided. Before turning active, a
+          leader can include in the p1a request the first slot for which it does
+          not know the decision. Acceptors do not need to respond with pvalues
+          for smaller slot numbers. Upon turning active, a leader does not need
+          to start commanders for slots for which it already knows the decision.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=12"
+          target="_blank"
+        >
+          RENESSE, P. 12 §4.1 - Paxos Made Pragmatic
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      For <strong>$\lambda.proposals$</strong>, we are only concerned about
+      slots that have not reached consensus from acceptors and learned by the
+      replicas. They are not in context, nor do they need commanders. This
+      allows them to be excluded from the p1b messages sent by acceptors. On
+      acknowledgments from replicas, a proposal can be removed from the state
+      since it is no longer needed, keeping the state relatively small.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/acks", prev_label="Acks",
+    current_label="State Reduction", next_url="/optimizations/snapshots",
+    next_label="Snapshots" ) }}
+  </div>
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

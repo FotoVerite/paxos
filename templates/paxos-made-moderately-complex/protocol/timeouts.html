@@ -1,0 +1,125 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Protocol - Timeouts - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/timeout.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Timeouts</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Timeouts</span>
+
+      <blockquote>
+        <p>
+          These assumptions can be exploited as follows: we use a scheme similar
+          to the one described above, based on pinging and timeouts, but the
+          value of the timeout interval depends on the ballot number: the higher
+          the competing ballot number, the longer a leader waits before trying
+          to preempt it with a higher ballot number. Eventually, the timeouts grow large enough that some correct leader can always complete a ballot and get its proposals chosen.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=11"
+          target="_blank"
+        >
+          RENESSE, P. 11 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A solution using the given bounds works like this. Since we cannot assume
+      how long message can take in a system we need the system itself to
+      regulate the timeout. One starts with a relatively short timeout say 50
+      micro seconds. Each time a ballot is incremented that timeout will be
+      extended. Eventually the system will reach an equilibrium where timeouts
+      are larger then most delayed pings.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Backoff</span>
+
+      <blockquote>
+        <p>
+          For good performance, one would like the timeout period to be long
+          enough so that a leader can be successful, but short enough so that
+          the ballots of a faulty leader are preempted as quickly as possible.
+          This can be achieved with a TCP-like AIMD (Additive Increase,
+          Multiplicative Decrease) approach for choosing timeouts. The leader
+          associates an initial timeout with each ballot. If a ballot gets
+          preempted, the next ballot uses a timeout that is multiplied by some
+          small factor larger than one. With each chosen proposal, this initial
+          timeout is decreased linearly. Eventually the timeout will become too
+          short, and the ballot replaced with another even if its leader is
+          non-faulty, but this does not affect correctness.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=11"
+          target="_blank"
+        >
+          RENESSE, P. 11 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Since faults are a certainty, hence ballot timeouts will grow very large
+      given enough time, we need a way to safely decrees them. This is what AIMD
+      gives us. Take a timeout of 500 milliseconds, for ever successful proposal
+      we can take off one microsecond. Eventually the timeout will be so small
+      it will cause a leadership change, but that is not an issue for safety or
+      liveness. In fact some rotation of leadership can be healthy for the
+      system given implementation. Periodic leadership changes can help reduce hot-spots and contention in the system.
+    </p>
+
+    <p>
+      This is usually called leadership election. But Renesse is at pains to
+      call out that there is no election, a ballot is simply owned by a leader.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/failure-detection",
+    prev_label="Failure Detection", current_label="Timeouts",
+    next_url="/protocol/acks", next_label="Acks" ) }}
+  </div>
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

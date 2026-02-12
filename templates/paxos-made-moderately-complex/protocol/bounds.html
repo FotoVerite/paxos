@@ -1,0 +1,105 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Protocol - Bounds - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/bounds.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Protocol Bounds</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+
+      <blockquote>
+        <p>
+          n a purely asynchronous environment it is impossible to determine
+          through pinging or any other method whether a particular leader has
+          crashed or is simply slow. However, under fairly weak assumptions
+          about timing, we can design a version of Paxos that is guaranteed to
+          choose a proposal. In particular, we will assume that both the
+          following are bounded
+        </p>
+        <hr class="blueprint-taper" />
+        <p>
+          the clock drift of a process, that is, the rate of its clock is within
+          some factor of the rate of realtime;
+        </p>
+        <hr class="blueprint-taper" />
+
+        <p>
+          the time between when a non-faulty process initiates sending a
+          message, and the message having been received and handled by a
+          non-faulty destination process.
+        </p>
+        <hr class="blueprint-taper" />
+
+        <p>
+          We do not need to assume that we know what those bounds are—only that
+          such bounds exists.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=9"
+          target="_blank"
+        >
+          RENESSE, P. 9 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      While failure detection with a 100% certainty is impossible. Messages
+      might simply be delayed. By setting a upper bound to these delays we can
+      with a high decree of certainty assume a failure has occurred.
+    </p>
+
+    <p>
+      By assuming that clock-drift is small, IE, that a millisecond in a system
+      is reasonably close to an actual millisecond and that messages are
+      processed in a timely fashion we can make assumptions on reasonable bounds
+      to how long to wait.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/failure-detection", prev_label="Failure Detection",
+    current_label="Failure Detection", next_url="/protocol/timeouts",
+    next_label="Timeouts" ) }}
+  </div>
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

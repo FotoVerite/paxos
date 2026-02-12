@@ -54,13 +54,16 @@ endblock %} {% block extra_stylesheets %}
       used to see if a message is stale or not.
     </p>
 
-    <p><strong>α.accepted</strong> is a set of accepted ballots.</p>
+    <p>
+      <strong>α.accepted</strong> is a set of accepted pvalues of the type
+      tuple, (b,s,c). Here b = Ballot, s = Slot and c = Command. This is
+      initially set to empty.
+    </p>
     <!-- Bottom Breadcrumb Navigation -->
-    {{ nav::breadcrumb(
-    prev_url="/protocol/acceptors/index",
+    {{ nav::breadcrumb( prev_url="/protocol/acceptors/index",
     prev_label="Acceptors", current_label="Acceptor Non Volatile Memory",
-    next_url="/protocol/acceptors/invariants",
-    next_label="Acceptor Invariants" ) }}
+    next_url="/protocol/acceptors/invariants", next_label="Acceptor Invariants"
+    ) }}
   </div>
 
   {% endblock %}

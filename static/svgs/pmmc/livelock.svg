@@ -1,34 +1,35 @@
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="stalledGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.3" />
+    <radialGradient id="monitorGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.6" />
       <stop offset="100%" stop-color="#ffcc00" stop-opacity="0" />
     </radialGradient>
   </defs>
 
-  <g transform="translate(10, 35) scale(0.25)" opacity="0.6">
-    <path d="M 50 15 L 80 25 V 50 Q 80 75 50 85 Q 20 75 20 50 V 25 Z" fill="none" stroke="white" stroke-width="4" stroke-dasharray="8 4" />
-    <text x="50" y="110" fill="white" font-size="24" text-anchor="middle">λ1</text>
+  <g transform="translate(65, 25) scale(0.3)">
+    <circle cx="50" cy="45" r="40" fill="url(#monitorGlow)" />
+    <path d="M 50 15 L 80 25 V 50 Q 80 75 50 85 Q 20 75 20 50 V 25 Z" fill="none" stroke="#ffcc00" stroke-width="4" />
+    <text x="50" y="115" fill="#ffcc00" font-size="24" text-anchor="middle" font-family="monospace">λ'</text>
   </g>
 
-  <g transform="translate(65, 35) scale(0.25)" opacity="0.6">
-    <path d="M 50 15 L 80 25 V 50 Q 80 75 50 85 Q 20 75 20 50 V 25 Z" fill="none" stroke="white" stroke-width="4" stroke-dasharray="8 4" />
-    <text x="50" y="110" fill="white" font-size="24" text-anchor="middle">λ2</text>
+  <g transform="translate(10, 55) scale(0.3)" opacity="0.7">
+    <path d="M 50 15 L 80 25 V 50 Q 80 75 50 85 Q 20 75 20 50 V 25 Z" fill="none" stroke="white" stroke-width="3" stroke-dasharray="6 3" />
+    <text x="50" y="115" fill="white" font-size="24" text-anchor="middle" font-family="monospace">λ</text>
   </g>
 
-  <g fill="none" stroke="#ffcc00" stroke-width="1.5">
-    <path d="M 35 45 Q 50 25 65 45" stroke-dasharray="3 2">
-      <animate attributeName="stroke-dashoffset" from="20" to="0" dur="2s" repeatCount="indefinite" />
+  <g fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-linecap="round">
+    <path d="M 35 60 Q 50 45 65 40" stroke-dasharray="2 3" opacity="0.5">
+      <animate attributeName="stroke-dashoffset" from="10" to="0" dur="1.5s" repeatCount="indefinite" />
     </path>
-    <path d="M 65 55 Q 50 75 35 55" stroke-dasharray="3 2">
-      <animate attributeName="stroke-dashoffset" from="0" to="20" dur="2s" repeatCount="indefinite" />
+    
+    <path d="M 45 48 L 48 42 L 52 54 L 55 48 H 60" opacity="0.8">
+       <animate attributeName="opacity" values="0.2;1;0.2" dur="1.5s" repeatCount="indefinite" />
     </path>
   </g>
 
-  <g transform="translate(42, 44)">
-    <rect width="16" height="12" rx="2" fill="none" stroke="white" stroke-width="1.2" stroke-dasharray="2 2" opacity="0.4" />
-    <path d="M 8 3 V 7 M 8 9 H 8.1" stroke="#ffcc00" stroke-width="1.5" stroke-linecap="round" />
-  </g>
-
-  <circle cx="50" cy="50" r="35" fill="none" stroke="#ffcc00" stroke-width="0.5" stroke-dasharray="1 5" opacity="0.2" />
+  <line x1="20" y1="85" x2="80" y2="85" stroke="white" stroke-width="0.5" stroke-dasharray="1 2" opacity="0.3" />
+  
+  <circle cx="25" cy="65" r="2" fill="#ffcc00">
+    <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" />
+  </circle>
 </svg>

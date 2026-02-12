@@ -1,0 +1,9 @@
+These assumptions can be exploited as follows: we
+use a scheme similar to the one described above,
+based on pinging and timeouts, but the value of the
+timeout interval depends on the ballot number: the
+higher the competing ballot number, the longer a
+leader waits before trying to preempt it with a higher
+ballot number. Eventually the timeout at each of the
+leaders becomes so high that some correct leader will
+always be able to get its proposals chosen.

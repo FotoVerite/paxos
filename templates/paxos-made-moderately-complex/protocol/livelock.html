@@ -23,7 +23,7 @@ extra_stylesheets %}
         class="math-logo"
       ></object>
     </div>
-    <h1 class="panel-title">Live-Lock</h1>
+    <h1 class="panel-title">Live-Locks</h1>
     <div class="quote-container">
       <span class="inscription-label">Definition</span>
 
@@ -43,31 +43,123 @@ extra_stylesheets %}
           $(0, \lambda')$ (which is after $(0, \lambda$) because $\lambda <
           \lambda'$). Note that neither $\alpha_2$ nor $\alpha_3$ accepted any
           pvalues, so leader $\lambda'$ is free to select any proposal. Leader
-          $\lambda'$ then gets $\alpha_3$ to accept $((0, \lambda1), 1, c')$.
+          $\lambda'$ then gets $\alpha_3$ to accept $((0, \lambda'), 1, c')$.
         </p>
         <hr class="blueprint-taper" />
+
+        <p>
+          At this point, acceptors $\alpha_2$ and $\alpha_3$ are unable to
+          accept $((0, \lambda), 1, c)$, and thus leader $\lambda$ is unable to
+          get a majority of acceptors to accept $((0, \lambda), 1, c)$. Trying
+          again, leader $\lambda$ gets $\alpha_1$ and $\alpha_2$ to adopt $(1,
+          \lambda$). The maximum pvalue accepted by $\alpha_1$ and $\alpha_2$ is
+          $((0, \lambda), 1, c)$, and thus $\lambda$ must propose $c$. Suppose
+          $\lambda$ gets $\alpha_1$ to accept $((1, \lambda), 1, c)$.
+        </p>
+
+        <p>
+          Because acceptors $\alpha_1$ and $\alpha_2$ adopted $(1, \lambda)$,
+          they are unable to accept $((0, \lambda'), 1, c')$. Trying to make
+          progress, leader $\lambda'$ gets $\alpha_2$ and $\alpha_3$ to adopt
+          $(1, \lambda')$, and gets $\alpha_3$ to accept $((1, \lambda'), 1,
+          c')$.
+        </p>
       </blockquote>
       <cite class="quote-source">
         <a
-          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=1"
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=9"
           target="_blank"
         >
-          RENESSE, P. 1 §1
+          RENESSE, P. 9 §3 - When Paxos Works
         </a>
       </cite>
     </div>
 
     <p>
-      Liveness refers to the system's ability to make progress. Given a client
-      request, it should eventually receive a response. If it does not, the
-      system can be said to be in a failure state, due to either a live-lock,
-      deadlock, or other failures.
+      What Renesse is describing here is a live-lock. The system is still
+      sending messages, but those messages short circuit the protocol out
+      leading to no actual progress in any proposal being decided on. And even
+      if a command is decided on, the constant switching of leadership leads
+      extreme message cascades that can drive the entire system to a standstill.
+      This type of live-locking does not pertain to PAXOS but to any
+      deterministic consensus protocol with failures in an asynchronous
+      environment.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">FLP</span>
+
+      <blockquote>
+        <p>
+          This ping-pong scenario can be continued indefinitely, with no ballot
+          ever succeeding in choosing a pvalue. This is true even if c = c',
+          that is, the leaders propose the same command. The wellknown “FLP
+          impossibility result” demonstrates that in an asynchronous environment
+          that admits crash failures, no consensus protocol can guarantee
+          termination, and the Synod protocol is no exception.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=10"
+          target="_blank"
+        >
+          RENESSE, P. 10 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      The
+      <a
+        href="https://groups.csail.mit.edu/tds/papers/Lynch/jacm85.pdf"
+        ,
+        target="_blank"
+        >📄 FLP impossibility result ↗</a
+      >
+      states that in a fully asynchronous distributed system,
+      <strong>no deterministic algorithm can guarantee consensus</strong> if
+      even one process may crash. This is because messages can be delayed
+      arbitrarily, making it impossible for processes to distinguish a slow
+      process from a crashed one, so the system can be forced into indefinite
+      indecision. Liveness and Safety work via different means.Safety can always
+      be preserved by delaying decisions. Liveness requires eventually
+      committing to a decision, and in a fully asynchronous system this cannot
+      be guaranteed without risking safety.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Randomized States</span>
+
+      <blockquote>
+        <p>
+          The argument does not apply directly if transitions have
+          non-deterministic actions—for example changing state in a randomized
+          manner. However, it can be demonstrated that such protocols cannot
+          guarantee a decision either.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=10"
+          target="_blank"
+        >
+          RENESSE, P. 10 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      One can say, well I can just add delays to the messages to cut down on
+      chatter. This will work for increasing liveness, but still allows for
+      potential live-locks. A long running system will run into these potentials
+      even if they are a 1 in a billion likely-hood.
     </p>
 
     <!-- Bottom Breadcrumb Navigation -->
-    {{ nav::breadcrumb( prev_url="/protocol/lifecycle", prev_label="Lifecycle",
-    current_label="Liveness", next_url="/the-problem", next_label="The Problem"
-    ) }}
+    {{ nav::breadcrumb( prev_url="/protocol/liveness", prev_label="Liveness",
+    current_label="Protocol Live-Locks", next_url="/protocol/failure-detection",
+    next_label="Failure Detection" ) }}
   </div>
   {% endblock %}
 </div>

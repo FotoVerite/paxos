@@ -1,0 +1,21 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(20, 20)">
+    <rect x="0" y="12" width="20" height="6" rx="1" fill="none" stroke="white" stroke-width="1" stroke-dasharray="2 2" opacity="0.3" />
+    <rect x="0" y="22" width="20" height="6" rx="1" fill="none" stroke="white" stroke-width="1" stroke-dasharray="2 2" opacity="0.1" />
+    
+    <rect x="0" y="0" width="20" height="8" rx="1.5" fill="#ffcc00" />
+    
+  </g>
+
+  <g transform="translate(20, 65)">
+    <rect x="0" y="0" width="10" height="10" rx="1" fill="none" stroke="white" stroke-width="1" stroke-dasharray="2 1" opacity="0.2" />
+    <rect x="12" y="0" width="10" height="10" rx="1" fill="none" stroke="white" stroke-width="1" stroke-dasharray="2 1" opacity="0.2" />
+    
+    <line x1="26" y1="-5" x2="26" y2="15" stroke="#ffcc00" stroke-width="1.5" stroke-dasharray="2 2" />
+
+    <rect x="30" y="0" width="10" height="10" rx="1" fill="none" stroke="#ffcc00" stroke-width="2" />
+  </g>
+
+  <path d="M 75 35 L 85 45 L 75 55" fill="none" stroke="#ffcc00" stroke-width="2" stroke-linecap="round" />
+  <line x1="60" y1="45" x2="85" y2="45" stroke="#ffcc00" stroke-width="2" stroke-dasharray="4 2" />
+</svg>

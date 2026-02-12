@@ -1,0 +1,114 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Failure Detection - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/failure-detection.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Failure Detection</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Example</span>
+
+      <blockquote>
+        <p>
+          If we could somehow guarantee that some leader would be able to work
+          long enough to get a majority of acceptors to adopt a high ballot and
+          also accept a pvalue, then Paxos would be guaranteed to choose a
+          proposed command. A possible approach could be as follows: when a
+          leader λ discovers (through a preempted message) that there is a
+          higher ballot with leader λ' active, rather than starting a new scout
+          with an even higher ballot number, it starts monitoring the leader of
+          b by pinging it on a regular basis. As long as λ' responds timely to
+          pings, leader λ waits patiently. Only if λ' stops responding will λ
+          select a higher ballot number and start a scout.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=11"
+          target="_blank"
+        >
+          RENESSE, P. 11 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Even though λ could increment its ballot and attempt leadership, it instead pings the higher-ballot leader λ′. As long as λ′ responds to these heartbeat messages, λ assumes λ′ is still alive and remains passive. Only if λ′ stops responding will λ select a higher ballot and start a scout.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+
+      <blockquote>
+        <p>
+          This concept is called failure detection, and theoreticians have been
+          interested in the weakest properties failure detection should have in
+          order to support a consensus algorithm that is guaranteed to terminate
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=9"
+          target="_blank"
+        >
+          RENESSE, P. 11 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Failure detection is a complex field in it's own right and we will simply
+      explore one method to circumvent FLP in the next section. See
+      <a
+        href="https://www.cs.utexas.edu/~lorenzo/corsi/cs380d/papers/p225-chandra.pdf"
+        ,
+        target="_blank"
+        >📄 Unreliable Failure Detectors for Reliable Distributed Systems ↗</a
+      >
+      For more information
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/livelock", prev_label="Protocol Live-Lock",
+    current_label="Failure Detection", next_url="/protocol/bounds",
+    next_label="Bounds" ) }}
+  </div>
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

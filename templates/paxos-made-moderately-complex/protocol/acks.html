@@ -1,0 +1,110 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Protocol - Timeouts - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/acks.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Replica Acks</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+
+      <blockquote>
+        <p>
+          For completeness, we note that for liveness we also rely on reliable
+          communication: messages between correct processes are eventually
+          delivered, typically implemented by periodic retransmission until an
+          ack is received. In particular, a correct client retransmits its
+          request to replicas until it has received a response. Because there
+          are at least f + 1 replicas, at least one of those replicas will not
+          fail and will assign a slot to the request and send a proposal to the
+          f + 1 or more leaders. Thus at least one correct leader will try to
+          get a command decided for that slot.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=11"
+          target="_blank"
+        >
+          RENESSE, P. 11 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Replicas will send acks back on receipt of decision. This allows the
+      Leader to know that replica's are not in a crash state and has received
+      the current command.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Command Starvation</span>
+
+      <blockquote>
+        <p>
+          Should a competing command get decided, the replica will reassign the
+          request to a new slot and so on. While this may lead to starvation, in
+          the absence of new requests any outstanding request will eventually
+          get decided in at least one slot.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=11"
+          target="_blank"
+        >
+          RENESSE, P. 11 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+     While not a true live-lock it is possible for the system to have such a backlog of requests that singular command might be preempted for a very long time. Even so with the system as given a decision even for this command will eventually be reached. 
+    </p>
+
+
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/timeouts",
+    prev_label="Timeouts", current_label="Acks",
+    next_url="/optimizations/pvalues-reduction", next_label="pvalue reduction" ) }}
+  </div>
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

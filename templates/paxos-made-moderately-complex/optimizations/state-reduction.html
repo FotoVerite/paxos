@@ -1,0 +1,121 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Optimizations - State Reduction -
+Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{%
+endblock %} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/state-reduction.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">State Reduction</h1>
+    <div class="quote-container">
+      <span class="inscription-label">
+        <span style="text-transform: none">NVM $\alpha.accepted$</span>
+        simplified
+      </span>
+
+      <blockquote>
+        <p>
+          First note that although a leader obtains a set of all accepted
+          pvalues from a majority of acceptors, it only needs to know, for each
+          slot, whether this set is empty or not, and if not, what the maximum
+          pvalue is. Thus, a large step toward practicality is that acceptors
+          only maintain the most recently accepted pvalue for each slot (⊥ if no
+          pvalue has been accepted) and return only these pvalues in a p1b
+          message to the scout. This gives the leader all information needed to
+          enforce Invariant C2.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=12"
+          target="_blank"
+        >
+          RENESSE, P. 12 §4.1 - Paxos Made Pragmatic
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      For <strong>$\alpha.accepted$</strong>, we are only concerned about the
+      maximum tuple of (b, s, c). Any other tuple with a smaller b for a slot s
+      can be discarded. This alone is all the leader needs to enforce C2,
+      <strong>Command Consistency</strong>.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">
+        <span style="text-transform: none">NVM $\lambda.proposals$</span>
+        simplified
+      </span>
+
+      <blockquote>
+        <p>
+          Another large amount of overhead can be avoided if leaders keep track
+          of which slots have already been decided. Before turning active, a
+          leader can include in the p1a request the first slot for which it does
+          not know the decision. Acceptors do not need to respond with pvalues
+          for smaller slot numbers. Upon turning active, a leader does not need
+          to start commanders for slots for which it already knows the decision.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=12"
+          target="_blank"
+        >
+          RENESSE, P. 12 §4.1 - Paxos Made Pragmatic
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      For <strong>$\lambda.proposals$</strong>, we are only concerned about
+      slots that have not reached consensus from acceptors and learned by the
+      replicas. They are not in context, nor do they need commanders. This
+      allows them to be excluded from the p1b messages sent by acceptors. On
+      acknowledgments from replicas, a proposal can be removed from the state
+      since it is no longer needed, keeping the state relatively small.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/acks", prev_label="Acks",
+    current_label="State Reduction", next_url="/optimizations/snapshots",
+    next_label="Snapshots" ) }}
+  </div>
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}
