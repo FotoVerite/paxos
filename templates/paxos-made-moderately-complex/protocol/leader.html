@@ -1,0 +1,72 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Leader - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/leader.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Leader</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+
+      <blockquote>
+        Each ballot has a unique leader, a deterministic state machine in its
+        own right. A leader can be working on arbitrarily many ballots, although
+        it will be predominantly working on one at a time, even as multiple
+        slots are being decided.
+
+        <hr class="blueprint-taper" />
+
+        In order to tolerate f failures, there must be at least f + 1 leaders,
+        each in charge of a possibly infinite number of ballots. A leader
+        process has a unique identifier called the leader identifier
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=4"
+          target="_blank"
+        >
+          RENESSE, P. 4 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Each ballot has a leader. A leader is a state machine contained in a
+      replica, with it's own internal state separate from the main loop. A
+      leader can own multiple ballots at once. It also has it's own identifier
+      which is usual a u64 and in the paper is referred to by λ
+    </p>
+
+    <p>
+      Each Leader can also spawn multiple commander and scout threads which we
+      will look at in detail later.
+    </p>
+
+    <p>
+      To tolerate f crash failures, the system must contain at least f + 1
+      leader processes, ensuring that at least one leader remains available.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/protocol/ballot",
+    prev_label="Ballot", current_label="Leader",
+    next_url="/protocol/ballot-ordering",
+    next_label="Ballot Ordering" ) }}
+  </div>
+
+  {% endblock %}
+</div>

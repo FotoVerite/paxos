@@ -1,0 +1,209 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Acceptor Messages - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/message.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Acceptor Messages</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Execution Model</span>
+
+      <blockquote>
+        It [An acceptor] runs in an infinite loop, receiving two kinds of
+        request messages from leaders
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=5"
+          target="_blank"
+        >
+          RENESSE, P. 5 §2
+        </a>
+      </cite>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/phase1a.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Phase 1a</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Phase 1</span>
+
+        <blockquote>
+          (p1a, λ, b): Upon receiving a “phase 1a” request message from a leader
+          with identifier λ, for a ballot number b, an acceptor makes the
+          following transition. First, the acceptor adopts b if and only if it
+          exceeds its current ballot number. Then it returns to λ a “phase 1b”
+          response message containing its current ballot number and all pvalues
+          accepted thus far by the acceptor.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=5"
+            target="_blank"
+          >
+            RENESSE, P. 5 §2
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Phase 1a message is similar to the propose message from Lamport's Part
+        Time Parliament paper. Instead of being concerned with the current
+        ballot history it is concerned with the accepted history of the
+        acceptor.
+      </p>
+      <p>λ is the leader ID, which can be assumed to be an orderable integer</p>
+      <p>
+        Here the Leader is querying the acceptor on it's history. This will
+        allow it to determine precedence of values for a given slot and to
+        propose commands accordingly
+      </p>
+
+      <p>
+        It also initiates a state change for the ballot. If the ballot is
+        greater then the current ballot for the acceptor it will adopt it as
+        it's α.ballot_num. If it's equal or less no state change happens.
+      </p>
+
+      <p>
+        After the potential state change the acceptors sends back all accepted
+        pvalues in it's α.accepted. This mirrors the “promise” message from
+        Part-Time Parliament: no value is proposed yet, but by adopting ballot
+        b, the acceptor ensures it won’t accept any Phase 2A messages with a
+        lower ballot. Ballots are global, so the response covers all slots
+        rather than a single one.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/phase2a.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Phase 2a</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Phase 2</span>
+
+        <blockquote>
+          (p2a, λ,(b, s, c)): Upon receiving a “phase 2a” request message from
+          leader λ with pvalue (b, s, c), an acceptor makes the following
+          transition. If b exceeds the current ballot number, then the acceptor
+          first adopts b. If the current ballot number equals b, then the
+          acceptor accepts (b, s, c). The acceptor returns to λ a “phase 2b”
+          response message containing its current ballot number
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=5"
+            target="_blank"
+          >
+            RENESSE, P. 5 §2
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Phase 2a messages are almost identical to the accept message from
+        Lamport's Part-Time Parliament paper. The leader requests that the
+        acceptor accept the proposed pvalue.
+      </p>
+
+      <p>
+        The acceptor updates its α.ballot_num to be at least the ballot b in the
+        message. It then accepts the pvalue only if α.ballot_num equals b.
+      </p>
+
+      <p>
+        The acceptor responds with a Phase 2b message containing its current
+        α.ballot_num. This response does not explicitly indicate acceptance; the
+        leader must infer acceptance by comparing the returned ballot number
+        with the one it sent. If they match, the acceptor accepted the pvalue.
+      </p>
+    </div>
+
+    <div class="quote-container">
+      <span class="inscription-label">Invariant Enforcement</span>
+
+      <blockquote>
+        It is easy to see that the code enforces Invariants A1, A2, and A3. For
+        checking the remaining two invariants, which involve multiple acceptors,
+        we have to study what a leader does first.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=5"
+          target="_blank"
+        >
+          RENESSE, P. 5 §2
+        </a>
+      </cite>
+    </div>
+    <p>
+      <strong>A1: Ballot Ordering and A2: Ballot Consistency</strong> are
+      enforced because the acceptor ignores Phase 2a messages with ballots lower
+      than its current α.ballot_num.
+    </p>
+
+    <p>
+      <strong>A3: Append Only</strong> is enforced because the acceptor never
+      removes entries from α.accepted.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/protocol/ballot-ordering",
+    prev_label="Ballot Ordering", current_label="Acceptors",
+    next_url="/protocol/commanders/execution-model",
+    next_label="Commanders" ) }}
+  </div>
+
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Live-Lock - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/livelock.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Live-Lock</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+
+      <blockquote>
+        <p>
+          Consider the following scenario, with two leaders with identifiers
+          $\lambda$ and $\lambda'$ such that $\lambda < \lambda'$. Both start at
+          the same time, respectively proposing commands $c$ and $c'$ for slot
+          number 1. Suppose there are three acceptors, $\alpha_1$, $\alpha_2$,
+          and $\alpha_3$. In ballot (0, $\lambda$), leader $\lambda$ is
+          successful in getting $\alpha_1$ and $\alpha_2$ to adopt the ballot,
+          and $\alpha_1$ to accept pvalue $((0, \lambda), 1, c)$.
+        </p>
+        <hr class="blueprint-taper" />
+        <p>
+          Now leader $\lambda'$ gets $\alpha_2$ and $\alpha_3$ to adopt ballot
+          $(0, \lambda')$ (which is after $(0, \lambda$) because $\lambda <
+          \lambda'$). Note that neither $\alpha_2$ nor $\alpha_3$ accepted any
+          pvalues, so leader $\lambda'$ is free to select any proposal. Leader
+          $\lambda'$ then gets $\alpha_3$ to accept $((0, \lambda1), 1, c')$.
+        </p>
+        <hr class="blueprint-taper" />
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=1"
+          target="_blank"
+        >
+          RENESSE, P. 1 §1
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Liveness refers to the system's ability to make progress. Given a client
+      request, it should eventually receive a response. If it does not, the
+      system can be said to be in a failure state, due to either a live-lock,
+      deadlock, or other failures.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/lifecycle", prev_label="Lifecycle",
+    current_label="Liveness", next_url="/the-problem", next_label="The Problem"
+    ) }}
+  </div>
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

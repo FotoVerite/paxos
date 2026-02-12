@@ -1,0 +1,30 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="hatchA5A4" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="white" stroke-width="0.5" opacity="0.3" />
+    </pattern>
+    
+    <mask id="identitySlot">
+      <rect x="20" y="20" width="60" height="25" fill="white" />
+      <rect x="38" y="38" width="24" height="12" fill="black" />
+    </mask>
+  </defs>
+
+  <rect x="20" y="55" width="60" height="25" fill="url(#hatchA5A4)" stroke="white" stroke-width="1.5" />
+  
+  <g>
+    <rect x="38" y="38" width="24" height="24" fill="#1a1a1a" stroke="#ffcc00" stroke-width="2" />
+    
+    <line x1="45" y1="46" x2="55" y2="46" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" />
+    <line x1="45" y1="54" x2="55" y2="54" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" />
+  </g>
+
+  <rect x="20" y="20" width="60" height="25" fill="none" stroke="white" stroke-width="2" mask="url(#identitySlot)" />
+
+  <g stroke="#ffcc00" stroke-width="2.5" fill="none">
+    <path d="M 15 25 V 15 H 25" />
+    <path d="M 75 85 H 85 V 75" />
+  </g>
+
+  
+</svg>

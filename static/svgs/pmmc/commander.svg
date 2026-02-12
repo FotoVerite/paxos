@@ -1,0 +1,26 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="cmdHatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="#ffcc00" stroke-width="0.5" opacity="0.4"/>
+    </pattern>
+  </defs>
+  <g transform="translate(20, 10) scale(0.8)">
+    <g stroke="white" stroke-width="1.5" opacity="0.4">
+      <path d="M 20 40 L 10 35"/>
+      <path d="M 20 50 L 5 50"/>
+      <path d="M 20 60 L 10 65"/>
+    </g>
+    <path d="M 25 35 H 65 L 85 50 L 65 65 H 25 Z" fill="none" stroke="white" stroke-width="2"/>
+    <g transform="translate(35, 40)">
+      <rect x="0" y="0" width="20" height="20" fill="url(#cmdHatch)" stroke="#ffcc00" stroke-width="2"/>
+      <line x1="5" y1="8" x2="15" y2="8" stroke="#ffcc00" stroke-width="2" stroke-linecap="round"/>
+      <line x1="5" y1="12" x2="15" y2="12" stroke="#ffcc00" stroke-width="2" stroke-linecap="round"/>
+    </g>
+    <g fill="white">
+      <circle cx="72" cy="45" r="1.5"/>
+      <circle cx="78" cy="50" r="1.5"/>
+      <circle cx="72" cy="55" r="1.5"/>
+    </g>
+  
+  </g>
+</svg>

@@ -1,0 +1,85 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %} Leader Preemption - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/preemption.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Preemption</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+      <blockquote>
+        <p>
+          If either a scout or a commander detects that an acceptor has adopted
+          a ballot number b, with b > ballot num, then it sends the leader a
+          preempted message. The leader becomes passive and spawns a new scout
+          with a ballot number that is higher than b.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=9"
+          target="_blank"
+        >
+          RENESSE, P. 9 §2 - Scouts, Passive and Active Modes
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A leader can receive a (<strong>preempted</strong>, (r',λ')) from either a
+      scout or a commander. It's mode does not matter because as soon as a
+      greater ballot is in the system the current ballot will never win. When
+      this happens the message is for the leader to increment it's state to
+      (r'+1, λ). It then spawns a new scout to try and get this ballot adopted
+      by $\mathcal{A}$.
+    </p>
+
+    <p>
+      Notice at the moment as the system is described that with multiple
+      leaders, livelocking can happen and that leadership switching is
+      inevitable
+    </p>
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/leaders/invariant-cascade",
+    prev_label="Leader Invariant Cascade", current_label="Pmax(pvals)",
+    next_url="/protocol/leaders/preemption", next_label="Leader Preemption" ) }}
+    {% endblock %}
+  </div>
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

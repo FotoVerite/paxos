@@ -1,0 +1,27 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="decidedHatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="white" stroke-width="0.5" />
+    </pattern>
+  </defs>
+
+  <line x1="10" y1="70" x2="90" y2="70" stroke="white" stroke-width="1.5" stroke-dasharray="4 2" opacity="0.5" />
+
+  <g transform="translate(10, 50)" opacity="0.4">
+    <rect x="0" y="0" width="15" height="20" fill="url(#decidedHatch)" stroke="white" stroke-width="1" />
+    <rect x="18" y="0" width="15" height="20" fill="url(#decidedHatch)" stroke="white" stroke-width="1" />
+  </g>
+
+  <g transform="translate(46, 45)">
+    <rect x="0" y="0" width="22" height="30" fill="none" stroke="#ffcc00" stroke-width="1.5" />
+    
+    <line x1="11" y1="-5" x2="11" y2="35" stroke="#ffcc00" stroke-width="1" stroke-dasharray="2 1" />
+    <line x1="-5" y1="15" x2="27" y2="15" stroke="#ffcc00" stroke-width="1" stroke-dasharray="2 1" />
+  </g>
+
+  <g transform="translate(71, 50)" opacity="0.3">
+    <rect x="0" y="0" width="15" height="20" fill="none" stroke="white" stroke-width="1" stroke-dasharray="2 2" />
+  </g>
+
+
+</svg>

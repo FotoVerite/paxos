@@ -1,0 +1,23 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <line x1="20" y1="35" x2="80" y2="35" stroke="white" stroke-width="3" />
+  
+  <path d="M 40 45 L 48 53 L 60 38" fill="none" stroke="#ffcc00" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+
+  <g opacity="0.6">
+    <rect x="25" y="65" width="10" height="10" fill="none" stroke="#ffcc00" stroke-width="1.5" />
+    <rect x="45" y="65" width="10" height="10" fill="none" stroke="#ffcc00" stroke-width="1.5" />
+    <rect x="65" y="65" width="10" height="10" fill="none" stroke="#ffcc00" stroke-width="1.5" />
+    
+    <path d="M 30 60 V 45" stroke="white" stroke-width="1" stroke-dasharray="2 2" />
+    <path d="M 50 60 V 55" stroke="white" stroke-width="1" stroke-dasharray="2 2" />
+    <path d="M 70 60 V 45" stroke="white" stroke-width="1" stroke-dasharray="2 2" />
+  </g>
+
+  <g transform="translate(10, 27)">
+    <rect x="0" y="0" width="16" height="16" fill="#1a1a1a" stroke="#ffcc00" stroke-width="2" />
+    <line x1="4" y1="6" x2="12" y2="6" stroke="#ffcc00" stroke-width="1.5" />
+    <line x1="4" y1="10" x2="12" y2="10" stroke="#ffcc00" stroke-width="1.5" />
+  </g>
+
+
+</svg>

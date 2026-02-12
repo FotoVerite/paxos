@@ -1,0 +1,106 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Ballot - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/ballot.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Ballot</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+
+      <blockquote>
+        In the Synod protocol, there is an infinite collection of ballots.
+        Ballots are not created; they just are. As we shall see later, ballots
+        are the key to liveness in Paxos.
+
+        <hr class="blueprint-taper" />
+
+        A ballot has a unique identifier ... called its ballot number. Ballot
+        numbers are totally ordered, that is, for any two different ballot
+        numbers, one is before or after the other. Do not confuse ballot numbers
+        and slot numbers; they are orthogonal concepts. One ballot can be used
+        to decide multiple slots, and one slot may be considered by multiple
+        ballots.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=4"
+          target="_blank"
+        >
+          RENESSE, P. 4 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Ballots form an unbounded, totally ordered set. When Renesse says ballots
+      “are not created,” he means that the protocol reasons over a pre-existing
+      infinite ordering, not over ballot creation events.
+    </p>
+
+    <p>
+      Ballots contain an identifier called a ballot_number. Implementations may
+      represent ballots as integers or tuples. In the protocol, ballots are used
+      to order competing proposals so replicas can determine which proposals
+      win.
+    </p>
+
+    <p>
+      For the papers purpose a ballot identifier will be represented as (r, λ).
+      <strong>r</strong> refers to the monotonically increasing round number.
+      <strong>λ</strong> refers to the Leader Identifier.
+    </p>
+
+    <p>
+      A ballot is not tied to a single command, client, or slot; the same ballot
+      may be used while proposing values for multiple slots. A ballot number of
+      10 can be used in a slot numbered 8 and vice versa.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/replicas/perform",
+    prev_label="Ballot", current_label="Ballot",
+    next_url="/protocol/leader",
+    next_label="Leader" ) }}
+  </div>
+
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

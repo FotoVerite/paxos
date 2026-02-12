@@ -1,0 +1,59 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Commander Execution Model - Paxos
+Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock
+%} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/commander.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Commander Execution Model</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Commander Thread</span>
+
+      <blockquote>
+        According to Invariant A4, there can be at most one proposed command per
+        ballot number and slot number. The leader of a ballot is responsible for
+        selecting a command for each slot, in such a way that selected commands
+        cannot conflict with decisions on other ballots (Invariant A5). A leader
+        may work on multiple slots at the same time. When, in ballot b, its
+        leader tries to get a command c for slot number s chosen, it spawns a
+        local commander thread for (b, s, c).
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=6"
+          target="_blank"
+        >
+          RENESSE, P. 6 §2 - Leaders and Commanders
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Commanders are threads spawned by a leader to decide the value of a
+      command for a given slot. A leader can run multiple commanders
+      concurrently, one per (ballot, slot). Each commander must ensure that its
+      proposed value respects Invariant A5.
+    </p>
+
+
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/acceptors/messages",
+    prev_label="Acceptors", current_label="Commander Execution Model",
+    next_url="/protocol/commanders/invariants",
+    next_label="Commander Invariants" ) }}
+  </div>
+  {% endblock %}
+</div>

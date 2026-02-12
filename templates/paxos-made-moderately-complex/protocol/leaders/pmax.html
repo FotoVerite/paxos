@@ -1,0 +1,116 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}pmax(pvals) - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/pmax.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">$pmax(pval)$</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+      <blockquote>
+        <p>
+          After the leader receives <strong>adopted</strong>, along with
+          <strong>ballot_num</strong> and <strong>pvals</strong>, it determines,
+          for each slot, the command corresponding to the maximum ballot number
+          in <strong>pvals</strong> by invoking the function
+          <strong>pmax</strong>. Formally, the function
+          <strong>pmax(pvals)</strong> is defined as follows:
+        </p>
+
+        $$ \text{pmax}(pvals) \equiv \{(s, c) \mid \exists b : (b, s, c) \in
+        pvals \wedge \forall b', c' : (b', s, c') \in pvals \Rightarrow b' \le b
+        \} $$
+
+        <p>
+          The update operator <strong>$\triangleleft$</strong> applies to two
+          sets of proposals. $x \; \triangleleft \; y$ returns the elements of
+          $y$ as well as the elements of $x$ that are not in $y$. Formally:
+        </p>
+
+        $$ x \; \triangleleft \; y \equiv \{(s, c) \mid (s, c) \in y \; \lor \;
+        ((s, c \in x \wedge \nexists c' : (s, c') \in y))\} $$
+
+        <p>Thus, the line:</p>
+
+        <pre><code>proposals := proposals &#x25C0; pmax(pvals);</code></pre>
+
+        <p>
+          updates the set of proposals, replacing for each slot number the
+          command corresponding to the maximum pvalue in <code>pvals</code>, if
+          any. Now the leader can start commanders for each slot while
+          satisfying Invariant C2.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=9"
+          target="_blank"
+        >
+          RENESSE, P. 9 §2 - Scouts, Passive and Active Modes
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      When a Leader receives the adopted message from a scout, it ascertains
+      from the included pval set through the pmax function commands for each
+      slot in contention.
+    </p>
+    <p>
+      The <strong>pmax</strong> function is defined as: for each slot-command
+      pair, there exists a ballot number in the tuple
+      <strong>(Ballot, Slot, Command)</strong> in <strong>pvals</strong> that is
+      greater than or equal to any other ballot number for that slot.
+    </p>
+
+    <p>
+      When updating the internal set of proposals, one cannot simply take the
+      output of <strong>pmax</strong>, because some previous proposals might be
+      lost. One must take the union of all previous pvalues that are not
+      included in the <strong>pvals</strong> set sent by the scout for each
+      slot, which is exactly what the $\triangleleft$ operator accomplishes.
+    </p>
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/leaders/phase-one",
+    prev_label="Leader P1a", current_label="Pmax(pvals)",
+    next_url="/protocol/leaders/preemption", next_label="Leader Preemption" ) }}
+    {% endblock %}
+  </div>
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

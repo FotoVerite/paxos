@@ -1,0 +1,96 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %} Lifecycle - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/lifecycle-icon.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Proposal Lifecycle Overview</h1>
+
+    <div style="">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/lifecycle.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <p>
+      A leader <strong>$\lambda_2$</strong> has spawned a scout for some ballot
+      b. This scout sends out (<strong>p1a</strong>, $\lambda$, b) to all known
+      acceptors, <strong>$\alpha_1$</strong>, <strong>$\alpha_2$</strong>,
+      <strong>$\alpha_3$</strong>. These acceptors proceed to adopt ballot b
+      because their $\alpha$.ballot_num is &lt; b.
+    </p>
+
+    <p>
+      These three acceptors then send back (<strong>p1b</strong>, $\alpha$, b,
+      $\alpha$.accepted), of which only two are needed for a quorum. Once two of
+      these messages are received without any (<strong>p1b</strong>, $\alpha$,
+      b', $\alpha$.accepted), the scout sends (<strong>adopted</strong>, b,
+      pvals). The leader then switches to the active phase by setting its
+      $\lambda$.active to true.
+    </p>
+
+    <p>
+      Meanwhile, a client sends a command request RPC to two replicas $\rho_1$
+      and $\rho_2$, which send (<strong>propose</strong>, s, c) to $\lambda_2$.
+      The leader checks its $\lambda$.proposals and sees that there is none for
+      this s. Because this maintains the C2 invariant, it can safely spawn a
+      commander to handle this proposal.
+    </p>
+
+    <p>
+      The spawned commander then sends (<strong>p2a</strong>, $\lambda_2$, (b,
+      s, c)) to <strong>$\alpha_1$</strong>, <strong>$\alpha_2$</strong>,
+      <strong>$\alpha_3$</strong>.
+    </p>
+
+    <p>
+      These acceptors, since b == $\alpha$.ballot_num, will add (b, s, c) to
+      their $\alpha$.accepted state, and send back (<strong>p2b</strong>,
+      $\alpha$, (b, s, c)). When a quorum of these messages reach the commander,
+      it will send (<strong>decision</strong>, (s, c)) to the replicas and
+      complete the process.
+    </p>
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/leaders/preemption",
+    prev_label="Leader Preemption", current_label="Lifecycle",
+    next_url="/protocol/liveness", next_label="Liveness" ) }}
+    {% endblock %}
+  </div>
+
+  {% block scripts %}
+
+  <script>
+    // Render KaTeX math when DOM is ready
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+        });
+      }
+    });
+  </script>
+
+  {% endblock %}
+</div>

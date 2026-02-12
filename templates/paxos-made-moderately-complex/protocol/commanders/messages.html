@@ -1,0 +1,186 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Commander Messages - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/commander-messages.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Commander Messages</h1>
+
+    <p>
+      Commanders interpret the response from acceptors. There are three states
+      such messages can be in accepted or rejected which depends on the value of
+      the ballot_number sent back. It will be ignored if it is less than the
+      Commander's ballot number. Though for most implementations the commander
+      thread would not have been spawned to begin with. Accepted if it is equal
+      to the commanders ballot. And finally rejected if the ballot is greater
+      then the commanders
+    </p>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/accept-accepted.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Accepted</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Phase 2 B with Current Ballot</span>
+
+        <blockquote>
+          If a commander receives (p2b, α, b) from all acceptors in a majority
+          of acceptors, then the commander learns that command c has been chosen
+          for slot s. In this case the commander notifies the replicas and
+          exits. In order to satisfy Invariant R1, we need to enforce that if a
+          commander learns that c is chosen for slot s, and another commander
+          learns that c'is chosen for the same slot s, then c = c'.
+          <hr class="blueprint-taper" />
+          This is a consequence of Invariant A5: if a majority of acceptors
+          accept (b, s, c), then for any later ballot b' and the same slot
+          number s, acceptors can only accept (b', s, c). Thus if the commander
+          of (b' , s, c') learns that c'has been chosen for s, it is guaranteed
+          that c = c'and no inconsistency occurs, assuming—of course—that
+          Invariant C2 holds
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=6"
+            target="_blank"
+          >
+            RENESSE, P. 6 §2 - Leaders and Commanders
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Once enough accepted messages are received by the commander to reach
+        quorum it will notify the replicas with a (<strong>decision</strong>,
+        s,c) message and stop it's process.
+      </p>
+
+      <p>
+        Since R1 states that
+        <strong
+          >There are no two different commands decided for the same slot</strong
+        >
+        this invariant must hold. This is done through the acceptors A5
+        invariant. An acceptor is nothing more then a filter method at it's
+        heart and it's main purpose is to keep A5 in place. Renesse points out
+        that C2 must also hold but that's is the purview of the Leader who
+        spawns the commander and not the commander logic itself.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/accept-rejected.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Rejected</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Phase 2 B with Current Ballot</span>
+
+        <blockquote>
+          If a commander receives (p2b, α', b') from some acceptor α', with b'
+          $\neq$ b, then it learns that a ballot b' (which must be larger than b
+          as guaranteed by acceptors) is active. This means that ballot b may no
+          longer be able to make progress, as there may no longer exist a
+          majority of acceptors that can accept (b, s, c). In this case, the
+          commander notifies its leader about the existence of b', and exits.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=6"
+            target="_blank"
+          >
+            RENESSE, P. 6 §2 - Leaders and Commanders
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        If a commander receives a rejected response there are two actions it can
+        take.
+      </p>
+
+      <p>
+        If it was a delayed message and has a smaller ballot then the current
+        commander ballot it would be ignored.
+      </p>
+
+      <p>
+        If it is greater then progress might no longer be possible. While
+        additional messages for the current ballot might still be in flight or
+        being answered by acceptors that cannot be assumed. The commander will
+        inform the leader of this with sent ballot number so it might set that
+        to the current ballot and end the process.
+      </p>
+    </div>
+
+    <div class="quote-container">
+      <span class="inscription-label">Progress</span>
+
+      <blockquote>
+        Under the assumption that at most a minority of acceptors can crash,
+        messages are delivered reliably, and the commander does not crash, the
+        commander will eventually do one or the other.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=6"
+          target="_blank"
+        >
+          RENESSE, P. 6 §2 - Leaders and Commanders
+        </a>
+      </cite>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/commanders/invariants",
+    prev_label="Commander Invariants", current_label="Commander Messages",
+    next_url="/protocol/scouts/execution-model", next_label="Scout Execution
+    Model" ) }}
+  </div>
+
+  {% endblock %} {% block scripts %}
+
+  <script>
+    // Render KaTeX math when DOM is ready
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.renderMathInElement) {
+        renderMathInElement(document.body, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+          ],
+        });
+      }
+    });
+  </script>
+
+  {% endblock %}
+</div>

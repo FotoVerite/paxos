@@ -1,0 +1,118 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Commander Execution Model - Paxos
+Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock
+%} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/scout.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Scout Execution Model</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Scout Thread</span>
+
+      <blockquote>
+        The leader must enforce Invariants C1 and C2. Because there is only one
+        leader per ballot, invariant C1 is trivial to enforce by the leader not
+        spawning more than one commander per ballot number and slot number. In
+        order to enforce Invariant C2, the leader runs what is often called a
+        view change protocol for some ballot before spawning commanders for that
+        ballot. The leader spawns a scout thread to run the view change protocol
+        for some ballot b. A leader starts at most one of these for any ballot
+        b, and only for its own ballots.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=6"
+          target="_blank"
+        >
+          RENESSE, P. 6 §2 - Scouts, Passive and Active Modes
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Whenever a Leader increments its ballot number it must ensure that a
+      quorum of acceptors recognize it as the greatest ballot they have seen.
+      The view change here is a change in the leader’s internal state from
+      inactive to active for that ballot. It does this through a scout. This
+      scout sends $(p1a, \lambda, b)$ messages to all known acceptors, asking
+      them to respond with $(p1b, \alpha, b, r_\alpha)$.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Scout Thread</span>
+
+      <blockquote>
+        A scout completes successfully when it has collected $(p1b, \alpha, b,
+        r_\alpha)$ messages from all acceptors in a majority (again, guaranteed
+        to complete eventually), and returns an $(adopted, b,
+        \bigcup_{r_\alpha})$ message to its leader $\lambda$.
+
+        <hr class="blueprint-taper" />
+        As we will see later, the leader uses $\bigcup_{r_\alpha}$, the union of
+        all pvalues accepted by this majority of acceptors, in order to enforce
+        Invariant C2.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=6"
+          target="_blank"
+        >
+          RENESSE, P. 6 §2 - Scouts, Passive and Active Modes
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This states that if the scout receives $(p1b, \alpha, b, r_\alpha)$
+      messages from a quorum of acceptors, it reports success to the leader by
+      sending an $(adopted, b, \bigcup_{r_\alpha})$ message. The leader then
+      enters the active state for ballot $b$, and the scout exits. $r_\alpha$
+      here refers to all pvalues accepted by acceptor $\alpha$.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/protocol/commanders/messages",
+    prev_label="Commander Messages", current_label="Scout Execution Model",
+    next_url="/protocol/leaders/non-volatile-memory",
+    next_label="Leader NVM" ) }}
+  </div>
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

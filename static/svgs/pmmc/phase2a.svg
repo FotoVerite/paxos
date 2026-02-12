@@ -1,0 +1,29 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="memHatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="white" stroke-width="0.5" opacity="0.2" />
+    </pattern>
+  </defs>
+
+  <path d="M 20 40 V 80 H 80 V 40" fill="none" stroke="white" stroke-width="2" />
+  <rect x="25" y="60" width="50" height="15" fill="url(#memHatch)" stroke="white" stroke-width="1" opacity="0.4" />
+
+  <line x1="20" y1="45" x2="40" y2="45" stroke="white" stroke-width="2" />
+  <line x1="60" y1="45" x2="80" y2="45" stroke="white" stroke-width="2" />
+
+  <g>
+    <rect x="40" y="15" width="20" height="20" fill="#1a1a1a" stroke="#ffcc00" stroke-width="2.5" />
+    
+    <line x1="45" y1="22" x2="55" y2="22" stroke="#ffcc00" stroke-width="2" />
+    <line x1="45" y1="28" x2="55" y2="28" stroke="#ffcc00" stroke-width="2" />
+    
+    <path d="M 50 35 V 55" stroke="#ffcc00" stroke-width="3" stroke-linecap="square" />
+    <path d="M 50 48 H 58" stroke="#ffcc00" stroke-width="2" />
+  </g>
+
+  <path d="M 50 60 V 75" stroke="#ffcc00" stroke-width="1.5" stroke-dasharray="2 2" />
+  <circle cx="50" cy="75" r="3" fill="#ffcc00" />
+
+  <path d="M 85 60 L 95 50" stroke="white" stroke-width="1" stroke-dasharray="2 2" />
+  <path d="M 91 50 H 95 V 54" fill="none" stroke="white" stroke-width="1" />
+</svg>

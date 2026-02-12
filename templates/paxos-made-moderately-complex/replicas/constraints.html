@@ -1,0 +1,177 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Constraints - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/constraints.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Replica Constraints</h1>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/singleton.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Slot Uniqueness</h2>
+      <p>
+        <strong>$\mathbf{R1}$:</strong> $\forall
+        s,\;\rho_1,\;\rho_2,\;c_1,\;c_2:\; \big( (s, c_1)\in
+        \rho_1.\text{decisions} \;\wedge\; (s, c_2) \in \rho_2.\text{decisions}
+        \big) \;\Rightarrow\; c_1 = c_2$
+      </p>
+
+      <p>
+        <strong
+          >There are no two different commands decided for the same slot
+        </strong>
+      </p>
+
+      <p>
+        For any slot <em>s</em> and any two replicas <em>ρ₁</em> and
+        <em>ρ₂</em>, if replica <em>ρ₁</em> has learned that command
+        <em>c₁</em> was decided for slot <em>s</em>, and replica <em>ρ₂</em> has
+        learned that command <em>c₂</em> was decided for the same slot, then
+        <em>c₁</em> and <em>c₂</em> must be the same command.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/completeness.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Slot Completeness</h2>
+
+      <p>
+        <strong>$\mathbf{R2}$:</strong>
+        $\forall \rho,\, s:\; 1 \le s < \rho.\text{slot\_num} \;\Rightarrow\;
+        \exists c:\; (s, c) \in \rho.\text{decisions}$
+      </p>
+      <p>
+        <strong
+          >All commands up to slot num are in the set of decisions
+        </strong>
+      </p>
+
+      <p>
+        For any replica <em>p</em> and any slot <em>s</em> where <em>s</em> is
+        at least 1 and less then the current slot number <em>slot_num</em> there
+        exists a command such that the pair (<em>s, c</em>) is in
+        <em>ρ.decisions</em>
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/ordering.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>State Ordering</h2>
+
+      <p>
+        <strong>$\mathbf{R3}$:</strong>
+        For all replicas $\rho$, $ρ$.state is the result of applying the
+        commands in ($s$, $c_s$), ∈ $\rho$.decisions for all $s$ up to
+        $\text{slot\_num}$ to $\text{initial\_state}$, in order of slot number
+      </p>
+
+      <p>
+        Each replica's state is obtained by applying all decided commands in
+        order of their slot numbers to the initial state.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/slot_identity.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Slot Identity</h2>
+
+      <p>
+        <strong>$\mathbf{R4}$:</strong>
+        For each $ρ$, the variable $\rho$.slot num cannot decrease over time.
+      </p>
+
+      <p>
+        Slot Identification / Time cannot go backwards. IE they are
+        monotonically increasing.
+      </p>
+    </div>
+
+    <div class="quote-container">
+      <span class="inscription-label">Invariants</span>
+
+      <blockquote>
+        From Invariants R1-3, it is clear that all replicas apply operations to
+        the application state in the same order, and thus replicas with the same
+        slot number have the same state. Invariant R4 captures that a replica
+        cannot go back in time.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+          target="_blank"
+        >
+          RENESSE, P. 3 §2
+        </a>
+      </cite>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/replicas/non-volatile-memory",
+    prev_label="Non Volatile Memory", current_label="Replica Invariants",
+    next_url="/papers/paxos-made-moderately-complex/replicas/propose",
+    next_label="Propose" ) }}
+  </div>
+
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

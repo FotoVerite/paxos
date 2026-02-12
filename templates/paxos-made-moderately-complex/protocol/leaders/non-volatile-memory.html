@@ -1,0 +1,160 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Leader's Non Volatile Memory -
+Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{%
+endblock %} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/leader-nvm.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Non Volatile Memory</h1>
+
+    <p>
+      All leaders need to store three variables in non volatile memory so they
+      can recover from failure.
+    </p>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/ordering.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>λ.ballot_num</h2>
+
+      <div class="quote-container">
+        <blockquote>
+          a monotonically increasing ballot number, initially (0, λ);
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=6"
+            target="_blank"
+          >
+            RENESSE, P. 6 — §2 Scouts, Passive and Active Modes
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        λ or lambda referrer to to the leaders identifier. So for a leader with
+        identifier two it's ballot numbers would go (0,2), (1,2), (2,2)...
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/p-slot-number.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>λ.active</h2>
+
+      <div class="quote-container">
+        <blockquote>a boolean flag, initially false</blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=7"
+            target="_blank"
+          >
+            RENESSE, P. 7 — §2 Scouts, Passive and Active Modes
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        In this context, λ.active is a flag on the leader that indicates whether
+        the leader considers its current ballot active, meaning it can make
+        progress with that ballot.
+      </p>
+      <p>
+        Initially false: The leader hasn’t started Phase 1 or hasn’t yet
+        established itself as the leader for that ballot.
+      </p>
+      <p>
+        Becomes true: Once the leader successfully completes Phase 1 (scout
+        phase), it has gathered promises from a majority of acceptors and can
+        safely start spawning commanders for Phase 2.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/p-proposals.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>λ.proposals</h2>
+
+      <div class="quote-container">
+        <blockquote>
+          a map of slot numbers to proposed commands in the form of a set of
+          (slot number, command) pairs, initially empty. At any time, there is
+          at most one entry per slot number in the set.
+        </blockquote>
+         <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=7"
+            target="_blank"
+          >
+            RENESSE, P. 7 — §2 Scouts, Passive and Active Modes
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        These are the (slot, command) pairs this leader is proposing to
+        acceptors. Commands here can be changed by the leader until a value is
+        chosen, but there cannot be more than one command per slot.
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/protocol/scout/execution-model",
+    prev_label="Scout Execution Model", current_label="Leader Non Volatile Memory",
+    next_url="/protocol/leaders/messages",
+    next_label="Leader Messages" ) }}
+  </div>
+
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Acceptors - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/quorum.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Acceptors</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+
+      <blockquote>
+        Besides replicas and leaders, there is a fixed collection of acceptors,
+        deterministic state machines as well (although not replicas of one
+        another, because they get different sequences of input). Think of
+        acceptors as servers, and leaders as their clients. As we shall see,
+        acceptors maintain the fault tolerant memory of Paxos, preventing
+        conflicting decisions from being made.
+
+        <hr class="blueprint-taper" />
+
+        An acceptor is quite simple, as it is passive and only sends messages in
+        response to requests
+
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=4"
+          target="_blank"
+        >
+          RENESSE, P. 4 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      An acceptor is its own deterministic state machine. It may reside on the
+      same physical machine as a replica or leader, or on a separate machine
+      entirely.
+    </p>
+
+    <p>
+      In an asynchronous environment, acceptors maintain independent state and
+      can process messages in different orders, which means their internal
+      histories can diverge.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Fault Tolerance</span>
+
+      <blockquote>
+        We will assume that at most a strict minority of acceptors can crash.
+        Thus, in order to tolerate f crash failures, Paxos needs at least 2f + 1
+        acceptors.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=4"
+          target="_blank"
+        >
+          RENESSE, P. 4 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      To tolerate f crash failures, the system must contain at least 2f + 1
+      acceptor processes, ensuring that at least a quorum of acceptor remains
+      available. For a failure tolerance of 2 that would be 2 * 2 + 1. Which
+      would be 5. This would leave you with a quorum of 3 acceptors.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/protocol/ballot-ordering",
+    prev_label="Ballot Ordering", current_label="Acceptors",
+    next_url="/protocol/acceptors/non-volatile-memory",
+    next_label="Acceptor NVM" ) }}
+  </div>
+
+  {% endblock %}
+</div>

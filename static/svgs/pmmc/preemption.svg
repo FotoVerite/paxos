@@ -1,0 +1,27 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <line x1="15" y1="20" x2="85" y2="20" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+  
+  <g transform="translate(30, 30) scale(0.4)" opacity="0.5">
+    <path d="M 50 15 L 80 25 V 50 Q 80 75 50 85 Q 20 75 20 50 V 25 Z" 
+          fill="none" 
+          stroke="white" 
+          stroke-width="3" 
+          stroke-dasharray="6 4" />
+    
+    <g stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.8">
+      <line x1="40" y1="40" x2="60" y2="40" />
+      <line x1="40" y1="50" x2="60" y2="50" />
+    </g>
+  </g>
+
+  <path d="M 50 20 V 45" stroke="#ffcc00" stroke-width="2" stroke-dasharray="2 2" />
+  <circle cx="50" cy="50" r="8" fill="none" stroke="#ffcc00" stroke-width="1.5" opacity="0.6">
+    <animate attributeName="r" values="4;10;4" dur="2s" repeatCount="indefinite" />
+    <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite" />
+  </circle>
+
+  <path d="M 65 70 Q 85 70 85 40 Q 85 10 60 10" fill="none" stroke="#ffcc00" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.8" />
+  <path d="M 64 10 H 58" stroke="#ffcc00" stroke-width="1.5" stroke-linecap="round" />
+
+  <path d="M 40 90 H 60" stroke="white" stroke-width="1.5" opacity="0.3" />
+</svg>

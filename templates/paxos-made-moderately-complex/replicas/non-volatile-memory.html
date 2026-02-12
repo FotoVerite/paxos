@@ -1,0 +1,189 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Non Volatile Memory - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/non-volatile.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Non Volatile Memory</h1>
+
+    <p>
+      All replicas need to store for variables in non volatile memory so they
+      can recover from failure.
+    </p>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/p-state.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>ρ.state</h2>
+
+      <div class="quote-container">
+        <blockquote>
+          the replica’s copy of the application state, which we will treat as
+          opaque. All replicas start with the same initial application state
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+            target="_blank"
+          >
+            RENESSE, P. 3 — §3
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        The state is the application of all commands it has learned. For the
+        purposes of the paper it doesn't matter what type of application we are
+        talking about, simply that ce replicas process all decisions in order,
+        they end up with the same state.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/p-slot-number.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>ρ.slot_number</h2>
+
+      <div class="quote-container">
+        <blockquote>
+          The replica’s current slot number (equivalent to the version number of
+          the state, and initially 1). It contains the index of the next slot
+          for which it needs to learn a decision before it can update its copy
+          of the application state
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+            target="_blank"
+          >
+            RENESSE, P. 3 — §3
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        The slot number indicates the position of the next decision the replica
+        must learn before applying further commands. Depending on
+        implementation, tracking this can be more complex than just recording
+        the latest slot.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/p-proposals.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>ρ.proposals</h2>
+
+      <div class="quote-container">
+        <blockquote>
+          A set of proposals that the replica has made in the past (initially
+          empty);
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+            target="_blank"
+          >
+            RENESSE, P. 3 — §3
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        These are the (slot, command) pairs this replica has previously
+        attempted to propose.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/p-decisions.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>ρ.decisions</h2>
+
+      <div class="quote-container">
+        <blockquote>
+          A set of proposals that are known to have been decided (also initially
+          empty)
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+            target="_blank"
+          >
+            RENESSE, P. 3 — §3
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        These are the (slot, command) pairs this replica have chosen by quorum
+        agreement.
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/replicas/execution-model",
+    prev_label="Replica Execution Model", current_label="Replica NVM",
+    next_url="/replicas/constraints",
+    next_label="Constraints" ) }}
+  </div>
+
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

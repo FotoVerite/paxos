@@ -1,0 +1,56 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Leader Modes - Invariant Cascade -
+Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{%
+endblock %} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/leader-active.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Leader Modes - Invariant Cascade</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Invariant Cascade</span>
+      <blockquote>
+        <p>
+          This inductive argument is the crux for the correctness of the Synod
+          protocol. It demonstrates that Invariant C2 holds, which in turn
+          implies Invariant A5, which in turn implies Invariant R1 that ensures
+          that all replicas apply the same operations in the same order.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=9"
+          target="_blank"
+        >
+          RENESSE, P. 9 §2 - Scouts, Passive and Active Modes
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Given that C2 (<strong>Command Consistency</strong>) holds, A5 (<strong
+        >Value Preservation</strong
+      >) is respected, which in turn ensures R1 (<strong>Slot Uniqueness</strong
+      >) holds. That is, all replicas apply the same command in the same slot,
+      as the leader's picks combined with quorum acceptance maintain
+      consistency.
+    </p>
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/leaders/modes", prev_label="Leader
+    Modes", current_label="Leader Modes Invariant Cascade",
+    next_url="/protocol/leaders/invariant-cascade", next_label="Invariant
+    Cascade Model" ) }} {% endblock %} {% block scripts %} {% endblock %}
+  </div>
+</div>

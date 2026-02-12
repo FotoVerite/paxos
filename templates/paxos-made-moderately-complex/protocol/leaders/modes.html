@@ -1,0 +1,103 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Leader Modes - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/leader-active.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Leader Modes</h1>
+
+    <div class="quote-container">
+      <blockquote>
+        A leader goes between passive and active modes. When passive, the leader
+        is waiting for an <strong>(adopted, ballot num, pvals)</strong> message
+        from the last scout that it spawned. When this message arrives,the
+        leader becomes active and spawns commanders for each of the slots for
+        which it has a proposed command, but must select commands that satisfy
+        Invariant C2.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=8"
+          target="_blank"
+        >
+          RENESSE, P. 8 §2 - Scouts, Passive and Active Modes
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Active and Passive modes are controlled by the λ.active flag. Invariant C2
+      is <strong>Command Consistency</strong>; that any slot will have one
+      chosen consistent command following Invariant A5.
+    </p>
+
+    <div class="quote-container">
+      <blockquote>
+        When active, the leader knows that a majority of acceptors, say
+        $\mathcal{A}$, have adopted ballot num and thus no longer accept pvalues
+        for ballot numbers less than ballot num (because of Invariants A1 and
+        A2). In addition, it has all pvalues accepted by the acceptors in
+        $\mathcal{A}$ prior to ballot num.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=8"
+          target="_blank"
+        >
+          RENESSE, P. 8 §2 - Scouts, Passive and Active Modes
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      The leader has the union of all pvalues reported by the quorum
+      $\mathcal{A}$ that adopted $ballot\_num$. Any pvalue that was previously
+      chosen must have been accepted by a majority of acceptors, and therefore
+      must appear in at least one acceptor in $\mathcal{A}$ due to quorum
+      intersection. Invariant A1 and A2 (<strong>Ballot Ordering</strong> and
+      <strong>Ballot Consistency</strong>) ensure that acceptors will not accept
+      conflicting pvalues for lower ballots. Thus, for each slot, either there
+      are no previous pvalues, or there exists at least one pvalue in the set
+      reported to the leader.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/leaders/messages",
+    prev_label="Leader Messages", current_label="Leader Modes",
+    next_url="/protocol/leaders/propose", next_label="Leader Proposals" ) }} {% endblock %} {% block scripts %}
+
+    <script>
+      // Render KaTeX math when DOM is ready
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.renderMathInElement) {
+          renderMathInElement(document.body, {
+            delimiters: [
+              { left: "$$", right: "$$", display: true },
+              { left: "$", right: "$", display: false },
+            ],
+          });
+        }
+      });
+    </script>
+
+    {% endblock %}
+  </div>
+</div>

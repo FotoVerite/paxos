@@ -1,0 +1,213 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Acceptor Invariants - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/a-invariants.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Acceptor Invariants</h1>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/a1.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Ballot Ordering</h2>
+
+      <p>
+        <strong>$\mathbf{A1}$:</strong> an acceptor can only adopt strictly
+        increasing ballot numbers;
+      </p>
+
+      <p>
+        This invariant ensures that acceptors never move backward in ballot
+        numbers. Once a higher ballot is observed, all lower ballots are
+        permanently rejected.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/a2.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Ballot Consistency</h2>
+
+      <p>
+        <strong>$\mathbf{A2}$:</strong> an acceptor α can only add (b, s, c) to
+        α.accepted (i.p., accept (b, s, c)) if b = α.ballot num;
+      </p>
+
+      <p>
+        This invariant ensures that an acceptor only accepts pvalues that match
+        its current ballot number. An acceptor checks if a pvalue is stale by
+        it's current α.ballot_num. The protocol enforces this by requiring an
+        acceptor to adopt a higher ballot before accepting proposals for it.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/a3.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Append Only</h2>
+
+      <p>
+        <strong>$\mathbf{A3}$:</strong> acceptor α cannot remove pvalues from
+        α.accepted (we will modify this impractical restriction later);
+      </p>
+
+      <p>
+        This invariant ensures that acceptor state is monotonic. Much like A1,
+        this helps us simplify the acceptor logic and will be amended with an
+        optimization later via garbage collection.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/a4.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Command Identity</h2>
+
+      <p>
+        <strong>$\mathbf{A4}$:</strong> Suppose α and α' are acceptors, with (b,
+        s, c) ∈ α.accepted and (b, s, c') ∈ α'.accepted. Then c = c' .
+      </p>
+
+      <p>
+        <strong>
+          Informally, given a particular ballot number and slot number, there
+          can be at most one proposed command under consideration by the set of
+          acceptors.</strong
+        >
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/a5.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Value Preservation</h2>
+
+      <p>
+        <strong>$\mathbf{A5}$:</strong> Suppose that for each α among a majority
+        of acceptors, (b, s, c) ∈ α.accepted. If b' > b and (b', s, c') ∈ α'
+        .accepted, then c = c'
+      </p>
+
+      <p>
+        <strong>
+          We will consider this crucial invariant in more detail later.</strong
+        >
+      </p>
+
+      <p>
+        This invariant is a corollary to Theorem Two in Lamport's Part Time
+        Parliament paper. Here it's defining that leaders are constrained by the
+        history of past acceptance. Remember Invariants are just axioms, the
+        code is what will make this actually true. Right now they're more magic
+        invocations.
+      </p>
+
+      <p>
+        Without this invariant, a leader could overwrite a command that was
+        already accepted by a majority, causing different replicas to execute
+        different commands for the same log slot.
+      </p>
+    </div>
+
+    <div class="quote-container">
+      <span class="inscription-label">A5 is Bidirectional</span>
+
+      <blockquote>
+        It is important to realize that an invariant like A5 works “both ways.”
+        In one direction, if a majority of acceptors have accepted a particular
+        pvalue (b, s, c), then any pvalue for a later ballot will contain the
+        same command c. In the other direction, suppose some acceptor accepts
+        (b' s, c') before there is a majority of acceptors that have accepted
+        some other pvalue on an earlier ballot. That does not rule out that at
+        some later time there will be a pvalue (b, s, c) on a ballot b, b < b' ,
+        that is accepted by a majority of acceptors. The invariant requires that
+        c = c' in that case as well.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=5"
+          target="_blank"
+        >
+          RENESSE, P. 5 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A5 is about Value Preservation across ballots, a quorum being reached for
+      a value means any ballots with a lower number that reaches quorum cannot
+      choose a different command for it's slot. The invariant is bidirectional
+      and constrains all quorums, forcing <strong>c' = c = c''</strong>
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/protocol/acceptor/non-volatile-memory",
+    prev_label="Acceptor NVM", current_label="Acceptor Invariants",
+    next_url="/protocol/acceptors/messages",
+    next_label="Acceptor Messages" ) }}
+  </div>
+
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

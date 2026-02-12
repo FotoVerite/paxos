@@ -1,0 +1,31 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="caseTwoGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#ffcc00" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <g stroke="white" stroke-width="1.5" fill="none" opacity="0.3">
+    <rect x="35" y="65" width="30" height="12" rx="1" /> <rect x="35" y="50" width="30" height="12" rx="1" /> </g>
+
+  <circle cx="50" cy="35" r="22" fill="url(#caseTwoGlow)" />
+  
+  <g transform="translate(35, 28)">
+    <rect x="0" y="0" width="30" height="14" rx="1" fill="#1a1a1a" stroke="#ffcc00" stroke-width="2.5" />
+    
+    <g stroke="#ffcc00" stroke-width="2" stroke-linecap="round">
+      <line x1="8" y1="5" x2="22" y2="5" />
+      <line x1="8" y1="9" x2="22" y2="9" />
+    </g>
+  </g>
+
+  <path d="M 50 25 V 10" stroke="#ffcc00" stroke-width="2" stroke-dasharray="2 2" />
+  <path d="M 46 14 L 50 10 L 54 14" fill="none" stroke="#ffcc00" stroke-width="1.5" />
+
+  <g transform="translate(70, 25)" fill="#ffcc00">
+    <path d="M 0 -4 L 1 -1 L 4 0 L 1 1 L 0 4 L -1 1 L -4 0 L -1 -1 Z" />
+  </g>
+
+  <path d="M 20 85 H 80" stroke="white" stroke-width="1" stroke-dasharray="4 2" opacity="0.4" />
+</svg>

@@ -1,0 +1,24 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="stateSolidHatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="white" stroke-width="1.2" />
+    </pattern>
+  </defs>
+
+  <line x1="20" y1="85" x2="80" y2="85" stroke="white" stroke-width="2" stroke-linecap="square" />
+
+  <rect x="30" y="30" width="40" height="45" fill="url(#stateSolidHatch)" stroke="white" stroke-width="2.5" />
+
+  <g transform="translate(50, 52.5)">
+  </g>
+
+  <g stroke="#ffcc00" stroke-width="1" opacity="0.8">
+    <line x1="22" y1="30" x2="22" y2="75" />
+    <line x1="19" y1="30" x2="25" y2="30" />
+    <line x1="19" y1="75" x2="25" y2="75" />
+    
+    <line x1="30" y1="22" x2="70" y2="22" />
+    <line x1="30" y1="19" x2="30" y2="25" />
+    <line x1="70" y1="19" x2="70" y2="25" />
+  </g>
+</svg>

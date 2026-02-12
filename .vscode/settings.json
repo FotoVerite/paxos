@@ -3,6 +3,7 @@
         "inditification",
         "Lamport",
         "linearazation",
+        "Renesse",
         "unitelligatibale"
     ],
     "rust-analyzer.checkOnSave.enable": true,

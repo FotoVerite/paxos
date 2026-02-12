@@ -1,0 +1,71 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Ballot Ordering - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/ballot-number.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Ballot Ordering</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+
+      <blockquote>
+        In this description, we will have ballot numbers be lexicographically
+        ordered pairs of an integer and its leader identifier (consequently,
+        leader identifiers need to be totally ordered as well). This way, given
+        a ballot number, it is trivial to see who the leader of the ballot is.
+
+        <hr class="blueprint-taper" />
+
+        We will use one special ballot number ⊥ that is ordered before any
+        normal ballot number, but does not correspond to any ballot.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=4"
+          target="_blank"
+        >
+          RENESSE, P. 4 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A ballot number is represented as a tuple
+      <strong>(counter, leader_id)</strong>, ordered lexicographically.
+    </p>
+
+    <p>
+      Given this format it is trivial to map a ballot to a leader by the second
+      part of the tuple.
+    </p>
+
+    <p>
+      The special ballot number ⊥ is a sentinel that is ordered before all real
+      ballot numbers and represents the absence of any prior ballot. It is used
+      to initialize state so that the first real ballot always compares as
+      greater, avoiding special-case logic.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/protocol/leader",
+    prev_label="Leaders", current_label="Ballot Ordering",
+    next_url="/protocol/acceptors/index",
+    next_label="Acceptors" ) }}
+  </div>
+
+  {% endblock %}
+</div>

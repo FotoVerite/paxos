@@ -1,0 +1,41 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="decisionGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffcc00" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#ffcc00" stop-opacity="0" />
+    </radialGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffcc00" />
+    </marker>
+  </defs>
+
+  <path d="M 50 10 A 40 40 0 1 1 49.9 10" fill="none" stroke="white" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.3" />
+
+  <g transform="translate(10, 45)">
+    <rect width="12" height="8" rx="1.5" fill="none" stroke="white" stroke-width="1.5" stroke-dasharray="2 1" />
+  </g>
+a
+  <g transform="translate(42, 42) scale(0.16)">
+    <path d="M 50 15 L 80 25 V 50 Q 80 75 50 85 Q 20 75 20 50 V 25 Z" 
+          fill="none" 
+          stroke="white" 
+          stroke-width="4" 
+          stroke-dasharray="8 4" />
+    <circle cx="50" cy="45" r="15" fill="url(#decisionGlow)" opacity="0.8" />
+  </g>
+
+  <g transform="translate(78, 45)">
+    <circle cx="6" cy="4" r="14" fill="url(#decisionGlow)" opacity="0.4" />
+    <rect width="12" height="8" rx="1.5" fill="#1a1a1a" stroke="#ffcc00" stroke-width="2" />
+    <line x1="3" y1="3" x2="9" y2="3" stroke="#ffcc00" stroke-width="1" />
+    <line x1="3" y1="5" x2="9" y2="5" stroke="#ffcc00" stroke-width="1" />
+  </g>
+
+  <g fill="none" stroke="#ffcc00" stroke-width="1" opacity="0.8">
+    <path d="M 25 49 H 38" marker-end="url(#arrow)" />
+    <path d="M 62 49 H 75" marker-end="url(#arrow)" />
+    <path d="M 50 85 Q 50 95 30 95 Q 10 95 10 60" stroke-dasharray="2 2" opacity="0.3" marker-end="url(#arrow)" />
+  </g>
+
+  <path d="M 40 92 H 60" stroke="#ffcc00" stroke-width="2" stroke-linecap="round" />
+</svg>

@@ -1,0 +1,19 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="coreHatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="white" stroke-width="1" />
+    </pattern>
+  </defs>
+
+  <rect x="15" y="15" width="70" height="70" fill="none" stroke="white" stroke-width="1" stroke-dasharray="4 2" opacity="0.4" />
+
+  <rect x="25" y="25" width="50" height="50" fill="none" stroke="white" stroke-width="3" />
+  <rect x="32" y="32" width="36" height="36" fill="url(#coreHatch)" stroke="white" stroke-width="1" />
+
+  <g stroke="#ffcc00" stroke-width="2" fill="none">
+    <path d="M 25 35 V 25 H 35" />
+    <path d="M 65 25 H 75 V 35" />
+    <path d="M 75 65 V 75 H 65" />
+    <path d="M 35 75 H 25 V 65" />
+  </g>
+</svg>

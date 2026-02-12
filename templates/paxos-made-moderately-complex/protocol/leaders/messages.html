@@ -1,0 +1,169 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Leader Messages - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/leader-messages.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Leader Messages</h1>
+
+    <div class="quote-container">
+      <blockquote>
+        The leader starts by spawning a scout for its initial ballot number, and
+        then enters into a loop awaiting messages
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=7"
+          target="_blank"
+        >
+          RENESSE, P. 7 §2 - Scouts, Passive and Active Modes
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Leaders can receive three types of messages. One external, and two from
+      internal processes.
+    </p>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/propose.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Propose</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">(propose,s,c)</span>
+
+        <blockquote>A replica proposes command c for slot number s</blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=7"
+            target="_blank"
+          >
+            RENESSE, P. 7 §2 - Scouts, Passive and Active Modes
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Replica's are send command's from clients with their current
+        slot_number, ρ.slot_number
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/adopted.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Adopted</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">(adopted, ballot num, pvals)</span>
+
+        <blockquote>
+          Sent by a scout, this message signifies that the current ballot number
+          ballot num has been adopted by a majority of acceptors. (If an adopted
+          message arrives for an old ballot number, it is ignored.) The set
+          pvals contains all pvalues accepted by these acceptors prior to
+          ballot_num.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=7"
+            target="_blank"
+          >
+            RENESSE, P. 7 §2 - Scouts, Passive and Active Modes
+          </a>
+        </cite>
+      </div>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/preempted.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Preempted</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">(preempted,(r', λ'))</span>
+
+        <blockquote>
+          Sent by either a scout or a commander, this message indicates that
+          some acceptor has adopted $(r', \lambda')$. If $(r', \lambda')$ is
+          greater than the leader’s current ballot number, it may no longer be
+          possible to use that ballot to choose a command.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=7"
+            target="_blank"
+          >
+            RENESSE, P. 7 §2 - Scouts, Passive and Active Modes
+          </a>
+        </cite>
+      </div>
+      <p>
+        This internal message is an alert to the leader that it might no longer
+        be in an active state. The leader checks whether its current ballot
+        number is less than the one in the received message.
+        <strong>r'</strong> here refers to the monotonically increasing round
+        number in the tuple. If so, the leader selects a new ballot number
+        $(r'', \lambda)$ with $r'' > r'$, sets itself to passive, and will retry
+        later. Otherwise, it ignores the message.
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/leaders/non-volatile-memory",
+    prev_label="Leader NVM", current_label="Leader Messages",
+    next_url="/protocol/leaders/modes", next_label="Leader Modes" ) }} {%
+    endblock %} {% block scripts %}
+
+    <script>
+      // Render KaTeX math when DOM is ready
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.renderMathInElement) {
+          renderMathInElement(document.body, {
+            delimiters: [
+              { left: "$$", right: "$$", display: true },
+              { left: "$", right: "$", display: false },
+            ],
+          });
+        }
+      });
+    </script>
+
+    {% endblock %}
+  </div>
+</div>

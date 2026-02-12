@@ -1,0 +1,77 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %} Decisions - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/decisions.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Decisions</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Decision Process</span>
+
+      <blockquote>
+        Decisions may arrive out-of-order and multiple times. For each decision
+        message, the replica adds the decision to the set of decisions. Then, in
+        a loop, it considers which decisions are ready for execution before
+        trying to receive more messages. If there is a decision c''
+        corresponding to the current slot num, the replica first checks to see
+        if it has proposed a different command c''. If so, it re-proposes c'',
+        which will be assigned a new slot number. Next, it invokes perform(c' )
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+          target="_blank"
+        >
+          RENESSE, P. 3 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Decision messages may arrive out of order and may be duplicated. When a
+      decision message arrives, the replica records the decided pair
+      <strong>(s, c)</strong> in its set of decisions.
+    </p>
+
+    <p>
+      After recording a decision, the replica checks whether it can make
+      progress executing commands. It does this by repeatedly testing whether
+      there is a decision for the current <strong>slot_num</strong>.
+    </p>
+
+    <p>
+      If a decision exists for the current slot, the replica first checks
+      whether it previously proposed a different command for that same slot. If
+      so, that command has lost the decision race and must not be discarded.
+      Instead, the replica re-proposes it for a new, higher-numbered available
+      slot. This slot is not necessarily the next consecutive slot, since other
+      commands may have been proposed in the meantime.
+    </p>
+
+    <p>
+      Finally, the replica invokes <strong>perform(c)</strong> on the decided
+      command and continues checking for
+      the next executable decision.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/replicas/propose",
+    prev_label="Propose", current_label="Decisions",
+    next_url="/replicas/perform",
+    next_label="Perform" ) }}
+  </div>
+  {% endblock %}
+</div>

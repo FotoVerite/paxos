@@ -1,0 +1,167 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Leader Modes - Phase One - Paxos
+Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock
+%} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/leader-active.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Leader Modes - Phase One</h1>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/phase-one-case-one.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Null Pvals Set</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Case One</span>
+
+        <blockquote>
+          If, for some slot $s$, there is no <em>pvalue</em> in $pvals$, then
+          prior to $ballot\_num$ it is not possible that any <em>pvalue</em> has
+          been chosen or will be chosen for slot $s$.
+
+          <hr class="blueprint-taper" />
+          After all, suppose that some $pvalue\ \langle b, s, c \rangle$ were
+          chosen, with $b &lt; ballot\_num$. This would require a majority of
+          acceptors $\mathcal{A_0}$ to accept $\langle b, s, c \rangle$. But we
+          have responses from a majority $\mathcal{A}$ that have adopted
+          $ballot\_num$ and have not accepted, nor can accept,
+          <em>pvalues</em> with ballot number smaller than $ballot\_num$
+          (Invariants $A1$ and $A2$). $$ \mathcal{A} \cap \mathcal{A_0} \neq
+          \varnothing $$
+
+          <hr class="blueprint-taper" />
+          so some acceptor in the intersection must have violated Invariant
+          $A1$, $A2$, or $A3$, which we know cannot happen.
+          <hr class="blueprint-taper" />
+
+          Therefore, because no <em>pvalue</em> has been or will be chosen for
+          slot $s$ prior to $ballot\_num$, the leader may propose any command
+          for that slot without conflicting with an earlier ballot, thereby
+          enforcing Invariant $C2$.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=8"
+            target="_blank"
+          >
+            RENESSE, P. 8 §2 - Scouts, Passive and Active Modes
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Given Invariant A1, A2, A3; <strong>Ballot Ordering</strong>,
+        <strong>Ballot Consistency</strong>, and <strong>Append Only</strong>.
+        It can be proven logically that if there are no pvalues for slot $s$
+        among a quorum $\mathcal{A}$ of acceptors. Hence the leader can propose
+        any value for any slot that falls into case one without violating
+        Invariant $C2$.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/phase-one-case-two.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>At least One Pvalue</h2>
+
+      <div class="quote-container">
+        <span class="inscription-label">Case Two</span>
+
+        <blockquote>
+          Otherwise, let $pvalue\ \langle b, s, c \rangle$ be the pvalue with
+          the maximum ballot number for slot $s$. Because of Invariant $A4$,
+          this pvalue is unique—there cannot be two different commands for the
+          same ballot number and slot number.
+          <hr class="blueprint-taper" />
+
+          Also note that $b &lt; ballot\_num$ (because acceptors only report
+          pvalues they accepted before $ballot\_num$).
+          <hr class="blueprint-taper" />
+
+          Like the leader of $ballot\_num$, the leader of $b$ must have picked
+          $c$ carefully to ensure that Invariant $C2$ holds. Thus, if a pvalue
+          is chosen before or at $b$, the command it contains must be $c$.
+          <hr class="blueprint-taper" />
+
+          Since all acceptors in $\mathcal{A}$ have adopted $ballot\_num$, no
+          pvalues with ballot numbers between $b$ and $ballot\_num$ can be
+          chosen (Invariants $A1$ and $A2$).
+          <hr class="blueprint-taper" />
+
+          Therefore, by using $c$ as the command for slot $s$, $\lambda$
+          enforces Invariant $C2$.
+        </blockquote>
+        <cite class="quote-source">
+          <a
+            href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=9"
+            target="_blank"
+          >
+            RENESSE, P. 9 §2 - Scouts, Passive and Active Modes
+          </a>
+        </cite>
+      </div>
+
+      <p>
+        Given Invariant A4; <strong>Command Identity</strong>
+        It can be proven logically that any pvalue a quorum $\mathcal{A}$ of
+        acceptors must have been chosen by A1-A5 invariants. While there are
+        reasons any two individual pvalues equal each other, by A4 and quorum
+        intersection any chosen pvalue would have been the maximum pvalue of the
+        set and the Leader can safely pick that as it's value and enforce C2
+        itself. The commander will then send this picked command to all
+        acceptors to be accepted and then learned by the replicas.
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/leaders/propose", prev_label="Leader
+    Proposals", current_label="Leader P1a", next_url="/protocol/leaders/pmax",
+    next_label="pmax(pvals)" ) }} {% endblock %}
+  </div>
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

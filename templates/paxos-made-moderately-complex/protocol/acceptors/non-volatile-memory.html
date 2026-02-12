@@ -1,0 +1,85 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Acceptor Non Volatile Memory -
+Paxos Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{%
+endblock %} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/quorum-nvm.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Acceptor Non Volatile Memory</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">NVM</span>
+
+      <blockquote>
+        Its state consists of two variables. Let a $pvalue$ be a triple
+        consisting of a ballot number, a slot number, and a command. If α is the
+        identifier of an acceptor, then the acceptor’s state is described
+
+        <hr class="blueprint-taper" />
+
+        <ul>
+          <li>α.ballot_num: a ballot number, initially ⊥</li>
+          <li>α.accepted: a set of pvalues, initially empty</li>
+        </ul>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=4"
+          target="_blank"
+        >
+          RENESSE, P. 4 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      <strong>α.ballot num</strong> is the current ballot number that will be
+      used to see if a message is stale or not.
+    </p>
+
+    <p><strong>α.accepted</strong> is a set of accepted ballots.</p>
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/protocol/acceptors/index",
+    prev_label="Acceptors", current_label="Acceptor Non Volatile Memory",
+    next_url="/protocol/acceptors/invariants",
+    next_label="Acceptor Invariants" ) }}
+  </div>
+
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

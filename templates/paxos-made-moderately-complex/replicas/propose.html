@@ -1,0 +1,105 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Propose - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/singleton.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">$Propose(c)$</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Execution Loop</span>
+
+      <blockquote>
+        A replica runs in an infinite loop, receiving messages. Replicas receive
+        two kinds of messages: requests from clients, and decisions.
+        <hr class="blueprint-taper" />
+
+
+        When it receives [(<strong>request</strong>, c)] a request for command c from a client, the replica
+        invokes propose(c). This function checks if there has been a decision
+        for c already. If so, the replica has already sent a response and the
+        request can be ignored.
+        <hr class="blueprint-taper" />
+
+        If not, the replica determines the lowest unused slot number s', and
+        adds proposal (s', c), to its set of proposals. It then sends a
+        (propose, s' ,c) message to all leaders. Leaders are described below.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+          target="_blank"
+        >
+          RENESSE, P. 3 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      A replica is always waiting for messages. As soon as a message from a
+      client arrives, it starts the process of creating a propose message to
+      send to other replicas.
+    </p>
+
+    <p>
+      The first part of this process is to check if this work has already been
+      done by a previous message. Recall that
+      <strong>$c = (\kappa, \text{cid}, \text{op})$</strong>. The replica checks
+      if any slot already contains this command with the attached $\kappa$ and
+      $\text{cid}$. If so, it does nothing; otherwise, it proceeds to construct
+      the propose message.
+    </p>
+
+    <p>
+      The propose message will be of the form
+      <strong>$(s', c)$</strong>, where $s'$ is this replica's lowest available
+      slot and $c$ is the client command $(\kappa, \text{cid}, \text{op})$. This
+      message is then sent to all the leaders of the cluster.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/replicas/constraints",
+    prev_label="Constraints", current_label="Propose(c)",
+    next_url="/replicas/decisions",
+    next_label="Decisions" ) }}
+  </div>
+
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

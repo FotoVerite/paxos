@@ -1,0 +1,40 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="freshnessMask">
+      <rect width="100" height="100" fill="white" />
+      
+      <rect x="44" y="44" width="12" height="12" fill="black" />
+      
+      <g transform="translate(37, 37)" stroke="black" stroke-width="6" stroke-linecap="round">
+        <line x1="10" y1="4" x2="7" y2="22" /> 
+        <line x1="20" y1="4" x2="17" y2="22" /> 
+        <line x1="3" y1="10" x2="24" y2="10" /> 
+        <line x1="1" y1="17" x2="22" y2="17" /> 
+      </g>
+    </mask>
+
+    <pattern id="timeHatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="white" stroke-width="0.5" opacity="0.2" />
+    </pattern>
+  </defs>
+
+  <circle cx="50" cy="50" r="35" fill="none" stroke="white" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.3" />
+  
+  <g mask="url(#freshnessMask)">
+    <path d="M 50 15 A 35 35 0 0 1 85 50 L 50 50 Z" fill="url(#timeHatch)" stroke="#ffcc00" stroke-width="1" opacity="0.5" />
+    <line x1="50" y1="50" x2="50" y2="15" stroke="#ffcc00" stroke-width="3" stroke-linecap="round" />
+    <circle cx="50" cy="15" r="3" fill="#ffcc00" />
+  </g>
+
+  <g transform="translate(37, 37)" stroke="#ffcc00" stroke-width="3.5" stroke-linecap="round" fill="none">
+    <line x1="10" y1="4" x2="7" y2="22" /> 
+    <line x1="20" y1="4" x2="17" y2="22" /> 
+    <line x1="3" y1="10" x2="24" y2="10" /> 
+    <line x1="1" y1="17" x2="22" y2="17" /> 
+  </g>
+
+  <g stroke="#ffcc00" stroke-width="2.5" fill="none" opacity="0.9">
+    <path d="M 15 27 V 15 H 27" />
+    <path d="M 73 85 H 85 V 73" />
+  </g>
+</svg>

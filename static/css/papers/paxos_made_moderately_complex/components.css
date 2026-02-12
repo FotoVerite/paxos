@@ -347,3 +347,37 @@ hr.blueprint-taper::after {
 /* Position ticks at the 20% and 80% marks where the line is fully opaque */
 hr.blueprint-taper::before { left: 20%; }
 hr.blueprint-taper::after { right: 20%; }
+
+.block {
+  position: relative;
+  background: var(--pms-primary-dark);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  margin: var(--space-2xl) 0;
+  h2 {
+    margin-top: 0;
+  }
+  .block-icon {
+    width: 60px;
+    top: 2px;
+    position: absolute;
+    right: 2px;
+    opacity: 0.6;
+  }
+
+  p {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-md);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    a {
+      color: var(--color-success);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color var(--transition-fast);
+    }
+  }
+}

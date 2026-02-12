@@ -1,0 +1,103 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Commander Invariants - Paxos Made
+Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {%
+block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/commander-invariants.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Commander Invariants</h1>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/c1.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Commander Uniqueness</h2>
+
+      <p>
+        <strong>$\mathbf{C1}$:</strong> For any $b$ and $s$, at most one
+        commander is spawned;
+      </p>
+
+      <p>
+        <strong>
+          Invariant C1 implies Invariant A4, because by C1 all acceptors that
+          accept a pvalue for a particular ballot and slot number received the
+          pvalue from the same commander
+        </strong>
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <div class="icon">
+        <object
+          type="image/svg+xml"
+          data="/svgs/pmmc/c2.svg"
+          class="math-logo"
+        ></object>
+      </div>
+      <h2>Command Consistency</h2>
+
+      <p>
+        <strong>$\mathbf{C2}$:</strong> Suppose that for each α among a majority
+        of acceptors (b, s, c) ∈ α.accepted. If b' > b and a commander is
+        spawned for (b' , s, c'), then c = c'
+      </p>
+
+      <p><strong>Similarly, Invariant C2 implies Invariant A5.</strong></p>
+
+      <p>
+        This invariant is needed to ensure A5 is respected. We will see through
+        how commanders deal with responses from acceptors and the scout process
+        how this is actually accomplished.
+      </p>
+    </div>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb(
+    prev_url="/protocol/commanders/execution-model",
+    prev_label="Commander Execution Model", current_label="Commander Invariants",
+    next_url="/protocol/commanders/messages",
+    next_label="Commander Messages" ) }}
+  </div>
+
+  {% endblock %}
+</div>
+
+{% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

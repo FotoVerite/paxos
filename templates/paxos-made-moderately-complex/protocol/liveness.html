@@ -1,0 +1,55 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Liveness - Paxos Made Moderately
+Complex{% endblock %} {% block body_class %}pmc-page{% endblock %} {% block
+extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full" style="margin-right: 20px">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/liveness.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Liveness</h1>
+    <div class="quote-container">
+      <span class="inscription-label">Definition</span>
+
+      <blockquote>
+        It would clearly be desirable that, if a client broadcasts a new command
+        to all replicas, that it eventually receives at least one response. This
+        is often referred to as liveness. It requires that if one or more
+        commands have been proposed for a particular slot, that some command is
+        eventually decided for that slot. Unfortunately, the Synod protocol as
+        described does not guarantee this, even in the absence of any failure
+        whatsoever.
+      </blockquote>
+       <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=9"
+          target="_blank"
+        >
+          RENESSE, P. 9 §3 - When Paxos Works
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Liveness refers to the system's ability to make progress. Given a client
+      request, it should eventually receive a response. If it does not, the
+      system can be said to be in a failure state, due to either a live-lock,
+      deadlock, or other failures.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/protocol/lifecycle", prev_label="Lifecycle",
+    current_label="Liveness", next_url="/protocol/livelock", next_label="Protocol Live-Lock"
+    ) }}
+  </div>
+  {% endblock %}
+</div>

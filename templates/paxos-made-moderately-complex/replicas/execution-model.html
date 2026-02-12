@@ -1,0 +1,112 @@
+{% extends "paxos-made-moderately-complex/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Replica Execution Model - Paxos
+Made Moderately Complex{% endblock %} {% block body_class %}pmc-page{% endblock
+%} {% block extra_stylesheets %}
+<link
+  rel="stylesheet"
+  href="/css/papers/paxos_made_moderately_complex/breadcrumb.css"
+/>
+{% endblock %} {% block content %}
+<div class="pmc-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/pmmc/introduction.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Replica Execution Model</h1>
+
+    <div class="quote-container">
+      <span class="inscription-label">Crash Failure</span>
+
+      <blockquote>
+        In order to tolerate f crashes, Paxos needs at least f + 1 replicas to
+        maintain copies of the application state.Replicas are the core building
+        blocks of the replicated state machine (RSM), while all other components
+        exist to ensure consensus between them.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+          target="_blank"
+        >
+          RENESSE, P. 3 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      For every failure one wants the system to tolerate you must have at least
+      f + 1 replicas holding the application state. So if you want to survive
+      five unavailable replicas one would need a minimum of six replicas
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Messages</span>
+
+      <blockquote>
+        When a client κ wants to execute a command (κ, cid, op), its stub
+        routine broadcasts a (request, (κ, cid, op)) message to all replicas and
+        waits for a (response, cid, result) message from one of the replicas.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+          target="_blank"
+        >
+          RENESSE, P. 3 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Commands on the client are broadcast in a request message of (k, cid, op)
+      to all replicas and waits for a response message from one replica of type
+      (response, cid, result). How replicas coordinate to determine which
+      replica responds is deferred to later sections.
+    </p>
+
+    <div class="quote-container">
+      <span class="inscription-label">Slots</span>
+
+      <blockquote>
+        The replicas can be thought of as having a sequence of slots that need
+        to be filled with commands. Each slot is indexed by a slot number. A
+        replica, on receipt of a (request, c) message, proposes command c for
+        its lowest unused slot. We call the pair (s, c) a proposal for slot s.
+        In the face of concurrently operating clients, different replicas may
+        end up proposing different commands for the same slot. In order to avoid
+        inconsistency, a replica awaits a decision for a slot before actually
+        updating its state and computing a response to send back to the client.
+        <hr class="blueprint-taper" />
+        Replicas are not necessarily identical at any time. However, replicas
+        apply operations to the application state in the same order.
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf#page=3"
+          target="_blank"
+        >
+          RENESSE, P. 3 §2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      The slots are similar to Lamport's Ledger. Each slot contains one command
+      and are applied in order. Commands are proposed for slots and become fixed
+      once a proposal is chosen by the Paxos protocol. Because the environment
+      is asynchronous it cannot be assumed that all replicas are identical at
+      any one moment; but that they will all have same state at given slot index
+      once applied.
+    </p>
+
+    <!-- Bottom Breadcrumb Navigation -->
+    {{ nav::breadcrumb( prev_url="/the-problem", prev_label="The Problem",
+    current_label="Replica's Execution Model",
+    next_url="/replicas/non-volatile-memory", next_label="Replica NVM" ) }}
+  </div>
+  {% endblock %}
+</div>
