@@ -166,6 +166,26 @@
 }
 
 @media (max-width: 768px) {
+  .header-icon {
+    width: 24px;
+    top: 28px;
+  }
+
+  .header-icon.large {
+    width: 32px;
+    top: 26px;
+  }
+
+  .header-icon.xl {
+    width: 46px;
+    top: 24px;
+  }
+
+  .header-icon.full {
+    width: 56px;
+    top: 22px;
+  }
+
   .panel-title {
     font-size: 1.75rem;
   }

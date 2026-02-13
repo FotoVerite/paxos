@@ -17,38 +17,197 @@
         </button>
         
         <div class="nav-menu" id="navMenu">
-            <div class="nav-item">
-                <a href="{{ nav::site_url(raw_url="/") }}" class="nav-link">Home</a>
+            <div class="nav-item nav-group">
+                <button type="button" class="nav-link nav-group-toggle" data-group="overview">Overview</button>
+                <div class="nav-dropdown" id="overview-menu">
+                    <a href="{{ nav::site_url(raw_url="/") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/") }}">Home</a>
+                    <a href="{{ nav::site_url(raw_url="/abstract") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/abstract") }}">Abstract</a>
+                    <a href="{{ nav::site_url(raw_url="/introduction") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/introduction") }}">Introduction</a>
+                    <a href="{{ nav::site_url(raw_url="/communication-with-the-rsm") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/communication-with-the-rsm") }}">Communication with the RSM</a>
+                    <a href="{{ nav::site_url(raw_url="/the-problem") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/the-problem") }}">The Problem</a>
+                </div>
             </div>
-            <div class="nav-item">
-                <a href="{{ nav::site_url(raw_url="/introduction") }}" class="nav-link">Introduction</a>
+
+            <div class="nav-item nav-group">
+                <button type="button" class="nav-link nav-group-toggle" data-group="replicas">Replicas</button>
+                <div class="nav-dropdown" id="replicas-menu">
+                    <a href="{{ nav::site_url(raw_url="/replicas/execution-model") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/replicas/execution-model") }}">Execution Model</a>
+                    <a href="{{ nav::site_url(raw_url="/replicas/non-volatile-memory") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/replicas/non-volatile-memory") }}">Non‑Volatile Memory</a>
+                    <a href="{{ nav::site_url(raw_url="/replicas/constraints") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/replicas/constraints") }}">Constraints</a>
+                    <a href="{{ nav::site_url(raw_url="/replicas/propose") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/replicas/propose") }}">Propose</a>
+                    <a href="{{ nav::site_url(raw_url="/replicas/decisions") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/replicas/decisions") }}">Decisions</a>
+                    <a href="{{ nav::site_url(raw_url="/replicas/perform") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/replicas/perform") }}">Perform</a>
+                    <a href="{{ nav::site_url(raw_url="/replicas/invariant-enforcement") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/replicas/invariant-enforcement") }}">Invariant Enforcement</a>
+                </div>
             </div>
-            <div class="nav-item">
-                <a href="{{ nav::site_url(raw_url="/how-and-why") }}" class="nav-link">How & Why</a>
+
+            <div class="nav-item nav-group">
+                <button type="button" class="nav-link nav-group-toggle" data-group="protocol">Protocol</button>
+                <div class="nav-dropdown nav-dropdown-wide" id="protocol-menu">
+                    <div class="nav-section">
+                        <div class="nav-section-title">Protocol Flow</div>
+                        <a href="{{ nav::site_url(raw_url="/protocol/ballot") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/ballot") }}">Ballot</a>
+                        <a href="{{ nav::site_url(raw_url="/protocol/leader") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/leader") }}">Leader</a>
+                        <a href="{{ nav::site_url(raw_url="/protocol/ballot-ordering") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/ballot-ordering") }}">Ballot Ordering</a>
+                        <a href="{{ nav::site_url(raw_url="/protocol/lifecycle") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/lifecycle") }}">Lifecycle</a>
+                        <a href="{{ nav::site_url(raw_url="/protocol/liveness") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/liveness") }}">Liveness</a>
+                        <a href="{{ nav::site_url(raw_url="/protocol/livelock") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/livelock") }}">Live‑Lock</a>
+                        <a href="{{ nav::site_url(raw_url="/protocol/failure-detection") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/failure-detection") }}">Failure Detection</a>
+                        <a href="{{ nav::site_url(raw_url="/protocol/bounds") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/bounds") }}">Bounds</a>
+                        <a href="{{ nav::site_url(raw_url="/protocol/timeouts") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/timeouts") }}">Timeouts</a>
+                        <a href="{{ nav::site_url(raw_url="/protocol/acks") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/acks") }}">Acks</a>
+                    </div>
+
+                    <div class="nav-section">
+                        <button type="button" class="nav-subtoggle" data-submenu="leaders">Leaders</button>
+                        <div class="nav-submenu" id="leaders-submenu">
+                            <a href="{{ nav::site_url(raw_url="/protocol/leaders/messages") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/leaders/messages") }}">Messages</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/leaders/modes") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/leaders/modes") }}">Modes</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/leaders/propose") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/leaders/propose") }}">Propose</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/leaders/phase-one") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/leaders/phase-one") }}">Phase One</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/leaders/pmax") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/leaders/pmax") }}">PMax</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/leaders/preemption") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/leaders/preemption") }}">Preemption</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/leaders/invariant-cascade") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/leaders/invariant-cascade") }}">Invariant Cascade</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/leaders/non-volatile-memory") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/leaders/non-volatile-memory") }}">Non‑Volatile Memory</a>
+                        </div>
+                    </div>
+
+                    <div class="nav-section">
+                        <button type="button" class="nav-subtoggle" data-submenu="acceptors">Acceptors</button>
+                        <div class="nav-submenu" id="acceptors-submenu">
+                            <a href="{{ nav::site_url(raw_url="/protocol/acceptors/index") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/acceptors/index") }}">Index</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/acceptors/non-volatile-memory") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/acceptors/non-volatile-memory") }}">Non‑Volatile Memory</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/acceptors/invariants") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/acceptors/invariants") }}">Invariants</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/acceptors/messages") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/acceptors/messages") }}">Messages</a>
+                        </div>
+                    </div>
+
+                    <div class="nav-section">
+                        <button type="button" class="nav-subtoggle" data-submenu="commanders">Commanders</button>
+                        <div class="nav-submenu" id="commanders-submenu">
+                            <a href="{{ nav::site_url(raw_url="/protocol/commanders/execution-model") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/commanders/execution-model") }}">Execution Model</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/commanders/invariants") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/commanders/invariants") }}">Invariants</a>
+                            <a href="{{ nav::site_url(raw_url="/protocol/commanders/messages") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/commanders/messages") }}">Messages</a>
+                        </div>
+                    </div>
+
+                    <div class="nav-section">
+                        <button type="button" class="nav-subtoggle" data-submenu="scouts">Scouts</button>
+                        <div class="nav-submenu" id="scouts-submenu">
+                            <a href="{{ nav::site_url(raw_url="/protocol/scouts/execution-model") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/protocol/scouts/execution-model") }}">Execution Model</a>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="nav-item">
-                <a href="{{ nav::site_url(raw_url="/liveness") }}" class="nav-link">Liveness</a>
-            </div>
-            <div class="nav-item">
-                <a href="{{ nav::site_url(raw_url="/practical") }}" class="nav-link">Practical</a>
+
+            <div class="nav-item nav-group">
+                <button type="button" class="nav-link nav-group-toggle" data-group="optimizations">Optimizations</button>
+                <div class="nav-dropdown" id="optimizations-menu">
+                    <a href="{{ nav::site_url(raw_url="/optimizations/state-reduction") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/optimizations/state-reduction") }}">State Reduction</a>
+                    <a href="{{ nav::site_url(raw_url="/optimizations/garbage-collection") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/optimizations/garbage-collection") }}">Garbage Collection</a>
+                </div>
             </div>
         </div>
     </div>
 </nav>
 
 <script>
+    const currentPath = window.location.pathname.replace(/\/$/, '');
     const hamburger = document.getElementById('hamburgerBtn');
     const navMenu = document.getElementById('navMenu');
+    const navGroupToggles = document.querySelectorAll('.nav-group-toggle');
+    const navSubToggles = document.querySelectorAll('.nav-subtoggle');
+    const mobileMax = 768;
     
     hamburger.addEventListener('click', () => {
         navMenu.classList.toggle('active');
         hamburger.classList.toggle('active');
     });
 
-    document.querySelectorAll('.nav-link').forEach(link => {
+    document.querySelectorAll('.nav-dropdown-item').forEach(link => {
         link.addEventListener('click', () => {
             navMenu.classList.remove('active');
             hamburger.classList.remove('active');
+        });
+    });
+
+    const normalizePath = (path) => path.replace(/\/$/, '');
+    const isMobile = () => window.innerWidth <= mobileMax;
+
+    document.querySelectorAll('.nav-dropdown-item').forEach(link => {
+        const linkPath = normalizePath(link.getAttribute('data-route') || '');
+        if (linkPath && linkPath === currentPath) {
+            link.classList.add('active');
+            const dropdown = link.closest('.nav-dropdown');
+            if (dropdown) {
+                const groupToggle = dropdown.closest('.nav-group')?.querySelector('.nav-group-toggle');
+                if (groupToggle) {
+                    groupToggle.classList.add('active');
+                    if (isMobile()) {
+                        dropdown.classList.add('active');
+                    }
+                }
+            }
+            const submenu = link.closest('.nav-submenu');
+            if (submenu) {
+                const subToggle = submenu.parentElement?.querySelector('.nav-subtoggle');
+                if (subToggle) {
+                    subToggle.classList.add('active');
+                    if (isMobile()) {
+                        submenu.classList.add('active');
+                    }
+                }
+            }
+        }
+    });
+
+    navGroupToggles.forEach(toggle => {
+        const group = toggle.dataset.group;
+        const dropdown = document.getElementById(`${group}-menu`);
+        if (!dropdown) return;
+
+        toggle.addEventListener('mouseenter', () => {
+            if (window.innerWidth > mobileMax) {
+                dropdown.classList.add('active');
+            }
+        });
+
+        toggle.addEventListener('mouseleave', () => {
+            if (window.innerWidth > mobileMax) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        dropdown.addEventListener('mouseenter', () => {
+            if (window.innerWidth > mobileMax) {
+                dropdown.classList.add('active');
+            }
+        });
+
+        dropdown.addEventListener('mouseleave', () => {
+            if (window.innerWidth > mobileMax) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        toggle.addEventListener('click', (e) => {
+            if (window.innerWidth <= mobileMax) {
+                e.preventDefault();
+                dropdown.classList.toggle('active');
+                toggle.classList.toggle('active');
+            }
+        });
+    });
+
+    navSubToggles.forEach(toggle => {
+        const submenuId = `${toggle.dataset.submenu}-submenu`;
+        const submenu = document.getElementById(submenuId);
+        if (!submenu) return;
+
+        toggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            submenu.classList.toggle('active');
+            toggle.classList.toggle('active');
         });
     });
 </script>

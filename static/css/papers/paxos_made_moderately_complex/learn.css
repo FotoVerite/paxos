@@ -75,4 +75,9 @@ main {
     main {
         padding: 1rem 0;
     }
+
+    .pmc-container h1 {
+        font-size: 1.65rem;
+        margin-bottom: 1.5rem;
+    }
 }

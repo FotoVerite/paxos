@@ -96,6 +96,7 @@
     align-items: center;
     height: 100%;
     border-right: 1px solid #333;
+    position: relative;
 }
 
 .pmc-navbar .nav-item:last-child {
@@ -112,12 +113,114 @@
     transition: all 0.3s ease;
     font-size: 0.95rem;
     border-bottom: 3px solid transparent;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    cursor: pointer;
+    font: inherit;
 }
 
 .pmc-navbar .nav-link:hover {
     color: var(--pmc-nav-text-hover);
     background-color: var(--pmc-nav-bg-hover);
     border-bottom-color: var(--pmc-primary);
+}
+
+.pmc-navbar .nav-group-toggle.active {
+    color: var(--pmc-nav-text-hover);
+    background-color: var(--pmc-nav-bg-hover);
+    border-bottom-color: var(--pmc-primary);
+}
+
+.pmc-navbar .nav-dropdown {
+    position: absolute;
+    top: 60px;
+    left: 0;
+    min-width: 260px;
+    background: linear-gradient(135deg, var(--pmc-nav-bg-start) 0%, var(--pmc-nav-bg-end) 100%);
+    border: 1px solid #333;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    padding: 12px 0;
+    display: none;
+    z-index: 200;
+}
+
+.pmc-navbar .nav-dropdown-wide {
+    min-width: 340px;
+    max-width: 420px;
+}
+
+.pmc-navbar .nav-dropdown.active {
+    display: block;
+}
+
+.pmc-navbar .nav-dropdown-item {
+    display: block;
+    padding: 10px 18px;
+    color: var(--pmc-nav-text);
+    text-decoration: none;
+    font-size: 0.92rem;
+    line-height: 1.3;
+}
+
+.pmc-navbar .nav-dropdown-item:hover,
+.pmc-navbar .nav-dropdown-item.active {
+    background-color: var(--pmc-nav-bg-hover);
+    color: var(--pmc-nav-text-hover);
+}
+
+.pmc-navbar .nav-section {
+    padding: 6px 0;
+    border-top: 1px solid #333;
+}
+
+.pmc-navbar .nav-section:first-child {
+    border-top: none;
+}
+
+.pmc-navbar .nav-section-title {
+    padding: 6px 18px 10px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--pmc-text-muted);
+}
+
+.pmc-navbar .nav-subtoggle {
+    width: 100%;
+    padding: 10px 18px;
+    border: none;
+    background: transparent;
+    color: var(--pmc-nav-text);
+    text-align: left;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.pmc-navbar .nav-subtoggle::after {
+    content: "▸";
+    font-size: 0.85rem;
+    color: var(--pmc-text-muted);
+    transition: transform 0.2s ease;
+}
+
+.pmc-navbar .nav-subtoggle.active::after {
+    transform: rotate(90deg);
+}
+
+.pmc-navbar .nav-submenu {
+    display: none;
+    padding-left: 10px;
+    border-left: 1px solid #333;
+    margin-left: 14px;
+}
+
+.pmc-navbar .nav-submenu.active {
+    display: block;
 }
 
 /* Mobile */
@@ -130,17 +233,22 @@
         position: absolute;
         top: 60px;
         left: 0;
+        right: 0;
         width: 100%;
+        height: auto;
+        margin-left: 0;
+        flex: none;
         flex-direction: column;
         background: linear-gradient(135deg, var(--pmc-nav-bg-start) 0%, var(--pmc-nav-bg-end) 100%);
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease;
+        display: none;
         gap: 0;
     }
 
     .pmc-navbar .nav-menu.active {
-        max-height: 300px;
+        display: flex;
+        max-height: calc(100vh - 60px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .pmc-navbar .nav-item {
@@ -155,12 +263,46 @@
         height: auto;
         padding: 15px 20px;
         border: none;
+        justify-content: space-between;
     }
 
     .pmc-navbar .nav-link:hover {
         background-color: var(--pmc-nav-bg-hover);
         border-left: 3px solid var(--pmc-primary);
         padding-left: 17px;
+    }
+
+    .pmc-navbar .nav-dropdown {
+        position: static;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        background: transparent;
+        display: none;
+    }
+
+    .pmc-navbar .nav-dropdown.active {
+        display: block;
+    }
+
+    .pmc-navbar .nav-dropdown-item {
+        padding: 12px 26px;
+    }
+
+    .pmc-navbar .nav-section {
+        border-top: none;
+    }
+
+    .pmc-navbar .nav-section-title {
+        padding: 10px 26px 6px;
+    }
+
+    .pmc-navbar .nav-subtoggle {
+        padding: 12px 26px;
+    }
+
+    .pmc-navbar .nav-submenu {
+        margin-left: 24px;
     }
 
     .pmc-navbar .brand-link {
