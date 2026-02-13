@@ -148,27 +148,13 @@
     <!-- Bottom Breadcrumb Navigation -->
   </div>
 
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/multi-decree-parliament/overview") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Section 3 Overview</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">The Protocol (Again)</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/multi-decree-parliament/ordering-of-decrees") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">The Ordering of Decrees</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/multi-decree-parliament/overview",
+    prev_label="Section 3 Overview",
+    current_label="The Protocol (Again)",
+    next_url="/multi-decree-parliament/ordering-of-decrees",
+    next_label="The Ordering of Decrees"
+  ) }}
 </div>
 
 {% endblock %} {% block scripts %}

@@ -59,27 +59,13 @@
   </div>
 
    <!-- Bottom Breadcrumb Navigation -->
-    <div class="breadcrumb-nav">
-      <a
-        href="{{ nav::site_url(raw_url="/further-developments/picking-a-president") }}"
-        class="breadcrumb-link breadcrumb-prev"
-        title="Go to previous page"
-      >
-        <span class="breadcrumb-arrow">←</span>
-        <span class="breadcrumb-text">Picking a President</span>
-      </a>
-      <div class="breadcrumb-current">
-        <span class="breadcrumb-label">Long Ledgers</span>
-      </div>
-      <a
-        href="{{ nav::site_url(raw_url="/further-developments/bureaucrats") }}"
-        class="breadcrumb-link breadcrumb-next"
-        title="Go to next page"
-      >
-        <span class="breadcrumb-text">Bureaucrats</span>
-        <span class="breadcrumb-arrow">→</span>
-      </a>
-    </div>
+        {{ nav::breadcrumb(
+      prev_url="/further-developments/picking-a-president",
+      prev_label="Picking a President",
+      current_label="Long Ledgers",
+      next_url="/further-developments/bureaucrats",
+      next_label="Bureaucrats"
+    ) }}
 </div>
 {% endblock %} {% block scripts %}
 <script>

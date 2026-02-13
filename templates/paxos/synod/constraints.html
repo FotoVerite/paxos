@@ -87,27 +87,13 @@
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/synod/ballot-number") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Ballot Number</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Constraints</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/synod/quorum") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Quorum</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/synod/ballot-number",
+    prev_label="Ballot Number",
+    current_label="Constraints",
+    next_url="/synod/quorum",
+    next_label="Quorum"
+  ) }}
 </div>
 
 {% endblock %} {% block scripts %}

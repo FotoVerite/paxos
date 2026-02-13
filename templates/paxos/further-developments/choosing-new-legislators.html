@@ -102,23 +102,13 @@
     </div>
   </div>
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/further-developments/dishonest-legislators") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Dishonest Legislators</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Choosing New Legislators</span>
-    </div>
-    <a href="{{ nav::site_url(raw_url="/") }}" class="breadcrumb-link breadcrumb-next" title="Go to next page">
-      <span class="breadcrumb-text">Home</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/further-developments/dishonest-legislators",
+    prev_label="Dishonest Legislators",
+    current_label="Choosing New Legislators",
+    next_url="/",
+    next_label="Home"
+  ) }}
   {% endblock %} {% block scripts %}
   <script>
     // Render KaTeX math when DOM is ready

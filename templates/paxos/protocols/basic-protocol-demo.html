@@ -105,27 +105,13 @@
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/protocols/basic-protocol") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Basic Protocol</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Basic Protocol Demo</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/protocols/complete-protocol") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Complete Protocol</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/protocols/basic-protocol",
+    prev_label="Basic Protocol",
+    current_label="Basic Protocol Demo",
+    next_url="/protocols/complete-protocol",
+    next_label="Complete Protocol"
+  ) }}
 </div>
 
 {% endblock %} {% block scripts %}

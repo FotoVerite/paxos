@@ -67,27 +67,13 @@ extra_stylesheets %}
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/synod/ballot-definitions") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Ballot Definition</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Ballot Number</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/synod/constraints") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Constraints</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/synod/ballot-definitions",
+    prev_label="Ballot Definition",
+    current_label="Ballot Number",
+    next_url="/synod/constraints",
+    next_label="Constraints"
+  ) }}
 </div>
 
 {% endblock %} {% block scripts %}

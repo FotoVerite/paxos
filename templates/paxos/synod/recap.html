@@ -67,27 +67,13 @@
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/synod/theorem-two") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Theorem Two</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Synod Recap</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/protocols/preliminary-protocol") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Preliminary Protocol</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/synod/theorem-two",
+    prev_label="Theorem Two",
+    current_label="Synod Recap",
+    next_url="/protocols/preliminary-protocol",
+    next_label="Preliminary Protocol"
+  ) }}
 </div>
 {% endblock %} {% block scripts %}
 <script>

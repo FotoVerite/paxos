@@ -148,19 +148,13 @@
     </div>
 
     <!-- Bottom Breadcrumb Navigation -->
-    <div class="breadcrumb-nav">
-        <a href="{{ nav::site_url(raw_url="/state-machine/proposal-window") }}" class="breadcrumb-link breadcrumb-prev">
-            <span class="breadcrumb-arrow">←</span>
-            <span class="breadcrumb-text">Proposal Window</span>
-        </a>
-        <div class="breadcrumb-current">
-            <span class="breadcrumb-label">State Machine Demo</span>
-        </div>
-        <a href="{{ nav::site_url(raw_url="/state-machine/reconfiguration") }}" class="breadcrumb-link breadcrumb-next">
-            <span class="breadcrumb-text">Reconfiguration</span>
-            <span class="breadcrumb-arrow">→</span>
-        </a>
-    </div>
+        {{ nav::breadcrumb(
+      prev_url="/state-machine/proposal-window",
+      prev_label="Proposal Window",
+      current_label="State Machine Demo",
+      next_url="/state-machine/reconfiguration",
+      next_label="Reconfiguration"
+    ) }}
 </div>
 
 <style>

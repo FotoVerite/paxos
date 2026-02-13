@@ -131,14 +131,12 @@
 
     <!-- Bottom Breadcrumb Navigation -->
   </section>
-  <div class="breadcrumb-nav">
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Whitepapers</span>
-    </div>
-    <a href="{{ nav::site_url(raw_url="/leslie-lamport-biography") }}" class="breadcrumb-link breadcrumb-next" title="Go to next page">
-      <span class="breadcrumb-text">Leslie Lamport</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/",
+    prev_label="Home",
+    current_label="Whitepapers",
+    next_url="/publishing-history",
+    next_label="Publishing History"
+  ) }}
 </div>
 {% endblock %}

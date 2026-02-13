@@ -120,26 +120,12 @@ content %}
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/the-problem/the-island-of-paxos") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">The Island of Paxos</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Requirements</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/the-problem/assumptions") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Assumptions</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/the-problem/the-island-of-paxos",
+    prev_label="The Island of Paxos",
+    current_label="Requirements",
+    next_url="/the-problem/assumptions",
+    next_label="Assumptions"
+  ) }}
 </div>
 {% endblock %}

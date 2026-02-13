@@ -122,15 +122,41 @@ pub async fn paxos_handler(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let path = uri.path().trim_start_matches('/');
-     let template_name = if path.is_empty() {
-        "paxos/index.html".to_string()
-    } else if path.ends_with('/') {
-        format!("paxos/{}index.html", path)
-    } else {
-        format!("paxos/{}.html", path)
+
+    let (site_slug, template_name) = match subdomain.as_str() {
+        "paxos-made-simple" => {
+            let template_name = if path.is_empty() || path == "/" {
+                "paxos-made-simple/index.html".to_string()
+            } else if path.ends_with('/') {
+                format!("paxos-made-simple/{}index.html", path)
+            } else {
+                format!("paxos-made-simple/{}.html", path)
+            };
+            ("paxos-made-simple", template_name)
+        }
+        "paxos-made-moderately-complex" => {
+            let template_name = if path.is_empty() || path == "/" {
+                "paxos-made-moderately-complex/index.html".to_string()
+            } else if path.ends_with('/') {
+                format!("paxos-made-moderately-complex/{}index.html", path)
+            } else {
+                format!("paxos-made-moderately-complex/{}.html", path)
+            };
+            ("paxos-made-moderately-complex", template_name)
+        }
+        _ => {
+            let template_name = if path.is_empty() {
+                "paxos/index.html".to_string()
+            } else if path.ends_with('/') {
+                format!("paxos/{}index.html", path)
+            } else {
+                format!("paxos/{}.html", path)
+            };
+            ("paxos", template_name)
+        }
     };
-    
-    let context = build_site_context("paxos", &uri, &subdomain);
+
+    let context = build_site_context(site_slug, &uri, &subdomain);
     render_template(&state.tera, &template_name, context)
 }
 

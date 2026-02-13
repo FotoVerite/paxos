@@ -83,27 +83,13 @@
 
     <!-- Bottom Breadcrumb Navigation -->
   </div>
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/synod/constraints") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Constraints</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Votes Function</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/synod/max-vote") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Max Vote</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/synod/constraints",
+    prev_label="Constraints",
+    current_label="Votes Function",
+    next_url="/synod/max-vote",
+    next_label="Max Vote"
+  ) }}
   {% endblock %} {% block scripts %}
 
   <script>

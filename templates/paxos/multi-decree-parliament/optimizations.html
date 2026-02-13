@@ -89,27 +89,13 @@
     </p>
   </div>
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/multi-decree-parliament/ordering-of-decrees") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">The Ordering of Decrees</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Optimizations</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/further-developments/picking-a-president") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Picking a President</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/multi-decree-parliament/ordering-of-decrees",
+    prev_label="The Ordering of Decrees",
+    current_label="Optimizations",
+    next_url="/further-developments/picking-a-president",
+    next_label="Picking a President"
+  ) }}
 </div>
 {% endblock %} {% block scripts %}
 <script>

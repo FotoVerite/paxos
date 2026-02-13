@@ -68,19 +68,13 @@
     </div>
 
     <!-- Bottom Breadcrumb Navigation -->
-    <div class="breadcrumb-nav">
-    <a href="{{ nav::site_url(raw_url="/synod/math-terms") }}" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Section 2 Terms</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Ballot Definitions</span>
-    </div>
-    <a href="{{ nav::site_url(raw_url="/synod/ballot") }}" class="breadcrumb-link breadcrumb-next" title="Go to next page">
-      <span class="breadcrumb-text">Ballot</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-    </div>
+        {{ nav::breadcrumb(
+      prev_url="/synod/math-terms",
+      prev_label="Section 2 Terms",
+      current_label="Ballot Definitions",
+      next_url="/synod/ballot",
+      next_label="Ballot"
+    ) }}
     </div>
 
     {% endblock %} {% block scripts %}

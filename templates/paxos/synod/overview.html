@@ -166,27 +166,13 @@
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/the-problem/assumptions") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Assumptions</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Synod Overview</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/synod/decree-example") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Decree Example</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/the-problem/assumptions",
+    prev_label="Assumptions",
+    current_label="Synod Overview",
+    next_url="/synod/decree-example",
+    next_label="Decree Example"
+  ) }}
   {% endblock %}
 </div>
 

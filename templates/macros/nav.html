@@ -21,7 +21,7 @@
 {%- endif -%}
 {%- endmacro site_url %}
 
-{% macro breadcrumb(prev_url, prev_label, current_label, next_url, next_label) %}
+{% macro breadcrumb(prev_url="", prev_label="", current_label="", next_url="", next_label="") %}
 <div class="breadcrumb-nav">
     {% if prev_url %}
     <a href="{{ self::site_url(raw_url=prev_url) }}" class="breadcrumb-link breadcrumb-prev" title="Go to previous page">

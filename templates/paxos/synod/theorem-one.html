@@ -93,27 +93,13 @@
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/synod/lemma") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Lemma</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Theorem One</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/synod/theorem-two") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Theorem Two</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/synod/lemma",
+    prev_label="Lemma",
+    current_label="Theorem One",
+    next_url="/synod/theorem-two",
+    next_label="Theorem Two"
+  ) }}
 </div>
 
 {% endblock %} {% block scripts %}

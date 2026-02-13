@@ -118,27 +118,13 @@
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
-  <div class="breadcrumb-nav">
-    <a
-      href="{{ nav::site_url(raw_url="/further-developments/long-ledgers") }}"
-      class="breadcrumb-link breadcrumb-prev"
-      title="Go to previous page"
-    >
-      <span class="breadcrumb-arrow">←</span>
-      <span class="breadcrumb-text">Long Ledgers</span>
-    </a>
-    <div class="breadcrumb-current">
-      <span class="breadcrumb-label">Bureaucrats</span>
-    </div>
-    <a
-      href="{{ nav::site_url(raw_url="/further-developments/learning-the-law") }}"
-      class="breadcrumb-link breadcrumb-next"
-      title="Go to next page"
-    >
-      <span class="breadcrumb-text">Learning the Law</span>
-      <span class="breadcrumb-arrow">→</span>
-    </a>
-  </div>
+    {{ nav::breadcrumb(
+    prev_url="/further-developments/long-ledgers",
+    prev_label="Long Ledgers",
+    current_label="Bureaucrats",
+    next_url="/further-developments/learning-the-law",
+    next_label="Learning the Law"
+  ) }}
 </div>
 {% endblock %} {% block scripts %}
 <script>
