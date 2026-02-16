@@ -4,7 +4,14 @@
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{common::types::{NodeId, DecreeId}, paxos_command::PaxosCommand};
+use uuid::Uuid;
+
+use crate::message::Message;
+use crate::node::paxos_state::ballot::Ballot;
+use crate::{
+    common::types::{DecreeId, NodeId},
+    paxos_command::PaxosCommand,
+};
 
 pub fn current_timestamp_millis() -> u64 {
     SystemTime::now()
@@ -57,24 +64,28 @@ pub enum Event {
         value: PaxosCommand,
         created_at: u64,
     },
-    LearnedValue { // New event for local learning
+    LearnedValue {
+        // New event for local learning
         id: NodeId,
         decree_num: DecreeId,
         value: PaxosCommand,
         created_at: u64,
     },
-    InitialDecree { // Event for pre-populated ledger decrees at node startup
+    InitialDecree {
+        // Event for pre-populated ledger decrees at node startup
         id: NodeId,
         decree_num: DecreeId,
         value: PaxosCommand,
         created_at: u64,
     },
-    BatchInitialDecrees { // Batch event for multiple initial decrees
+    BatchInitialDecrees {
+        // Batch event for multiple initial decrees
         id: NodeId,
         decrees: Vec<(DecreeId, PaxosCommand)>,
         created_at: u64,
     },
-    LedgerDump { // Full ledger dump event
+    LedgerDump {
+        // Full ledger dump event
         id: NodeId,
         decrees: Vec<(DecreeId, PaxosCommand)>,
         created_at: u64,
@@ -96,6 +107,14 @@ pub enum Event {
         to: NodeId,
         message_type: String,
     },
+    BallotAdopted {
+        id: Uuid,
+        ballot: Ballot,
+    },
+    ProposalAccepted {
+        id: Uuid,
+        pvalue: PValue,
+    },
     // Network partition events
     PartitionCreated {
         partition_a: Vec<NodeId>,
@@ -116,10 +135,13 @@ pub enum Event {
 
 pub trait PaxosObserver: Send + Sync {
     fn on_event(&self, event: Event);
+
+    fn on_message(&self, indexes: &[Uuid], message: Message);
 }
 
 pub struct NoOpObserver;
 
 impl PaxosObserver for NoOpObserver {
     fn on_event(&self, _event: Event) {}
+    fn on_message(&self, _indexes: &[Uuid], _message: Message) {}
 }

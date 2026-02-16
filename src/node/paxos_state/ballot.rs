@@ -1,16 +1,40 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use std::{cmp::Ordering, fmt::{self}};
-use crate::common::types::NodeId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Ballot {
     pub number: usize,
-    pub node_id: NodeId,
+    pub node_id: Uuid,
 }
 
 impl Ballot {
-    pub fn new(number: usize, node_id: NodeId) -> Self {
+    pub fn new(number: usize, node_id: Uuid) -> Self {
         Self { number, node_id }
+    }
+
+    pub fn init(&self, node_id: Uuid) -> Self {
+        if self.node_id != Uuid::nil()  || self.node_id != node_id {
+            panic!("Trying to init a non owned ballot")
+        }
+        Self  {node_id: self.node_id, number: self.number}
+    }
+
+    pub fn next(&self) -> Self {
+        if self.node_id == Uuid::nil() {
+            panic!("Trying to Increment a sentry Ballot")
+        }
+        Self {node_id: self.node_id, number: self.number + 1}
+    }
+
+     pub fn bump(&self, ballot: Ballot) -> Self {
+        if self.node_id == Uuid::nil() {
+            panic!("Trying to Increment a sentry Ballot")
+        }
+        if ballot <= *self {
+            return self.next()
+        }
+        Self {node_id: self.node_id, number: ballot.number+ 1}
     }
 }
 
@@ -34,7 +58,7 @@ impl Default for Ballot {
     fn default() -> Ballot {
         Ballot {
             number: 0,
-            node_id: NodeId(0),
+            node_id: Uuid::nil()
         }
     }
 }

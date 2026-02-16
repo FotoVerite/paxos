@@ -1,9 +1,18 @@
-use crate::monitor::{Event, PaxosObserver};
+use crate::{
+    message::Message,
+    monitor::{Event, PaxosObserver},
+};
 use colored::*;
+use uuid::Uuid;
 
 pub struct ConsoleObserver;
 
 impl PaxosObserver for ConsoleObserver {
+    fn on_message(&self, _index: &[Uuid], message: Message) {
+        match message {
+            _ => {}
+        }
+    }
     fn on_event(&self, event: Event) {
         match event {
             Event::Proposal {
@@ -152,37 +161,24 @@ impl PaxosObserver for ConsoleObserver {
             Event::PartitionHealed { .. } => {
                 println!("{}", "[NETWORK] Partition healed".green());
             }
-            Event::InitialDecree {
-                ..
-            } => {},
-            Event::BatchInitialDecrees {
-                id,
-                decrees,
-                ..
-            } => {
+            Event::InitialDecree { .. } => {}
+            Event::BatchInitialDecrees { id, decrees, .. } => {
                 println!(
                     "{}",
                     format!(
                         "[NODE {}] Batch Initial Decrees: {} decrees loaded",
-                        id, decrees.len()
+                        id,
+                        decrees.len()
                     )
                     .cyan()
                 );
-            },
-            Event::LedgerDump {
-                id,
-                decrees,
-                ..
-            } => {
+            }
+            Event::LedgerDump { id, decrees, .. } => {
                 println!(
                     "{}",
-                    format!(
-                        "[NODE {}] Ledger Dump: {} total decrees",
-                        id, decrees.len()
-                    )
-                    .cyan()
+                    format!("[NODE {}] Ledger Dump: {} total decrees", id, decrees.len()).cyan()
                 );
-            },
+            }
             Event::NodeCapabilities {
                 id,
                 roles,
@@ -200,9 +196,12 @@ impl PaxosObserver for ConsoleObserver {
             Event::LeaderElected { id, .. } => {
                 println!(
                     "{}",
-                    format!("[LEADER] Node {} elected as leader", id).yellow().bold()
+                    format!("[LEADER] Node {} elected as leader", id)
+                        .yellow()
+                        .bold()
                 );
             }
+            _ => {}
         }
     }
 }

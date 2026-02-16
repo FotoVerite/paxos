@@ -21,7 +21,7 @@ dashmap = "5.5"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "ansi", "env-filter"] }
 tracing-appender = "0.2"
-uuid = { version = "1.19.0", features = ["v4", "v5", "std"] }
+uuid = { version = "1.19.0", features = ["v4", "v5", "std", "serde"] }
 derive_more = { version = "2.1.1", features = ["full"] }
 
 [features]

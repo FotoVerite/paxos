@@ -1,3 +1,3 @@
-mod kv_store;
+pub mod kv_store;
 mod entry;
 mod types;

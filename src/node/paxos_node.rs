@@ -1,14 +1,11 @@
-use std::{
-    sync::{Arc},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
 
-use tokio::{sync::mpsc::Receiver, time::sleep};
+use tokio::{sync::mpsc::Receiver, time::{self, sleep}};
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
-    common::types::{NodeId, DecreeId},
+    common::types::{DecreeId, NodeId},
     message::Message,
     monitor::PaxosObserver,
     node::{
@@ -71,8 +68,16 @@ impl PaxosNode {
         let mut rx = self.rx.take().expect("worker already started");
         let state = Arc::clone(&self.state);
         tokio::spawn(async move {
-            while let Some(msg) = rx.recv().await {
-                state.handle_message(msg).await;
+            loop {
+                tokio::select! {
+                     Some(msg) = rx.recv() => {
+                         state.handle_message(msg).await;
+                    }
+                    _ = time::sleep_until(self.election_deadline), if !state.is_leader => {
+                     
+                    }
+
+                 }
             }
         });
     }

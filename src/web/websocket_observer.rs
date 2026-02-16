@@ -1,7 +1,10 @@
+use serde::Serialize;
+use uuid::Uuid;
 use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
-use tracing::{debug};
+use tokio::sync::{RwLock, broadcast};
+use tracing::debug;
 
+use crate::message::Message;
 use crate::monitor::{Event, PaxosObserver};
 use crate::web::{ClusterInfo, VisualizerMessage};
 
@@ -11,12 +14,18 @@ pub struct WebSocketObserver {
     cluster_info: RwLock<Option<ClusterInfo>>,
 }
 
+#[derive(Serialize)]
+struct IndexedMessage<'a> {
+    indexes: &'a [Uuid],
+    message: &'a Message,
+}
+
 impl WebSocketObserver {
     /// Creates a new WebSocketObserver.
     /// The `capacity` determines the buffer size for the broadcast channel.
     pub fn new(capacity: usize) -> Self {
         let (sender, _receiver) = broadcast::channel(capacity);
-        Self { 
+        Self {
             sender,
             cluster_info: RwLock::new(None),
         }
@@ -28,10 +37,10 @@ impl WebSocketObserver {
             total_nodes,
             quorum_size,
         };
-        
+
         let mut info = self.cluster_info.write().await;
         *info = Some(cluster_info.clone());
-        
+
         // Send cluster info to all connected clients
         let msg = VisualizerMessage::ClusterInitialized(cluster_info);
         if let Ok(json) = serde_json::to_string(&msg) {
@@ -43,10 +52,10 @@ impl WebSocketObserver {
     /// to receive events. Also sends the cluster info immediately if available.
     pub async fn subscribe(&self) -> broadcast::Receiver<String> {
         let receiver = self.sender.subscribe();
-        
+
         // Don't send cluster info on subscribe - let set_cluster_info handle it
         // This prevents duplicate messages when scenarios start
-        
+
         receiver
     }
 
@@ -63,22 +72,59 @@ impl PaxosObserver for WebSocketObserver {
     fn on_event(&self, event: Event) {
         let event_debug = format!("{:?}", event);
         let event_type = event_debug.split('(').next().unwrap_or("Unknown");
-        
-        let event_json = serde_json::to_value(&event)
-            .expect("Failed to convert Paxos event to JSON value");
+
+        let event_json =
+            serde_json::to_value(&event).expect("Failed to convert Paxos event to JSON value");
         let msg = VisualizerMessage::Event(event_json);
-        let json_event = serde_json::to_string(&msg)
-            .expect("Failed to serialize visualizer message to JSON");
+        let json_event =
+            serde_json::to_string(&msg).expect("Failed to serialize visualizer message to JSON");
 
         // Broadcast to all subscribers
         match self.sender.send(json_event) {
             Ok(subscriber_count) => {
-                debug!("Broadcast {} event to {} subscribers", event_type, subscriber_count);
+                debug!(
+                    "Broadcast {} event to {} subscribers",
+                    event_type, subscriber_count
+                );
             }
             Err(e) => {
                 // This is expected when no clients are listening
                 debug!("No subscribers for {} event: {}", event_type, e);
             }
+        }
+    }
+
+    fn on_message(&self, indexes: &[Uuid], message: Message) {
+        let payload = IndexedMessage {
+            indexes,
+            message: &message,
+        };
+        match message {
+            Message::ACK { .. } | Message::NACK | Message::P1A { .. } => {
+                let debug = format!("{:?}", message);
+
+                let message_json = serde_json::to_value(&payload)
+                    .expect("Failed to convert Paxos event to JSON value");
+                let message_type = debug.split('(').next().unwrap_or("Unknown");
+
+                let msg = VisualizerMessage::Message(message_json);
+
+                let json_message = serde_json::to_string(&msg)
+                    .expect("Failed to serialize visualizer message to JSON");
+                match self.sender.send(json_message) {
+                    Ok(subscriber_count) => {
+                        debug!(
+                            "Broadcast {}-{:?} message to {} subscribers",
+                            message_type, indexes, subscriber_count
+                        );
+                    }
+                    Err(e) => {
+                        // This is expected when no clients are listening
+                        debug!("No subscribers for {} message: {}", message_type, e);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }

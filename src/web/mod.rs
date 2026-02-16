@@ -20,6 +20,8 @@ pub enum VisualizerMessage {
     ClusterInitialized(ClusterInfo),
     #[serde(rename = "Event")]
     Event(serde_json::Value),
+     #[serde(rename = "Message")]
+    Message(serde_json::Value),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

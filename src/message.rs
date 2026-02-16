@@ -1,8 +1,16 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use crate::{common::types::{NodeId, DecreeId}, node::paxos_state::ballot::Ballot, paxos_command::PaxosCommand};
+use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+use crate::{
+    common::types::{DecreeId, NodeId},
+    node::{
+        paxos_state::ballot::Ballot, pmmc::acceptor::accepted_state::AcceptedMap, pvalue::PValue,
+    },
+    paxos_command::PaxosCommand,
+};
+
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum Message {
     Prepare {
         from: NodeId,
@@ -42,4 +50,57 @@ pub enum Message {
         decrees_to: DecreeId,
         ballot: Ballot,
     },
+
+    //PMMC
+    ACK {
+        from: Uuid,
+        slot: usize,
+    },
+
+    ADOPTED {
+        from: Uuid,
+        to: Uuid,
+        ballot: Ballot,
+        pvalues: Vec<PValue>,
+    },
+
+    HEARTBEAT {
+        from: Uuid,
+        ballot: Ballot,
+    },
+    PROPOSE {
+        from: Uuid,
+        slot: usize,
+        cmd: PaxosCommand,
+    },
+    PREEMPT {
+        from: Uuid,
+        to: Uuid,
+        ballot: Ballot,
+    },
+    P1A {
+        from: Uuid,
+        ballot: Ballot,
+        start_index: usize,
+    },
+    P1B {
+        from: Uuid,
+        to: Uuid,
+        ballot: Ballot,
+        pvalues: Vec<PValue>,
+    },
+    P2A {
+        from: Uuid,
+        pvalue: PValue,
+    },
+    P2B {
+        from: Uuid,
+        to: Uuid,
+        ballot: Ballot,
+        pvalue: PValue,
+    },
+    ACCEPTED {
+        from: Uuid,
+        pvalue: PValue,
+    }
 }

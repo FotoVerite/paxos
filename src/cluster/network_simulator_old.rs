@@ -5,29 +5,29 @@ use tokio::sync::mpsc;
 use tokio::time::{Duration, sleep};
 use uuid::Uuid;
 
-use crate::message::Message;
 use crate::monitor::PaxosObserver;
+use crate::{common::types::NodeId, message::Message};
 
 #[derive(Debug, Clone)]
 pub enum NetworkFailure {
     None,
     Delay(Duration),
     PacketLoss { drop_rate: f32 }, // 0.0 to 1.0
-    Partition { nodes: HashSet<Uuid> },
+    Partition { nodes: HashSet<NodeId> },
 }
 
 pub struct NetworkSimulator {
-    _me: Uuid,
+    _me: NodeId,
     observer: Arc<dyn PaxosObserver>,
-    peers: HashMap<Uuid, mpsc::Sender<Message>>,
+    peers: Vec<mpsc::Sender<Message>>,
     enabled: Arc<Mutex<bool>>,
-    failures: Arc<Mutex<HashMap<Uuid, NetworkFailure>>>,
+    failures: Arc<Mutex<HashMap<NodeId, NetworkFailure>>>,
 }
 
 impl NetworkSimulator {
     pub fn new(
-        me: Uuid,
-        peers: HashMap<Uuid, mpsc::Sender<Message>>,
+        me: NodeId,
+        peers: Vec<mpsc::Sender<Message>>,
         observer: Arc<dyn PaxosObserver>,
     ) -> Self {
         Self {
@@ -43,11 +43,11 @@ impl NetworkSimulator {
         *self.enabled.lock().await = enabled;
     }
 
-    pub async fn set_failure(&self, target: Uuid, failure: NetworkFailure) {
+    pub async fn set_failure(&self, target: NodeId, failure: NetworkFailure) {
         self.failures.lock().await.insert(target, failure);
     }
 
-    pub async fn clear_failure(&self, target: Uuid) {
+    pub async fn clear_failure(&self, target: NodeId) {
         self.failures.lock().await.remove(&target);
     }
 
@@ -55,7 +55,7 @@ impl NetworkSimulator {
         self.failures.lock().await.clear();
     }
 
-    async fn should_fail(&self, target: Uuid) -> bool {
+    async fn should_fail(&self, target: NodeId) -> bool {
         let failures = self.failures.lock().await;
 
         match failures.get(&target) {
@@ -71,7 +71,7 @@ impl NetworkSimulator {
         }
     }
 
-    async fn get_delay(&self, target: Uuid) -> Option<Duration> {
+    async fn get_delay(&self, target: NodeId) -> Option<Duration> {
         let failures = self.failures.lock().await;
 
         match failures.get(&target) {
@@ -80,14 +80,14 @@ impl NetworkSimulator {
         }
     }
 
-    pub async fn send(&self, to: Uuid, msg: Message) {
+    pub async fn send(&self, to: NodeId, msg: Message) {
         let enabled = *self.enabled.lock().await;
+        let to_idx: usize = to.into();
 
         if !enabled {
-            if let Some(peer) = self.peers.get(&to) {
-                peer.send(msg).await;
+            if to_idx < self.peers.len() {
+                let _ = self.peers[to_idx].send(msg).await;
             }
-
             return;
         }
 
@@ -99,8 +99,8 @@ impl NetworkSimulator {
             sleep(delay).await;
         }
 
-        if let Some(peer) = self.peers.get(&to) {
-            peer.send(msg).await;
+        if to_idx < self.peers.len() {
+            let _ = self.peers[to_idx].send(msg).await;
         }
     }
 
@@ -108,22 +108,30 @@ impl NetworkSimulator {
     where
         Message: Clone,
     {
-        let peers: Vec<Uuid> = self.peers.keys().cloned().collect();
-        for to in peers.iter() {
-            self.send(*to, msg.clone()).await;
+        let indexes: Vec<usize> = (0..self.peers.iter().len()).collect();
+        for idx in indexes.iter() {
+            self.send(NodeId(*idx), msg.clone()).await;
         }
-        self.observer.on_message(&peers, msg.clone());
+        self.observer.on_message(&indexes, msg.clone());
     }
 
-    pub async fn broadcast_to(&self, msg: &Message, peers: &HashSet<Uuid>)
+    pub async fn broadcast_to(&self, msg: &Message, peers: &HashSet<NodeId>)
     where
         Message: Clone,
     {
-        let peers: Vec<Uuid> = peers.into_iter().cloned().collect();
 
-        for &idx in peers.iter() {
-            self.send(idx, msg.clone()).await;
+        for idx in peers.into_iter() {
+            self.send(*idx, msg.clone()).await;
         }
-        self.observer.on_message(&peers, msg.clone());
+    }
+
+    pub async fn broadcast_to_uuids(&self, msg: &Message, peers: &HashSet<Uuid>)
+    where
+        Message: Clone,
+    {
+
+        for idx in peers.into_iter() {
+            self.send(*idx, msg.clone()).await;
+        }
     }
 }

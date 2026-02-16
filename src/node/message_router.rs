@@ -63,6 +63,8 @@ impl MessageRouter {
 
             // NACK messages are dropped
             Message::NACK => RoutingDecision::Drop,
+
+            _ => {RoutingDecision::Drop}
         }
     }
 }
