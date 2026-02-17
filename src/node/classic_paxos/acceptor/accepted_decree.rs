@@ -1,6 +1,8 @@
 use crate::{
-    common::types::NodeId, node::paxos_state::{acceptor::prev_vote::PrevVote, ballot::Ballot}, paxos_command::PaxosCommand
+    node::classic_paxos::{acceptor::prev_vote::PrevVote, ballot::Ballot},
+    paxos_command::PaxosCommand,
 };
+use uuid::Uuid;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct AcceptedDecree {
@@ -9,8 +11,6 @@ pub struct AcceptedDecree {
 }
 
 impl AcceptedDecree {
-
-
     pub fn lt(&self, ballot: Ballot) -> bool {
         ballot > self.next_bal
     }
@@ -42,7 +42,7 @@ impl Default for AcceptedDecree {
         AcceptedDecree {
             next_bal: Ballot {
                 number: 0,
-                node_id: NodeId(0),
+                node_id: Uuid::nil(),
             },
             prev_vote: PrevVote::default(),
         }

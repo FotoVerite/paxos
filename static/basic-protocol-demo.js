@@ -37,7 +37,14 @@ let filterChips;
 let filterToggle;
 let filterClose;
 let filterStatus;
+let nodeLabelModeSelect;
 const FRAME_WINDOW_MICROS = 50;
+const NODE_LABEL_MODE_STORAGE_KEY = 'paxos.nodeLabelMode';
+
+function getPreferredNodeLabelMode() {
+  const stored = localStorage.getItem(NODE_LABEL_MODE_STORAGE_KEY);
+  return stored === 'greek' ? 'greek' : 'number';
+}
 
 function adjustNodeRadiusForViewport() {
   const svgContainer = document.getElementById('basicProtocolSvg');
@@ -81,6 +88,7 @@ function buildController() {
     canCommunicate,
     frameWindowMicros: FRAME_WINDOW_MICROS,
     onPlaybackUpdate: updatePlaybackControls,
+    nodeLabelMode: nodeLabelModeSelect?.value || getPreferredNodeLabelMode(),
     plugins: [
       clusterRenderPlugin,
       createEventLogPlugin({
@@ -322,6 +330,11 @@ document.addEventListener('DOMContentLoaded', () => {
   filterToggle = document.getElementById('eventFilterToggle');
   filterClose = document.getElementById('eventFilterClose');
   filterStatus = document.getElementById('eventFilterStatus');
+  nodeLabelModeSelect = document.getElementById('nodeLabelMode');
+
+  if (nodeLabelModeSelect) {
+    nodeLabelModeSelect.value = getPreferredNodeLabelMode();
+  }
 
   visualizer = new PaxosVisualizer('basicProtocolSvg', {
     nodeRadius: 195,
@@ -345,6 +358,15 @@ document.addEventListener('DOMContentLoaded', () => {
   resetBtn.addEventListener('click', resetScenario);
   if (stepBackBtn) stepBackBtn.addEventListener('click', stepBack);
   if (stepForwardBtn) stepForwardBtn.addEventListener('click', stepForward);
+  if (nodeLabelModeSelect) {
+    nodeLabelModeSelect.addEventListener('change', (event) => {
+      const nextMode = event.target.value === 'greek' ? 'greek' : 'number';
+      localStorage.setItem(NODE_LABEL_MODE_STORAGE_KEY, nextMode);
+      if (controller && typeof controller.setNodeLabelMode === 'function') {
+        controller.setNodeLabelMode(nextMode);
+      }
+    });
+  }
 
   const initialSpeed = parseFloat(speedSlider.value);
   state.setSpeed(initialSpeed);

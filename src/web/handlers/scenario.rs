@@ -1,16 +1,10 @@
+use axum::{Json, extract::ConnectInfo, extract::State, http::HeaderMap, response::IntoResponse};
 use std::net::SocketAddr;
-use axum::{
-    extract::ConnectInfo,
-    extract::State,
-    http::HeaderMap,
-    response::IntoResponse,
-    Json,
-};
-use tracing::{info, error};
+use tracing::{error, info};
 
-use crate::paxos_command::PaxosCommand;
-use super::utils::{AppState, get_client_ip, get_cm};
 use super::super::{ProposalRequest, ScenarioRequest};
+use super::utils::{AppState, get_client_ip, get_cm};
+use crate::paxos_command::PaxosCommand;
 
 /// Start a new scenario
 pub async fn start_scenario_handler(
@@ -39,7 +33,14 @@ pub async fn start_scenario_handler(
         &req.learning_strategy
     };
     match cm
-        .start_scenario(ip, req.node_count, req.duration_secs, scenario_type, learning_strategy, req.leader_node)
+        .start_scenario(
+            ip,
+            req.node_count,
+            req.duration_secs,
+            scenario_type,
+            learning_strategy,
+            req.leader_node,
+        )
         .await
     {
         Ok(_) => {

@@ -1,17 +1,19 @@
-pub mod handlers;
-pub mod server;
-pub mod websocket_observer;
 pub mod cluster_manager;
-pub mod scenarios;
+pub mod handlers;
 pub mod papers;
+pub mod scenarios;
+pub mod server;
 pub mod subdomain;
+pub mod websocket_observer;
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterInfo {
     pub total_nodes: usize,
     pub quorum_size: usize,
+    pub node_uuids: Vec<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -20,7 +22,7 @@ pub enum VisualizerMessage {
     ClusterInitialized(ClusterInfo),
     #[serde(rename = "Event")]
     Event(serde_json::Value),
-     #[serde(rename = "Message")]
+    #[serde(rename = "Message")]
     Message(serde_json::Value),
 }
 

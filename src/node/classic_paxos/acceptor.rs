@@ -2,11 +2,11 @@ mod accepted_decree;
 mod accepted_decrees;
 mod prev_vote;
 use crate::common::persistence::Persistence;
-use crate::common::types::{DecreeId, NodeId};
+use crate::common::types::DecreeId;
 use crate::message::Message;
 use crate::monitor::PaxosObserver;
-use crate::node::paxos_state::acceptor::accepted_decrees::AcceptedDecrees;
-use crate::node::paxos_state::ballot::Ballot;
+use crate::node::classic_paxos::acceptor::accepted_decrees::AcceptedDecrees;
+use crate::node::classic_paxos::ballot::Ballot;
 use crate::paxos_command::PaxosCommand;
 use anyhow::Result;
 use std::sync::Arc;
@@ -14,13 +14,12 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 pub struct Acceptor {
-    id: NodeId,
     uuid: Uuid,
     state: Mutex<AcceptedDecrees>,
     observer: Arc<dyn PaxosObserver>,
 }
 impl Acceptor {
-    pub async fn new(id: NodeId, uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
+    pub async fn new(uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
         #[cfg(feature = "persistence")]
         let state = Persistence::load(&format!("acceptor_{}.bin", uuid)).await?;
 
@@ -28,7 +27,6 @@ impl Acceptor {
         let state = AcceptedDecrees::init();
 
         Ok(Self {
-            id,
             uuid,
             state: Mutex::new(state),
             observer,
@@ -40,10 +38,10 @@ impl Acceptor {
         Persistence::save(&format!("acceptor_{}.bin", self.uuid), &*state).await
     }
 
-    async fn prepare(&self, decree_num: DecreeId, ballot: Ballot, from: NodeId) -> Message {
+    async fn prepare(&self, decree_num: DecreeId, ballot: Ballot, from: Uuid) -> Message {
         let mut state = self.state.lock().await;
         let msg = state.promise(
-            self.id,
+            self.uuid,
             from,
             decree_num,
             ballot,
@@ -55,7 +53,11 @@ impl Acceptor {
         #[cfg(feature = "persistence")]
         {
             if let Err(e) = self.save().await {
-                tracing::error!("[Node {}] Failed to persist acceptor state: {}", self.id, e);
+                tracing::error!(
+                    "[Node {}] Failed to persist acceptor state: {}",
+                    self.uuid,
+                    e
+                );
             }
         }
         msg
@@ -66,11 +68,11 @@ impl Acceptor {
         decree_num: DecreeId,
         ballot: Ballot,
         cmd: PaxosCommand,
-        from: NodeId,
+        from: Uuid,
     ) -> Message {
         let mut state = self.state.lock().await;
         let msg = state.accept(
-            self.id,
+            self.uuid,
             from,
             decree_num,
             ballot,
@@ -83,7 +85,11 @@ impl Acceptor {
         #[cfg(feature = "persistence")]
         {
             if let Err(e) = self.save().await {
-                tracing::error!("[Node {}] Failed to persist acceptor state: {}", self.id, e);
+                tracing::error!(
+                    "[Node {}] Failed to persist acceptor state: {}",
+                    self.uuid,
+                    e
+                );
             }
         }
         msg

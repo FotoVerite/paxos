@@ -33,7 +33,6 @@ pub struct AimdTimeout {
 }
 
 impl Default for AimdTimeout {
-    
     fn default() -> Self {
         Self::new(AimdTimeoutConfig::default()).expect("default AIMD config must be valid")
     }

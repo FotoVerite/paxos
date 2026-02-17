@@ -47,7 +47,7 @@ pub async fn tera_handler(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     let path = uri.path().trim_start_matches('/');
-    
+
     // Default to index.html if path ends in /
     let template_name = if path.is_empty() {
         "paxos/index.html".to_string()
@@ -64,7 +64,11 @@ pub async fn tera_handler(
         Err(e) => {
             tracing::error!("Template rendering error for {}: {}", template_name, e);
             // In a real app, you might want a custom 404 page
-            (axum::http::StatusCode::NOT_FOUND, format!("Template not found: {}", e)).into_response()
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                format!("Template not found: {}", e),
+            )
+                .into_response()
         }
     }
 }
@@ -84,14 +88,14 @@ pub async fn paxos_made_simple_handler(
 ) -> impl IntoResponse {
     let path = path.map(|p| p.0).unwrap_or_else(|| "index".to_string());
     let path = path.trim_end_matches('/'); // Remove trailing slash
-    
+
     // Check if it's a directory-like path (index)
     let template_name = if path.is_empty() || path == "index" {
         "paxos-made-simple/index.html".to_string()
     } else {
         format!("paxos-made-simple/{}.html", path)
     };
-    
+
     let context = build_site_context("paxos-made-simple", &uri, &subdomain);
     render_template(&state.tera, &template_name, context)
 }
@@ -104,14 +108,14 @@ pub async fn paxos_made_moderately_complex_handler(
 ) -> impl IntoResponse {
     let path = path.map(|p| p.0).unwrap_or_else(|| "index".to_string());
     let path = path.trim_end_matches('/'); // Remove trailing slash
-    
+
     // Check if it's a directory-like path (index)
     let template_name = if path.is_empty() || path == "index" {
         "paxos-made-moderately-complex/index.html".to_string()
     } else {
         format!("paxos-made-moderately-complex/{}.html", path)
     };
-    
+
     let context = build_site_context("paxos-made-moderately-complex", &uri, &subdomain);
     render_template(&state.tera, &template_name, context)
 }
@@ -160,13 +164,16 @@ pub async fn paxos_handler(
     render_template(&state.tera, &template_name, context)
 }
 
-
 fn render_template(tera: &Tera, name: &str, context: Context) -> axum::response::Response {
-     match tera.render(name, &context) {
+    match tera.render(name, &context) {
         Ok(html) => Html(html).into_response(),
         Err(e) => {
             tracing::error!("Template rendering error for {}: {}", name, e);
-            (axum::http::StatusCode::NOT_FOUND, format!("Template not found: {}", e)).into_response()
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                format!("Template not found: {}", e),
+            )
+                .into_response()
         }
     }
 }

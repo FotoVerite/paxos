@@ -1,49 +1,65 @@
+use crate::cluster::cluster::Cluster;
+use crate::decree_generator::DecreeGenerator;
+use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
+use crate::paxos_command::PaxosCommand;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::cluster::cluster::Cluster;
-use crate::paxos_command::PaxosCommand;
-use crate::decree_generator::DecreeGenerator;
-use crate::node::config::{NodeConfig, Roles, LearningStrategy};
 
 pub struct PartialRolesScenario;
 
 impl PartialRolesScenario {
     pub async fn init_cluster(
-        id: usize, 
-        ip: std::net::IpAddr, 
+        id: usize,
+        ip: std::net::IpAddr,
         observer: Arc<dyn crate::monitor::PaxosObserver>,
         learning_strategy: LearningStrategy,
     ) -> anyhow::Result<Cluster> {
         let mut configs = Vec::new();
-        
+
         // Node 0-1: Proposers only
         for _ in 0..2 {
-            configs.push(NodeConfig {
-                roles: Roles { proposer: true, acceptor: false, learner: false },
+            configs.push(ClassicNodeConfig {
+                roles: Roles {
+                    proposer: true,
+                    acceptor: false,
+                    learner: false,
+                },
                 learning_strategy: learning_strategy.clone(),
             });
         }
-        
+
         // Node 2-4: Acceptors only
         for _ in 0..3 {
-            configs.push(NodeConfig {
-                roles: Roles { proposer: false, acceptor: true, learner: false },
+            configs.push(ClassicNodeConfig {
+                roles: Roles {
+                    proposer: false,
+                    acceptor: true,
+                    learner: false,
+                },
                 learning_strategy: learning_strategy.clone(),
             });
         }
-        
+
         // Node 5-6: Learners only
         for _ in 0..2 {
-            configs.push(NodeConfig {
-                roles: Roles { proposer: false, acceptor: false, learner: true },
+            configs.push(ClassicNodeConfig {
+                roles: Roles {
+                    proposer: false,
+                    acceptor: false,
+                    learner: true,
+                },
                 learning_strategy: learning_strategy.clone(),
             });
         }
-        
+
         // Node 7-8: Full nodes (proposers + acceptors + learners)
         for _ in 0..2 {
-            configs.push(NodeConfig {
-                roles: Roles { proposer: true, acceptor: true, learner: true },
+            configs.push(ClassicNodeConfig {
+                roles: Roles {
+                    proposer: true,
+                    acceptor: true,
+                    learner: true,
+                },
                 learning_strategy: learning_strategy.clone(),
             });
         }
@@ -64,12 +80,12 @@ impl PartialRolesScenario {
                 author: format!("Partial Roles User {}", proposal_count / 30),
                 law: decree,
             };
-            
+
             // Randomly select a node that has the proposer role
             // In our config: 0, 1, 7, 8 are proposers
             let proposers = vec![0, 1, 7, 8];
             let proposer_idx = proposers[proposal_count % proposers.len()];
-            
+
             cluster_lock.nodes[proposer_idx].propose(cmd, None).await;
         }
     }

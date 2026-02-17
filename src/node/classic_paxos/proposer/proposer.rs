@@ -4,16 +4,15 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use crate::common::types::{DecreeId, NodeId};
+use crate::common::types::DecreeId;
 use crate::message::Message;
 use crate::monitor::PaxosObserver;
-use crate::node::paxos_state::ballot::Ballot;
-use crate::node::paxos_state::decree_notes::{DecreeNote, DecreeNotes};
-use crate::node::paxos_state::proposer::proposed_decree::ProposedDecree;
+use crate::node::classic_paxos::ballot::Ballot;
+use crate::node::classic_paxos::decree_notes::{DecreeNote, DecreeNotes};
+use crate::node::classic_paxos::proposer::proposed_decree::ProposedDecree;
 use crate::paxos_command::PaxosCommand;
 
 pub struct Proposer {
-    id: NodeId,
     uuid: Uuid,
     quorum_size: usize,
     decree_notes: Arc<Mutex<DecreeNotes>>,
@@ -23,14 +22,12 @@ pub struct Proposer {
 
 impl Proposer {
     pub fn new(
-        id: NodeId,
         uuid: Uuid,
         quorum_size: usize,
         decree_notes: Arc<Mutex<DecreeNotes>>,
         observer: Arc<dyn PaxosObserver>,
     ) -> Self {
         Self {
-            id,
             uuid,
             quorum_size,
             decree_notes,
@@ -44,7 +41,7 @@ impl Proposer {
         let mut state = self.state.lock().await;
 
         let entry = state.entry(decree_num).or_insert(ProposedDecree::init(
-            self.id,
+            self.uuid,
             decree_num,
             self.quorum_size,
             &cmd,
@@ -56,14 +53,14 @@ impl Proposer {
         let notes = decree_notes
             .state
             .entry(decree_num)
-            .or_insert(DecreeNote::new(self.id));
+            .or_insert(DecreeNote::new(self.uuid));
         let next_ballot = notes.next_ballot(highest_accepted);
 
         // Persist the updated ballot number
         #[cfg(feature = "persistence")]
         {
             if let Err(e) = decree_notes.save(self.uuid).await {
-                tracing::error!("[Node {}] Failed to persist decree notes: {}", self.id, e);
+                tracing::error!("[Node {}] Failed to persist decree notes: {}", self.uuid, e);
             }
         }
 
@@ -72,7 +69,7 @@ impl Proposer {
 
             tracing::info!(
                 "[Node {}] Proposing decree {} with ballot ({}, {}) value: {:?}",
-                self.id,
+                self.uuid,
                 decree_num,
                 next_ballot.number,
                 next_ballot.node_id,
@@ -90,7 +87,7 @@ impl Proposer {
         ballot: Ballot,
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,
-        from_node: NodeId,
+        from_node: Uuid,
     ) -> Message {
         let mut state = self.state.lock().await;
         let Some(entry) = state.get_mut(&decree_num) else {
@@ -100,7 +97,7 @@ impl Proposer {
         let notes = decree_notes
             .state
             .entry(decree_num)
-            .or_insert(DecreeNote::new(self.id));
+            .or_insert(DecreeNote::new(self.uuid));
         match ballot.cmp(&notes.last_tried) {
             Ordering::Less => {
                 // stale, ignore
@@ -120,7 +117,7 @@ impl Proposer {
 
     async fn prepare(
         &self,
-        from_node: NodeId,
+        from_node: Uuid,
         proposed_decree: &mut ProposedDecree,
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,

@@ -10,6 +10,7 @@ export function createEventReader({
   frameWindowMicros = 50,
   onCluster,
   onBatch,
+  onMessage,
 }) {
   let ws = null;
   let captureEnabled = false;
@@ -74,6 +75,12 @@ export function createEventReader({
         created_at: normalizeTimestamp(eventData.created_at),
         generation,
       });
+      return;
+    }
+
+    if (message.Message && typeof onMessage === 'function') {
+      if (ingestionPaused || !captureEnabled) return;
+      onMessage(message.Message);
     }
   }
 

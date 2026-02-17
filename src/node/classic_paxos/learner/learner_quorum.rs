@@ -1,9 +1,10 @@
 use std::{collections::HashSet, usize::MAX};
+use uuid::Uuid;
 
-use crate::{common::types::NodeId, node::paxos_state::ballot::Ballot};
+use crate::node::classic_paxos::ballot::Ballot;
 
 pub struct LearnerQuorum {
-    votes: HashSet<NodeId>,
+    votes: HashSet<Uuid>,
     quorum_size: usize,
     cached_last_tried: Ballot,
 }
@@ -27,11 +28,11 @@ impl LearnerQuorum {
         }
     }
 
-    pub fn add_vote(&mut self, node_id: NodeId, cached_last_tried: Ballot) {
+    pub fn add_vote(&mut self, node_id: Uuid, cached_last_tried: Ballot) {
         if self.cached_last_tried != cached_last_tried {
             self.clear();
         }
-        self.cached_last_tried  = cached_last_tried;
+        self.cached_last_tried = cached_last_tried;
         self.votes.insert(node_id);
     }
 
@@ -43,7 +44,7 @@ impl LearnerQuorum {
         self.votes.len() >= self.quorum_size
     }
 
-    pub fn quorum_set(&self) -> HashSet<NodeId> {
+    pub fn quorum_set(&self) -> HashSet<Uuid> {
         self.votes.clone()
     }
 }

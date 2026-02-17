@@ -1,14 +1,17 @@
 mod test_helpers;
 
 use paxos::{
-    cluster::cluster::Cluster, console_observer::ConsoleObserver, paxos_command::PaxosCommand,
-    common::types::{NodeId, DecreeId},
+    cluster::cluster::Cluster,
+    common::types::DecreeId,
+    console_observer::ConsoleObserver,
     monitor::{Event, PaxosObserver},
+    paxos_command::PaxosCommand,
 };
-use std::sync::Arc;
 use std::net::IpAddr;
+use std::sync::Arc;
+use test_helpers::{EventBarrier, NodeBuilder, QuorumCalc, RecordingObserver, ScenarioBuilder};
 use tokio::time::{Duration, sleep};
-use test_helpers::{RecordingObserver, QuorumCalc, EventBarrier, ScenarioBuilder, NodeBuilder};
+use uuid::Uuid;
 
 // ============================================================================
 // QUORUM MATH TESTS (Moved from partition_failure_tests.rs)
@@ -19,7 +22,7 @@ fn quorum_math_three_nodes() {
     let n = 3;
     let quorum = n / 2 + 1;
     assert_eq!(quorum, 2);
-    
+
     // Can tolerate losing 1
     assert!(3 - 1 >= quorum);
     // Cannot tolerate losing 2
@@ -31,7 +34,7 @@ fn quorum_math_five_nodes() {
     let n = 5;
     let quorum = n / 2 + 1;
     assert_eq!(quorum, 3);
-    
+
     // Can tolerate losing 1
     assert!(5 - 1 >= quorum);
     // Can tolerate losing 2
@@ -45,7 +48,7 @@ fn quorum_math_seven_nodes() {
     let n = 7;
     let quorum = n / 2 + 1;
     assert_eq!(quorum, 4);
-    
+
     // Can tolerate losing up to 3
     assert!(7 - 3 >= quorum);
     // Cannot tolerate losing 4
@@ -74,7 +77,7 @@ fn test_quorum_calculator_helper() {
 async fn test_recording_observer() {
     let obs = RecordingObserver::new().arc();
     obs.on_event(Event::Proposal {
-        id: NodeId(1),
+        id: test_helpers::test_uuid(1),
         decree_num: DecreeId(0),
         value: PaxosCommand::NOOP,
         created_at: 0,
@@ -89,9 +92,7 @@ async fn test_recording_observer() {
 
 #[test]
 fn test_scenario_builder() {
-    let scenario = ScenarioBuilder::new(5)
-        .partition_node(1)
-        .partition_node(2);
+    let scenario = ScenarioBuilder::new(5).partition_node(1).partition_node(2);
 
     assert_eq!(scenario.node_count(), 5);
     assert_eq!(scenario.quorum_size(), 3);
@@ -119,7 +120,7 @@ async fn test_event_barrier_wait_for_learned() {
         tokio::time::sleep(Duration::from_millis(50)).await;
         barrier_clone
             .record(Event::LearnedValue {
-                id: NodeId(1),
+                id: test_helpers::test_uuid(1),
                 decree_num: DecreeId(0),
                 value: PaxosCommand::NOOP,
                 created_at: 0,
@@ -129,9 +130,7 @@ async fn test_event_barrier_wait_for_learned() {
 
     // Wait for the event
     let start = std::time::Instant::now();
-    let result = barrier
-        .wait_for_learned(0, Duration::from_secs(5))
-        .await;
+    let result = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
     let elapsed = start.elapsed();
 
     // Should have received the event quickly (not full 5 seconds)
@@ -160,7 +159,7 @@ async fn test_event_barrier_multiple_events() {
     // Record multiple events
     barrier
         .record(Event::Proposal {
-            id: NodeId(1),
+            id: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             value: PaxosCommand::NOOP,
             created_at: 0,
@@ -168,8 +167,8 @@ async fn test_event_barrier_multiple_events() {
         .await;
     barrier
         .record(Event::Promise {
-            id: NodeId(1),
-            from: NodeId(2),
+            id: test_helpers::test_uuid(1),
+            from: Uuid::nil(),
             decree_num: DecreeId(0),
             ballot: 1,
             created_at: 0,
@@ -197,7 +196,7 @@ async fn test_event_barrier_count_matching() {
     for i in 0..3 {
         barrier
             .record(Event::LearnedValue {
-                id: NodeId(1),
+                id: test_helpers::test_uuid(1),
                 decree_num: DecreeId(i),
                 value: PaxosCommand::NOOP,
                 created_at: 0,
@@ -219,7 +218,7 @@ async fn test_event_barrier_clear() {
 
     barrier
         .record(Event::Proposal {
-            id: NodeId(1),
+            id: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             value: PaxosCommand::NOOP,
             created_at: 0,
@@ -240,12 +239,12 @@ async fn test_recording_observer_with_barrier() {
 
     // Record an event through observer
     obs.on_event(Event::LearnedValue {
-        id: NodeId(1),
+        id: test_helpers::test_uuid(1),
         decree_num: DecreeId(0),
         value: PaxosCommand::NOOP,
         created_at: 0,
     });
-    
+
     // Wait for it to appear in barrier
     let result = barrier.wait_for_learned(0, Duration::from_secs(1)).await;
     assert!(result.is_ok());
@@ -287,7 +286,7 @@ async fn test_failures_disabled_by_default() {
     sleep(Duration::from_millis(100)).await;
 
     // Create partition without enabling failures - should have no effect
-    cluster.partition(NodeId(0), NodeId(1)).await;
+    cluster.partition(0, 1).await;
 
     let cmd = PaxosCommand::NOOP;
     cluster.propose(cmd).await;
@@ -321,11 +320,11 @@ async fn test_partition_and_heal() {
     cluster.enable_failures().await;
 
     // Create partition between node 0 and node 1
-    cluster.partition(NodeId(0), NodeId(1)).await;
+    cluster.partition(0, 1).await;
     sleep(Duration::from_millis(100)).await;
 
     // Heal it
-    cluster.heal_partition(NodeId(0), NodeId(1)).await;
+    cluster.heal_partition(0, 1).await;
     sleep(Duration::from_millis(100)).await;
 }
 
@@ -343,20 +342,20 @@ async fn test_multiple_partitions() {
     cluster.enable_failures().await;
 
     // Create multiple partitions
-    cluster.partition(NodeId(0), NodeId(1)).await;
-    cluster.partition(NodeId(0), NodeId(2)).await;
-    cluster.partition(NodeId(0), NodeId(3)).await;
+    cluster.partition(0, 1).await;
+    cluster.partition(0, 2).await;
+    cluster.partition(0, 3).await;
 
     sleep(Duration::from_millis(100)).await;
 
     // Heal some
-    cluster.heal_partition(NodeId(0), NodeId(1)).await;
-    cluster.heal_partition(NodeId(0), NodeId(2)).await;
+    cluster.heal_partition(0, 1).await;
+    cluster.heal_partition(0, 2).await;
 
     sleep(Duration::from_millis(100)).await;
 
     // Heal rest
-    cluster.heal_partition(NodeId(0), NodeId(3)).await;
+    cluster.heal_partition(0, 3).await;
 
     sleep(Duration::from_millis(100)).await;
 }
@@ -375,7 +374,7 @@ async fn test_add_delay() {
     cluster.enable_failures().await;
 
     // Add 100ms delay from node 0 to node 1
-    cluster.add_delay(NodeId(0), NodeId(1), Duration::from_millis(100)).await;
+    cluster.add_delay(0, 1, Duration::from_millis(100)).await;
 
     sleep(Duration::from_millis(200)).await;
 }
@@ -394,7 +393,7 @@ async fn test_add_packet_loss() {
     cluster.enable_failures().await;
 
     // Add 50% packet loss from node 0 to node 1
-    cluster.add_packet_loss(NodeId(0), NodeId(1), 0.5).await;
+    cluster.add_packet_loss(0, 1, 0.5).await;
 
     sleep(Duration::from_millis(200)).await;
 }
@@ -414,7 +413,7 @@ async fn test_partition_isolates_single_node() {
 
     // Isolate node 0 from all others
     for i in 1..5 {
-        cluster.partition(NodeId(0), NodeId(i)).await;
+        cluster.partition(0, i).await;
     }
 
     sleep(Duration::from_millis(100)).await;
@@ -427,7 +426,7 @@ async fn test_partition_isolates_single_node() {
 
     // Heal all partitions
     for i in 1..5 {
-        cluster.heal_partition(NodeId(0), NodeId(i)).await;
+        cluster.heal_partition(0, i).await;
     }
 
     sleep(Duration::from_millis(100)).await;
@@ -446,7 +445,7 @@ async fn test_toggle_failures_on_off() {
     sleep(Duration::from_millis(100)).await;
 
     // Set up a partition
-    cluster.partition(NodeId(0), NodeId(1)).await;
+    cluster.partition(0, 1).await;
 
     // When disabled, partition should be ignored
     cluster.disable_failures().await;
@@ -471,7 +470,14 @@ async fn test_retry_mechanism_succeeds_under_normal_conditions() {
     // TODO: For more thorough retry testing under incomplete quorum, see partition_failure_tests.rs
     let observer = RecordingObserver::new().arc();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 3, Arc::clone(&observer) as Arc<dyn paxos::monitor::PaxosObserver>).await.unwrap();
+    let mut cluster = Cluster::new(
+        0,
+        ip,
+        3,
+        Arc::clone(&observer) as Arc<dyn paxos::monitor::PaxosObserver>,
+    )
+    .await
+    .unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -480,10 +486,11 @@ async fn test_retry_mechanism_succeeds_under_normal_conditions() {
     sleep(Duration::from_millis(100)).await;
     observer.clear().await;
 
-    // Propose a value - should succeed normally  
+    // Propose a value - should succeed normally
     let cmd = PaxosCommand::PUT {
         key: "test".to_string(),
         version: 1,
+        value: 0,
     };
     cluster.propose(cmd.clone()).await;
 

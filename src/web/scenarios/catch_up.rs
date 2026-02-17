@@ -1,9 +1,9 @@
-use std::net::IpAddr;
 use crate::cluster::cluster::Cluster;
-use crate::common::types::{DecreeId, NodeId};
-use crate::node::paxos_state::acceptor::Acceptor;
-use crate::node::paxos_state::ledger::Ledger;
+use crate::common::types::DecreeId;
+use crate::node::classic_paxos::acceptor::Acceptor;
+use crate::node::classic_paxos::ledger::Ledger;
 use crate::paxos_command::PaxosCommand;
+use std::net::IpAddr;
 
 pub struct CatchUpScenario;
 
@@ -40,10 +40,7 @@ impl CatchUpScenario {
     }
 
     /// Propose to fill gaps in Node 0's ledger
-    pub async fn propose_gap_filler(
-        cluster: &mut Cluster,
-        node_id: usize,
-    ) -> anyhow::Result<()> {
+    pub async fn propose_gap_filler(cluster: &mut Cluster, node_id: usize) -> anyhow::Result<()> {
         // Get the node's ledger to find gaps
         let gap_decree_num = if let Some(node) = cluster.nodes.get(node_id) {
             node.get_next_gap().await
@@ -56,7 +53,10 @@ impl CatchUpScenario {
                 author: "Olive Day".to_string(),
                 law: "The ides of February is national olive day".to_string(),
             };
-            cluster.propose_from_with_decree_num(NodeId(node_id), Some(gap_decree_num), cmd).await;
+            let proposer_uuid = cluster.nodes[node_id].uuid;
+            cluster
+                .propose_from_with_decree_num(proposer_uuid, Some(gap_decree_num), cmd)
+                .await;
         }
 
         Ok(())
@@ -91,14 +91,12 @@ impl CatchUpScenario {
         ]
     }
 
-    fn create_catching_up_ledger(
-        full_ledger: &[PaxosCommand],
-    ) -> Vec<Option<PaxosCommand>> {
+    fn create_catching_up_ledger(full_ledger: &[PaxosCommand]) -> Vec<Option<PaxosCommand>> {
         vec![
-            None, // [0] - missing
-            None, // [1] - missing
+            None,                         // [0] - missing
+            None,                         // [1] - missing
             Some(full_ledger[2].clone()), // [2]
-            None, // [3] - missing
+            None,                         // [3] - missing
             Some(full_ledger[4].clone()), // [4]
             Some(full_ledger[5].clone()), // [5]
         ]

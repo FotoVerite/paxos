@@ -5,6 +5,7 @@
 
 import { createEventReader } from '/js/paxos-demo/core/event-reader.js';
 import { createPlaybackEngine } from '/js/paxos-demo/core/playback-engine.js';
+import { createNodeIdMapper } from '/js/paxos-demo/core/node-id-mapper.js';
 
 export function createPaxosDemoController({
   state,
@@ -15,12 +16,28 @@ export function createPaxosDemoController({
   frameWindowMicros = 50,
   onPlaybackUpdate = null,
   stepBackMode = 'quiet',
+  nodeLabelMode = 'number',
+  customNodeLabelFormatter = null,
 }) {
+  const nodeIdMapper = createNodeIdMapper({
+    mode: nodeLabelMode,
+    customLabelFormatter: customNodeLabelFormatter,
+  });
+
+  const nodeLabels = {
+    index: (value) => nodeIdMapper.toIndex(value),
+    label: (value) => nodeIdMapper.toLabel(value),
+    node: (value) => nodeIdMapper.toNodeText(value),
+    mode: () => nodeIdMapper.getMode(),
+  };
+
   const context = {
     state,
     visualizer,
     canCommunicate,
     playbackMode: 'live',
+    nodeIdMapper,
+    nodeLabels,
   };
 
   let clusterInfo = null;
@@ -76,6 +93,38 @@ export function createPaxosDemoController({
     }
   }
 
+  function notifyMessage(messagePayload) {
+    for (const plugin of plugins) {
+      if (!plugin || typeof plugin.onMessage !== 'function') {
+        continue;
+      }
+      safeCall('plugin.onMessage', plugin.onMessage, messagePayload, context);
+    }
+  }
+
+  function notifyNodeLabelsChanged() {
+    for (const plugin of plugins) {
+      if (!plugin || typeof plugin.onNodeLabelsChanged !== 'function') {
+        continue;
+      }
+      safeCall(
+        'plugin.onNodeLabelsChanged',
+        plugin.onNodeLabelsChanged,
+        { mode: nodeIdMapper.getMode() },
+        context
+      );
+    }
+  }
+
+  function applyNodeLabelsToVisualizer() {
+    if (
+      visualizer &&
+      typeof visualizer.setNodeLabelFormatter === 'function'
+    ) {
+      visualizer.setNodeLabelFormatter((nodeId) => nodeLabels.label(nodeId));
+    }
+  }
+
   async function dispatchEvent(queuedEvent, options = {}) {
     if (!queuedEvent) return;
     if (queuedEvent.generation !== undefined && queuedEvent.generation !== reader.getGeneration()) {
@@ -107,7 +156,10 @@ export function createPaxosDemoController({
   }
 
   function handleCluster(cluster) {
+    nodeIdMapper.ingestClusterInfo(cluster);
     clusterInfo = cluster;
+    applyNodeLabelsToVisualizer();
+
     playback.clearHistory();
     state.initialize(cluster);
 
@@ -165,12 +217,26 @@ export function createPaxosDemoController({
     websocketPath,
     frameWindowMicros,
     onCluster: handleCluster,
+    onMessage: (payload) => {
+      const mappedPayload = nodeIdMapper.mapMessagePayload(payload);
+      notifyMessage(mappedPayload);
+    },
     onBatch: async (batch) => {
-      await playback.addBatch(batch, {
+      const mappedBatch = batch.map((entry) => ({
+        ...entry,
+        eventData: nodeIdMapper.mapEventData(entry.eventType, entry.eventData),
+      }));
+      await playback.addBatch(mappedBatch, {
         onBatchCaptured: (capturedBatch, index) => {
           for (const plugin of plugins) {
             if (plugin && typeof plugin.onBatchCaptured === 'function') {
-              safeCall('plugin.onBatchCaptured', plugin.onBatchCaptured, capturedBatch, index, context);
+              safeCall(
+                'plugin.onBatchCaptured',
+                plugin.onBatchCaptured,
+                capturedBatch,
+                index,
+                context
+              );
             }
           }
         },
@@ -195,6 +261,7 @@ export function createPaxosDemoController({
   }
 
   initPlugins();
+  applyNodeLabelsToVisualizer();
 
   return {
     connect: reader.connect,
@@ -214,6 +281,11 @@ export function createPaxosDemoController({
     hasPendingBatches: playback.hasPendingBatches,
     hasPendingFrames: playback.hasPendingBatches,
     setFrameWindowMicros: reader.setFrameWindowMicros,
+    setNodeLabelMode(mode) {
+      nodeIdMapper.setMode(mode);
+      applyNodeLabelsToVisualizer();
+      notifyNodeLabelsChanged();
+    },
     eventQueue: reader.eventQueue,
     get socket() {
       return reader.socket;

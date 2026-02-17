@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     common::persistence::Persistence,
+    paxos_command::PaxosCommand,
     rsm::{
         entry::KVEntry,
         types::{ClerkResponseError, KVResult, KVValue, KVVersion},
@@ -14,6 +15,14 @@ use crate::{
 pub struct KVStore {
     uuid: Uuid,
     data: Mutex<HashMap<String, KVEntry>>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub enum ReplyOutcome {
+    GetOk { value: KVValue, version: KVVersion },
+    WriteOk { version: KVVersion }, // PUT/ADD success
+    Ok,                             // commands with no payload
+    Err(ClerkResponseError),
 }
 
 impl KVStore {
@@ -37,15 +46,31 @@ impl KVStore {
         Ok(())
     }
 
-    pub async fn get(&self, key: &str) -> KVResult<(KVValue, KVVersion)> {
+    pub async fn apply(&self, cmd: PaxosCommand) -> KVResult<ReplyOutcome> {
+        match cmd.operation() {
+            PaxosCommand::GET { key } => self.get(key).await,
+            PaxosCommand::PUT {
+                key,
+                version,
+                value,
+            } => self.set(key, KVValue(*value)).await,
+
+            _ => Ok(ReplyOutcome::Ok),
+        }
+    }
+
+    pub async fn get(&self, key: &str) -> KVResult<ReplyOutcome> {
         let data = self.data.lock().await;
         if let Some(entry) = data.get(key) {
-            return Ok((entry.value, entry.version));
+            return Ok(ReplyOutcome::GetOk {
+                value: entry.value,
+                version: entry.version,
+            });
         }
         return Err(ClerkResponseError::ErrKey);
     }
 
-    pub async fn set(&self, key: &str, value: KVValue) -> KVResult<KVVersion> {
+    pub async fn set(&self, key: &str, value: KVValue) -> KVResult<ReplyOutcome> {
         let entry_version = {
             let mut data = self.data.lock().await;
 
@@ -61,7 +86,9 @@ impl KVStore {
         // Now you can safely call save without holding the lock
         self.save().await;
 
-        Ok(entry_version)
+        Ok(ReplyOutcome::WriteOk {
+            version: entry_version,
+        })
     }
 
     pub async fn add(&self, key: &str, value: KVValue, version: KVVersion) -> KVResult<KVVersion> {

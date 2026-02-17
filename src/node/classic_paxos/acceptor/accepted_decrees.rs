@@ -3,10 +3,14 @@ use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 use crate::{
-    common::{persistence::Persistence, types::{DecreeId, NodeId}}, message::Message, monitor::{Event, PaxosObserver}, node::paxos_state::{
+    common::{persistence::Persistence, types::DecreeId},
+    message::Message,
+    monitor::{Event, PaxosObserver},
+    node::classic_paxos::{
         acceptor::{accepted_decree::AcceptedDecree, prev_vote::PrevVote},
         ballot::Ballot,
-    }, paxos_command::PaxosCommand
+    },
+    paxos_command::PaxosCommand,
 };
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -15,12 +19,10 @@ pub struct AcceptedDecrees {
 }
 
 impl AcceptedDecrees {
-
-
     pub fn promise(
         &mut self,
-        id: NodeId,
-        from: NodeId,
+        id_uuid: Uuid,
+        from: Uuid,
         decree_num: DecreeId,
         ballot: Ballot,
         observer: Arc<dyn PaxosObserver>,
@@ -29,7 +31,7 @@ impl AcceptedDecrees {
         if !entry.lt(ballot) {
             tracing::info!(
                 "[Node {}] Prepare: ballot ({}) <= next_bal ({}) - NACK",
-                id,
+                id_uuid,
                 ballot,
                 entry.next_bal()
             );
@@ -38,7 +40,7 @@ impl AcceptedDecrees {
 
         tracing::info!(
             "[Node {}] Prepare: ballot ({}) > next_bal ({}) - PROMISE",
-            id,
+            id_uuid,
             ballot,
             entry.next_bal()
         );
@@ -46,14 +48,14 @@ impl AcceptedDecrees {
 
         observer.on_event(Event::Promise {
             decree_num,
-            id,
+            id: id_uuid,
             from,
             ballot: ballot.number,
             created_at: crate::monitor::current_timestamp_millis(),
         });
 
         Message::Promise {
-            from: id,
+            from: id_uuid,
             decree_num,
             ballot,
             accepted_ballot: entry.get_prev_bal(),
@@ -63,8 +65,8 @@ impl AcceptedDecrees {
 
     pub fn accept(
         &mut self,
-        id: NodeId,
-        from: NodeId,
+        id_uuid: Uuid,
+        from: Uuid,
         decree_num: DecreeId,
         ballot: Ballot,
         value: PaxosCommand,
@@ -74,7 +76,7 @@ impl AcceptedDecrees {
         if !entry.eq(ballot) {
             tracing::info!(
                 "[Node {}] Accept: ballot ({}) != next_bal ({}) - NACK",
-                id,
+                id_uuid,
                 ballot,
                 entry.next_bal()
             );
@@ -87,7 +89,7 @@ impl AcceptedDecrees {
         };
         tracing::info!(
             "[Node {}] Accept: ballot ({}) == next_bal - ACCEPTED decree {} from node {}: {:?}",
-            id,
+            id_uuid,
             ballot,
             decree_num,
             from,
@@ -95,7 +97,7 @@ impl AcceptedDecrees {
         );
         observer.on_event(Event::Accepted {
             decree_num,
-            id: id,
+            id: id_uuid,
             from,
             ballot: ballot.number,
             value: value.clone(),
@@ -103,7 +105,7 @@ impl AcceptedDecrees {
         });
 
         Message::Accepted {
-            from: id,
+            from: id_uuid,
             decree_num,
             ballot,
             value,
@@ -118,7 +120,7 @@ impl AcceptedDecrees {
 
         let high_ballot = Ballot {
             number: 1,
-            node_id: NodeId(0),
+            node_id: Uuid::nil(),
         };
 
         for (decree_num, cmd) in initial_decrees {
@@ -126,7 +128,10 @@ impl AcceptedDecrees {
                 decree_num,
                 AcceptedDecree {
                     next_bal: high_ballot.clone(),
-                    prev_vote: PrevVote { ballot: high_ballot, value: cmd.clone() },
+                    prev_vote: PrevVote {
+                        ballot: high_ballot,
+                        value: cmd.clone(),
+                    },
                 },
             );
         }

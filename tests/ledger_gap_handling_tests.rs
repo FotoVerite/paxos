@@ -1,7 +1,4 @@
-use paxos::{
-    paxos_command::PaxosCommand,
-    common::types::DecreeId,
-};
+use paxos::{common::types::DecreeId, paxos_command::PaxosCommand};
 
 mod test_helpers;
 use test_helpers::{cleanup_persisted_state, create_ledger};
@@ -37,7 +34,8 @@ async fn ledger_finds_first_gap_simple() {
     // next() should return 1 (the first unchosen decree)
     let next = ledger.next().await;
     assert_eq!(
-        next, DecreeId(3),
+        next,
+        DecreeId(3),
         "Ledger should return first gap (decree 1) as next, not log.len() (3)"
     );
 }
@@ -57,7 +55,8 @@ async fn ledger_finds_gap_after_multiple_chosen() {
     // next() should return 3 (first unchosen)
     let next = ledger.next().await;
     assert_eq!(
-        next, DecreeId(3),
+        next,
+        DecreeId(3),
         "After choosing 0,1,2 sequentially, next should be 3"
     );
 }
@@ -69,7 +68,11 @@ async fn ledger_next_with_all_gaps() {
 
     // No decrees chosen
     let next = ledger.next().await;
-    assert_eq!(next, DecreeId(0), "With no decrees chosen, next should be 0");
+    assert_eq!(
+        next,
+        DecreeId(0),
+        "With no decrees chosen, next should be 0"
+    );
 }
 
 #[tokio::test]
@@ -106,7 +109,8 @@ async fn ledger_large_gap_in_middle() {
     // next() should be 2 (first gap after sequential prefix)
     let next = ledger.next().await;
     assert_eq!(
-        next, DecreeId(102),
+        next,
+        DecreeId(102),
         "Should return first unchosen decree in sequence (2), not highest+1"
     );
 }
@@ -126,7 +130,11 @@ async fn ledger_gap_consistency_after_vote() {
     // Fill the gap
     ledger.insert(DecreeId(1), cmd.clone()).await;
     let next2 = ledger.next().await;
-    assert_eq!(next2, DecreeId(2), "After filling gap 1, next should advance to 2");
+    assert_eq!(
+        next2,
+        DecreeId(2),
+        "After filling gap 1, next should advance to 2"
+    );
 }
 
 #[tokio::test]
@@ -163,7 +171,11 @@ async fn ledger_interleaved_proposals() {
     // Fill gap at 2
     ledger.insert(DecreeId(2), cmd.clone()).await;
     let next = ledger.next().await;
-    assert_eq!(next, DecreeId(7), "After filling 0-4, next is 5 (first unchosen)");
+    assert_eq!(
+        next,
+        DecreeId(7),
+        "After filling 0-4, next is 5 (first unchosen)"
+    );
 }
 
 #[tokio::test]
@@ -185,7 +197,11 @@ async fn ledger_chosen_state_independent_of_gaps() {
 
     // next() should be 1 (first unchosen), regardless of what's in decrees map
     let next = ledger.next().await;
-    assert_eq!(next, DecreeId(3), "Should find unchosen decree 1 even with gaps");
+    assert_eq!(
+        next,
+        DecreeId(3),
+        "Should find unchosen decree 1 even with gaps"
+    );
 }
 
 // ============================================================================
@@ -212,6 +228,7 @@ async fn ledger_detects_chosen_values_at_quorum() {
     let cmd = PaxosCommand::PUT {
         key: "test".to_string(),
         version: 1,
+        value: 0,
     };
 
     // After 1 vote (below quorum of 2): value not yet chosen
@@ -223,9 +240,5 @@ async fn ledger_detects_chosen_values_at_quorum() {
     ledger.insert(DecreeId(0), cmd.clone()).await;
 
     let chosen = ledger.get(DecreeId(0)).await;
-    assert_eq!(
-        chosen,
-        Some(cmd),
-        "Value should be chosen at quorum"
-    );
+    assert_eq!(chosen, Some(cmd), "Value should be chosen at quorum");
 }

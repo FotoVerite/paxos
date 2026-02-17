@@ -1,15 +1,12 @@
 mod test_helpers;
 
 use paxos::{
-    message::Message,
-    monitor::Event,
-    node::paxos_state::ballot::Ballot,
+    common::types::DecreeId, message::Message, monitor::Event, node::classic_paxos::ballot::Ballot,
     paxos_command::PaxosCommand,
-    common::types::{NodeId, DecreeId},
 };
-use test_helpers::{NodeBuilder, RecordingObserver};
 use std::collections::HashSet;
-use std::sync::Arc; // Added Arc import
+use std::sync::Arc;
+use test_helpers::{NodeBuilder, RecordingObserver}; // Added Arc import
 
 // ============================================================================
 // INTEGRATION TESTS
@@ -21,7 +18,7 @@ use std::sync::Arc; // Added Arc import
 async fn basic_proposer_acceptor_interaction() {
     let observer = RecordingObserver::new().arc();
     let builder = NodeBuilder::with_observer(Arc::clone(&observer));
-    
+
     // Use quorum=1 for this unit test (1 proposer + 1 acceptor)
     let proposer = builder.proposer(1, 1).unwrap();
     let acceptor = builder.acceptor(1).await.unwrap();
@@ -33,7 +30,7 @@ async fn basic_proposer_acceptor_interaction() {
     // Phase 1: Prepare
     let prepare = proposer.propose(DecreeId(0), cmd.clone()).await;
     assert!(matches!(prepare, Message::Prepare { .. }));
-    
+
     // Acceptor promises
     let promise = acceptor.handle_message(prepare).await;
     assert!(matches!(promise, Message::Promise { .. }));
@@ -41,15 +38,17 @@ async fn basic_proposer_acceptor_interaction() {
     // Phase 2: Accept
     let accept = proposer.handle_message(promise).await;
     assert!(matches!(accept, Message::Accept { .. }));
-    
+
     // Acceptor accepts
-    let accepted = acceptor.handle_message(Message::Accept {
-        from: NodeId(1),
-        decree_num: DecreeId(0),
-        ballot: Ballot::new(1, NodeId(1)),
-        value: cmd,
-        quorum: HashSet::new(),
-    }).await;
+    let accepted = acceptor
+        .handle_message(Message::Accept {
+            from: test_helpers::test_uuid(1),
+            decree_num: DecreeId(0),
+            ballot: Ballot::new(1, test_helpers::test_uuid(1)),
+            value: cmd,
+            quorum: HashSet::new(),
+        })
+        .await;
     assert!(matches!(accepted, Message::Accepted { .. }));
 
     // Wait for all event recording tasks to complete
@@ -66,7 +65,7 @@ async fn basic_proposer_acceptor_interaction() {
     let has_proposal = events.iter().any(|e| matches!(e, Event::Proposal { .. }));
     let has_promise = events.iter().any(|e| matches!(e, Event::Promise { .. }));
     let has_accept = events.iter().any(|e| matches!(e, Event::Accept { .. }));
-    
+
     assert!(has_proposal, "Should have Proposal event");
     assert!(has_promise, "Should have Promise event");
     assert!(has_accept, "Should have Accept event");
@@ -76,14 +75,14 @@ async fn basic_proposer_acceptor_interaction() {
 async fn ballot_comparison_ensures_safety() {
     use test_helpers::cleanup_persisted_state;
     cleanup_persisted_state();
-    
+
     // Create separate builders so proposers don't share state
     let builder1 = NodeBuilder::new();
     let proposer1 = builder1.proposer(1, 1).unwrap();
-    
+
     let builder2 = NodeBuilder::new();
     let proposer2 = builder2.proposer(2, 1).unwrap();
-    
+
     let builder3 = NodeBuilder::new();
     let acceptor = builder3.acceptor(1).await.unwrap();
 
@@ -108,22 +107,25 @@ async fn ballot_comparison_ensures_safety() {
     let _accept1 = proposer1.handle_message(promise1).await;
     let resp1 = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
-            ballot: Ballot::new(1, NodeId(1)),
+            ballot: Ballot::new(1, test_helpers::test_uuid(1)),
             value: cmd1,
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp1, Message::NACK), "Lower ballot should be rejected");
+    assert!(
+        matches!(resp1, Message::NACK),
+        "Lower ballot should be rejected"
+    );
 
     // Proposer 2 can accept - higher ballot
     let _accept2 = proposer2.handle_message(promise2).await;
     let resp2 = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(2),
+            from: test_helpers::test_uuid(2),
             decree_num: DecreeId(0),
-            ballot: Ballot::new(1, NodeId(2)),
+            ballot: Ballot::new(1, test_helpers::test_uuid(2)),
             value: cmd2,
             quorum: HashSet::new(),
         })
@@ -145,6 +147,7 @@ async fn observer_captures_full_protocol() {
     let cmd = PaxosCommand::PUT {
         key: "tracked".to_string(),
         version: 42,
+        value: 0,
     };
 
     // Run complete protocol
@@ -193,20 +196,21 @@ async fn proposer_adopts_accepted_values() {
     let original_cmd = PaxosCommand::PUT {
         key: "original".to_string(),
         version: 1,
+        value: 0,
     };
 
     // Acceptor has previously accepted a value
-    let b_original = Ballot::new(3, NodeId(1));
+    let b_original = Ballot::new(3, test_helpers::test_uuid(1));
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b_original,
         })
         .await;
     acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b_original,
             value: original_cmd.clone(),
@@ -224,9 +228,9 @@ async fn proposer_adopts_accepted_values() {
 
     // New proposer gets a promise from the acceptor that includes the previously accepted value
     let promise = Message::Promise {
-        from: NodeId(0),
+        from: test_helpers::test_uuid(0),
         decree_num: DecreeId(0),
-        ballot: Ballot::new(1, NodeId(2)),
+        ballot: Ballot::new(1, test_helpers::test_uuid(2)),
         accepted_ballot: b_original,
         accepted_value: original_cmd.clone(),
     };
@@ -249,14 +253,14 @@ async fn acceptor_monotonic_ballot_progression() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b1 = Ballot::new(1, NodeId(1));
-    let b3 = Ballot::new(3, NodeId(1));
-    let b5 = Ballot::new(5, NodeId(1));
+    let b1 = Ballot::new(1, test_helpers::test_uuid(1));
+    let b3 = Ballot::new(3, test_helpers::test_uuid(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
 
     // Acceptor promises ballot (1, 1)
     let resp1 = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b1,
         })
@@ -266,7 +270,7 @@ async fn acceptor_monotonic_ballot_progression() {
     // Acceptor promises higher ballot (3, 1)
     let resp3 = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b3,
         })
@@ -276,7 +280,7 @@ async fn acceptor_monotonic_ballot_progression() {
     // Acceptor refuses lower ballot (5, 1) is higher, so should accept
     let resp5 = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -286,7 +290,7 @@ async fn acceptor_monotonic_ballot_progression() {
     // Trying the same ballot again should fail
     let resp_dup = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })

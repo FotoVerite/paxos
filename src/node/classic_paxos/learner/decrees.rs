@@ -3,12 +3,13 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::{
-    common::types::{DecreeId, NodeId},
+    common::types::DecreeId,
     message::Message,
     monitor::PaxosObserver,
-    node::paxos_state::{ballot::Ballot, learner::learner_quorum::LearnerQuorum},
+    node::classic_paxos::{ballot::Ballot, learner::learner_quorum::LearnerQuorum},
     paxos_command::PaxosCommand,
 };
+use uuid::Uuid;
 
 pub struct Decrees {
     decrees: Mutex<HashMap<DecreeId, LearnerQuorum>>,
@@ -23,8 +24,8 @@ impl Decrees {
 
     pub async fn add_vote(
         &self,
-        id: NodeId,
-        from: NodeId,
+        id: Uuid,
+        from: Uuid,
         decree_num: DecreeId,
         ballot: Ballot,
         quorum_size: usize,
@@ -38,7 +39,7 @@ impl Decrees {
             .entry(decree_num)
             .or_insert_with(|| LearnerQuorum::new(quorum_size, ballot));
         quorum.add_vote(from, ballot);
-        
+
         if quorum.has_met_quorum() {
             tracing::info!(
                 "[Node {}] Learner reached quorum for decree {}: {:?} from proposer {} (votes: {:?})",

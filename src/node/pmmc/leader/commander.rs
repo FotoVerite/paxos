@@ -17,7 +17,9 @@ use crate::{
     common::aimd_timeout::AimdTimeout,
     message::Message,
     monitor::PaxosObserver,
-    node::{paxos_state::ballot::Ballot, pmmc::leader::leader_state::ProposalsMap, pvalue::PValue},
+    node::{
+        classic_paxos::ballot::Ballot, pmmc::proposal::ProposalsStore, pvalue::PValue
+    },
     paxos_command::PaxosCommand,
 };
 pub struct Commander {
@@ -36,7 +38,7 @@ impl Commander {
         uuid: Uuid,
         quorum: usize,
         ballot: Ballot,
-        proposals: ProposalsMap,
+        proposals: ProposalsStore,
         peers: Arc<NetworkSimulator>,
         observer: Arc<dyn PaxosObserver>,
     ) -> Self {

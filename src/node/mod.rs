@@ -1,8 +1,9 @@
+pub mod classic_paxos;
 pub mod config;
 pub mod inflight_proposals;
-pub mod paxos_node;
-pub mod paxos_state;
 pub mod message_router;
+pub mod paxos_node;
 pub mod peer_topology;
-pub mod pmmc;
+// #[cfg(feature = "pmmc")]
+mod pmmc;
 pub mod pvalue;

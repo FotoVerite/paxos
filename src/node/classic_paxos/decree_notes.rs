@@ -1,4 +1,7 @@
-use crate::{common::{persistence::Persistence, types::{DecreeId, NodeId}}, node::paxos_state::ballot::Ballot};
+use crate::{
+    common::{persistence::Persistence, types::DecreeId},
+    node::classic_paxos::ballot::Ballot,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{cmp::max, collections::HashMap};
@@ -37,12 +40,9 @@ impl DecreeNotes {
 }
 
 impl DecreeNote {
-    pub fn new(node_id: NodeId) -> Self {
+    pub fn new(node_id: Uuid) -> Self {
         Self {
-            last_tried: Ballot {
-                number: 0,
-                node_id,
-            },
+            last_tried: Ballot { number: 0, node_id },
         }
     }
 

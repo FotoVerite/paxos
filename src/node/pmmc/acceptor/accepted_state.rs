@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, btree_map::Entry};
 
 use tokio::sync::Mutex;
 
-use crate::node::{paxos_state::ballot::Ballot, pvalue::PValue};
+use crate::node::{classic_paxos::ballot::Ballot, pvalue::PValue};
 
 pub type AcceptedMap = BTreeMap<usize, PValue>;
 

@@ -1,8 +1,8 @@
 use serde::Serialize;
-use uuid::Uuid;
 use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
 use tracing::debug;
+use uuid::Uuid;
 
 use crate::message::Message;
 use crate::monitor::{Event, PaxosObserver};
@@ -32,10 +32,16 @@ impl WebSocketObserver {
     }
 
     /// Sets the cluster information (called during initialization)
-    pub async fn set_cluster_info(&self, total_nodes: usize, quorum_size: usize) {
+    pub async fn set_cluster_info(
+        &self,
+        total_nodes: usize,
+        quorum_size: usize,
+        node_uuids: Vec<Uuid>,
+    ) {
         let cluster_info = ClusterInfo {
             total_nodes,
             quorum_size,
+            node_uuids,
         };
 
         let mut info = self.cluster_info.write().await;
@@ -100,7 +106,8 @@ impl PaxosObserver for WebSocketObserver {
             message: &message,
         };
         match message {
-            Message::ACK { .. } | Message::NACK | Message::P1A { .. } => {
+            Message::NACK => {}
+            _ => {
                 let debug = format!("{:?}", message);
 
                 let message_json = serde_json::to_value(&payload)
@@ -124,7 +131,6 @@ impl PaxosObserver for WebSocketObserver {
                     }
                 }
             }
-            _ => {}
         }
     }
 }

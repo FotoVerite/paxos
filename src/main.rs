@@ -1,23 +1,19 @@
 use paxos::{
-    cluster::cluster::Cluster,
-    console_observer::ConsoleObserver,
-    scenario::ScenarioBuilder,
-    scenario_loader::ScenarioLoader,
-    scenario_runner::ScenarioRunner,
-    web::server::run_web_server,
+    cluster::cluster::Cluster, console_observer::ConsoleObserver, scenario::ScenarioBuilder,
+    scenario_loader::ScenarioLoader, scenario_runner::ScenarioRunner, web::server::run_web_server,
 };
 use std::{net::IpAddr, sync::Arc};
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Create logs directory
     std::fs::create_dir_all(".paxos/logs").ok();
-    
+
     // Setup file appender (daily rotation)
     let file_appender = tracing_appender::rolling::daily(".paxos/logs", "server.log");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-    
+
     // Initialize tracing with console and file output
     // Enable DEBUG logging with: RUST_LOG=debug cargo run web
     let level = if cfg!(debug_assertions) {
@@ -28,16 +24,16 @@ async fn main() -> anyhow::Result<()> {
     } else {
         tracing::Level::INFO
     };
-    
+
     tracing_subscriber::fmt()
         .with_ansi(true)
         .with_max_level(level)
         .with_writer(non_blocking)
         .init();
-    
+
     // Keep guard alive for the entire program
     let _guard = _guard;
-    
+
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() > 1 && args[1] == "web" {
@@ -84,7 +80,7 @@ async fn run_json_scenario() -> anyhow::Result<()> {
 async fn run_with_web_server() -> anyhow::Result<()> {
     println!("Starting Paxos with Web Visualizer...\n");
     println!("Open http://localhost:3001 in your browser\n");
-    
+
     // Start web server in a background task
     tokio::spawn(async move {
         run_web_server().await;
@@ -99,12 +95,12 @@ async fn run_with_web_server() -> anyhow::Result<()> {
 }
 
 async fn run_builtin_scenario() -> anyhow::Result<()> {
-     println!("Starting Paxos cluster with programmatic scenario...\n");
-         let ip = IpAddr::V4([127, 0, 0, 1].into());
+    println!("Starting Paxos cluster with programmatic scenario...\n");
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
 
-     let node_count = 5;
-     let observer = Arc::new(ConsoleObserver);
-     let mut cluster = Cluster::new(0, ip, node_count, observer).await?;
+    let node_count = 5;
+    let observer = Arc::new(ConsoleObserver);
+    let mut cluster = Cluster::new(0, ip, node_count, observer).await?;
 
     for i in 0..node_count {
         cluster.nodes[i].start();

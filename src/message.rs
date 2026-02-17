@@ -1,52 +1,51 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use uuid::Uuid;
 
 use crate::{
-    common::types::{DecreeId, NodeId},
-    node::{
-        paxos_state::ballot::Ballot, pmmc::acceptor::accepted_state::AcceptedMap, pvalue::PValue,
-    },
+    common::types::DecreeId,
+    node::{classic_paxos::ballot::Ballot, pvalue::PValue},
     paxos_command::PaxosCommand,
+    rsm::kv_store::ReplyOutcome,
 };
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum Message {
     Prepare {
-        from: NodeId,
+        from: Uuid,
         decree_num: DecreeId,
         ballot: Ballot,
     },
     Promise {
-        from: NodeId,
+        from: Uuid,
         decree_num: DecreeId,
         ballot: Ballot,
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,
     },
     Accept {
-        from: NodeId,
+        from: Uuid,
         decree_num: DecreeId,
         ballot: Ballot,
         value: PaxosCommand,
-        quorum: HashSet<NodeId>,
+        quorum: HashSet<Uuid>,
     },
     Accepted {
-        from: NodeId,
+        from: Uuid,
         decree_num: DecreeId,
         ballot: Ballot,
         value: PaxosCommand,
     },
     NACK,
     Success {
-        from: NodeId,
+        from: Uuid,
         decree_num: DecreeId,
         value: PaxosCommand,
-        ballot_proposer: NodeId, // Track which node originated this proposal
+        ballot_proposer: Uuid, // Track which node originated this proposal
     },
 
     PrepareBatch {
-        from: NodeId,
+        from: Uuid,
         decrees_to: DecreeId,
         ballot: Ballot,
     },
@@ -54,7 +53,13 @@ pub enum Message {
     //PMMC
     ACK {
         from: Uuid,
+        to: Uuid,
         slot: usize,
+    },
+
+    ACCEPTED {
+        from: Uuid,
+        pvalue: PValue,
     },
 
     ADOPTED {
@@ -99,8 +104,15 @@ pub enum Message {
         ballot: Ballot,
         pvalue: PValue,
     },
-    ACCEPTED {
-        from: Uuid,
-        pvalue: PValue,
-    }
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub enum ClientMessage {
+    PROPOSE {
+        cmd: PaxosCommand,
+    },
+    RESPONSE {
+        request_id: u64,
+        response: ReplyOutcome,
+    },
 }

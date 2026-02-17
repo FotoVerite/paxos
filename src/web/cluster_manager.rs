@@ -1,15 +1,17 @@
-
 use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, sleep};
 
 use crate::cluster::cluster::Cluster;
-use crate::paxos_command::PaxosCommand;
-use crate::web::websocket_observer::WebSocketObserver;
 use crate::decree_generator::DecreeGenerator;
-use crate::web::scenarios::{CatchUpScenario, CompetingProposersScenario, AsymmetricProposersScenario, NetworkPartitionScenario, HappyPathScenario, PartialRolesScenario, SimpleHappyPathScenario};
-use crate::node::config::{NodeConfig, Roles, LearningStrategy};
+use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
+use crate::paxos_command::PaxosCommand;
+use crate::web::scenarios::{
+    AsymmetricProposersScenario, CatchUpScenario, CompetingProposersScenario, HappyPathScenario,
+    NetworkPartitionScenario, PartialRolesScenario, SimpleHappyPathScenario,
+};
+use crate::web::websocket_observer::WebSocketObserver;
 
 pub struct ClusterManager {
     cluster: Mutex<Option<Arc<Mutex<Cluster>>>>,
@@ -39,16 +41,18 @@ impl ClusterManager {
         learning_strategy: LearningStrategy,
     ) -> anyhow::Result<Cluster> {
         let configs = (0..node_count)
-            .map(|_| NodeConfig {
-                roles: Roles { proposer: true, acceptor: true, learner: true },
+            .map(|_| ClassicNodeConfig {
+                roles: Roles {
+                    proposer: true,
+                    acceptor: true,
+                    learner: true,
+                },
                 learning_strategy: learning_strategy.clone(),
             })
             .collect();
-        
+
         Cluster::new_with_configs(id, ip, configs, observer).await
     }
-
-
 
     pub async fn start_scenario(
         &self,
@@ -95,12 +99,27 @@ impl ClusterManager {
         let mut cluster = if scenario_type == "partial_roles" {
             PartialRolesScenario::init_cluster(0, ip, self.observer.clone(), learning_strat).await?
         } else if scenario_type == "simple_happy_path" {
-            SimpleHappyPathScenario::init_cluster(0, ip, self.observer.clone(), leader_node, learning_strat).await?
+            SimpleHappyPathScenario::init_cluster(
+                0,
+                ip,
+                self.observer.clone(),
+                leader_node,
+                learning_strat,
+            )
+            .await?
         } else if scenario_type == "asymmetric_proposers" {
-            AsymmetricProposersScenario::init_cluster(0, ip, self.observer.clone(), learning_strat).await?
+            AsymmetricProposersScenario::init_cluster(0, ip, self.observer.clone(), learning_strat)
+                .await?
         } else {
             // For all other scenarios: create cluster with specified node count and learning strategy
-            Self::create_cluster_with_strategy(0, ip, node_count, self.observer.clone(), learning_strat).await?
+            Self::create_cluster_with_strategy(
+                0,
+                ip,
+                node_count,
+                self.observer.clone(),
+                learning_strat,
+            )
+            .await?
         };
 
         // Update node_count if it was changed by partial_roles (it uses 9 nodes)
@@ -108,7 +127,7 @@ impl ClusterManager {
 
         // Send cluster info to visualizer
         self.observer
-            .set_cluster_info(node_count, cluster.quorum_size())
+            .set_cluster_info(node_count, cluster.quorum_size(), cluster.get_node_uuids())
             .await;
 
         // Enable network simulator for failure injection
@@ -155,10 +174,20 @@ impl ClusterManager {
 
                 match scenario_type.as_str() {
                     "competing_proposers" => {
-                        CompetingProposersScenario::execute_iteration(&cluster_for_runner, proposal_count, &mut decree_gen).await;
+                        CompetingProposersScenario::execute_iteration(
+                            &cluster_for_runner,
+                            proposal_count,
+                            &mut decree_gen,
+                        )
+                        .await;
                     }
                     "asymmetric_proposers" => {
-                        AsymmetricProposersScenario::execute_iteration(&cluster_for_runner, proposal_count, &mut decree_gen).await;
+                        AsymmetricProposersScenario::execute_iteration(
+                            &cluster_for_runner,
+                            proposal_count,
+                            &mut decree_gen,
+                        )
+                        .await;
                     }
                     "network_partition" => {
                         NetworkPartitionScenario::execute_iteration(
@@ -177,14 +206,30 @@ impl ClusterManager {
                         }
                     }
                     "partial_roles" => {
-                        PartialRolesScenario::execute_iteration(&cluster_for_runner, proposal_count, &mut decree_gen).await;
+                        PartialRolesScenario::execute_iteration(
+                            &cluster_for_runner,
+                            proposal_count,
+                            &mut decree_gen,
+                        )
+                        .await;
                     }
                     "simple_happy_path" => {
-                        SimpleHappyPathScenario::execute_iteration(&cluster_for_runner, proposal_count, &mut decree_gen, leader_for_runner).await;
+                        SimpleHappyPathScenario::execute_iteration(
+                            &cluster_for_runner,
+                            proposal_count,
+                            &mut decree_gen,
+                            leader_for_runner,
+                        )
+                        .await;
                     }
                     _ => {
                         // Default "happy_path"
-                        HappyPathScenario::execute_iteration(&cluster_for_runner, proposal_count, &mut decree_gen).await;
+                        HappyPathScenario::execute_iteration(
+                            &cluster_for_runner,
+                            proposal_count,
+                            &mut decree_gen,
+                        )
+                        .await;
                     }
                 }
 
@@ -248,16 +293,20 @@ impl ClusterManager {
         for uuid in uuids {
             let ledger_path = format!(".paxos/ledger_{}.bin", uuid);
             let acceptor_path = format!(".paxos/acceptor_{}.bin", uuid);
-            
+            let decree_notes_path = format!(".paxos/decree_notes_{}.bin", uuid);
+            let store_path = format!(".paxos/store_{}.bin", uuid);
+
             let _ = std::fs::remove_file(&ledger_path);
             let _ = std::fs::remove_file(&acceptor_path);
-            
+            let _ = std::fs::remove_file(&decree_notes_path);
+            let _ = std::fs::remove_file(&store_path);
+
             println!("Deleted state files for node {}", uuid);
         }
 
         // Clear the observer state
         self.observer.clear().await;
-        
+
         println!("Reset complete - ready for new scenario selection");
         Ok(())
     }

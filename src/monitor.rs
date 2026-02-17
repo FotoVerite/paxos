@@ -7,11 +7,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 use crate::message::Message;
-use crate::node::paxos_state::ballot::Ballot;
-use crate::{
-    common::types::{DecreeId, NodeId},
-    paxos_command::PaxosCommand,
-};
+use crate::node::classic_paxos::ballot::Ballot;
+use crate::node::pvalue::PValue;
+use crate::{common::types::DecreeId, paxos_command::PaxosCommand};
 
 pub fn current_timestamp_millis() -> u64 {
     SystemTime::now()
@@ -23,88 +21,88 @@ pub fn current_timestamp_millis() -> u64 {
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum Event {
     Proposal {
-        id: NodeId,
+        id: Uuid,
         decree_num: DecreeId,
         value: PaxosCommand,
         created_at: u64,
     },
     Promise {
-        id: NodeId,
-        from: NodeId, // The acceptor that sent the promise
+        id: Uuid,
+        from: Uuid, // Destination proposer UUID
         decree_num: DecreeId,
-        ballot: usize, // Keeping ballot as usize for now inside event if complex, but Ballot struct uses NodeId. Wait, Ballot::number is usize. Event usually flattens.
+        ballot: usize, // Keeping ballot as usize for now inside event if complex, but Ballot struct uses usize. Wait, Ballot::number is usize. Event usually flattens.
         created_at: u64,
     },
     Accept {
-        id: NodeId,
+        id: Uuid,
         decree_num: DecreeId,
         ballot: usize,
-        quorum: HashSet<NodeId>,
+        quorum: HashSet<Uuid>,
         value: PaxosCommand,
         created_at: u64,
     },
     Accepted {
-        id: NodeId,
-        from: NodeId, // The acceptor that accepted
+        id: Uuid,
+        from: Uuid, // Destination learner/proposer UUID
         decree_num: DecreeId,
         ballot: usize,
         value: PaxosCommand,
         created_at: u64,
     },
     Learn {
-        id: NodeId,
+        id: Uuid,
         decree_num: DecreeId,
         value: PaxosCommand,
         created_at: u64,
     },
     Success {
-        id: NodeId,
-        from: NodeId,
+        id: Uuid,
+        from: Uuid,
         decree_num: DecreeId,
         value: PaxosCommand,
         created_at: u64,
     },
     LearnedValue {
         // New event for local learning
-        id: NodeId,
+        id: Uuid,
         decree_num: DecreeId,
         value: PaxosCommand,
         created_at: u64,
     },
     InitialDecree {
         // Event for pre-populated ledger decrees at node startup
-        id: NodeId,
+        id: Uuid,
         decree_num: DecreeId,
         value: PaxosCommand,
         created_at: u64,
     },
     BatchInitialDecrees {
         // Batch event for multiple initial decrees
-        id: NodeId,
+        id: Uuid,
         decrees: Vec<(DecreeId, PaxosCommand)>,
         created_at: u64,
     },
     LedgerDump {
         // Full ledger dump event
-        id: NodeId,
+        id: Uuid,
         decrees: Vec<(DecreeId, PaxosCommand)>,
         created_at: u64,
     },
     NodeState {
-        id: NodeId,
+        id: Uuid,
         role: String,
         ballot: usize,
         learned_count: usize,
     },
     NodeCapabilities {
-        id: NodeId,
+        id: Uuid,
         roles: Vec<String>,
         learning_strategy: String,
     },
     // Message passing events for visualization
     MessageSent {
-        from: NodeId,
-        to: NodeId,
+        from: Uuid,
+        to: Uuid,
         message_type: String,
     },
     BallotAdopted {
@@ -117,18 +115,18 @@ pub enum Event {
     },
     // Network partition events
     PartitionCreated {
-        partition_a: Vec<NodeId>,
-        partition_b: Vec<NodeId>,
+        partition_a: Vec<Uuid>,
+        partition_b: Vec<Uuid>,
         created_at: u64,
     },
     PartitionHealed {
-        partition_a: Vec<NodeId>,
-        partition_b: Vec<NodeId>,
+        partition_a: Vec<Uuid>,
+        partition_b: Vec<Uuid>,
         created_at: u64,
     },
     // Leadership event
     LeaderElected {
-        id: NodeId,
+        id: Uuid,
         created_at: u64,
     },
 }

@@ -1,10 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    message::Message,
-    node::paxos_state::ballot::Ballot,
+    common::types::DecreeId, message::Message, node::classic_paxos::ballot::Ballot,
     paxos_command::PaxosCommand,
-    common::types::{NodeId, DecreeId},
 };
 use std::collections::HashSet;
 use test_helpers::NodeBuilder;
@@ -18,12 +16,12 @@ async fn acceptor_rejects_lower_ballot_prepare() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b_high = Ballot::new(5, NodeId(1));
-    let b_low = Ballot::new(3, NodeId(1));
+    let b_high = Ballot::new(5, test_helpers::test_uuid(1));
+    let b_low = Ballot::new(3, test_helpers::test_uuid(1));
 
     let resp1 = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b_high,
         })
@@ -32,7 +30,7 @@ async fn acceptor_rejects_lower_ballot_prepare() {
 
     let resp2 = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b_low,
         })
@@ -45,12 +43,12 @@ async fn acceptor_accepts_higher_ballot_prepare() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b5 = Ballot::new(5, NodeId(1));
-    let b7 = Ballot::new(7, NodeId(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
+    let b7 = Ballot::new(7, test_helpers::test_uuid(1));
 
     let resp1 = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -59,7 +57,7 @@ async fn acceptor_accepts_higher_ballot_prepare() {
 
     let resp2 = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b7,
         })
@@ -72,12 +70,12 @@ async fn acceptor_rejects_accept_below_min_ballot() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b5 = Ballot::new(5, NodeId(1));
-    let b3 = Ballot::new(3, NodeId(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
+    let b3 = Ballot::new(3, test_helpers::test_uuid(1));
 
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -85,7 +83,7 @@ async fn acceptor_rejects_accept_below_min_ballot() {
 
     let resp = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b3,
             value: PaxosCommand::NOOP,
@@ -100,11 +98,11 @@ async fn acceptor_accepts_accept_at_min_ballot() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b5 = Ballot::new(5, NodeId(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
 
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -112,7 +110,7 @@ async fn acceptor_accepts_accept_at_min_ballot() {
 
     let resp = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
             value: PaxosCommand::NOOP,
@@ -129,13 +127,13 @@ async fn acceptor_accepts_accept_above_min_ballot() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b5 = Ballot::new(5, NodeId(1));
-    let b7 = Ballot::new(7, NodeId(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
+    let b7 = Ballot::new(7, test_helpers::test_uuid(1));
 
     // Acceptor promises ballot (5, 1)
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -144,16 +142,16 @@ async fn acceptor_accepts_accept_above_min_ballot() {
     // Now, a prepare for the higher ballot (7,1) must come
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b7,
         })
         .await;
-    
+
     // Then accept for ballot (7,1)
     let resp = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b7,
             value: PaxosCommand::NOOP,
@@ -168,24 +166,25 @@ async fn acceptor_returns_previous_accepted_value() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b1 = Ballot::new(1, NodeId(1));
-    let b3 = Ballot::new(3, NodeId(1));
+    let b1 = Ballot::new(1, test_helpers::test_uuid(1));
+    let b3 = Ballot::new(3, test_helpers::test_uuid(1));
 
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b1,
         })
         .await;
     acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b1,
             value: PaxosCommand::PUT {
                 key: "original".to_string(),
                 version: 1,
+                value: 0,
             },
             quorum: HashSet::new(),
         })
@@ -193,7 +192,7 @@ async fn acceptor_returns_previous_accepted_value() {
 
     let resp = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b3,
         })
@@ -212,7 +211,8 @@ async fn acceptor_returns_previous_accepted_value() {
             accepted_value,
             PaxosCommand::PUT {
                 key: "original".to_string(),
-                version: 1
+                version: 1,
+                value: 0,
             }
         );
     } else {
@@ -225,11 +225,11 @@ async fn acceptor_handles_equal_ballot_prepare() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b5 = Ballot::new(5, NodeId(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
 
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -237,7 +237,7 @@ async fn acceptor_handles_equal_ballot_prepare() {
 
     let resp = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })

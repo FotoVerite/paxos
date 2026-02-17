@@ -4,23 +4,23 @@ use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
-    common::types::{DecreeId, NodeId},
+    common::types::DecreeId,
     message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
-        config::NodeConfig,
-        inflight_proposals::{InflightProposal, InflightProposals},
-        message_router::{MessageRouter, RoutingDecision},
-        paxos_state::{
+        classic_paxos::{
             acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, ledger::Ledger,
             proposer::proposer::Proposer,
         },
+        config::ClassicNodeConfig,
+        inflight_proposals::{InflightProposal, InflightProposals},
+        message_router::{MessageRouter, RoutingDecision},
     },
     paxos_command::PaxosCommand,
 };
 
 pub struct PaxosState {
-    id: NodeId,
+    uuid: Uuid,
     proposer: Option<Proposer>,
     acceptor: Option<Acceptor>,
     learner: Option<Learner>,
@@ -33,21 +33,19 @@ pub struct PaxosState {
 
 impl PaxosState {
     pub async fn init(
-        id: NodeId,
         uuid: Uuid,
         quorum: usize,
         peers: Arc<NetworkSimulator>,
         inflight_proposals: Arc<InflightProposals>,
         observer: Arc<dyn PaxosObserver>,
-        config: NodeConfig,
+        config: ClassicNodeConfig,
         topology: crate::node::peer_topology::PeerTopology,
     ) -> anyhow::Result<Self> {
-        let ledger = Ledger::init(id, uuid).await?;
+        let ledger = Ledger::init(uuid).await?;
         let decree_notes = Arc::new(Mutex::new(DecreeNotes::load_or_init(uuid).await?));
 
         let proposer = if config.roles.proposer {
             Some(Proposer::new(
-                id,
                 uuid,
                 quorum,
                 Arc::clone(&decree_notes),
@@ -58,7 +56,7 @@ impl PaxosState {
         };
 
         let acceptor = if config.roles.acceptor {
-            Some(Acceptor::new(id, uuid, Arc::clone(&observer)).await?)
+            Some(Acceptor::new(uuid, Arc::clone(&observer)).await?)
         } else {
             None
         };
@@ -72,7 +70,7 @@ impl PaxosState {
 
         let learner = if config.roles.learner {
             Some(Learner::new(
-                id,
+                uuid,
                 quorum,
                 learner_decree_notes,
                 Arc::clone(&observer),
@@ -94,7 +92,7 @@ impl PaxosState {
         }
 
         observer.on_event(Event::NodeCapabilities {
-            id,
+            id: uuid,
             roles: roles_str,
             learning_strategy: format!("{:?}", config.learning_strategy),
         });
@@ -104,7 +102,7 @@ impl PaxosState {
         let router = MessageRouter::new(config.learning_strategy.clone(), topology);
 
         let state = Self {
-            id,
+            uuid,
             proposer,
             acceptor,
             learner,
@@ -132,12 +130,12 @@ impl PaxosState {
             let msg = proposer.propose(num, cmd.clone()).await;
             // Use dispatch to route Prepare messages through the MessageRouter
             // This ensures Prepare messages only go to acceptors
-            self.dispatch(&msg, self.id).await;
+            self.dispatch(&msg, self.uuid).await;
             self.inflight_proposals.insert(num, cmd.clone()).await
         } else {
             tracing::warn!(
                 "[Node {}] Attempted to propose without Proposer role",
-                self.id
+                self.uuid
             );
             // Return a dummy inflight proposal or handle error appropriately.
             // For now, we'll insert it but nothing will happen network-wise.
@@ -150,7 +148,7 @@ impl PaxosState {
             let msg = proposer
                 .propose(inflight.decree_num, inflight.cmd.clone())
                 .await;
-            self.dispatch(&msg, self.id).await;
+            self.dispatch(&msg, self.uuid).await;
         }
     }
 
@@ -166,7 +164,7 @@ impl PaxosState {
         match msg {
             Message::Promise { from, .. } => {
                 if let Some(proposer) = &self.proposer {
-                    tracing::debug!("[Node {}] Handling Promise message", self.id);
+                    tracing::debug!("[Node {}] Handling Promise message", self.uuid);
                     let reply = proposer.handle_message(msg).await;
                     self.dispatch(&reply, from).await;
                 }
@@ -175,7 +173,7 @@ impl PaxosState {
                 if let Some(acceptor) = &self.acceptor {
                     tracing::debug!(
                         "[Node {}] Handling Prepare/Accept from node {}",
-                        self.id,
+                        self.uuid,
                         from
                     );
                     let reply = acceptor.handle_message(msg).await;
@@ -184,12 +182,12 @@ impl PaxosState {
             }
             Message::Accepted { from, .. } => {
                 if let Some(learner) = &self.learner {
-                    tracing::debug!("[Node {}] Handling Accepted message", self.id);
+                    tracing::debug!("[Node {}] Handling Accepted message", self.uuid);
                     let reply = learner.handle_message(msg, &self.ledger).await;
                     if let Message::Success { .. } = &reply {
                         tracing::debug!(
                             "[Node {}] Learner reached quorum, broadcasting Success",
-                            self.id
+                            self.uuid
                         );
                         self.dispatch(&reply, from).await;
                     }
@@ -197,19 +195,19 @@ impl PaxosState {
             }
             Message::Success { decree_num, .. } => {
                 if let Some(learner) = &self.learner {
-                    tracing::debug!("[Node {}] Handling Success message", self.id);
+                    tracing::debug!("[Node {}] Handling Success message", self.uuid);
                     learner.learn_decree(msg, &self.ledger).await;
                 }
                 // Proposers also need to clean up inflight proposals
                 self.inflight_proposals.cancel(decree_num).await
             }
             _ => {
-                tracing::debug!("[Node {}] Ignoring unhandled message type", self.id);
+                tracing::debug!("[Node {}] Ignoring unhandled message type", self.uuid);
             }
         }
     }
 
-    async fn dispatch(&self, msg: &Message, from: NodeId) {
+    async fn dispatch(&self, msg: &Message, from: Uuid) {
         if let Message::NACK = msg {
             return;
         }
@@ -235,7 +233,7 @@ impl PaxosState {
         let initial_decrees = self.ledger.get_initial_decrees().await;
         for (decree_num, value) in initial_decrees {
             self.observer.on_event(Event::InitialDecree {
-                id: self.id,
+                id: self.uuid,
                 decree_num,
                 value,
                 created_at: current_timestamp_millis(),
@@ -247,7 +245,7 @@ impl PaxosState {
         let initial_decrees = self.ledger.get_initial_decrees().await;
         if !initial_decrees.is_empty() {
             self.observer.on_event(Event::BatchInitialDecrees {
-                id: self.id,
+                id: self.uuid,
                 decrees: initial_decrees,
                 created_at: current_timestamp_millis(),
             });
@@ -258,7 +256,7 @@ impl PaxosState {
         let all_decrees = self.ledger.get_all_decrees().await;
         if !all_decrees.is_empty() {
             self.observer.on_event(Event::LedgerDump {
-                id: self.id,
+                id: self.uuid,
                 decrees: all_decrees,
                 created_at: current_timestamp_millis(),
             });

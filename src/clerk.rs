@@ -6,7 +6,8 @@ use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{
     clerk::types::{ClerkRequest, ClerkResponse},
-    cluster::network_simulator::NetworkSimulator, paxos_command::PaxosCommand,
+    cluster::network_simulator::NetworkSimulator,
+    paxos_command::PaxosCommand,
 };
 
 pub struct Clerk {
@@ -16,7 +17,6 @@ pub struct Clerk {
     replicas: Arc<NetworkSimulator>,
     tx: Sender<ClerkRequest>,
     rx: Receiver<ClerkResponse>,
-
 }
 
 impl Clerk {

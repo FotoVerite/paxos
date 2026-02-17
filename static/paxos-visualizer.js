@@ -17,6 +17,10 @@ class PaxosVisualizer {
         this.clusterInfo = null;
         this.layoutMode = options.layoutMode || 'circle'; // 'circle' or 'role-grouped'
         this.topologyGradientColor = options.topologyGradientColor || '#1e40af'; // Default blue
+        this.nodeLabelFormatter =
+            typeof options.nodeLabelFormatter === 'function'
+                ? options.nodeLabelFormatter
+                : (nodeId) => String(nodeId);
 
         // State
         this.nodeElements = {};
@@ -98,6 +102,34 @@ class PaxosVisualizer {
      */
     #normalizeNodeId(nodeId) {
         return Number(nodeId);
+    }
+
+    #formatNodeLabel(nodeId) {
+        try {
+            const label = this.nodeLabelFormatter(nodeId);
+            if (label === undefined || label === null) {
+                return String(nodeId);
+            }
+            return String(label);
+        } catch (_err) {
+            return String(nodeId);
+        }
+    }
+
+    setNodeLabelFormatter(formatter) {
+        this.nodeLabelFormatter =
+            typeof formatter === 'function'
+                ? formatter
+                : (nodeId) => String(nodeId);
+        this.refreshNodeLabels();
+    }
+
+    refreshNodeLabels() {
+        for (const [nodeId, nodeEntry] of Object.entries(this.nodeElements)) {
+            const label = nodeEntry.element.querySelector('.paxos-node-label');
+            if (!label) continue;
+            label.textContent = this.#formatNodeLabel(Number(nodeId));
+        }
     }
 
     /**
@@ -248,7 +280,8 @@ class PaxosVisualizer {
             text.setAttribute('fill', '#fff');
             text.setAttribute('font-weight', 'bold');
             text.setAttribute('font-size', '14');
-            text.textContent = i;
+            text.setAttribute('class', 'paxos-node-label');
+            text.textContent = this.#formatNodeLabel(i);
             group.appendChild(text);
 
             // State text
@@ -385,7 +418,8 @@ class PaxosVisualizer {
         text.setAttribute('fill', '#fff');
         text.setAttribute('font-weight', 'bold');
         text.setAttribute('font-size', '12');
-        text.textContent = nodeId;
+        text.setAttribute('class', 'paxos-node-label');
+        text.textContent = this.#formatNodeLabel(nodeId);
         group.appendChild(text);
 
         // State text

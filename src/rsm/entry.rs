@@ -17,9 +17,11 @@ impl Default for KVEntry {
 
 impl KVEntry {
     pub fn new(value: KVValue) -> Self {
-        Self { value, version: 1.into() }
+        Self {
+            value,
+            version: 1.into(),
+        }
     }
-    
 
     pub fn add(&mut self, value: KVValue, version: KVVersion) -> KVResult<()> {
         if self.version != version {
@@ -50,7 +52,7 @@ impl KVEntry {
             });
         }
         self.value += value;
-         self.version.next();
+        self.version.next();
         Ok(())
     }
 }

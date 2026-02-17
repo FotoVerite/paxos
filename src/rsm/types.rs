@@ -1,19 +1,32 @@
-use derive_more::{Add, AddAssign, Display, From, Into, MulAssign, SubAssign};
+use derive_more::{Add, AddAssign, Display, From, Into, SubAssign};
 use serde::{Deserialize, Serialize};
 
-
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub enum ClerkResponseError {
     Maybe,
-    NotLeader {leader_hint: usize},
-    ErrVersion { version: KVVersion},
-    ErrKey 
+    NotLeader { leader_hint: usize },
+    ErrVersion { version: KVVersion },
+    ErrKey,
 }
 
 pub type KVResult<T> = Result<T, ClerkResponseError>;
 
-
 #[derive(
-    Add, Display, From, Into, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default, PartialOrd, Ord
+    Add,
+    Display,
+    From,
+    Into,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Default,
+    PartialOrd,
+    Ord,
 )]
 pub struct KVVersion(pub usize);
 
@@ -24,7 +37,23 @@ impl KVVersion {
 }
 
 #[derive(
-    Add, Display, From, Into, Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default, PartialOrd, Ord, AddAssign, SubAssign
+    Add,
+    Display,
+    From,
+    Into,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Default,
+    PartialOrd,
+    Ord,
+    AddAssign,
+    SubAssign,
 )]
 pub struct KVValue(pub usize);
 

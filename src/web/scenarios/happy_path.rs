@@ -1,8 +1,8 @@
+use crate::cluster::cluster::Cluster;
+use crate::decree_generator::DecreeGenerator;
+use crate::paxos_command::PaxosCommand;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::cluster::cluster::Cluster;
-use crate::paxos_command::PaxosCommand;
-use crate::decree_generator::DecreeGenerator;
 
 pub struct HappyPathScenario;
 

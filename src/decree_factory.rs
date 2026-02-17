@@ -14,7 +14,14 @@ impl DecreeFactory {
     /// Creates a new factory with pre-populated thematic data.
     pub fn new() -> Self {
         Self {
-            philosophers: vec!["Socrates", "Plato", "Aristotle", "Diogenes", "Aspasia", "Pericles"],
+            philosophers: vec![
+                "Socrates",
+                "Plato",
+                "Aristotle",
+                "Diogenes",
+                "Aspasia",
+                "Pericles",
+            ],
             citizens: vec!["Meletus", "Anytus", "Lycon", "Cleon", "Alcibiades"],
             architects: vec!["Ictinus", "Callicrates", "Mnesikles", "Phidias"],
             laws: vec![

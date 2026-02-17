@@ -1,4 +1,4 @@
-use crate::{node::paxos_state::ballot::Ballot, paxos_command::PaxosCommand};
+use crate::{node::classic_paxos::ballot::Ballot, paxos_command::PaxosCommand};
 use std::cmp::Ordering;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

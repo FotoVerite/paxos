@@ -1,23 +1,19 @@
 mod decrees;
 mod learner_quorum;
 
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 use crate::{
-    common::types::{NodeId},
     message::Message,
     monitor::{Event, PaxosObserver},
-    node::paxos_state::{
-        decree_notes::DecreeNotes,
-        learner::decrees::Decrees,
-        ledger::Ledger,
-    },
+    node::classic_paxos::{decree_notes::DecreeNotes, learner::decrees::Decrees, ledger::Ledger},
 };
 
 pub struct Learner {
-    id: NodeId,
+    uuid: Uuid,
     quorum_number: usize,
     decree_notes: Option<Arc<Mutex<DecreeNotes>>>,
     state: Decrees,
@@ -27,13 +23,13 @@ pub struct Learner {
 
 impl Learner {
     pub fn new(
-        id: NodeId,
+        uuid: Uuid,
         quorum_number: usize,
         decree_notes: Option<Arc<Mutex<DecreeNotes>>>,
         observer: Arc<dyn PaxosObserver>,
     ) -> Self {
         Self {
-            id: id,
+            uuid,
             decree_notes,
             state: Decrees::init(),
             quorum_number,
@@ -68,7 +64,7 @@ impl Learner {
                 let reply = self
                     .state
                     .add_vote(
-                        self.id,
+                        self.uuid,
                         from,
                         decree_num,
                         ballot,
@@ -77,36 +73,40 @@ impl Learner {
                         value.clone(),
                     )
                     .await;
-                
-                // When quorum is reached (proposer learns it reached quorum), 
+
+                // When quorum is reached (proposer learns it reached quorum),
                 // emit Success and insert into ledger
                 if let Message::Success {
                     decree_num: success_decree_num,
                     value: success_value,
                     ..
-                } = &reply {
-                    if ledger.insert(*success_decree_num, success_value.clone()).await {
+                } = &reply
+                {
+                    if ledger
+                        .insert(*success_decree_num, success_value.clone())
+                        .await
+                    {
                         self.observer.on_event(Event::Success {
                             decree_num: *success_decree_num,
-                            from: self.id,
-                            id: self.id,
+                            from: self.uuid,
+                            id: self.uuid,
                             value: success_value.clone(),
                             created_at: crate::monitor::current_timestamp_millis(),
                         });
                         self.observer.on_event(Event::LearnedValue {
                             decree_num: *success_decree_num,
-                            id: self.id,
+                            id: self.uuid,
                             value: success_value.clone(),
                             created_at: crate::monitor::current_timestamp_millis(),
                         });
                         tracing::info!(
                             "[Node {}] Proposer reached quorum for decree {}",
-                            self.id,
+                            self.uuid,
                             success_decree_num
                         );
                     }
                 }
-                
+
                 return reply;
             }
             _ => return Message::NACK,
@@ -127,13 +127,13 @@ impl Learner {
                     // Only emit LearnedValue - the first learner already emitted Success
                     self.observer.on_event(Event::LearnedValue {
                         decree_num,
-                        id: self.id,
+                        id: self.uuid,
                         value: value.clone(),
                         created_at: crate::monitor::current_timestamp_millis(),
                     });
                     tracing::info!(
                         "[Node {}] Learned decree {} with value from proposer {}",
-                        self.id,
+                        self.uuid,
                         decree_num,
                         ballot_proposer
                     );

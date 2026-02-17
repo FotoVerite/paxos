@@ -17,9 +17,10 @@ pub struct InflightProposals {
 }
 
 impl InflightProposals {
-
     pub fn new() -> Self {
-        Self {inflight: Mutex::new(HashMap::new())}
+        Self {
+            inflight: Mutex::new(HashMap::new()),
+        }
     }
     pub async fn insert(&self, decree_num: DecreeId, cmd: PaxosCommand) -> InflightProposal {
         let (old_token, entry) = {
@@ -27,24 +28,21 @@ impl InflightProposals {
             let token = CancellationToken::new();
 
             match state.get_mut(&decree_num) {
-            Some(entry) => {
-                let old = entry.token.clone();
-                entry.token = token.clone();
-                (Some(old), entry.clone())
-            }
-            None => {
-                let entry = InflightProposal {
+                Some(entry) => {
+                    let old = entry.token.clone();
+                    entry.token = token.clone();
+                    (Some(old), entry.clone())
+                }
+                None => {
+                    let entry = InflightProposal {
                         token: token.clone(),
                         decree_num,
-                        cmd
-                };
-                state.insert(
-                    decree_num,
-                    entry.clone()
-                );
-                (None, entry)
+                        cmd,
+                    };
+                    state.insert(decree_num, entry.clone());
+                    (None, entry)
+                }
             }
-        }
         };
 
         if let Some(old) = old_token {

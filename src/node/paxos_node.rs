@@ -1,17 +1,17 @@
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
 
-use tokio::{sync::mpsc::Receiver, time::{self, sleep}};
+use tokio::{sync::mpsc::Receiver, time::sleep};
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
-    common::types::{DecreeId, NodeId},
+    common::types::DecreeId,
     message::Message,
     monitor::PaxosObserver,
     node::{
-        config::NodeConfig,
+        classic_paxos::paxos_state::PaxosState,
+        config::ClassicNodeConfig,
         inflight_proposals::{InflightProposal, InflightProposals},
-        paxos_state::paxos_state::PaxosState,
     },
     paxos_command::PaxosCommand,
 };
@@ -25,13 +25,12 @@ pub struct PaxosNode {
 
 impl PaxosNode {
     pub async fn new(
-        id: NodeId,
         uuid: Uuid,
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
         quorum: usize,
-        config: NodeConfig,
+        config: ClassicNodeConfig,
         topology: crate::node::peer_topology::PeerTopology,
     ) -> anyhow::Result<Self> {
         let inflight_proposals = Arc::new(InflightProposals::new());
@@ -41,7 +40,6 @@ impl PaxosNode {
             _inflight_proposals: Arc::clone(&inflight_proposals),
             state: Arc::new(
                 PaxosState::init(
-                    id,
                     uuid,
                     quorum,
                     peers,
@@ -68,16 +66,8 @@ impl PaxosNode {
         let mut rx = self.rx.take().expect("worker already started");
         let state = Arc::clone(&self.state);
         tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                     Some(msg) = rx.recv() => {
-                         state.handle_message(msg).await;
-                    }
-                    _ = time::sleep_until(self.election_deadline), if !state.is_leader => {
-                     
-                    }
-
-                 }
+            while let Some(msg) = rx.recv().await {
+                state.handle_message(msg).await;
             }
         });
     }

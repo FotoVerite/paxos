@@ -15,6 +15,25 @@ function formatDecree(event) {
   return `Decree #${event.decree_num}`;
 }
 
+function labelOf(labels, nodeId) {
+  if (labels && typeof labels.label === 'function') {
+    return labels.label(nodeId);
+  }
+  return String(nodeId);
+}
+
+function nodeText(labels, nodeId) {
+  if (labels && typeof labels.node === 'function') {
+    return labels.node(nodeId);
+  }
+  return `Node ${nodeId}`;
+}
+
+function listText(labels, nodeIds) {
+  if (!Array.isArray(nodeIds)) return '[]';
+  return `[${nodeIds.map((nodeId) => labelOf(labels, nodeId)).join(', ')}]`;
+}
+
 function scheduleNodeReset(visualizer, nodeId, delayMs) {
   if (!visualizer) return;
   if (typeof visualizer.scheduleNodeReset === 'function') {
@@ -69,8 +88,8 @@ export const EVENT_VISUALIZERS = {
     color: '#60a5fa', // Blue
     name: 'NextBallot',
 
-    format(event) {
-      return `[NextBallot] Node ${event.id}: "${formatDecree(event)}"`;
+    format(event, labels) {
+      return `[NextBallot] ${nodeText(labels, event.id)}: "${formatDecree(event)}"`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
@@ -95,8 +114,8 @@ export const EVENT_VISUALIZERS = {
     color: '#ec4899', // Pink
     name: 'LastVote',
 
-    format(event) {
-      return `[LastVote] Node ${event.id} → Node ${event.from}: Ballot ${event.ballot}`;
+    format(event, labels) {
+      return `[LastVote] ${nodeText(labels, event.id)} → ${nodeText(labels, event.from)}: Ballot ${event.ballot}`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
@@ -106,7 +125,9 @@ export const EVENT_VISUALIZERS = {
       if (event.from !== undefined && event.from !== event.id) {
         const snapshot = state.snapshot();
         const duration = getBeamDuration(snapshot, 500);
-        await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
+        if (canCommunicate(event.id, event.from)) {
+          await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
+        }
         scheduleNodeReset(visualizer, event.id, duration + 50);
       } else {
         scheduleNodeReset(visualizer, event.id, 200);
@@ -118,8 +139,8 @@ export const EVENT_VISUALIZERS = {
     color: '#f87171', // Red
     name: 'BeginBallot',
 
-    format(event) {
-      return `[BeginBallot] Node ${event.id}: Ballot ${event.ballot}, Decree #${event.decree_num}`;
+    format(event, labels) {
+      return `[BeginBallot] ${nodeText(labels, event.id)}: Ballot ${event.ballot}, Decree #${event.decree_num}`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
@@ -143,8 +164,8 @@ export const EVENT_VISUALIZERS = {
    color: '#10b981', // Green
    name: 'Voted',
 
-   format(event) {
-     return `[Voted] Node ${event.id} → Node ${event.from}: Ballot ${event.ballot}`;
+   format(event, labels) {
+     return `[Voted] ${nodeText(labels, event.id)} → ${nodeText(labels, event.from)}: Ballot ${event.ballot}`;
    },
 
    async visualize(event, visualizer, state, canCommunicate) {
@@ -155,7 +176,9 @@ export const EVENT_VISUALIZERS = {
      const duration = getBeamDuration(snapshot, 500);
 
      if (event.from !== undefined && event.from !== event.id) {
-       await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
+       if (canCommunicate(event.id, event.from)) {
+         await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dotted');
+       }
      }
 
      scheduleNodeReset(visualizer, event.id, duration + 50);
@@ -166,9 +189,9 @@ export const EVENT_VISUALIZERS = {
    color: '#34d399', // Emerald
    name: 'Learn',
 
-   format(event) {
+   format(event, labels) {
      const decree = formatDecree(event);
-     return `[Learn] Node ${event.id}: "${decree}"`;
+     return `[Learn] ${nodeText(labels, event.id)}: "${decree}"`;
    },
 
    async visualize(event, visualizer, state, canCommunicate) {
@@ -183,9 +206,9 @@ export const EVENT_VISUALIZERS = {
     color: '#34d399', // Emerald
     name: 'LearnedValue',
 
-    format(event) {
+    format(event, labels) {
       const decree = formatDecree(event);
-      return `[LearnedValue] Node ${event.id}: "${decree}"`;
+      return `[LearnedValue] ${nodeText(labels, event.id)}: "${decree}"`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
@@ -200,9 +223,9 @@ export const EVENT_VISUALIZERS = {
     color: '#8b5cf6', // Purple
     name: 'InitialDecree',
 
-    format(event) {
+    format(event, labels) {
       const decree = formatDecree(event);
-      return `[InitialDecree] Node ${event.id}: [${event.decree_num}] "${decree}"`;
+      return `[InitialDecree] ${nodeText(labels, event.id)}: [${event.decree_num}] "${decree}"`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
@@ -219,8 +242,8 @@ export const EVENT_VISUALIZERS = {
     color: '#8b5cf6', // Purple
     name: 'BatchInitialDecrees',
 
-    format(event) {
-      return `[Batch Init] Node ${event.id}: ${event.decrees.length} decrees loaded`;
+    format(event, labels) {
+      return `[Batch Init] ${nodeText(labels, event.id)}: ${event.decrees.length} decrees loaded`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
@@ -239,8 +262,8 @@ export const EVENT_VISUALIZERS = {
     color: '#8b5cf6', // Purple
     name: 'LedgerDump',
 
-    format(event) {
-      return `[Ledger Dump] Node ${event.id}: ${event.decrees.length} total decrees`;
+    format(event, labels) {
+      return `[Ledger Dump] ${nodeText(labels, event.id)}: ${event.decrees.length} total decrees`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
@@ -259,9 +282,12 @@ export const EVENT_VISUALIZERS = {
    color: '#6366f1', // Indigo
    name: 'Success',
 
-   format(event) {
-     const proposerInfo = event.ballot_proposer !== undefined ? ` (proposed by node ${event.ballot_proposer})` : '';
-     return `[Success] Node ${event.id}: Decree #${event.decree_num} chosen${proposerInfo}`;
+   format(event, labels) {
+     const proposerInfo =
+       event.ballot_proposer !== undefined
+         ? ` (proposed by ${nodeText(labels, event.ballot_proposer)})`
+         : '';
+     return `[Success] ${nodeText(labels, event.id)}: Decree #${event.decree_num} chosen${proposerInfo}`;
    },
 
    async visualize(event, visualizer, state, canCommunicate) {
@@ -287,8 +313,8 @@ export const EVENT_VISUALIZERS = {
     color: '#f87171', // Red
     name: 'Partition',
 
-    format(event) {
-      return `Network partitioned: A=${JSON.stringify(event.partition_a)}, B=${JSON.stringify(event.partition_b)}`;
+    format(event, labels) {
+      return `Network partitioned: A=${listText(labels, event.partition_a)}, B=${listText(labels, event.partition_b)}`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {
@@ -320,8 +346,8 @@ export const EVENT_VISUALIZERS = {
     color: '#fbbf24', // Amber
     name: 'Leader',
 
-    format(event) {
-      return `[Leader] Node ${event.id} elected as leader`;
+    format(event, labels) {
+      return `[Leader] ${nodeText(labels, event.id)} elected as leader`;
     },
 
     async visualize(event, visualizer, state, canCommunicate) {

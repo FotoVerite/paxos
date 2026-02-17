@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::{
     message::Message,
     monitor::PaxosObserver,
-    node::{paxos_state::ballot::Ballot, pvalue::PValue},
+    node::{classic_paxos::ballot::Ballot, pvalue::PValue},
 };
 pub struct Scout {
     uuid: Uuid,

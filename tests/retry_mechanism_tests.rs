@@ -3,17 +3,13 @@
 /// These tests verify that the retry mechanism (spawn_retry) correctly
 /// retries proposals with exponential backoff when incomplete quorum is reached
 /// due to network failures.
-
 mod test_helpers;
 
-use paxos::{
-    cluster::cluster::Cluster, paxos_command::PaxosCommand,
-    common::types::{NodeId},
-};
-use std::sync::Arc;
+use paxos::{cluster::cluster::Cluster, paxos_command::PaxosCommand};
 use std::net::IpAddr;
-use tokio::time::{Duration, sleep};
+use std::sync::Arc;
 use test_helpers::RecordingObserver;
+use tokio::time::{Duration, sleep};
 
 #[tokio::test]
 async fn test_retry_fires_with_incomplete_quorum() {
@@ -21,10 +17,17 @@ async fn test_retry_fires_with_incomplete_quorum() {
     // Partition node 0 from nodes 2,3,4
     // This leaves node 0 + node 1 only (can't form quorum)
     // Proposal from node 0 should trigger retries
-    
+
     let observer = RecordingObserver::new().arc();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 5, Arc::clone(&observer) as Arc<dyn paxos::monitor::PaxosObserver>).await.unwrap();
+    let mut cluster = Cluster::new(
+        0,
+        ip,
+        5,
+        Arc::clone(&observer) as Arc<dyn paxos::monitor::PaxosObserver>,
+    )
+    .await
+    .unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -37,7 +40,7 @@ async fn test_retry_fires_with_incomplete_quorum() {
     // Partition node 0 from 2, 3, 4
     // This means node 0 can only reach node 1 (2 nodes total, quorum=3)
     for i in 2..5 {
-        cluster.partition(NodeId(0), NodeId(i)).await;
+        cluster.partition(0, i).await;
     }
 
     sleep(Duration::from_millis(50)).await;
@@ -46,8 +49,9 @@ async fn test_retry_fires_with_incomplete_quorum() {
     let cmd = PaxosCommand::PUT {
         key: "test_retry".to_string(),
         version: 1,
+        value: 0,
     };
-    cluster.propose_from(NodeId(0), cmd.clone()).await;
+    cluster.propose_from(0, cmd.clone()).await;
 
     // First attempt should happen quickly
     sleep(Duration::from_millis(300)).await;
@@ -107,7 +111,7 @@ async fn test_retry_fires_with_incomplete_quorum() {
 
     // Now heal the partition
     for i in 2..5 {
-        cluster.heal_partition(NodeId(0), NodeId(i)).await;
+        cluster.heal_partition(0, i).await;
     }
 
     // Wait for the next retry to fire after healing
@@ -121,13 +125,15 @@ async fn test_retry_fires_with_incomplete_quorum() {
     let mut proposal_count = 0;
     let mut promise_count = 0;
     let mut learned_count = 0;
-    
+
     for (idx, event) in events_after_heal.iter().enumerate() {
         println!("  Event {}: {:?}", idx, event);
         match event {
             paxos::monitor::Event::Proposal { value, .. } if value == &cmd => proposal_count += 1,
             paxos::monitor::Event::Promise { .. } => promise_count += 1,
-            paxos::monitor::Event::LearnedValue { value, .. } if value == &cmd => learned_count += 1,
+            paxos::monitor::Event::LearnedValue { value, .. } if value == &cmd => {
+                learned_count += 1
+            }
             _ => {}
         }
     }
@@ -144,7 +150,9 @@ async fn test_retry_fires_with_incomplete_quorum() {
         let events_final = observer.get_events().await;
         learned_count = events_final
             .iter()
-            .filter(|e| matches!(e, paxos::monitor::Event::LearnedValue { value, .. } if value == &cmd))
+            .filter(
+                |e| matches!(e, paxos::monitor::Event::LearnedValue { value, .. } if value == &cmd),
+            )
             .count();
         println!("After additional wait - Learned: {}", learned_count);
     }
@@ -161,10 +169,17 @@ async fn test_retry_fires_with_incomplete_quorum() {
 async fn test_retry_timeout_cancels_old_proposal() {
     // Verify that when a proposal times out (retries > 8000ms),
     // the retry task cancels via CancellationToken
-    
+
     let observer = RecordingObserver::new().arc();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 5, Arc::clone(&observer) as Arc<dyn paxos::monitor::PaxosObserver>).await.unwrap();
+    let mut cluster = Cluster::new(
+        0,
+        ip,
+        5,
+        Arc::clone(&observer) as Arc<dyn paxos::monitor::PaxosObserver>,
+    )
+    .await
+    .unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -176,7 +191,7 @@ async fn test_retry_timeout_cancels_old_proposal() {
 
     // Create a partition that won't be healed
     for i in 2..5 {
-        cluster.partition(NodeId(0), NodeId(i)).await;
+        cluster.partition(0, i).await;
     }
 
     sleep(Duration::from_millis(50)).await;
@@ -184,12 +199,13 @@ async fn test_retry_timeout_cancels_old_proposal() {
     let cmd = PaxosCommand::PUT {
         key: "timeout_test".to_string(),
         version: 2,
+        value: 0,
     };
-    cluster.propose_from(NodeId(0), cmd.clone()).await;
+    cluster.propose_from(0, cmd.clone()).await;
 
     // Let retries run: 200, 400, 800, 1600, 3200, 6400 = ~12.8s total
     // But we'll check much earlier to verify retries are happening
-    
+
     // After 200ms (first retry interval)
     sleep(Duration::from_millis(250)).await;
     let events1 = observer.get_events().await;

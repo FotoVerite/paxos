@@ -6,24 +6,16 @@ use std::time::Duration;
 #[serde(tag = "type", content = "data")]
 pub enum ScenarioStep {
     #[serde(rename = "propose")]
-    Propose {
-        command: PaxosCommand,
-    },
+    Propose { command: PaxosCommand },
     #[serde(rename = "wait")]
     Wait {
         #[serde(with = "duration_serde")]
         duration: Duration,
     },
     #[serde(rename = "partition")]
-    Partition {
-        node1: usize,
-        node2: usize,
-    },
+    Partition { node1: usize, node2: usize },
     #[serde(rename = "heal_partition")]
-    HealPartition {
-        node1: usize,
-        node2: usize,
-    },
+    HealPartition { node1: usize, node2: usize },
     #[serde(rename = "add_delay")]
     AddDelay {
         from: usize,
@@ -38,9 +30,7 @@ pub enum ScenarioStep {
         drop_rate: f32,
     },
     #[serde(rename = "clear_failures")]
-    ClearFailures {
-        node: usize,
-    },
+    ClearFailures { node: usize },
     #[serde(rename = "enable_failures")]
     EnableFailures,
     #[serde(rename = "disable_failures")]
@@ -97,102 +87,88 @@ impl ScenarioBuilder {
     }
 
     pub fn propose(mut self, command: PaxosCommand) -> Self {
-        let phase = self
-            .current_phase
-            .get_or_insert_with(|| ScenarioPhase {
-                name: "default".to_string(),
-                steps: Vec::new(),
-            });
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
         phase.steps.push(ScenarioStep::Propose { command });
         self
     }
 
     pub fn wait(mut self, duration: Duration) -> Self {
-        let phase = self
-            .current_phase
-            .get_or_insert_with(|| ScenarioPhase {
-                name: "default".to_string(),
-                steps: Vec::new(),
-            });
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
         phase.steps.push(ScenarioStep::Wait { duration });
         self
     }
 
     pub fn partition(mut self, node1: usize, node2: usize) -> Self {
-        let phase = self
-            .current_phase
-            .get_or_insert_with(|| ScenarioPhase {
-                name: "default".to_string(),
-                steps: Vec::new(),
-            });
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
         phase.steps.push(ScenarioStep::Partition { node1, node2 });
         self
     }
 
     pub fn heal_partition(mut self, node1: usize, node2: usize) -> Self {
-        let phase = self
-            .current_phase
-            .get_or_insert_with(|| ScenarioPhase {
-                name: "default".to_string(),
-                steps: Vec::new(),
-            });
-        phase.steps.push(ScenarioStep::HealPartition { node1, node2 });
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
+        phase
+            .steps
+            .push(ScenarioStep::HealPartition { node1, node2 });
         self
     }
 
     pub fn add_delay(mut self, from: usize, to: usize, delay: Duration) -> Self {
-        let phase = self
-            .current_phase
-            .get_or_insert_with(|| ScenarioPhase {
-                name: "default".to_string(),
-                steps: Vec::new(),
-            });
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
         phase.steps.push(ScenarioStep::AddDelay { from, to, delay });
         self
     }
 
     pub fn add_packet_loss(mut self, from: usize, to: usize, drop_rate: f32) -> Self {
-        let phase = self
-            .current_phase
-            .get_or_insert_with(|| ScenarioPhase {
-                name: "default".to_string(),
-                steps: Vec::new(),
-            });
-        phase
-            .steps
-            .push(ScenarioStep::AddPacketLoss { from, to, drop_rate });
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
+        phase.steps.push(ScenarioStep::AddPacketLoss {
+            from,
+            to,
+            drop_rate,
+        });
         self
     }
 
     pub fn clear_failures(mut self, node: usize) -> Self {
-        let phase = self
-            .current_phase
-            .get_or_insert_with(|| ScenarioPhase {
-                name: "default".to_string(),
-                steps: Vec::new(),
-            });
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
         phase.steps.push(ScenarioStep::ClearFailures { node });
         self
     }
 
     pub fn enable_failures(mut self) -> Self {
-        let phase = self
-            .current_phase
-            .get_or_insert_with(|| ScenarioPhase {
-                name: "default".to_string(),
-                steps: Vec::new(),
-            });
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
         phase.steps.push(ScenarioStep::EnableFailures);
         self
     }
 
     pub fn disable_failures(mut self) -> Self {
-        let phase = self
-            .current_phase
-            .get_or_insert_with(|| ScenarioPhase {
-                name: "default".to_string(),
-                steps: Vec::new(),
-            });
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
         phase.steps.push(ScenarioStep::DisableFailures);
         self
     }

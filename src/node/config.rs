@@ -1,11 +1,11 @@
-use crate::common::types::NodeId;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LearningStrategy {
     /// Acceptors broadcast Accepted messages to all learners directly.
     Direct,
     /// Acceptors send Accepted messages only to a specific set of distinguished learners.
-    DistinguishedLearners(Vec<NodeId>),
+    DistinguishedLearners(Vec<Uuid>),
     /// Acceptors send Accepted messages back to the Proposer (sender of Accept),
     /// who then broadcasts Success if quorum is reached.
     ProposerManaged,
@@ -35,16 +35,29 @@ impl Default for Roles {
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeConfig {
+pub struct ClassicNodeConfig {
     pub roles: Roles,
     pub learning_strategy: LearningStrategy,
 }
 
-impl Default for NodeConfig {
+impl Default for ClassicNodeConfig {
     fn default() -> Self {
         Self {
             roles: Roles::default(),
             learning_strategy: LearningStrategy::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PmmcNodeConfig {
+    pub roles: Roles,
+}
+
+impl Default for PmmcNodeConfig {
+    fn default() -> Self {
+        Self {
+            roles: Roles::default(),
         }
     }
 }

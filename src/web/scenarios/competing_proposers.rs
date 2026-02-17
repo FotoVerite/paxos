@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use rand::Rng;
 use crate::cluster::cluster::Cluster;
-use crate::common::types::NodeId;
-use crate::paxos_command::PaxosCommand;
 use crate::decree_generator::DecreeGenerator;
+use crate::paxos_command::PaxosCommand;
+use rand::Rng;
 
 pub struct CompetingProposersScenario;
 
@@ -32,7 +31,8 @@ impl CompetingProposersScenario {
                     law: decree0,
                 };
                 let pick = [0, 2, 3, 4][rand::rng().random_range(0..4)];
-                cluster.propose_from(NodeId(pick), cmd).await;
+                let proposer_uuid = cluster.nodes[pick].uuid;
+                cluster.propose_from(proposer_uuid, cmd).await;
             });
 
             let p1 = tokio::spawn(async move {
@@ -41,7 +41,8 @@ impl CompetingProposersScenario {
                     author: "Proposer 1".to_string(),
                     law: decree1,
                 };
-                cluster.propose_from(NodeId(1), cmd).await;
+                let proposer_uuid = cluster.nodes[1].uuid;
+                cluster.propose_from(proposer_uuid, cmd).await;
             });
 
             // Wait for both to complete

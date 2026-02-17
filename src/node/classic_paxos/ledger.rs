@@ -1,4 +1,7 @@
-use crate::{common::{persistence::Persistence, types::{DecreeId, NodeId}}, paxos_command::PaxosCommand};
+use crate::{
+    common::{persistence::Persistence, types::DecreeId},
+    paxos_command::PaxosCommand,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -20,13 +23,12 @@ impl LedgerState {
 }
 
 pub struct Ledger {
-    _id: NodeId,
     uuid: Uuid,
     state: Mutex<LedgerState>,
 }
 
 impl Ledger {
-    pub async fn init(id: NodeId, uuid: Uuid) -> Result<Self> {
+    pub async fn init(uuid: Uuid) -> Result<Self> {
         #[cfg(feature = "persistence")]
         let state = Persistence::load(&format!("ledger_{}.bin", uuid))
             .await
@@ -36,16 +38,14 @@ impl Ledger {
         let state = LedgerState::init();
 
         Ok(Self {
-            _id: id,
             uuid,
             state: Mutex::new(state),
         })
     }
 
     /// Create a ledger with fresh empty state (for tests)
-    pub fn new(id: NodeId, uuid: Uuid) -> Self {
+    pub fn new(uuid: Uuid) -> Self {
         Self {
-            _id: id,
             uuid,
             state: Mutex::new(LedgerState::init()),
         }

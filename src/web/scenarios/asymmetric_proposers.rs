@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
 use crate::cluster::cluster::Cluster;
-use crate::common::types::NodeId;
-use crate::paxos_command::PaxosCommand;
 use crate::decree_generator::DecreeGenerator;
-use crate::node::config::{NodeConfig, Roles, LearningStrategy};
+use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
+use crate::paxos_command::PaxosCommand;
 
 pub struct AsymmetricProposersScenario;
 
@@ -17,23 +16,31 @@ impl AsymmetricProposersScenario {
         learning_strategy: LearningStrategy,
     ) -> anyhow::Result<Cluster> {
         let mut configs = Vec::new();
-        
+
         // Nodes 0-1: Proposers + Learners
         for _ in 0..2 {
-            configs.push(NodeConfig {
-                roles: Roles { proposer: true, acceptor: false, learner: true },
+            configs.push(ClassicNodeConfig {
+                roles: Roles {
+                    proposer: true,
+                    acceptor: false,
+                    learner: true,
+                },
                 learning_strategy: learning_strategy.clone(),
             });
         }
-        
+
         // Nodes 2-5: Acceptors only
         for _ in 0..4 {
-            configs.push(NodeConfig {
-                roles: Roles { proposer: false, acceptor: true, learner: false },
+            configs.push(ClassicNodeConfig {
+                roles: Roles {
+                    proposer: false,
+                    acceptor: true,
+                    learner: false,
+                },
                 learning_strategy: learning_strategy.clone(),
             });
         }
-        
+
         Cluster::new_with_configs(id, ip, configs, observer).await
     }
 
@@ -60,7 +67,8 @@ impl AsymmetricProposersScenario {
                     author: "Proposer 0".to_string(),
                     law: decree0,
                 };
-                cluster.propose_from(NodeId(0), cmd).await;
+                let proposer_uuid = cluster.nodes[0].uuid;
+                cluster.propose_from(proposer_uuid, cmd).await;
             });
 
             let p1 = tokio::spawn(async move {
@@ -69,7 +77,8 @@ impl AsymmetricProposersScenario {
                     author: "Proposer 1".to_string(),
                     law: decree1,
                 };
-                cluster.propose_from(NodeId(1), cmd).await;
+                let proposer_uuid = cluster.nodes[1].uuid;
+                cluster.propose_from(proposer_uuid, cmd).await;
             });
 
             // Wait for both to complete

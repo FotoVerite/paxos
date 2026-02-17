@@ -7,7 +7,7 @@ use crate::{
     message::Message,
     monitor::{Event, PaxosObserver},
     node::{
-        paxos_state::ballot::Ballot,
+        classic_paxos::ballot::Ballot,
         pmmc::acceptor::accepted_state::{AcceptedData, AcceptorState},
         pvalue::PValue,
     },
@@ -54,13 +54,13 @@ impl Acceptor {
     }
 
     async fn p2a(&self, pvalue: PValue) -> Message {
-        let accepted = self.state.p2a(pvalue).await;
+        let accepted = self.state.p2a(pvalue.clone()).await;
 
         if accepted {
             self.save().await;
             self.observer.on_event(Event::ProposalAccepted {
                 id: self.uuid,
-                pvalue,
+                pvalue: pvalue.clone(),
             });
         }
         Message::P2B {

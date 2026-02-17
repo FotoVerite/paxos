@@ -1,9 +1,11 @@
-
 use std::{cmp::Ordering, fmt};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{node::paxos_state::ballot::{self, Ballot}, paxos_command::PaxosCommand};
+use crate::{
+    node::classic_paxos::ballot::{self, Ballot},
+    paxos_command::PaxosCommand,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PValue {
@@ -24,11 +26,11 @@ impl PValue {
         Ok(self.cmp(other))
     }
 
-     pub fn slot(&self) -> usize {
+    pub fn slot(&self) -> usize {
         self.slot
     }
 
-     pub fn ballot(&self) -> Ballot {
+    pub fn ballot(&self) -> Ballot {
         self.ballot
     }
 

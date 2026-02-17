@@ -36,10 +36,7 @@ impl DecreeGenerator {
             "Mandate training period for hoplites".to_string(),
         ];
 
-        Self {
-            decrees,
-            index: 0,
-        }
+        Self { decrees, index: 0 }
     }
 
     /// Get next decree in sequence (round-robin)

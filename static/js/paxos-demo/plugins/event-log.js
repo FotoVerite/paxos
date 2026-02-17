@@ -34,6 +34,12 @@ export function createEventLogPlugin({
   const typeCounts = {};
   const filterButtons = new Map();
 
+  function formatEventText(eventType, eventData, ctx) {
+    const viz = getEventVisualizer(eventType);
+    if (!viz || typeof viz.format !== 'function') return '';
+    return viz.format(eventData, ctx?.nodeLabels);
+  }
+
   function formatRelativeTime(createdAtMicros) {
     if (!Number.isFinite(createdAtMicros) || !Number.isFinite(baseTimestamp)) {
       return '';
@@ -148,7 +154,7 @@ export function createEventLogPlugin({
       setActiveFilter(activeFilter);
     },
 
-    onBatchCaptured(batch, batchIndex) {
+    onBatchCaptured(batch, batchIndex, ctx) {
       if (!eventLog) return;
       for (const entry of batch) {
         const viz = getEventVisualizer(entry.eventType);
@@ -170,13 +176,19 @@ export function createEventLogPlugin({
 
         const textEl = document.createElement('span');
         textEl.className = 'event-text';
-        textEl.textContent = viz.format(entry.eventData);
+        textEl.textContent = formatEventText(entry.eventType, entry.eventData, ctx);
 
         node.appendChild(timeEl);
         node.appendChild(textEl);
         eventLog.insertBefore(node, eventLog.firstChild);
 
-        items.unshift({ node, frameIndex: batchIndex, eventType: entry.eventType });
+        items.unshift({
+          node,
+          textEl,
+          frameIndex: batchIndex,
+          eventType: entry.eventType,
+          eventData: entry.eventData,
+        });
 
         if (items.length > limit) {
           const removed = items.pop();
@@ -187,6 +199,13 @@ export function createEventLogPlugin({
       }
       updateFutureClasses();
       updateFilterButtons();
+      updateVisibility();
+    },
+
+    onNodeLabelsChanged(_, ctx) {
+      for (const item of items) {
+        item.textEl.textContent = formatEventText(item.eventType, item.eventData, ctx);
+      }
       updateVisibility();
     },
 

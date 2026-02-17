@@ -1,10 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    message::Message,
-    node::paxos_state::ballot::Ballot,
+    common::types::DecreeId, message::Message, node::classic_paxos::ballot::Ballot,
     paxos_command::PaxosCommand,
-    common::types::{NodeId, DecreeId},
 };
 use test_helpers::NodeBuilder;
 
@@ -17,16 +15,18 @@ async fn proposer_issues_prepare_with_correct_ballot() {
     let builder = NodeBuilder::new();
     let proposer = builder.proposer(1, 1).unwrap();
 
-    let msg = proposer.propose(
-        DecreeId(0),
-        PaxosCommand::GET {
-            key: "key".to_string(),
-        },
-    ).await;
+    let msg = proposer
+        .propose(
+            DecreeId(0),
+            PaxosCommand::GET {
+                key: "key".to_string(),
+            },
+        )
+        .await;
 
     if let Message::Prepare { ballot, .. } = msg {
         assert_eq!(ballot.number, 1);
-        assert_eq!(ballot.node_id, NodeId(1));
+        assert_eq!(ballot.node_id, test_helpers::test_uuid(1));
     } else {
         panic!("Expected Prepare message");
     }
@@ -44,19 +44,19 @@ async fn proposer_sends_accept_on_promise() {
     // before it can process a promise for it. This means `propose` must be called
     // first, and its side effects (updating proposer's state) relied upon.
     // The actual Prepare message returned by `propose` is what would be sent to acceptors.
-    proposer.propose(DecreeId(0), cmd.clone()).await; 
+    proposer.propose(DecreeId(0), cmd.clone()).await;
 
     let promise = Message::Promise {
-        from: NodeId(2),
+        from: test_helpers::test_uuid(2),
         decree_num: DecreeId(0),
-        ballot: Ballot::new(1, NodeId(1)),
-        accepted_ballot: Ballot::new(0, NodeId(0)),
+        ballot: Ballot::new(1, test_helpers::test_uuid(1)),
+        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
         accepted_value: PaxosCommand::NOOP,
     };
     let resp = proposer.handle_message(promise).await;
 
     if let Message::Accept { ballot, value, .. } = resp {
-        assert_eq!(ballot, Ballot::new(1, NodeId(1)));
+        assert_eq!(ballot, Ballot::new(1, test_helpers::test_uuid(1)));
         assert_eq!(value, cmd);
     } else {
         panic!("Expected Accept message, got {:?}", resp);
@@ -73,21 +73,22 @@ async fn proposer_adopts_previously_accepted_value() {
     let previous_cmd = PaxosCommand::PUT {
         key: "oldkey".to_string(),
         version: 1,
+        value: 0,
     };
 
     proposer.propose(DecreeId(0), proposed_cmd.clone()).await; // Call propose to set up internal state
 
     let promise = Message::Promise {
-        from: NodeId(2),
+        from: test_helpers::test_uuid(2),
         decree_num: DecreeId(0),
-        ballot: Ballot::new(1, NodeId(1)),
-        accepted_ballot: Ballot::new(5, NodeId(1)),
+        ballot: Ballot::new(1, test_helpers::test_uuid(1)),
+        accepted_ballot: Ballot::new(5, test_helpers::test_uuid(1)),
         accepted_value: previous_cmd.clone(),
     };
     let resp = proposer.handle_message(promise).await;
 
     if let Message::Accept { ballot, value, .. } = resp {
-        assert_eq!(ballot, Ballot::new(1, NodeId(1)));
+        assert_eq!(ballot, Ballot::new(1, test_helpers::test_uuid(1)));
         assert_eq!(value, previous_cmd);
     } else {
         panic!("Expected Accept message");
@@ -99,18 +100,20 @@ async fn proposer_ignores_promise_for_wrong_ballot() {
     let builder = NodeBuilder::new();
     let proposer = builder.proposer(1, 1).unwrap();
 
-    proposer.propose(
-        DecreeId(0),
-        PaxosCommand::GET {
-            key: "key".to_string(),
-        },
-    ).await; // Call propose to set up internal state
+    proposer
+        .propose(
+            DecreeId(0),
+            PaxosCommand::GET {
+                key: "key".to_string(),
+            },
+        )
+        .await; // Call propose to set up internal state
 
     let promise = Message::Promise {
-        from: NodeId(2),
+        from: test_helpers::test_uuid(2),
         decree_num: DecreeId(0),
-        ballot: Ballot::new(2, NodeId(1)), // This ballot number will cause a NACK
-        accepted_ballot: Ballot::new(0, NodeId(0)),
+        ballot: Ballot::new(2, test_helpers::test_uuid(1)), // This ballot number will cause a NACK
+        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
         accepted_value: PaxosCommand::NOOP,
     };
     let resp = proposer.handle_message(promise).await;
@@ -132,13 +135,14 @@ async fn proposer_picks_highest_accepted_ballot() {
     let value_from_5 = PaxosCommand::PUT {
         key: "ballot5".to_string(),
         version: 2,
+        value: 0,
     };
 
     let promise1 = Message::Promise {
-        from: NodeId(2),
+        from: test_helpers::test_uuid(2),
         decree_num: DecreeId(0),
-        ballot: Ballot::new(1, NodeId(1)),
-        accepted_ballot: Ballot::new(5, NodeId(1)),
+        ballot: Ballot::new(1, test_helpers::test_uuid(1)),
+        accepted_ballot: Ballot::new(5, test_helpers::test_uuid(1)),
         accepted_value: value_from_5.clone(),
     };
     let resp = proposer.handle_message(promise1).await;

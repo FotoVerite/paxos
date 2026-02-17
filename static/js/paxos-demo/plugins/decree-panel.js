@@ -18,6 +18,20 @@ function formatDecree(event) {
   return `Decree #${event.decree_num}`;
 }
 
+function nodeShortLabel(nodeId, labels) {
+  if (labels && typeof labels.label === 'function') {
+    return labels.label(nodeId);
+  }
+  return `N${nodeId}`;
+}
+
+function nodeLabel(nodeId, labels) {
+  if (labels && typeof labels.node === 'function') {
+    return labels.node(nodeId);
+  }
+  return `Node ${nodeId}`;
+}
+
 function renderStats(state, statsContainer, options) {
   if (!statsContainer) return;
   const snapshot = state.snapshot();
@@ -36,7 +50,7 @@ function renderStats(state, statsContainer, options) {
     const isSelected = selectedNodeId === nodeId;
     const selectClass = isSelected ? 'selected' : '';
     html += `<div class='proposal-stat-item ${selectClass}' data-node-id='${nodeId}'>`;
-    html += `<span class='node-id'>N${nodeId}:</span> ${decreeCount}`;
+    html += `<span class='node-id'>${nodeShortLabel(nodeId, options?.nodeLabels)}:</span> ${decreeCount}`;
     html += `</div>`;
     visibleCount += 1;
   }
@@ -63,18 +77,20 @@ function renderDecreePanel(state, decreePanel, options) {
 
   const node = snapshot.nodes.get(selectedNodeId);
   if (options?.nodeFilter && !options.nodeFilter(node, selectedNodeId, snapshot)) {
-    const hint = options?.invalidSelectionHint || `Node ${selectedNodeId} is not available`;
+    const hint =
+      options?.invalidSelectionHint ||
+      `${nodeLabel(selectedNodeId, options?.nodeLabels)} is not available`;
     decreePanel.innerHTML = `<p class='decree-hint'>${hint}</p>`;
     return;
   }
   if (!node || node.decrees.length === 0) {
-    decreePanel.innerHTML = `<p class='decree-hint'>Node ${selectedNodeId} has not learned any decrees yet</p>`;
+    decreePanel.innerHTML = `<p class='decree-hint'>${nodeLabel(selectedNodeId, options?.nodeLabels)} has not learned any decrees yet</p>`;
     return;
   }
 
   const sortedDecrees = [...node.decrees].sort((a, b) => a.decree_num - b.decree_num);
   let html = `<div class='decree-content'>`;
-  html += `<div class='decree-node-label'>Node ${selectedNodeId} (${node.decrees.length} decrees)</div>`;
+  html += `<div class='decree-node-label'>${nodeLabel(selectedNodeId, options?.nodeLabels)} (${node.decrees.length} decrees)</div>`;
   html += `<div class='decree-list'>`;
 
   for (const decree of sortedDecrees) {
@@ -98,11 +114,14 @@ export function createDecreePanelPlugin({
   emptySelectionHint,
   invalidSelectionHint,
 } = {}) {
+  let nodeLabels = null;
+
   const options = {
     nodeFilter,
     hideStatsWhenEmpty,
     emptySelectionHint,
     invalidSelectionHint,
+    nodeLabels,
   };
 
   function handleStatsClick(event, ctx) {
@@ -126,16 +145,22 @@ export function createDecreePanelPlugin({
 
   return {
     init(ctx) {
+      nodeLabels = ctx?.nodeLabels || null;
+      options.nodeLabels = nodeLabels;
       if (statsContainer) {
         statsContainer.addEventListener('click', (event) => handleStatsClick(event, ctx));
       }
     },
 
     onCluster(_, ctx) {
+      nodeLabels = ctx?.nodeLabels || null;
+      options.nodeLabels = nodeLabels;
       renderAll(ctx.state, statsContainer, decreePanel, options);
     },
 
     onEvent({ eventType, eventData }, ctx) {
+      nodeLabels = ctx?.nodeLabels || null;
+      options.nodeLabels = nodeLabels;
       if (eventType === 'LearnedValue' && eventData?.decree_num !== undefined) {
         ctx.state.addDecree(eventData.id, {
           decree_num: eventData.decree_num,
@@ -150,11 +175,21 @@ export function createDecreePanelPlugin({
     },
 
     onReset(ctx) {
+      nodeLabels = ctx?.nodeLabels || null;
+      options.nodeLabels = nodeLabels;
       ctx.state.selectNode(null);
       renderAll(ctx.state, statsContainer, decreePanel, options);
     },
 
     onRestore(_, ctx) {
+      nodeLabels = ctx?.nodeLabels || null;
+      options.nodeLabels = nodeLabels;
+      renderAll(ctx.state, statsContainer, decreePanel, options);
+    },
+
+    onNodeLabelsChanged(_, ctx) {
+      nodeLabels = ctx?.nodeLabels || null;
+      options.nodeLabels = nodeLabels;
       renderAll(ctx.state, statsContainer, decreePanel, options);
     },
   };

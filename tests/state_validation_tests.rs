@@ -1,13 +1,11 @@
 mod test_helpers;
 
 use paxos::{
-    message::Message,
-    node::paxos_state::ballot::Ballot,
+    common::types::DecreeId, message::Message, node::classic_paxos::ballot::Ballot,
     paxos_command::PaxosCommand,
-    common::types::{NodeId, DecreeId},
 };
-use test_helpers::NodeBuilder;
 use std::collections::HashSet;
+use test_helpers::NodeBuilder;
 
 // ============================================================================
 // STATE VALIDATION TESTS
@@ -19,13 +17,13 @@ async fn acceptor_ballot_monotonicity_within_decree() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b5 = Ballot::new(5, NodeId(1));
-    let b3 = Ballot::new(3, NodeId(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
+    let b3 = Ballot::new(3, test_helpers::test_uuid(1));
 
     // Promise to ballot (5, 1)
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -34,7 +32,7 @@ async fn acceptor_ballot_monotonicity_within_decree() {
     // Try to accept at lower ballot (3, 1) - should be rejected
     let resp = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b3,
             value: PaxosCommand::NOOP,
@@ -55,12 +53,12 @@ async fn acceptor_no_promise_downgrade_same_decree() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b5 = Ballot::new(5, NodeId(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
 
     // First promise to (5, 1)
     let resp1 = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -70,7 +68,7 @@ async fn acceptor_no_promise_downgrade_same_decree() {
     // Second promise attempt with same ballot - should be rejected
     let resp2 = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -89,15 +87,15 @@ async fn acceptor_monotonic_promise_progression() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b3 = Ballot::new(3, NodeId(1));
-    let b5 = Ballot::new(5, NodeId(1));
-    let b7 = Ballot::new(7, NodeId(1));
-    let b6 = Ballot::new(6, NodeId(1)); // Would be out of order after 7
+    let b3 = Ballot::new(3, test_helpers::test_uuid(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
+    let b7 = Ballot::new(7, test_helpers::test_uuid(1));
+    let b6 = Ballot::new(6, test_helpers::test_uuid(1)); // Would be out of order after 7
 
     // Promise sequence: 3 -> 5 -> 7 (valid progression)
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b3,
         })
@@ -105,7 +103,7 @@ async fn acceptor_monotonic_promise_progression() {
 
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -113,7 +111,7 @@ async fn acceptor_monotonic_promise_progression() {
 
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b7,
         })
@@ -122,7 +120,7 @@ async fn acceptor_monotonic_promise_progression() {
     // Try to promise at 6 after promising at 7 - should fail
     let resp = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b6,
         })
@@ -141,13 +139,13 @@ async fn acceptor_decree_independence_for_ballots() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b5_1 = Ballot::new(5, NodeId(1));
-    let b3_1 = Ballot::new(3, NodeId(1));
+    let b5_1 = Ballot::new(5, test_helpers::test_uuid(1));
+    let b3_1 = Ballot::new(3, test_helpers::test_uuid(1));
 
     // Decree 0: Promise to (5, 1)
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5_1,
         })
@@ -156,7 +154,7 @@ async fn acceptor_decree_independence_for_ballots() {
     // Decree 1: Should be able to promise to (3, 1) independently
     let resp = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(1),
             ballot: b3_1,
         })
@@ -225,7 +223,8 @@ async fn proposer_same_ballot_different_decrees() {
     let msg0 = proposer.propose(DecreeId(0), cmd0).await;
     let msg1 = proposer.propose(DecreeId(1), cmd1).await;
 
-    if let (Message::Prepare { ballot: b0, .. }, Message::Prepare { ballot: b1, .. }) = (msg0, msg1) {
+    if let (Message::Prepare { ballot: b0, .. }, Message::Prepare { ballot: b1, .. }) = (msg0, msg1)
+    {
         // Current implementation: each proposal gets its own initial ballot number
         assert_eq!(b0.number, 1);
         assert_eq!(b1.number, 1);
@@ -241,13 +240,13 @@ async fn acceptor_never_leaks_value_on_nack() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b5 = Ballot::new(5, NodeId(1));
-    let b3 = Ballot::new(3, NodeId(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
+    let b3 = Ballot::new(3, test_helpers::test_uuid(1));
 
     // Accept a value at ballot (5, 1)
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
         })
@@ -255,12 +254,13 @@ async fn acceptor_never_leaks_value_on_nack() {
 
     acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
             value: PaxosCommand::PUT {
                 key: "secret".to_string(),
                 version: 1,
+                value: 0,
             },
             quorum: HashSet::new(),
         })
@@ -269,7 +269,7 @@ async fn acceptor_never_leaks_value_on_nack() {
     // Try to prepare with lower ballot - gets NACK
     let resp = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b3,
         })
@@ -294,10 +294,12 @@ async fn proposer_value_adoption_invariant() {
     let old_value = PaxosCommand::PUT {
         key: "old".to_string(),
         version: 1,
+        value: 0,
     };
     let older_value = PaxosCommand::PUT {
         key: "older".to_string(),
         version: 0,
+        value: 0,
     };
 
     // Propose initial value
@@ -305,10 +307,10 @@ async fn proposer_value_adoption_invariant() {
 
     // Receive promise with old accepted value from ballot (5, 2)
     let promise1 = Message::Promise {
-        from: NodeId(2),
+        from: test_helpers::test_uuid(2),
         decree_num: DecreeId(0),
-        ballot: Ballot::new(1, NodeId(1)),
-        accepted_ballot: Ballot::new(5, NodeId(2)),
+        ballot: Ballot::new(1, test_helpers::test_uuid(1)),
+        accepted_ballot: Ballot::new(5, test_helpers::test_uuid(2)),
         accepted_value: old_value.clone(),
     };
 
@@ -326,10 +328,10 @@ async fn proposer_value_adoption_invariant() {
 
     // Now try to override with even older value - should keep old_value
     let promise2 = Message::Promise {
-        from: NodeId(3),
+        from: test_helpers::test_uuid(3),
         decree_num: DecreeId(0),
-        ballot: Ballot::new(1, NodeId(1)),
-        accepted_ballot: Ballot::new(3, NodeId(1)), // Lower than (5, 2)
+        ballot: Ballot::new(1, test_helpers::test_uuid(1)),
+        accepted_ballot: Ballot::new(3, test_helpers::test_uuid(1)), // Lower than (5, 2)
         accepted_value: older_value,
     };
 
@@ -366,22 +368,25 @@ async fn proposer_accept_ballot_matches_promise() {
 
     // Receive promise with same ballot
     let promise = Message::Promise {
-        from: NodeId(2),
+        from: test_helpers::test_uuid(2),
         decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, NodeId(0)),
+        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
         accepted_value: PaxosCommand::NOOP,
     };
 
     let accept = proposer.handle_message(promise).await;
 
     // INVARIANT: Accept ballot must match Promise ballot (which matched Prepare)
-    if let Message::Accept { ballot: accept_ballot, .. } = accept {
+    if let Message::Accept {
+        ballot: accept_ballot,
+        ..
+    } = accept
+    {
         assert_eq!(
             accept_ballot, prepare_ballot,
             "Proposer ballot mismatch: Prepare {:?} but Accept {:?}",
-            prepare_ballot,
-            accept_ballot
+            prepare_ballot, accept_ballot
         );
     } else {
         panic!("Expected Accept message");
@@ -394,14 +399,14 @@ async fn acceptor_accept_ballot_validation() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b7 = Ballot::new(7, NodeId(1));
-    let b5 = Ballot::new(5, NodeId(1));
-    let b9 = Ballot::new(9, NodeId(1));
+    let b7 = Ballot::new(7, test_helpers::test_uuid(1));
+    let b5 = Ballot::new(5, test_helpers::test_uuid(1));
+    let b9 = Ballot::new(9, test_helpers::test_uuid(1));
 
     // Promise to ballot (7, 1)
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b7,
         })
@@ -410,7 +415,7 @@ async fn acceptor_accept_ballot_validation() {
     // Try to accept at (5, 1) - too low
     let resp1 = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b5,
             value: PaxosCommand::NOOP,
@@ -422,7 +427,7 @@ async fn acceptor_accept_ballot_validation() {
     // Accept at (7, 1) - exact ballot
     let resp2 = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b7,
             value: PaxosCommand::NOOP,
@@ -435,7 +440,7 @@ async fn acceptor_accept_ballot_validation() {
     // This tests that acceptor enforces min_ballot >= promised ballot
     let new_promise = acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b9,
         })
@@ -444,7 +449,7 @@ async fn acceptor_accept_ballot_validation() {
 
     let resp3 = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b9,
             value: PaxosCommand::NOOP,
@@ -465,14 +470,14 @@ async fn concurrent_proposals_ballot_isolation() {
     let builder = NodeBuilder::new();
     let acceptor = builder.acceptor(1).await.unwrap();
 
-    let b1_1 = Ballot::new(1, NodeId(1)); // Proposer 1
-    let b1_2 = Ballot::new(1, NodeId(2)); // Proposer 2
-    let b1_3 = Ballot::new(1, NodeId(3)); // Proposer 3
+    let b1_1 = Ballot::new(1, test_helpers::test_uuid(1)); // Proposer 1
+    let b1_2 = Ballot::new(1, test_helpers::test_uuid(2)); // Proposer 2
+    let b1_3 = Ballot::new(1, test_helpers::test_uuid(3)); // Proposer 3
 
     // All three proposers promise with same round
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b1_1,
         })
@@ -480,7 +485,7 @@ async fn concurrent_proposals_ballot_isolation() {
 
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(2),
+            from: test_helpers::test_uuid(2),
             decree_num: DecreeId(0),
             ballot: b1_2,
         })
@@ -488,7 +493,7 @@ async fn concurrent_proposals_ballot_isolation() {
 
     acceptor
         .handle_message(Message::Prepare {
-            from: NodeId(3),
+            from: test_helpers::test_uuid(3),
             decree_num: DecreeId(0),
             ballot: b1_3,
         })
@@ -497,7 +502,7 @@ async fn concurrent_proposals_ballot_isolation() {
     // Proposer 1 and 2 try to accept - but 3 has highest ballot
     let accept1 = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(1),
+            from: test_helpers::test_uuid(1),
             decree_num: DecreeId(0),
             ballot: b1_1,
             value: PaxosCommand::GET {
@@ -509,7 +514,7 @@ async fn concurrent_proposals_ballot_isolation() {
 
     let accept2 = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(2),
+            from: test_helpers::test_uuid(2),
             decree_num: DecreeId(0),
             ballot: b1_2,
             value: PaxosCommand::GET {
@@ -532,7 +537,7 @@ async fn concurrent_proposals_ballot_isolation() {
     // Only proposer 3 succeeds
     let accept3 = acceptor
         .handle_message(Message::Accept {
-            from: NodeId(3),
+            from: test_helpers::test_uuid(3),
             decree_num: DecreeId(0),
             ballot: b1_3,
             value: PaxosCommand::GET {
