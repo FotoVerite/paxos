@@ -13,6 +13,7 @@ class PaxosVisualizer {
         // Configuration
         this.nodeRadius = options.nodeRadius || 150;
         this.nodeCircleRadius = options.nodeCircleRadius || 20;
+        this.nodeStateOffsetY = options.nodeStateOffsetY || 35;
         this.nodeCount = 0;
         this.clusterInfo = null;
         this.layoutMode = options.layoutMode || 'circle'; // 'circle' or 'role-grouped'
@@ -28,6 +29,7 @@ class PaxosVisualizer {
         this.eventCounts = {};
         this.nodeCapabilities = {}; // Store role info per node
         this.scheduledResets = new Map();
+        this.currentLeaderId = null;
 
         // Event colors - customizable
         this.eventColors = options.eventColors || {
@@ -287,7 +289,7 @@ class PaxosVisualizer {
             // State text
             const stateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             stateText.setAttribute('x', x);
-            stateText.setAttribute('y', y + 35);
+            stateText.setAttribute('y', y + this.nodeStateOffsetY);
             stateText.setAttribute('text-anchor', 'middle');
             stateText.setAttribute('fill', '#94a3b8');
             stateText.setAttribute('font-size', '10');
@@ -425,7 +427,7 @@ class PaxosVisualizer {
         // State text
         const stateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         stateText.setAttribute('x', x);
-        stateText.setAttribute('y', y + 30);
+        stateText.setAttribute('y', y + this.nodeStateOffsetY);
         stateText.setAttribute('text-anchor', 'middle');
         stateText.setAttribute('fill', '#94a3b8');
         stateText.setAttribute('font-size', '9');
@@ -612,7 +614,24 @@ class PaxosVisualizer {
      * @param {number} nodeId - Node ID to mark as leader
      */
     setLeader(nodeId) {
+        if (nodeId === null || nodeId === undefined) {
+            if (this.currentLeaderId !== null && this.currentLeaderId !== undefined) {
+                this.clearLeader(this.currentLeaderId);
+            }
+            this.currentLeaderId = null;
+            return;
+        }
+
         nodeId = this.#normalizeNodeId(nodeId);
+
+        if (
+            this.currentLeaderId !== null &&
+            this.currentLeaderId !== undefined &&
+            this.currentLeaderId !== nodeId
+        ) {
+            this.clearLeader(this.currentLeaderId);
+        }
+
         const element = this.nodeElements[nodeId];
         if (!element) return;
 
@@ -622,6 +641,7 @@ class PaxosVisualizer {
             circle.setAttribute('stroke-width', '4');
             circle.style.filter = 'drop-shadow(0 0 8px #fbbf24)';
         }
+        this.currentLeaderId = nodeId;
     }
 
     /**
@@ -635,9 +655,11 @@ class PaxosVisualizer {
 
         const circle = element.element.querySelector('.paxos-node-circle');
         if (circle) {
-            circle.setAttribute('stroke', '#64748b');
-            circle.setAttribute('stroke-width', '2');
+            this.resetNodeToRoleColor(nodeId);
             circle.style.filter = 'none';
+        }
+        if (this.currentLeaderId === nodeId) {
+            this.currentLeaderId = null;
         }
     }
 
@@ -737,11 +759,15 @@ class PaxosVisualizer {
             const dx = to.x - from.x;
             const dy = to.y - from.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            const perpX = -dy / dist;
-            const perpY = dx / dist;
-            const curveOffset = 40 + ((fromId * 7 + toId * 11) % 30); // Varying curve for different beam pairs
-            const controlX = from.x + dx / 2 + perpX * curveOffset;
-            const controlY = from.y + dy / 2 + perpY * curveOffset;
+            let controlX = from.x + dx / 2;
+            let controlY = from.y + dy / 2;
+            if (Number.isFinite(dist) && dist > 0.0001) {
+                const perpX = -dy / dist;
+                const perpY = dx / dist;
+                const curveOffset = 40 + ((fromId * 7 + toId * 11) % 30); // Varying curve for different beam pairs
+                controlX += perpX * curveOffset;
+                controlY += perpY * curveOffset;
+            }
 
             // Create animated path (quadratic bezier)
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -752,7 +778,11 @@ class PaxosVisualizer {
             path.setAttribute('fill', 'none');
 
             // Set the full bezier path
-            path.setAttribute('d', `M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`);
+            if (!Number.isFinite(controlX) || !Number.isFinite(controlY)) {
+                path.setAttribute('d', `M ${from.x} ${from.y} L ${to.x} ${to.y}`);
+            } else {
+                path.setAttribute('d', `M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`);
+            }
 
             // Calculate path length for stroke-dasharray animation
             const pathLength = path.getTotalLength();

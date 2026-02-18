@@ -7,10 +7,10 @@ use crate::{
     cluster::network_simulator::NetworkSimulator,
     common::persistence::Persistence,
     message::Message,
-    monitor::PaxosObserver,
+    monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
         classic_paxos::ballot::Ballot,
-        pmmc::leader::leader_state::{LeaderData, LeaderState, durable::LeaderDurable},
+        pmmc::leader::leader_state::{durable::LeaderDurable, LeaderState},
     },
     paxos_command::PaxosCommand,
 };
@@ -22,6 +22,7 @@ mod scout;
 pub struct Leader {
     uuid: Uuid,
     quorum: usize,
+    replicas: Vec<Uuid>,
     peers: Arc<NetworkSimulator>,
     state: Arc<LeaderState>,
     observer: Arc<dyn PaxosObserver>,
@@ -31,6 +32,7 @@ impl Leader {
     pub async fn new(
         uuid: Uuid,
         quorum: usize,
+        replicas: Vec<Uuid>,
         peers: Arc<NetworkSimulator>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
@@ -40,10 +42,11 @@ impl Leader {
         let state = LeaderData::default();
 
         let state = LeaderState::init(uuid, state);
-        let mut leader = Self {
+        let leader = Self {
             uuid,
             peers,
             quorum,
+            replicas,
             observer,
             state: Arc::new(state),
         };
@@ -65,15 +68,23 @@ impl Leader {
     }
 
     async fn become_active(&self, ballot: Ballot) {
-        self.state
+        let activated = self
+            .state
             .set_as_active(
                 self.uuid,
                 self.quorum,
                 ballot,
+                self.replicas.clone(),
                 Arc::clone(&self.observer),
                 Arc::clone(&self.peers),
             )
             .await;
+        if activated {
+            self.observer.on_event(Event::LeaderElected {
+                id: self.uuid,
+                created_at: current_timestamp_millis(),
+            });
+        }
     }
 
     pub async fn send_heartbeat(&self) {
@@ -97,15 +108,33 @@ impl Leader {
         return Message::NACK;
     }
 
-    async fn heartbeat_handler(&self, ballot: Ballot) -> Message {
+    async fn heartbeat_handler(&self, from: Uuid, ballot: Ballot) -> Message {
+        if from == self.uuid {
+            return Message::NACK;
+        }
+        let was_leader = self.state.is_active().await;
         self.state.heartbeat_handler(ballot).await;
+        if was_leader && !self.state.is_active().await {
+            self.observer.on_event(Event::LeaderSteppedDown {
+                id: self.uuid,
+                created_at: current_timestamp_millis(),
+            });
+        }
         return Message::NACK;
     }
 
     async fn preempt(&self, ballot: Ballot) {
+        let was_leader = self.state.is_active().await;
         self.state.preempt(ballot).await;
+        if was_leader && !self.state.is_active().await {
+            self.observer.on_event(Event::LeaderSteppedDown {
+                id: self.uuid,
+                created_at: current_timestamp_millis(),
+            });
+        }
     }
 
+    #[allow(dead_code)]
     async fn save(&self) -> anyhow::Result<()> {
         let state = self.state.dump().await;
         Persistence::save(&format!("leader_{}.bin", self.uuid), &state).await?;
@@ -126,11 +155,15 @@ impl Leader {
                 self.become_active(ballot).await;
                 return Message::NACK;
             }
-            Message::HEARTBEAT { ballot, .. } => {
-                self.heartbeat_handler(ballot).await;
+            Message::HEARTBEAT { from, ballot } => {
+                self.heartbeat_handler(from, ballot).await;
                 return Message::NACK;
             }
-            Message::PROPOSE { from, slot, cmd } => self.propose_handler(slot, cmd).await,
+            Message::PROPOSE { from: _, slot, cmd } => self.propose_handler(slot, cmd).await,
+            Message::ACK { from, slot, .. } => {
+                self.state.handle_ack(from, slot).await;
+                Message::NACK
+            }
             Message::P1B { .. } => self.state.handle_p1b(msg.clone()).await,
 
             Message::P2B { .. } => self.state.handle_p2b(msg.clone()).await,
@@ -178,6 +211,7 @@ mod tests {
         Leader {
             uuid,
             quorum: 2,
+            replicas: vec![],
             peers,
             state,
             observer,
@@ -198,6 +232,7 @@ mod tests {
             Leader {
                 uuid,
                 quorum: 2,
+                replicas: vec![],
                 peers,
                 state,
                 observer,
@@ -283,7 +318,7 @@ mod tests {
             HashMap::new(),
             Arc::clone(&observer),
         ));
-        let leader = Leader::new(uuid, 2, peers, Arc::clone(&observer))
+        let leader = Leader::new(uuid, 2, vec![], peers, Arc::clone(&observer))
             .await
             .expect("leader init should work");
         let ballot = leader.state.ballot().await;
@@ -305,7 +340,7 @@ mod tests {
             HashMap::new(),
             Arc::clone(&observer),
         ));
-        let reloaded = Leader::new(uuid, 2, peers2, observer)
+        let reloaded = Leader::new(uuid, 2, vec![], peers2, observer)
             .await
             .expect("leader reload should work");
 

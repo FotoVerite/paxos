@@ -13,6 +13,16 @@ const NODE_STATE_LABELS = {
   Learn: 'learn',
   LearnedValue: 'learn',
   Success: 'success',
+  PmmcPropose: 'propose',
+  PmmcP1A: 'p1a',
+  PmmcP1B: 'p1b',
+  PmmcP2A: 'p2a',
+  PmmcP2B: 'vote',
+  PmmcAdopted: 'adopted',
+  PmmcPreempted: 'preempt',
+  PmmcHeartbeat: 'heart',
+  PmmcAck: 'ack',
+  LeaderSteppedDown: 'passive',
 };
 
 function createQuietVisualizer(visualizer) {
@@ -28,6 +38,7 @@ function createQuietVisualizer(visualizer) {
     drawBeamsFrom: noopAsync,
     setNodePartitioned: noop,
     setLeader: noop,
+    clearLeader: noop,
   };
 }
 
@@ -38,11 +49,26 @@ export function createVisualizeEventsPlugin({ skip = new Set() } = {}) {
       const viz = getEventVisualizer(eventType);
       if (!viz || !viz.visualize) return;
       const stateLabel = NODE_STATE_LABELS[eventType];
-      if (stateLabel && eventData?.id !== undefined) {
-        ctx.state.setNodeState(eventData.id, stateLabel);
+      if (stateLabel) {
+        const stateNodeId =
+          eventData?.id ??
+          eventData?.from ??
+          eventData?.to;
+        if (stateNodeId !== undefined && stateNodeId !== null) {
+          ctx.state.setNodeState(stateNodeId, stateLabel);
+          if (ctx.visualizer && typeof ctx.visualizer.setNodeState === 'function') {
+            ctx.visualizer.setNodeState(stateNodeId, stateLabel);
+          }
+        }
       }
       if (eventType === 'LeaderElected' && eventData?.id !== undefined) {
         ctx.state.setLeader(eventData.id);
+      }
+      if (eventType === 'LeaderSteppedDown' && eventData?.id !== undefined) {
+        const snapshot = ctx.state.snapshot();
+        if (snapshot.leaderId === eventData.id) {
+          ctx.state.setLeader(null);
+        }
       }
 
       const playbackMode = ctx.playbackMode;

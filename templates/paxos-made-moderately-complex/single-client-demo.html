@@ -1,0 +1,98 @@
+{% extends "paxos-made-moderately-complex/base.html" %}
+{% import "macros/nav.html" as nav %}
+
+{% block title %}PMMC Single Client Demo{% endblock %}
+{% block body_class %}protocol-page pmmc-demo{% endblock %}
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/demo.css">
+<link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/demo.css">
+{% endblock %}
+
+{% block content %}
+<div class="demo-container">
+  <div class="visualization">
+    <div id="client-sidebar">
+      <div class="client-strip-section">
+        <div class="client-strip-title">Clients</div>
+        <div id="clientStrip" class="client-strip"></div>
+        <div id="clientFeed" class="client-feed"></div>
+        <div id="clientSnapshot" class="client-snapshot"></div>
+      </div>
+    </div>
+    <svg id="basicProtocolSvg"></svg>
+    <div id="decree-viewer">
+      <div id="proposalStatsContainer"></div>
+      <div id="decreePanel"></div>
+    </div>
+  </div>
+
+  <div class="controls-section">
+    <div class="control-grid">
+      <div class="control-group">
+        <h3>Scenario</h3>
+        <select id="scenarioSelect">
+          <option value="pmmc_single_client">PMMC Single Client (5 nodes)</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <h3>Speed</h3>
+        <div class="speed-control">
+          <input type="range" id="speed" value="0.5" min="0.25" max="2" step="0.25" />
+          <span id="speedValue">0.5x</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <h3>Node Labels</h3>
+        <select id="nodeLabelMode">
+          <option value="number">Numbers (0, 1, 2)</option>
+          <option value="greek">Greek (α, β, γ)</option>
+        </select>
+      </div>
+      <div class="button-group">
+        <button id="togglePlayBtn">Play</button>
+        <button id="stepBackBtn" disabled>Step Back</button>
+        <button id="stepForwardBtn" disabled>Step Forward</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      <div class="playback-cursor" id="playbackCursor">Batch 0/0</div>
+    </div>
+
+    <div class="status-info">
+      <div id="statusTitle">Ready</div>
+      <div id="statusDescription">Click Play to start the PMMC single-client scenario</div>
+    </div>
+  </div>
+
+  <div class="event-log-section">
+    <div class="event-log-header">
+      <h3>Event Log</h3>
+      <div class="event-log-actions">
+        <span class="event-filter-status" id="eventFilterStatus">All events</span>
+        <button type="button" class="event-filter-toggle" id="eventFilterToggle">Filters</button>
+      </div>
+    </div>
+    <div class="event-log-wrapper">
+      <div class="event-filter-bar" id="eventFilterBar">
+        <div class="event-filter-title">Filter</div>
+        <div class="event-filter-chips" id="eventFilterChips"></div>
+        <button type="button" class="event-filter-close" id="eventFilterClose">Close</button>
+      </div>
+      <div id="eventLog"></div>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/communication-with-the-rsm",
+    prev_label="Communication with the RSM",
+    current_label="Single Client Demo",
+    next_url="/the-problem",
+    next_label="The Problem"
+  ) }}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/websocket-helper.js"></script>
+<script src="/paxos-visualizer.js"></script>
+<script type="module" src="/pmmc-single-client-demo.js"></script>
+{% endblock %}

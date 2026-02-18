@@ -44,6 +44,10 @@ pub async fn run_web_server() {
             ServeFile::new("static/basic-protocol-demo.js"),
         )
         .route_service(
+            "/pmmc-single-client-demo.js",
+            ServeFile::new("static/pmmc-single-client-demo.js"),
+        )
+        .route_service(
             "/decree-simulator.js",
             ServeFile::new("static/decree-simulator.js"),
         )

@@ -14,11 +14,19 @@ use crate::{
     paxos_command::PaxosCommand,
 };
 
-pub type CommanderPendingProposals = HashMap<usize, (PaxosCommand, HashSet<Uuid>)>;
+#[derive(Clone)]
+pub struct PendingSlot {
+    pub cmd: PaxosCommand,
+    pub acceptor_acks: HashSet<Uuid>,
+    pub decided: bool,
+    pub replica_acks: HashSet<Uuid>,
+}
+pub type CommanderPendingProposals = HashMap<usize, PendingSlot>;
 pub struct CommanderData {
     ballot: Ballot,
-    quorum: usize, 
+    quorum: usize,
     id: Uuid,
+    replicas: HashSet<Uuid>,
     proposals: CommanderPendingProposals,
     aimd_timeout: AimdTimeout,
     deadline: Instant,
@@ -29,16 +37,33 @@ pub struct CommanderState {
 }
 
 impl CommanderState {
-    pub fn new(id: Uuid, ballot: Ballot, quorum: usize, store: ProposalsStore) -> Self {
+    pub fn new(
+        id: Uuid,
+        ballot: Ballot,
+        quorum: usize,
+        replicas: Vec<Uuid>,
+        store: ProposalsStore,
+    ) -> Self {
         let initial = store
             .iter()
-            .map(|(&slot, cmd)| (slot, (cmd.clone(), HashSet::new())))
+            .map(|(&slot, cmd)| {
+                (
+                    slot,
+                    PendingSlot {
+                        cmd: cmd.clone(),
+                        acceptor_acks: HashSet::new(),
+                        decided: false,
+                        replica_acks: HashSet::new(),
+                    },
+                )
+            })
             .collect();
 
         let data = CommanderData {
             ballot,
-            id, 
+            id,
             quorum,
+            replicas: replicas.into_iter().collect(),
             proposals: initial,
             aimd_timeout: AimdTimeout::default(),
             deadline: Instant::now(),
@@ -51,15 +76,22 @@ impl CommanderState {
     pub async fn process(&self, acceptor: Uuid, pvalue: PValue) -> Message {
         let mut state = self.data.lock().await;
 
-        let (cmd, ack_count) = match state.proposals.get_mut(&pvalue.slot()) {
-            Some((cmd, quorum)) => {
-                quorum.insert(acceptor);
-                (cmd.clone(), quorum.len())
+        let (cmd, ack_count, already_decided) = match state.proposals.get_mut(&pvalue.slot()) {
+            Some(pending) => {
+                pending.acceptor_acks.insert(acceptor);
+                (
+                    pending.cmd.clone(),
+                    pending.acceptor_acks.len(),
+                    pending.decided,
+                )
             }
             None => return Message::NACK,
         };
         state.aimd_timeout.success();
-        if ack_count >= state.quorum {
+        if !already_decided && ack_count >= state.quorum {
+            if let Some(pending) = state.proposals.get_mut(&pvalue.slot()) {
+                pending.decided = true;
+            }
             return Message::ACCEPTED {
                 from: state.id,
                 pvalue: PValue::new(pvalue.slot(), state.ballot, cmd),
@@ -73,6 +105,30 @@ impl CommanderState {
         state.proposals.clone()
     }
 
+    pub async fn replicas(&self) -> HashSet<Uuid> {
+        let state = self.data.lock().await;
+        state.replicas.clone()
+    }
+
+    pub async fn tick_snapshot(&self) -> (CommanderPendingProposals, HashSet<Uuid>) {
+        let state = self.data.lock().await;
+        (state.proposals.clone(), state.replicas.clone())
+    }
+
+    pub async fn record_replica_ack(&self, from: Uuid, slot: usize) {
+        let mut state = self.data.lock().await;
+        let replicas = state.replicas.clone();
+        if let Some(pending) = state.proposals.get_mut(&slot) {
+            if !pending.decided {
+                return;
+            }
+            pending.replica_acks.insert(from);
+            if pending.replica_acks.is_superset(&replicas) {
+                state.proposals.remove(&slot);
+            }
+        }
+    }
+
     pub async fn deadline(&self) -> Instant {
         let state = self.data.lock().await;
         state.deadline
@@ -80,7 +136,15 @@ impl CommanderState {
 
     pub async fn add_pending(&self, slot: usize, cmd: PaxosCommand) {
         let mut state = self.data.lock().await;
-        state.proposals.insert(slot, (cmd, HashSet::new()));
+        state.proposals.insert(
+            slot,
+            PendingSlot {
+                cmd,
+                acceptor_acks: HashSet::new(),
+                decided: false,
+                replica_acks: HashSet::new(),
+            },
+        );
     }
 
     pub async fn reset_deadline(&self) {

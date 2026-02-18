@@ -71,11 +71,12 @@ impl LeaderVolatile {
         uuid: Uuid,
         quorum: usize,
         ballot: Ballot,
+        replicas: Vec<Uuid>,
         proposals: ProposalsStore,
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
     ) {
-        let commander = Commander::new(uuid, quorum, ballot, proposals, peers, observer);
+        let commander = Commander::new(uuid, quorum, ballot, replicas, proposals, peers, observer);
         let runner = commander.clone();
         tokio::spawn(async move {
             runner.run().await;
@@ -147,6 +148,12 @@ impl LeaderVolatile {
             return commander.handle_message(msg).await;
         }
         Message::NACK
+    }
+
+    pub async fn ack(&mut self, from: Uuid, slot: usize) {
+        if let Some(commander) = self.commander.as_mut() {
+            commander.record_replica_ack(from, slot).await;
+        }
     }
 }
 

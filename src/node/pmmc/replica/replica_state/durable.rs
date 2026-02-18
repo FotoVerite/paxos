@@ -1,15 +1,9 @@
-use std::{
-    any,
-    collections::{BTreeMap, HashMap, VecDeque, btree_map::Entry},
-    sync::Arc,
-};
-
-use uuid::Uuid;
+use std::collections::{btree_map::Entry, BTreeMap, HashMap};
 
 use crate::{
     node::{
-        pmmc::proposal::{Proposal, ProposalsStore},
-        pvalue::{self, PValue},
+        pmmc::proposal::ProposalsStore,
+        pvalue::PValue,
     },
     paxos_command::{ClientId, PaxosCommand, RequestId},
     rsm::kv_store::ReplyOutcome,
@@ -61,7 +55,9 @@ impl ReplicaDurable {
 
     pub fn add_proposal(&mut self, cmd: PaxosCommand) {
         self.proposals.insert(self.proposal_slot(), cmd.clone());
-        self.cache.insert(cmd.client_identity().unwrap(), None);
+        if let Some(client_key) = cmd.client_identity() {
+            self.cache.insert(client_key, None);
+        }
         self.increment_proposals();
     }
 
@@ -80,19 +76,16 @@ impl ReplicaDurable {
     pub fn next_decision(&mut self) -> Option<PaxosCommand> {
         match self.decisions.entry(self.next_execute_slot) {
             Entry::Occupied(o) => Some(o.get().clone()),
-            Entry::Vacant(v) => return None,
+            Entry::Vacant(_) => None,
         }
     }
 
     pub fn is_cached(&self, cmd: &PaxosCommand) -> (bool, Option<ReplyOutcome>) {
-        if self.cache.contains_key(&cmd.client_identity().unwrap()) {
-            (
-                true,
-                self.cache
-                    .get(&cmd.client_identity().unwrap())
-                    .unwrap()
-                    .clone(),
-            )
+        let Some(client_key) = cmd.client_identity() else {
+            return (false, None);
+        };
+        if self.cache.contains_key(&client_key) {
+            (true, self.cache.get(&client_key).and_then(|v| v.clone()))
         } else {
             (false, None)
         }

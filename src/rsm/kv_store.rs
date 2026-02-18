@@ -1,4 +1,4 @@
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::HashMap;
 
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -51,10 +51,17 @@ impl KVStore {
             PaxosCommand::GET { key } => self.get(key).await,
             PaxosCommand::PUT {
                 key,
+                value,
+                ..
+            } => self.set(key, KVValue(*value)).await,
+            PaxosCommand::ADD {
+                key,
                 version,
                 value,
-            } => self.set(key, KVValue(*value)).await,
-
+            } => self
+                .add(key, KVValue(*value), KVVersion(*version))
+                .await
+                .map(|v| ReplyOutcome::WriteOk { version: v }),
             _ => Ok(ReplyOutcome::Ok),
         }
     }
@@ -73,18 +80,14 @@ impl KVStore {
     pub async fn set(&self, key: &str, value: KVValue) -> KVResult<ReplyOutcome> {
         let entry_version = {
             let mut data = self.data.lock().await;
-
-            match data.entry(key.to_string()) {
-                Entry::Occupied(_) => return Err(ClerkResponseError::ErrKey),
-                Entry::Vacant(v) => {
-                    let entry = v.insert(KVEntry::new(value));
-                    entry.version
-                }
-            }
+            let entry = data
+                .entry(key.to_string())
+                .and_modify(|e| e.value = value)
+                .or_insert_with(|| KVEntry::new(value));
+            entry.version
         }; // lock is dropped here
 
-        // Now you can safely call save without holding the lock
-        self.save().await;
+        let _ = self.save().await;
 
         Ok(ReplyOutcome::WriteOk {
             version: entry_version,
@@ -103,7 +106,7 @@ impl KVStore {
                 None => return Err(ClerkResponseError::ErrKey),
             }
         };
-        self.save().await;
+        let _ = self.save().await;
         Ok(entry_version)
     }
 
@@ -114,7 +117,7 @@ impl KVStore {
                 .map(|_| ())
                 .ok_or(ClerkResponseError::ErrKey)?;
         }
-        self.save().await;
+        let _ = self.save().await;
         Ok(())
     }
 }

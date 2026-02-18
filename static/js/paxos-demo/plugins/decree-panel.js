@@ -10,12 +10,32 @@ const DECREE_EVENTS = new Set([
   'LedgerDump',
 ]);
 
-function formatDecree(event) {
-  if (event.value === 'NOOP') return 'NOOP';
-  if (event.value && typeof event.value === 'object' && event.value.EnactDecree) {
-    return event.value.EnactDecree.law;
+function formatCommand(value, decreeNum) {
+  if (value === 'NOOP') return 'NOOP';
+  if (!value || typeof value !== 'object') return `cmd ${decreeNum}`;
+
+  if (value.ClientRequest && typeof value.ClientRequest === 'object') {
+    const inner = value.ClientRequest;
+    return formatCommand(inner.cmd, decreeNum);
   }
-  return `Decree #${event.decree_num}`;
+
+  if (value.PUT) {
+    const { key, value: v } = value.PUT;
+    return `PUT ${key}=${v}`;
+  }
+  if (value.GET) {
+    return `GET ${value.GET.key}`;
+  }
+  if (value.ADD) {
+    const { key, value: v } = value.ADD;
+    return `ADD ${key}+${v}`;
+  }
+  if (value.EnactDecree) {
+    return value.EnactDecree.law;
+  }
+
+  const [kind] = Object.keys(value);
+  return kind || `cmd ${decreeNum}`;
 }
 
 function nodeShortLabel(nodeId, labels) {
@@ -70,7 +90,7 @@ function renderDecreePanel(state, decreePanel, options) {
 
   if (selectedNodeId === null || selectedNodeId === undefined) {
     const hint =
-      options?.emptySelectionHint || "Click a node to view its learned decrees";
+      options?.emptySelectionHint || `Click a node to view its learned ${options?.itemLabelPlural || 'decrees'}`;
     decreePanel.innerHTML = `<p class='decree-hint'>${hint}</p>`;
     return;
   }
@@ -84,17 +104,20 @@ function renderDecreePanel(state, decreePanel, options) {
     return;
   }
   if (!node || node.decrees.length === 0) {
-    decreePanel.innerHTML = `<p class='decree-hint'>${nodeLabel(selectedNodeId, options?.nodeLabels)} has not learned any decrees yet</p>`;
+    decreePanel.innerHTML = `<p class='decree-hint'>${nodeLabel(selectedNodeId, options?.nodeLabels)} has not learned any ${options?.itemLabelPlural || 'decrees'} yet</p>`;
     return;
   }
 
   const sortedDecrees = [...node.decrees].sort((a, b) => a.decree_num - b.decree_num);
   let html = `<div class='decree-content'>`;
-  html += `<div class='decree-node-label'>${nodeLabel(selectedNodeId, options?.nodeLabels)} (${node.decrees.length} decrees)</div>`;
+  const countLabel = node.decrees.length === 1
+    ? (options?.itemLabelSingular || 'decree')
+    : (options?.itemLabelPlural || 'decrees');
+  html += `<div class='decree-node-label'>${nodeLabel(selectedNodeId, options?.nodeLabels)} (${node.decrees.length} ${countLabel})</div>`;
   html += `<div class='decree-list'>`;
 
   for (const decree of sortedDecrees) {
-    html += `<div class='decree-item'><div class='decree-text'>[${decree.decree_num}] "${decree.decree}"</div></div>`;
+    html += `<div class='decree-item'><div class='decree-text'>[${options?.itemRenderLabel || 'command'} ${decree.decree_num}] "${decree.decree}"</div></div>`;
   }
 
   html += '</div></div>';
@@ -113,6 +136,9 @@ export function createDecreePanelPlugin({
   hideStatsWhenEmpty = false,
   emptySelectionHint,
   invalidSelectionHint,
+  itemLabelSingular = 'decree',
+  itemLabelPlural = 'decrees',
+  itemRenderLabel = 'command',
 } = {}) {
   let nodeLabels = null;
 
@@ -121,6 +147,9 @@ export function createDecreePanelPlugin({
     hideStatsWhenEmpty,
     emptySelectionHint,
     invalidSelectionHint,
+    itemLabelSingular,
+    itemLabelPlural,
+    itemRenderLabel,
     nodeLabels,
   };
 
@@ -164,7 +193,7 @@ export function createDecreePanelPlugin({
       if (eventType === 'LearnedValue' && eventData?.decree_num !== undefined) {
         ctx.state.addDecree(eventData.id, {
           decree_num: eventData.decree_num,
-          decree: formatDecree(eventData),
+          decree: formatCommand(eventData.value, eventData.decree_num),
           timestamp: Date.now(),
         });
       }

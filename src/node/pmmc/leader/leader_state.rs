@@ -1,12 +1,8 @@
-use std::{
-    collections::{BTreeMap, HashMap, hash_map::Entry},
-    os::macos::raw::stat,
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use tokio::{
     sync::Mutex,
-    time::{Instant, Interval},
+    time::Instant,
 };
 use uuid::Uuid;
 
@@ -18,9 +14,7 @@ use crate::{
         classic_paxos::ballot::Ballot,
         pmmc::{
             leader::{
-                commander::Commander,
                 leader_state::{durable::LeaderDurable, volatile::LeaderVolatile},
-                scout::Scout,
             },
             proposal::ProposalsStore,
         },
@@ -81,19 +75,24 @@ impl LeaderState {
         uuid: Uuid,
         quorum: usize,
         ballot: Ballot,
+        replicas: Vec<Uuid>,
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
-    ) {
+    ) -> bool {
         let mut state = self.data.lock().await;
         if ballot != state.durable.ballot() {
-            return;
+            return false;
+        }
+        if state.durable.is_active() {
+            return false;
         }
         let pvalues = state.volatile.scout_pvalues();
         state.durable.set_as_active(pvalues);
         let proposals = state.durable.proposal();
         state
             .volatile
-            .start_commander(uuid, quorum, ballot, proposals, observer, peers);
+            .start_commander(uuid, quorum, ballot, replicas, proposals, observer, peers);
+        true
     }
 
     pub async fn set_as_passive(&self) {
@@ -160,6 +159,11 @@ impl LeaderState {
     pub async fn handle_p2b(&self, msg: Message) -> Message {
         let mut state = self.data.lock().await;
         state.volatile.p2b(msg).await
+    }
+
+    pub async fn handle_ack(&self, from: Uuid, slot: usize) {
+        let mut state = self.data.lock().await;
+        state.volatile.ack(from, slot).await;
     }
 
     pub async fn compact(&self, slots: &[usize]) {

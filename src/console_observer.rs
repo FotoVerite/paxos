@@ -3,9 +3,32 @@ use crate::{
     monitor::{Event, PaxosObserver},
 };
 use colored::*;
+use std::{
+    collections::HashMap,
+    sync::{Mutex, OnceLock},
+};
 use uuid::Uuid;
 
 pub struct ConsoleObserver;
+
+#[derive(Default)]
+struct NodeLabelMap {
+    map: HashMap<Uuid, usize>,
+    next: usize,
+}
+
+impl NodeLabelMap {
+    fn label(&mut self, id: Uuid) -> usize {
+        if let Some(existing) = self.map.get(&id) {
+            *existing
+        } else {
+            let idx = self.next;
+            self.next += 1;
+            self.map.insert(id, idx);
+            idx
+        }
+    }
+}
 
 impl PaxosObserver for ConsoleObserver {
     fn on_message(&self, _index: &[Uuid], message: Message) {
@@ -13,7 +36,24 @@ impl PaxosObserver for ConsoleObserver {
             _ => {}
         }
     }
+
     fn on_event(&self, event: Event) {
+        fn labels() -> &'static Mutex<NodeLabelMap> {
+            static LABELS: OnceLock<Mutex<NodeLabelMap>> = OnceLock::new();
+            LABELS.get_or_init(|| Mutex::new(NodeLabelMap::default()))
+        }
+
+        fn node_label(id: Uuid) -> String {
+            let mut state = labels().lock().expect("label map lock poisoned");
+            format!("N{}", state.label(id))
+        }
+
+        fn node_list(ids: &[Uuid]) -> String {
+            let mut state = labels().lock().expect("label map lock poisoned");
+            let labels: Vec<String> = ids.iter().map(|id| format!("N{}", state.label(*id))).collect();
+            format!("[{}]", labels.join(", "))
+        }
+
         match event {
             Event::Proposal {
                 id,
@@ -25,7 +65,10 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[PROPOSER {}] Proposing for decree {}: {} ({}ms)",
-                        id, decree_num, value, created_at
+                        node_label(id),
+                        decree_num,
+                        value,
+                        created_at
                     )
                     .blue()
                 );
@@ -41,7 +84,11 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[ACCEPTOR {}] Promising ballot {} for decree {} (from proposer {}) ({}ms)",
-                        id, ballot, decree_num, from, created_at
+                        node_label(id),
+                        ballot,
+                        decree_num,
+                        node_label(from),
+                        created_at
                     )
                     .cyan()
                 );
@@ -54,7 +101,8 @@ impl PaxosObserver for ConsoleObserver {
                 quorum,
                 created_at,
             } => {
-                println!("{}", format!("[PROPOSER {}] Beginning ballot {} for decree {}: {} with quorum {:?} ({}ms)", id, ballot, decree_num, value, quorum, created_at).yellow());
+                let quorum_labels: Vec<String> = quorum.iter().map(|id| node_label(*id)).collect();
+                println!("{}", format!("[PROPOSER {}] Beginning ballot {} for decree {}: {} with quorum {:?} ({}ms)", node_label(id), ballot, decree_num, value, quorum_labels, created_at).yellow());
             }
             Event::Accepted {
                 id,
@@ -68,7 +116,12 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[ACCEPTOR {}] Voted on ballot {} for decree {}: {} (to {}) ({}ms)",
-                        id, ballot, decree_num, value, from, created_at
+                        node_label(id),
+                        ballot,
+                        decree_num,
+                        value,
+                        node_label(from),
+                        created_at
                     )
                     .green()
                 );
@@ -83,7 +136,10 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[LEARNER {}] Learned value for decree {}: {} ({}ms)",
-                        id, decree_num, value, created_at
+                        node_label(id),
+                        decree_num,
+                        value,
+                        created_at
                     )
                     .green()
                 );
@@ -98,7 +154,10 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[LEARNER {}] Learned value for decree {}: {} ({}ms)",
-                        id, decree_num, value, created_at
+                        node_label(id),
+                        decree_num,
+                        value,
+                        created_at
                     )
                     .green()
                 );
@@ -113,7 +172,10 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[NODE {}] role: {}, ballot: {}, learned: {}",
-                        id, role, ballot, learned_count
+                        node_label(id),
+                        role,
+                        ballot,
+                        learned_count
                     )
                     .purple()
                 );
@@ -125,7 +187,13 @@ impl PaxosObserver for ConsoleObserver {
             } => {
                 println!(
                     "{}",
-                    format!("[MESSAGE] {} -> {}: {}", from, to, message_type).magenta()
+                    format!(
+                        "[MESSAGE] {} -> {}: {}",
+                        node_label(from),
+                        node_label(to),
+                        message_type
+                    )
+                    .magenta()
                 );
             }
             Event::Success {
@@ -139,7 +207,10 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[Success] {} learned from {} -> {}: {}",
-                        id, from, decree_num, value
+                        node_label(id),
+                        node_label(from),
+                        decree_num,
+                        value
                     )
                     .magenta()
                 );
@@ -153,7 +224,8 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[NETWORK] Partition created: A={:?}, B={:?}",
-                        partition_a, partition_b
+                        node_list(&partition_a),
+                        node_list(&partition_b)
                     )
                     .red()
                 );
@@ -167,7 +239,7 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[NODE {}] Batch Initial Decrees: {} decrees loaded",
-                        id,
+                        node_label(id),
                         decrees.len()
                     )
                     .cyan()
@@ -176,7 +248,12 @@ impl PaxosObserver for ConsoleObserver {
             Event::LedgerDump { id, decrees, .. } => {
                 println!(
                     "{}",
-                    format!("[NODE {}] Ledger Dump: {} total decrees", id, decrees.len()).cyan()
+                    format!(
+                        "[NODE {}] Ledger Dump: {} total decrees",
+                        node_label(id),
+                        decrees.len()
+                    )
+                    .cyan()
                 );
             }
             Event::NodeCapabilities {
@@ -188,7 +265,9 @@ impl PaxosObserver for ConsoleObserver {
                     "{}",
                     format!(
                         "[NODE {}] Capabilities: roles={:?}, strategy={}",
-                        id, roles, learning_strategy
+                        node_label(id),
+                        roles,
+                        learning_strategy
                     )
                     .purple()
                 );
@@ -196,12 +275,152 @@ impl PaxosObserver for ConsoleObserver {
             Event::LeaderElected { id, .. } => {
                 println!(
                     "{}",
-                    format!("[LEADER] Node {} elected as leader", id)
+                    format!("[LEADER] Node {} elected as leader", node_label(id))
                         .yellow()
                         .bold()
                 );
             }
-            _ => {}
+            Event::LeaderSteppedDown { id, .. } => {
+                println!(
+                    "{}",
+                    format!("[LEADER] Node {} stepped down", node_label(id))
+                        .red()
+                        .bold()
+                );
+            }
+            Event::BallotAdopted { id, ballot } => {
+                println!(
+                    "{}",
+                    format!("[PMMC][A] {} adopted ballot {}", node_label(id), ballot).cyan()
+                );
+            }
+            Event::ProposalAccepted { id, pvalue } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[PMMC][A] {} accepted slot {} at ballot {}",
+                        node_label(id),
+                        pvalue.slot(),
+                        pvalue.ballot()
+                    )
+                    .green()
+                );
+            }
+            Event::PmmcPropose { id, slot, cmd, .. } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[PMMC][R] {} propose slot {}: {}",
+                        node_label(id),
+                        slot,
+                        cmd
+                    )
+                    .blue()
+                );
+            }
+            Event::PmmcP1A { from, ballot, .. } => {
+                println!(
+                    "{}",
+                    format!("[PMMC][L] {} -> P1A({})", node_label(from), ballot).yellow()
+                );
+            }
+            Event::PmmcP1B {
+                from, to, ballot, ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[PMMC][A] {} -> {} P1B({})",
+                        node_label(from),
+                        node_label(to),
+                        ballot
+                    )
+                    .yellow()
+                );
+            }
+            Event::PmmcP2A { from, pvalue, .. } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[PMMC][L] {} -> P2A(slot={}, ballot={})",
+                        node_label(from),
+                        pvalue.slot(),
+                        pvalue.ballot()
+                    )
+                    .yellow()
+                );
+            }
+            Event::PmmcP2B {
+                from,
+                to,
+                ballot,
+                pvalue,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[PMMC][A] {} -> {} P2B(slot={}, ballot={})",
+                        node_label(from),
+                        node_label(to),
+                        pvalue.slot(),
+                        ballot
+                    )
+                    .yellow()
+                );
+            }
+            Event::PmmcAdopted {
+                from, to, ballot, ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[PMMC] {} -> {} ADOPTED({})",
+                        node_label(from),
+                        node_label(to),
+                        ballot
+                    )
+                        .green()
+                        .bold()
+                );
+            }
+            Event::PmmcPreempted {
+                from, to, ballot, ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[PMMC] {} -> {} PREEMPT({})",
+                        node_label(from),
+                        node_label(to),
+                        ballot
+                    )
+                    .red()
+                );
+            }
+            Event::PmmcHeartbeat { from, ballot, .. } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[PMMC][L] {} heartbeat ballot {}",
+                        node_label(from),
+                        ballot
+                    )
+                    .purple()
+                );
+            }
+            Event::PmmcAck { from, to, slot, .. } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[PMMC][R] {} -> {} ACK(slot={})",
+                        node_label(from),
+                        node_label(to),
+                        slot
+                    )
+                    .cyan()
+                );
+            }
         }
     }
 }

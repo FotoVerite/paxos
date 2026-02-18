@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::{
     select,
     sync::mpsc::Receiver,
-    time::{self, Instant, Interval, MissedTickBehavior, sleep_until},
+    time::{self, Instant, MissedTickBehavior, sleep_until},
 };
 use uuid::Uuid;
 
@@ -12,8 +12,9 @@ use crate::{
     message::Message,
     monitor::PaxosObserver,
     node::{
-        classic_paxos::paxos_state::PaxosState, config::PmmcNodeConfig, pmmc::node_state::NodeState,
+        config::PmmcNodeConfig, pmmc::node_state::NodeState,
     },
+    paxos_command::PaxosCommand,
 };
 
 pub struct PmmcNode {
@@ -39,6 +40,10 @@ impl PmmcNode {
                 NodeState::init(uuid, quorum, peers, observer, config, topology).await?,
             ),
         })
+    }
+
+    pub async fn propose(&self, cmd: PaxosCommand) {
+        self.state.propose(cmd).await;
     }
 
     pub fn start(&mut self) {

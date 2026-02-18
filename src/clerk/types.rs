@@ -1,4 +1,3 @@
-use std::any::Any;
 use uuid::Uuid;
 
 use crate::paxos_command::{ClientId, PaxosCommand, RequestId};
@@ -23,7 +22,9 @@ impl ClerkRequest {
     }
 }
 
+use crate::rsm::{kv_store::ReplyOutcome, types::ClerkResponseError};
+
 pub struct ClerkResponse {
-    //    error: Option<ClerkResponseError>,
-    value: Option<Box<dyn Any>>,
+    pub request_id: RequestId,
+    pub outcome: Result<ReplyOutcome, ClerkResponseError>,
 }

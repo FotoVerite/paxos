@@ -21,16 +21,21 @@ const FILTER_PRESETS = [
 export function createEventLogPlugin({
   eventLog,
   limit = 30,
+  presets = FILTER_PRESETS,
+  defaultFilter = 'all',
+  excludeTypes = [],
   filterBar,
   filterChips,
   filterToggle,
   filterClose,
   filterStatus,
 } = {}) {
+  const activePresets = Array.isArray(presets) && presets.length > 0 ? presets : FILTER_PRESETS;
+  const excludedTypeSet = new Set(excludeTypes || []);
   const items = [];
   let cursor = -1;
   let baseTimestamp = null;
-  let activeFilter = 'all';
+  let activeFilter = defaultFilter || 'all';
   const typeCounts = {};
   const filterButtons = new Map();
 
@@ -60,7 +65,7 @@ export function createEventLogPlugin({
 
   function matchesFilter(item) {
     if (activeFilter === 'all') return true;
-    const preset = FILTER_PRESETS.find((entry) => entry.key === activeFilter);
+    const preset = activePresets.find((entry) => entry.key === activeFilter);
     if (!preset || !preset.types) return true;
     return preset.types.includes(item.eventType);
   }
@@ -71,14 +76,14 @@ export function createEventLogPlugin({
       filterStatus.textContent = 'All events';
       return;
     }
-    const preset = FILTER_PRESETS.find((entry) => entry.key === activeFilter);
+    const preset = activePresets.find((entry) => entry.key === activeFilter);
     filterStatus.textContent = preset ? `${preset.label} only` : 'Filtered';
   }
 
   function updateFilterButtons() {
     for (const [key, button] of filterButtons.entries()) {
       button.classList.toggle('active', key === activeFilter);
-      const preset = FILTER_PRESETS.find((entry) => entry.key === key);
+      const preset = activePresets.find((entry) => entry.key === key);
       if (!preset) continue;
       const count = preset.types
         ? preset.types.reduce((sum, type) => sum + (typeCounts[type] || 0), 0)
@@ -128,7 +133,7 @@ export function createEventLogPlugin({
       filterChips.innerHTML = '';
       filterButtons.clear();
 
-      for (const preset of FILTER_PRESETS) {
+      for (const preset of activePresets) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'event-filter-chip';
@@ -157,6 +162,7 @@ export function createEventLogPlugin({
     onBatchCaptured(batch, batchIndex, ctx) {
       if (!eventLog) return;
       for (const entry of batch) {
+        if (excludedTypeSet.has(entry.eventType)) continue;
         const viz = getEventVisualizer(entry.eventType);
         if (!viz || !viz.format) continue;
 

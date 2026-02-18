@@ -113,6 +113,58 @@ pub enum Event {
         id: Uuid,
         pvalue: PValue,
     },
+    PmmcPropose {
+        id: Uuid,
+        slot: usize,
+        cmd: PaxosCommand,
+        created_at: u64,
+    },
+    PmmcP1A {
+        from: Uuid,
+        ballot: Ballot,
+        created_at: u64,
+    },
+    PmmcP1B {
+        from: Uuid,
+        to: Uuid,
+        ballot: Ballot,
+        created_at: u64,
+    },
+    PmmcP2A {
+        from: Uuid,
+        pvalue: PValue,
+        created_at: u64,
+    },
+    PmmcP2B {
+        from: Uuid,
+        to: Uuid,
+        ballot: Ballot,
+        pvalue: PValue,
+        created_at: u64,
+    },
+    PmmcAdopted {
+        from: Uuid,
+        to: Uuid,
+        ballot: Ballot,
+        created_at: u64,
+    },
+    PmmcPreempted {
+        from: Uuid,
+        to: Uuid,
+        ballot: Ballot,
+        created_at: u64,
+    },
+    PmmcHeartbeat {
+        from: Uuid,
+        ballot: Ballot,
+        created_at: u64,
+    },
+    PmmcAck {
+        from: Uuid,
+        to: Uuid,
+        slot: usize,
+        created_at: u64,
+    },
     // Network partition events
     PartitionCreated {
         partition_a: Vec<Uuid>,
@@ -126,6 +178,10 @@ pub enum Event {
     },
     // Leadership event
     LeaderElected {
+        id: Uuid,
+        created_at: u64,
+    },
+    LeaderSteppedDown {
         id: Uuid,
         created_at: u64,
     },

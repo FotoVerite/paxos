@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use std::collections::HashSet;
 use tokio::{select, time};
 use uuid::Uuid;
 
@@ -31,11 +32,12 @@ impl Commander {
         uuid: Uuid,
         quorum: usize,
         ballot: Ballot,
+        replicas: Vec<Uuid>,
         proposals: ProposalsStore,
         peers: Arc<NetworkSimulator>,
         observer: Arc<dyn PaxosObserver>,
     ) -> Self {
-        let state = Arc::new(CommanderState::new(uuid, ballot, quorum, proposals));
+        let state = Arc::new(CommanderState::new(uuid, ballot, quorum, replicas, proposals));
         Self {
             uuid,
             observer,
@@ -48,6 +50,10 @@ impl Commander {
 
     pub async fn add_pending(&self, slot: usize, cmd: PaxosCommand){
         self.state.add_pending(slot, cmd).await
+    }
+
+    pub async fn record_replica_ack(&self, from: Uuid, slot: usize) {
+        self.state.record_replica_ack(from, slot).await;
     }
     async fn p2b(&mut self, acceptor: Uuid, pvalue: PValue, ballot: Ballot) -> Message {
         if self.ballot < ballot {
@@ -81,20 +87,25 @@ impl Commander {
         loop {
             select! {
                 _ = time::sleep_until(state.deadline().await) => {
-                    let mut pvalues = state.proposals().await;
-                    for (slot, (cmd, quorum)) in pvalues.drain() {
-                        if quorum.len() >= self.quorum {
-                            peers
-                                .broadcast(Message::ACCEPTED {
+                    let (mut pvalues, all_replicas) = state.tick_snapshot().await;
+                    for (slot, pending) in pvalues.drain() {
+                        if pending.decided {
+                            let unsent: HashSet<Uuid> = all_replicas
+                                .difference(&pending.replica_acks)
+                                .copied()
+                                .collect();
+                            if !unsent.is_empty() {
+                                let msg = Message::ACCEPTED {
                                     from: self.uuid,
-                                    pvalue: PValue::new(slot, self.ballot, cmd),
-                                })
-                                .await;
+                                    pvalue: PValue::new(slot, self.ballot, pending.cmd.clone()),
+                                };
+                                peers.broadcast_to(&msg, &unsent).await;
+                            }
                         } else {
                             peers
                                 .broadcast(Message::P2A {
                                     from: self.uuid,
-                                    pvalue: PValue::new(slot, self.ballot, cmd),
+                                    pvalue: PValue::new(slot, self.ballot, pending.cmd.clone()),
                                 })
                                 .await;
                         }
@@ -138,7 +149,7 @@ mod tests {
         let id = ballot.node_id;
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let peers = Arc::new(NetworkSimulator::new(id, HashMap::new(), Arc::clone(&observer)));
-        Commander::new(id, quorum, ballot, proposals, peers, observer)
+        Commander::new(id, quorum, ballot, vec![], proposals, peers, observer)
     }
 
     #[tokio::test]
@@ -314,7 +325,7 @@ mod tests {
         let mut peers_map = HashMap::new();
         peers_map.insert(peer, peer_tx);
         let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)));
-        let commander = Commander::new(leader, 2, ballot, proposals, peers, observer);
+        let commander = Commander::new(leader, 2, ballot, vec![peer], proposals, peers, observer);
         let runner = commander.clone();
         tokio::spawn(async move {
             runner.run().await;

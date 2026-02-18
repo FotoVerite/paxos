@@ -85,7 +85,7 @@ impl NetworkSimulator {
 
         if !enabled {
             if let Some(peer) = self.peers.get(&to) {
-                peer.send(msg).await;
+                let _ = peer.send(msg).await;
             }
 
             return;
@@ -100,7 +100,7 @@ impl NetworkSimulator {
         }
 
         if let Some(peer) = self.peers.get(&to) {
-            peer.send(msg).await;
+            let _ = peer.send(msg).await;
         }
     }
 

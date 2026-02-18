@@ -1,6 +1,10 @@
 use paxos::{
-    cluster::cluster::Cluster, console_observer::ConsoleObserver, scenario::ScenarioBuilder,
-    scenario_loader::ScenarioLoader, scenario_runner::ScenarioRunner, web::server::run_web_server,
+    cluster::{cluster::Cluster, pmmc_cluster::PmmcCluster},
+    console_observer::ConsoleObserver,
+    scenario::ScenarioBuilder,
+    scenario_loader::ScenarioLoader,
+    scenario_runner::ScenarioRunner,
+    web::server::run_web_server,
 };
 use std::{net::IpAddr, sync::Arc};
 use tokio::time::{Duration, sleep};
@@ -38,6 +42,8 @@ async fn main() -> anyhow::Result<()> {
 
     if args.len() > 1 && args[1] == "web" {
         run_with_web_server().await
+    } else if args.len() > 1 && args[1] == "pmmc" {
+        run_pmmc_builtin_scenario().await
     } else if args.len() > 1 && args[1] == "json" {
         run_json_scenario().await
     } else {
@@ -150,5 +156,52 @@ async fn run_builtin_scenario() -> anyhow::Result<()> {
 
     sleep(Duration::from_secs(1)).await;
 
+    Ok(())
+}
+
+async fn run_pmmc_builtin_scenario() -> anyhow::Result<()> {
+    println!("Starting PMMC cluster with basic console scenario...\n");
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let observer = Arc::new(ConsoleObserver);
+    let mut cluster = PmmcCluster::new(0, ip, 5, observer).await?;
+
+    for i in 0..cluster.num_nodes() {
+        cluster.nodes[i].start();
+    }
+    sleep(Duration::from_millis(250)).await;
+
+    println!("--- PMMC Phase: single client proposal ---");
+    cluster
+        .propose_from(
+            0,
+            paxos::paxos_command::PaxosCommand::PUT {
+                key: "alpha".to_string(),
+                version: 1,
+                value: 1,
+            },
+        )
+        .await;
+    sleep(Duration::from_secs(1)).await;
+
+    println!("--- PMMC Phase: partition and recovery ---");
+    cluster.enable_failures().await;
+    cluster.partition(0, 1).await;
+    cluster.partition(0, 2).await;
+    sleep(Duration::from_millis(250)).await;
+    cluster
+        .propose_from(
+            0,
+            paxos::paxos_command::PaxosCommand::PUT {
+                key: "beta".to_string(),
+                version: 1,
+                value: 2,
+            },
+        )
+        .await;
+    sleep(Duration::from_millis(750)).await;
+    cluster.heal_partition(0, 1).await;
+    cluster.heal_partition(0, 2).await;
+    sleep(Duration::from_secs(1)).await;
+    println!("=== PMMC Scenario Complete ===");
     Ok(())
 }

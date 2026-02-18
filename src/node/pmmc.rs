@@ -1,6 +1,6 @@
 pub mod acceptor;
 pub mod leader;
-mod pmmc_node;
-mod node_state;
-mod proposal;
-mod replica;
+pub mod pmmc_node;
+pub mod node_state;
+pub mod proposal;
+pub mod replica;

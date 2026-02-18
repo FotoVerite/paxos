@@ -39,7 +39,7 @@ impl Acceptor {
         let (pvalues, a_ballot, updated) = self.state.p1a(ballot, start_index).await;
 
         if updated {
-            self.save().await;
+            let _ = self.save().await;
             self.observer.on_event(Event::BallotAdopted {
                 id: self.uuid,
                 ballot: a_ballot,
@@ -57,7 +57,7 @@ impl Acceptor {
         let accepted = self.state.p2a(pvalue.clone()).await;
 
         if accepted {
-            self.save().await;
+            let _ = self.save().await;
             self.observer.on_event(Event::ProposalAccepted {
                 id: self.uuid,
                 pvalue: pvalue.clone(),

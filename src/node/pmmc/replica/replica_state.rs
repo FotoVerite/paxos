@@ -1,13 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap, hash_map::Entry},
-    os::macos::raw::stat,
-    sync::Arc,
-};
-
-use tokio::{
-    sync::{Mutex, mpsc::Sender},
-    time::{Instant, Interval},
-};
+use tokio::sync::{mpsc::Sender, Mutex};
 use uuid::Uuid;
 
 use crate::{
@@ -15,10 +6,7 @@ use crate::{
     node::{
         pmmc::{
             proposal::ProposalsStore,
-            replica::{
-                Replica,
-                replica_state::{durable::ReplicaDurable, volatile::ReplicaVolatile},
-            },
+            replica::replica_state::{durable::ReplicaDurable, volatile::ReplicaVolatile},
         },
         pvalue::PValue,
     },

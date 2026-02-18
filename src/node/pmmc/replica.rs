@@ -1,39 +1,43 @@
 use crate::common::persistence::Persistence;
+use crate::cluster::network_simulator::NetworkSimulator;
 use crate::common::types::DecreeId;
 use crate::message::{ClientMessage, Message};
-use crate::monitor::PaxosObserver;
-use crate::node::classic_paxos::ballot::Ballot;
+use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::node::pmmc::replica::replica_state::ReplicaState;
 use crate::node::pmmc::replica::replica_state::durable::ReplicaDurable;
 use crate::node::pvalue::PValue;
-use crate::paxos_command::PaxosCommand;
 use crate::rsm::kv_store::KVStore;
 use anyhow::Result;
 use std::sync::Arc;
-use tokio::net::unix::pipe::Receiver;
 use tokio::select;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::mpsc;
 use uuid::Uuid;
 mod replica_state;
 
 pub struct Replica {
     uuid: Uuid,
     store: Arc<KVStore>,
-    state: Arc<ReplicaState>,
+    pub state: Arc<ReplicaState>,
     observer: Arc<dyn PaxosObserver>,
+    peers: Arc<NetworkSimulator>,
 }
 impl Replica {
-    pub async fn new(uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
+    pub async fn new(
+        uuid: Uuid,
+        observer: Arc<dyn PaxosObserver>,
+        peers: Arc<NetworkSimulator>,
+    ) -> Result<Self> {
         let data: ReplicaDurable = Persistence::load(&format!("replica_{}.bin", uuid)).await?;
 
         #[cfg(not(feature = "persistence"))]
-        let state = ReplicaDate::default();
+        let state = ReplicaDurable::default();
         let replica = Self {
             uuid,
             store: Arc::new(KVStore::init(uuid).await?),
             state: Arc::new(ReplicaState::init(data)),
             observer: Arc::clone(&observer),
+            peers,
         };
         replica.spawn_applier().await;
         Ok(replica)
@@ -62,6 +66,9 @@ impl Replica {
         tx: Sender<ClientMessage>,
     ) {
         let state = Arc::clone(&self.state);
+        let peers = Arc::clone(&self.peers);
+        let uuid = self.uuid;
+
         state.add_client(client_id, tx).await;
         tokio::spawn(async move {
             loop {
@@ -69,7 +76,16 @@ impl Replica {
                     Some(msg) = rx.recv() => {
                         match msg {
                             ClientMessage::PROPOSE { cmd } => {
-                                state.proposal_handler(cmd).await;
+                                // Add to local proposals store (handles dedup/caching)
+                                state.proposal_handler(cmd.clone()).await;
+                                // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
+                                // Passive leaders ignore it; only the active one runs a commander.
+                                let slot = state.execution_slot().await;
+                                peers.broadcast(Message::PROPOSE {
+                                    from: uuid,
+                                    slot,
+                                    cmd,
+                                }).await;
                             },
                             _ => {},
                         }
@@ -84,6 +100,8 @@ impl Replica {
     pub async fn spawn_applier(&self) {
         let state = Arc::clone(&self.state);
         let store = Arc::clone(&self.store);
+        let observer = Arc::clone(&self.observer);
+        let node_id = self.uuid;
         tokio::spawn(async move {
             loop {
                 while let Some(cmd) = state.next_decision().await {
@@ -92,6 +110,12 @@ impl Replica {
                     match response {
                         Ok(response) => {
                             state.increment_execution_slot().await;
+                            observer.on_event(Event::LearnedValue {
+                                id: node_id,
+                                decree_num: DecreeId(slot),
+                                value: cmd.clone(),
+                                created_at: current_timestamp_millis(),
+                            });
                             state.send_client_response(
                                 cmd.client_id(),
                                 ClientMessage::RESPONSE {
@@ -110,15 +134,16 @@ impl Replica {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{collections::HashMap, sync::Arc};
     use std::time::Duration;
 
     use tokio::{sync::mpsc, time::timeout};
     use uuid::Uuid;
 
     use crate::{
+        cluster::network_simulator::NetworkSimulator,
         message::{ClientMessage, Message},
-        monitor::NoOpObserver,
+        monitor::{NoOpObserver, PaxosObserver},
         node::{classic_paxos::ballot::Ballot, pvalue::PValue},
         paxos_command::PaxosCommand,
         rsm::kv_store::KVStore,
@@ -128,11 +153,13 @@ mod tests {
 
     async fn new_replica() -> Replica {
         let uuid = Uuid::new_v4();
+        let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         Replica {
             uuid,
             store: Arc::new(KVStore::init(uuid).await.expect("store init should work")),
             state: Arc::new(ReplicaState::init(ReplicaDurable::default())),
-            observer: Arc::new(NoOpObserver),
+            observer: Arc::clone(&observer),
+            peers: Arc::new(NetworkSimulator::new(uuid, HashMap::new(), observer)),
         }
     }
 

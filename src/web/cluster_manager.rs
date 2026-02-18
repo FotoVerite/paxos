@@ -2,8 +2,9 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, sleep};
+use uuid::Uuid;
 
-use crate::cluster::cluster::Cluster;
+use crate::cluster::{cluster::Cluster, pmmc_cluster::PmmcCluster};
 use crate::decree_generator::DecreeGenerator;
 use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
 use crate::paxos_command::PaxosCommand;
@@ -14,10 +15,16 @@ use crate::web::scenarios::{
 use crate::web::websocket_observer::WebSocketObserver;
 
 pub struct ClusterManager {
-    cluster: Mutex<Option<Arc<Mutex<Cluster>>>>,
+    cluster: Mutex<Option<ActiveCluster>>,
     observer: Arc<WebSocketObserver>,
     stop_tx: Mutex<Option<broadcast::Sender<()>>>,
     decree_generator: Mutex<DecreeGenerator>,
+}
+
+#[derive(Clone)]
+enum ActiveCluster {
+    Classic(Arc<Mutex<Cluster>>),
+    Pmmc(Arc<Mutex<PmmcCluster>>),
 }
 
 impl ClusterManager {
@@ -52,6 +59,15 @@ impl ClusterManager {
             .collect();
 
         Cluster::new_with_configs(id, ip, configs, observer).await
+    }
+
+    async fn create_pmmc_cluster(
+        id: usize,
+        ip: IpAddr,
+        node_count: usize,
+        observer: Arc<dyn crate::monitor::PaxosObserver>,
+    ) -> anyhow::Result<PmmcCluster> {
+        PmmcCluster::new(id, ip, node_count, observer).await
     }
 
     pub async fn start_scenario(
@@ -96,60 +112,70 @@ impl ClusterManager {
         };
 
         // Create new cluster
-        let mut cluster = if scenario_type == "partial_roles" {
-            PartialRolesScenario::init_cluster(0, ip, self.observer.clone(), learning_strat).await?
-        } else if scenario_type == "simple_happy_path" {
-            SimpleHappyPathScenario::init_cluster(
-                0,
-                ip,
-                self.observer.clone(),
-                leader_node,
-                learning_strat,
-            )
-            .await?
-        } else if scenario_type == "asymmetric_proposers" {
-            AsymmetricProposersScenario::init_cluster(0, ip, self.observer.clone(), learning_strat)
-                .await?
+        let (active_for_runner, node_count) = if scenario_type == "pmmc_single_client" {
+            let mut cluster =
+                Self::create_pmmc_cluster(0, ip, node_count, self.observer.clone()).await?;
+            let node_count = cluster.num_nodes();
+            self.observer
+                .set_cluster_info(node_count, cluster.quorum_size(), cluster.get_node_uuids())
+                .await;
+            cluster.enable_failures().await;
+            for i in 0..node_count {
+                cluster.nodes[i].start();
+            }
+            sleep(Duration::from_millis(100)).await;
+            let cluster_arc = Arc::new(Mutex::new(cluster));
+            let mut current = self.cluster.lock().await;
+            *current = Some(ActiveCluster::Pmmc(cluster_arc.clone()));
+            (ActiveCluster::Pmmc(cluster_arc), node_count)
         } else {
-            // For all other scenarios: create cluster with specified node count and learning strategy
-            Self::create_cluster_with_strategy(
-                0,
-                ip,
-                node_count,
-                self.observer.clone(),
-                learning_strat,
-            )
-            .await?
+            let mut cluster = if scenario_type == "partial_roles" {
+                PartialRolesScenario::init_cluster(0, ip, self.observer.clone(), learning_strat)
+                    .await?
+            } else if scenario_type == "simple_happy_path" {
+                SimpleHappyPathScenario::init_cluster(
+                    0,
+                    ip,
+                    self.observer.clone(),
+                    leader_node,
+                    learning_strat,
+                )
+                .await?
+            } else if scenario_type == "asymmetric_proposers" {
+                AsymmetricProposersScenario::init_cluster(
+                    0,
+                    ip,
+                    self.observer.clone(),
+                    learning_strat,
+                )
+                .await?
+            } else {
+                Self::create_cluster_with_strategy(
+                    0,
+                    ip,
+                    node_count,
+                    self.observer.clone(),
+                    learning_strat,
+                )
+                .await?
+            };
+
+            let node_count = cluster.nodes.len();
+            self.observer
+                .set_cluster_info(node_count, cluster.quorum_size(), cluster.get_node_uuids())
+                .await;
+            cluster.enable_failures().await;
+            for i in 0..node_count {
+                cluster.nodes[i].start();
+            }
+            sleep(Duration::from_millis(100)).await;
+            let cluster_arc = Arc::new(Mutex::new(cluster));
+            let mut current = self.cluster.lock().await;
+            *current = Some(ActiveCluster::Classic(cluster_arc.clone()));
+            (ActiveCluster::Classic(cluster_arc), node_count)
         };
 
-        // Update node_count if it was changed by partial_roles (it uses 9 nodes)
-        let node_count = cluster.nodes.len();
-
-        // Send cluster info to visualizer
-        self.observer
-            .set_cluster_info(node_count, cluster.quorum_size(), cluster.get_node_uuids())
-            .await;
-
-        // Enable network simulator for failure injection
-        cluster.enable_failures().await;
-
-        // Start all nodes
-        for i in 0..node_count {
-            cluster.nodes[i].start();
-        }
-
-        sleep(Duration::from_millis(100)).await;
-
-        let cluster_arc = Arc::new(Mutex::new(cluster));
-
-        // Store cluster
-        {
-            let mut current = self.cluster.lock().await;
-            *current = Some(cluster_arc.clone());
-        }
-
         // Spawn scenario runner based on type
-        let cluster_for_runner = cluster_arc.clone();
         let mut stop_rx = stop_tx.subscribe();
         let scenario_type = scenario_type.to_string();
         let observer_for_runner = self.observer.clone();
@@ -172,69 +198,89 @@ impl ClusterManager {
                     break;
                 }
 
-                match scenario_type.as_str() {
-                    "competing_proposers" => {
-                        CompetingProposersScenario::execute_iteration(
-                            &cluster_for_runner,
-                            proposal_count,
-                            &mut decree_gen,
-                        )
-                        .await;
-                    }
-                    "asymmetric_proposers" => {
-                        AsymmetricProposersScenario::execute_iteration(
-                            &cluster_for_runner,
-                            proposal_count,
-                            &mut decree_gen,
-                        )
-                        .await;
-                    }
-                    "network_partition" => {
-                        NetworkPartitionScenario::execute_iteration(
-                            &cluster_for_runner,
-                            proposal_count,
-                            node_count,
-                            &mut decree_gen,
-                            observer_for_runner.clone(),
-                        )
-                        .await;
-                    }
-                    "catch_up" => {
-                        let mut cluster = cluster_for_runner.lock().await;
-                        if let Err(e) = CatchUpScenario::propose_gap_filler(&mut cluster, 0).await {
-                            eprintln!("Error proposing gap filler: {}", e);
+                match &active_for_runner {
+                    ActiveCluster::Classic(cluster_for_runner) => match scenario_type.as_str() {
+                        "competing_proposers" => {
+                            CompetingProposersScenario::execute_iteration(
+                                cluster_for_runner,
+                                proposal_count,
+                                &mut decree_gen,
+                            )
+                            .await;
                         }
-                    }
-                    "partial_roles" => {
-                        PartialRolesScenario::execute_iteration(
-                            &cluster_for_runner,
-                            proposal_count,
-                            &mut decree_gen,
-                        )
-                        .await;
-                    }
-                    "simple_happy_path" => {
-                        SimpleHappyPathScenario::execute_iteration(
-                            &cluster_for_runner,
-                            proposal_count,
-                            &mut decree_gen,
-                            leader_for_runner,
-                        )
-                        .await;
-                    }
-                    _ => {
-                        // Default "happy_path"
-                        HappyPathScenario::execute_iteration(
-                            &cluster_for_runner,
-                            proposal_count,
-                            &mut decree_gen,
-                        )
-                        .await;
+                        "asymmetric_proposers" => {
+                            AsymmetricProposersScenario::execute_iteration(
+                                cluster_for_runner,
+                                proposal_count,
+                                &mut decree_gen,
+                            )
+                            .await;
+                        }
+                        "network_partition" => {
+                            NetworkPartitionScenario::execute_iteration(
+                                cluster_for_runner,
+                                proposal_count,
+                                node_count,
+                                &mut decree_gen,
+                                observer_for_runner.clone(),
+                            )
+                            .await;
+                        }
+                        "catch_up" => {
+                            let mut cluster = cluster_for_runner.lock().await;
+                            if let Err(e) = CatchUpScenario::propose_gap_filler(&mut cluster, 0).await {
+                                eprintln!("Error proposing gap filler: {}", e);
+                            }
+                        }
+                        "partial_roles" => {
+                            PartialRolesScenario::execute_iteration(
+                                cluster_for_runner,
+                                proposal_count,
+                                &mut decree_gen,
+                            )
+                            .await;
+                        }
+                        "simple_happy_path" => {
+                            SimpleHappyPathScenario::execute_iteration(
+                                cluster_for_runner,
+                                proposal_count,
+                                &mut decree_gen,
+                                leader_for_runner,
+                            )
+                            .await;
+                        }
+                        _ => {
+                            HappyPathScenario::execute_iteration(
+                                cluster_for_runner,
+                                proposal_count,
+                                &mut decree_gen,
+                            )
+                            .await;
+                        }
+                    },
+                    ActiveCluster::Pmmc(cluster_for_runner) => {
+                        if scenario_type == "pmmc_single_client" && proposal_count % 2 == 0 {
+                            let cluster = cluster_for_runner.lock().await;
+                            let value = proposal_count + 1;
+                            let client_id = Uuid::from_u128(0xC0);
+                            let request_id = proposal_count as u64 + 1;
+                            cluster
+                                .propose_from(
+                                    0,
+                                    PaxosCommand::PUT {
+                                        key: "pmmc-single-client".to_string(),
+                                        version: 1,
+                                        value,
+                                    }
+                                    .with_client(client_id, request_id),
+                                )
+                                .await;
+                        }
                     }
                 }
 
                 proposal_count += 1;
-                sleep(Duration::from_millis(5000)).await;
+                sleep(Duration::from_millis(1000)).await;
             }
         });
 
@@ -243,12 +289,18 @@ impl ClusterManager {
 
     pub async fn propose(&self, decree: PaxosCommand) -> anyhow::Result<()> {
         let current = self.cluster.lock().await;
-        if let Some(cluster_arc) = current.as_ref() {
-            let mut cluster = cluster_arc.lock().await;
-            cluster.propose(decree).await;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("No active cluster"))
+        match current.as_ref() {
+            Some(ActiveCluster::Classic(cluster_arc)) => {
+                let mut cluster = cluster_arc.lock().await;
+                cluster.propose(decree).await;
+                Ok(())
+            }
+            Some(ActiveCluster::Pmmc(cluster_arc)) => {
+                let cluster = cluster_arc.lock().await;
+                cluster.propose_from(0, decree).await;
+                Ok(())
+            }
+            None => Err(anyhow::anyhow!("No active cluster")),
         }
     }
 
@@ -273,9 +325,17 @@ impl ClusterManager {
         let mut uuids = Vec::new();
         {
             let mut current = self.cluster.lock().await;
-            if let Some(cluster_arc) = current.as_ref() {
-                let cluster = cluster_arc.lock().await;
-                uuids = cluster.get_node_uuids();
+            if let Some(active) = current.as_ref() {
+                match active {
+                    ActiveCluster::Classic(cluster_arc) => {
+                        let cluster = cluster_arc.lock().await;
+                        uuids = cluster.get_node_uuids();
+                    }
+                    ActiveCluster::Pmmc(cluster_arc) => {
+                        let cluster = cluster_arc.lock().await;
+                        uuids = cluster.get_node_uuids();
+                    }
+                }
             }
             // Clear the cluster reference
             *current = None;
@@ -293,11 +353,15 @@ impl ClusterManager {
         for uuid in uuids {
             let ledger_path = format!(".paxos/ledger_{}.bin", uuid);
             let acceptor_path = format!(".paxos/acceptor_{}.bin", uuid);
+            let leader_path = format!(".paxos/leader_{}.bin", uuid);
+            let replica_path = format!(".paxos/replica_{}.bin", uuid);
             let decree_notes_path = format!(".paxos/decree_notes_{}.bin", uuid);
             let store_path = format!(".paxos/store_{}.bin", uuid);
 
             let _ = std::fs::remove_file(&ledger_path);
             let _ = std::fs::remove_file(&acceptor_path);
+            let _ = std::fs::remove_file(&leader_path);
+            let _ = std::fs::remove_file(&replica_path);
             let _ = std::fs::remove_file(&decree_notes_path);
             let _ = std::fs::remove_file(&store_path);
 

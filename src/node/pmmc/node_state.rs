@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     cluster::network_simulator::NetworkSimulator,
     message::Message,
-    monitor::{Event, PaxosObserver},
+    monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
         config::{LearningStrategy, PmmcNodeConfig},
         message_router::{MessageRouter, RoutingDecision},
@@ -35,7 +35,16 @@ impl NodeState {
         topology: crate::node::peer_topology::PeerTopology,
     ) -> anyhow::Result<Self> {
         let leader = if config.roles.proposer {
-            Some(Leader::new(uuid, quorum, Arc::clone(&peers), Arc::clone(&observer)).await?)
+            Some(
+                Leader::new(
+                    uuid,
+                    quorum,
+                    topology.learners.clone(),
+                    Arc::clone(&peers),
+                    Arc::clone(&observer),
+                )
+                .await?,
+            )
         } else {
             None
         };
@@ -46,8 +55,8 @@ impl NodeState {
             None
         };
 
-        let replica = if config.roles.proposer {
-            Some(Replica::new(uuid, Arc::clone(&observer)).await?)
+        let replica = if config.roles.learner {
+            Some(Replica::new(uuid, Arc::clone(&observer), Arc::clone(&peers)).await?)
         } else {
             None
         };
@@ -111,13 +120,34 @@ impl NodeState {
     pub async fn start_election(&self) {
         if let Some(leader) = &self.leader {
             if leader.is_leader().await {
-               return
+                return;
             }
             leader.start_election().await;
         }
     }
 
-    pub async fn propose(&self, cmd: PaxosCommand) {}
+    pub async fn propose(&self, cmd: PaxosCommand) {
+        if let Some(replica) = &self.replica {
+            // Add to the replica's local proposals store
+            replica.state.add_proposal(cmd.clone()).await;
+            // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
+            // Passive leaders ignore it; only the active one runs a commander.
+            let slot = replica.state.execution_slot().await;
+            self.observer.on_event(Event::PmmcPropose {
+                id: self.uuid,
+                slot,
+                cmd: cmd.clone(),
+                created_at: current_timestamp_millis(),
+            });
+            self.peers
+                .broadcast(Message::PROPOSE {
+                    from: self.uuid,
+                    slot,
+                    cmd,
+                })
+                .await;
+        }
+    }
 
     pub async fn handle_message(&self, msg: Message) {
         match msg {
@@ -166,7 +196,7 @@ impl NodeState {
         }
     }
 
-    async fn dispatch(&self, msg: &Message, from: Uuid) {
+    async fn dispatch(&self, msg: &Message, _from: Uuid) {
         if let Message::NACK = msg {
             return;
         }
@@ -177,14 +207,77 @@ impl NodeState {
                 self.peers.broadcast(msg.clone()).await;
             }
             RoutingDecision::SendTo(to) => {
+                self.emit_pmmc_message_event(msg, to);
                 self.peers.send(to, msg.clone()).await;
             }
             RoutingDecision::SendToMany(nodes) => {
                 for node in nodes {
+                    self.emit_pmmc_message_event(msg, node);
                     self.peers.send(node, msg.clone()).await;
                 }
             }
             RoutingDecision::Drop => {}
+        }
+    }
+
+    fn emit_pmmc_message_event(&self, msg: &Message, to: Uuid) {
+        let created_at = current_timestamp_millis();
+        let evt = match msg {
+            Message::P1A { from, ballot, .. } => Some(Event::PmmcP1A {
+                from: *from,
+                ballot: *ballot,
+                created_at,
+            }),
+            Message::P1B { from, ballot, .. } => Some(Event::PmmcP1B {
+                from: *from,
+                to,
+                ballot: *ballot,
+                created_at,
+            }),
+            Message::P2A { from, pvalue } => Some(Event::PmmcP2A {
+                from: *from,
+                pvalue: pvalue.clone(),
+                created_at,
+            }),
+            Message::P2B {
+                from,
+                ballot,
+                pvalue,
+                ..
+            } => Some(Event::PmmcP2B {
+                from: *from,
+                to,
+                ballot: *ballot,
+                pvalue: pvalue.clone(),
+                created_at,
+            }),
+            Message::ADOPTED { from, ballot, .. } => Some(Event::PmmcAdopted {
+                from: *from,
+                to,
+                ballot: *ballot,
+                created_at,
+            }),
+            Message::PREEMPT { from, ballot, .. } => Some(Event::PmmcPreempted {
+                from: *from,
+                to,
+                ballot: *ballot,
+                created_at,
+            }),
+            Message::HEARTBEAT { from, ballot } => Some(Event::PmmcHeartbeat {
+                from: *from,
+                ballot: *ballot,
+                created_at,
+            }),
+            Message::ACK { from, slot, .. } => Some(Event::PmmcAck {
+                from: *from,
+                to,
+                slot: *slot,
+                created_at,
+            }),
+            _ => None,
+        };
+        if let Some(event) = evt {
+            self.observer.on_event(event);
         }
     }
 }
