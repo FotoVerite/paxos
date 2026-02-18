@@ -310,7 +310,7 @@ mod tests {
         let mut proposals = BTreeMap::new();
         proposals.insert(0, cmd(1));
 
-        let (peer_tx, mut peer_rx) = mpsc::channel(1);
+        let (peer_tx, mut peer_rx) = mpsc::channel(2);
         let mut peers_map = HashMap::new();
         peers_map.insert(peer, peer_tx);
         let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)));

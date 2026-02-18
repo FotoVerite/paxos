@@ -35,7 +35,7 @@ impl Default for LeaderVolatile {
         Self {
             active: false,
             highest_seen: Ballot::default(),
-            election_deadline: Instant::now(),
+            election_deadline: Instant::now() + Duration::from_millis(100),
             election_aimd: AimdTimeout::default(),
             heartbeat: None,
             scout: None,

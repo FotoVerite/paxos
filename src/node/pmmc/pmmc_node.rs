@@ -137,11 +137,24 @@ mod tests {
         let (mut node, node_tx, mut peer_rx, node_id, _peer_id) = new_node_with_peer().await;
         node.start();
 
+        let adopted_ballot = timeout(Duration::from_millis(500), async {
+            loop {
+                match peer_rx.recv().await {
+                    Some(Message::P1A { ballot, .. }) => return Some(ballot),
+                    Some(_) => {}
+                    None => return None,
+                }
+            }
+        })
+        .await
+        .expect("node should start an election and emit p1a")
+        .expect("peer channel should stay open");
+
         node_tx
             .send(Message::ADOPTED {
                 from: Uuid::new_v4(),
                 to: node_id,
-                ballot: Ballot::new(0, node_id),
+                ballot: adopted_ballot,
                 pvalues: vec![],
             })
             .await

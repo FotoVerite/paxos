@@ -66,12 +66,12 @@ impl MessageRouter {
         }
     }
 
-    pub fn pmmc_route_response(&self, msg: &Message, from: Uuid) -> RoutingDecision {
+    pub fn pmmc_route_response(&self, msg: &Message) -> RoutingDecision {
         match msg {
             Message::HEARTBEAT { .. } | Message::PROPOSE { .. } => {
                 RoutingDecision::SendToMany(self.topology.proposers.clone())
             }
-            Message::P1A { .. } | Message::P2A { .. } => {
+            Message::P1A { .. } | Message::P2A { .. } | Message::ACCEPTED { .. } => {
                 RoutingDecision::SendToMany(self.topology.acceptors.clone())
             } // Prepare and Accept messages go to acceptors only
             Message::ACK { to, .. }

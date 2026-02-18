@@ -10,7 +10,7 @@ use crate::{
     node::{
         config::{LearningStrategy, PmmcNodeConfig},
         message_router::{MessageRouter, RoutingDecision},
-        pmmc::{acceptor::Acceptor, leader::Leader},
+        pmmc::{acceptor::Acceptor, leader::Leader, replica::Replica},
     },
     paxos_command::PaxosCommand,
 };
@@ -20,6 +20,7 @@ pub struct NodeState {
     acceptor: Option<Acceptor>,
     peers: Arc<NetworkSimulator>,
     leader: Option<Leader>,
+    replica: Option<Replica>,
     router: MessageRouter,
     observer: Arc<dyn PaxosObserver>,
 }
@@ -45,17 +46,11 @@ impl NodeState {
             None
         };
 
-        // let learner = if config.roles.learner {
-        //     Some(Learner::new(
-        //         id,
-        //         uuid,
-        //         quorum,
-        //         learner_decree_notes,
-        //         Arc::clone(&observer),
-        //     ))
-        // } else {
-        //     None
-        // };
+        let replica = if config.roles.proposer {
+            Some(Replica::new(uuid, Arc::clone(&observer)).await?)
+        } else {
+            None
+        };
 
         // Emit capabilities event
         let mut roles_str = Vec::new();
@@ -66,7 +61,7 @@ impl NodeState {
             roles_str.push("Acceptor".to_string());
         }
         if config.roles.learner {
-            roles_str.push("Learner".to_string());
+            roles_str.push("Replica".to_string());
         }
 
         observer.on_event(Event::NodeCapabilities {
@@ -83,6 +78,7 @@ impl NodeState {
             uuid,
             acceptor,
             leader,
+            replica,
             peers,
             router,
             observer,
@@ -114,9 +110,10 @@ impl NodeState {
 
     pub async fn start_election(&self) {
         if let Some(leader) = &self.leader {
-            if !leader.is_leader().await {
-                leader.start_election().await;
+            if leader.is_leader().await {
+               return
             }
+            leader.start_election().await;
         }
     }
 
@@ -152,6 +149,17 @@ impl NodeState {
                     self.dispatch(&reply, from).await;
                 }
             }
+            Message::ACCEPTED { from, .. } => {
+                if let Some(replica) = &self.replica {
+                    tracing::debug!(
+                        "[Node {}] Routing message from node {} to Replica component",
+                        self.uuid,
+                        from
+                    );
+                    let reply = replica.handle_message(msg).await;
+                    self.dispatch(&reply, from).await;
+                }
+            }
             _ => {
                 tracing::debug!("[Node {}] Ignoring unhandled message type", self.uuid);
             }
@@ -163,7 +171,7 @@ impl NodeState {
             return;
         }
 
-        let decision = self.router.pmmc_route_response(msg, from);
+        let decision = self.router.pmmc_route_response(msg);
         match decision {
             RoutingDecision::Broadcast => {
                 self.peers.broadcast(msg.clone()).await;
@@ -220,7 +228,11 @@ mod tests {
         let mut peers_map = HashMap::new();
         peers_map.insert(node_id, node_tx);
         peers_map.insert(peer_id, peer_tx);
-        let peers = Arc::new(NetworkSimulator::new(node_id, peers_map, Arc::clone(&observer)));
+        let peers = Arc::new(NetworkSimulator::new(
+            node_id,
+            peers_map,
+            Arc::clone(&observer),
+        ));
         let topology = PeerTopology::new(vec![peer_id], vec![node_id], vec![node_id]);
 
         let state = NodeState::init(

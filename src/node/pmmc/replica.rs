@@ -24,7 +24,7 @@ pub struct Replica {
     observer: Arc<dyn PaxosObserver>,
 }
 impl Replica {
-    pub async fn new(id: usize, uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
+    pub async fn new(uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
         let data: ReplicaDurable = Persistence::load(&format!("replica_{}.bin", uuid)).await?;
 
         #[cfg(not(feature = "persistence"))]
@@ -294,7 +294,7 @@ mod tests {
     #[tokio::test]
     async fn duplicate_client_request_returns_cached_response_after_first_execution() {
         let uuid = Uuid::new_v4();
-        let replica = Replica::new(0, uuid, Arc::new(NoOpObserver))
+        let replica = Replica::new(uuid, Arc::new(NoOpObserver))
             .await
             .expect("replica init should work");
         let client_id = Uuid::new_v4();
