@@ -114,7 +114,9 @@ impl NodeState {
 
     pub async fn start_election(&self) {
         if let Some(leader) = &self.leader {
-            leader.start_election().await;
+            if !leader.is_leader().await {
+                leader.start_election().await;
+            }
         }
     }
 
@@ -176,5 +178,76 @@ impl NodeState {
             }
             RoutingDecision::Drop => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, sync::Arc, time::Duration};
+
+    use tokio::{sync::mpsc, time::timeout};
+    use uuid::Uuid;
+
+    use crate::{
+        cluster::network_simulator::NetworkSimulator,
+        message::Message,
+        monitor::{NoOpObserver, PaxosObserver},
+        node::{
+            classic_paxos::ballot::Ballot, config::PmmcNodeConfig, peer_topology::PeerTopology,
+            pvalue::PValue,
+        },
+        paxos_command::PaxosCommand,
+    };
+
+    use super::NodeState;
+
+    fn cmd(value: usize) -> PaxosCommand {
+        PaxosCommand::PUT {
+            key: "k".to_string(),
+            version: 1,
+            value,
+        }
+    }
+
+    #[tokio::test]
+    async fn accepted_is_routed_to_replica_and_replies_ack() {
+        let node_id = Uuid::new_v4();
+        let peer_id = Uuid::new_v4();
+        let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        let (node_tx, _node_rx) = mpsc::channel(32);
+        let (peer_tx, mut peer_rx) = mpsc::channel(32);
+
+        let mut peers_map = HashMap::new();
+        peers_map.insert(node_id, node_tx);
+        peers_map.insert(peer_id, peer_tx);
+        let peers = Arc::new(NetworkSimulator::new(node_id, peers_map, Arc::clone(&observer)));
+        let topology = PeerTopology::new(vec![peer_id], vec![node_id], vec![node_id]);
+
+        let state = NodeState::init(
+            node_id,
+            2,
+            peers,
+            observer,
+            PmmcNodeConfig::default(),
+            topology,
+        )
+        .await
+        .expect("node state init should work");
+
+        state
+            .handle_message(Message::ACCEPTED {
+                from: peer_id,
+                pvalue: PValue::new(0, Ballot::new(1, peer_id), cmd(7)),
+            })
+            .await;
+
+        let msg = timeout(Duration::from_millis(120), peer_rx.recv())
+            .await
+            .expect("accepted should trigger replica ack path")
+            .expect("peer should receive ack");
+        assert!(
+            matches!(msg, Message::ACK { .. }),
+            "ACCEPTED should be handled by replica path and return ACK"
+        );
     }
 }

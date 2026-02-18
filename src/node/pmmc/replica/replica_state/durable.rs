@@ -69,6 +69,11 @@ impl ReplicaDurable {
         if self.next_execute_slot > pvalue.slot() {
             return;
         }
+        if let Some(proposal) = self.proposals.remove(&pvalue.slot()) {
+            if proposal != pvalue.cmd() {
+                self.add_proposal(proposal);
+            }
+        }
         self.decisions.insert(pvalue.slot(), pvalue.cmd());
     }
 

@@ -68,26 +68,45 @@ impl ReplicaState {
     }
 
     pub async fn send_client_response(&self, client_id: ClientId, response: ClientMessage) {
-        let state = self.data.lock().await;
-        state.volatile.send_client_response(client_id, response);
+        let tx = {
+            let state = self.data.lock().await;
+            state.volatile.sender(client_id)
+        };
+
+        if let Some(tx) = tx {
+            let _ = tx.send(response).await;
+        }
     }
 
     pub async fn proposal_handler(&self, cmd: PaxosCommand) {
-        let mut state = self.data.lock().await;
-        let (cached, response) = state.durable.is_cached(&cmd);
-        if cached {
-            if let Some(response) = response {
-                state.volatile.send_client_response(
-                    cmd.client_id(),
-                    ClientMessage::RESPONSE {
-                        request_id: cmd.request_id(),
-                        response,
-                    },
-                );
+        let client_id = cmd.client_id();
+        let request_id = cmd.request_id();
+
+        let send = {
+            let mut state = self.data.lock().await;
+            let (cached, response) = state.durable.is_cached(&cmd);
+
+            if !cached {
+                state.durable.add_proposal(cmd);
+                return;
             }
-            return
+
+            response.and_then(|response| {
+                state.volatile.sender(client_id).map(|tx| {
+                    (
+                        tx,
+                        ClientMessage::RESPONSE {
+                            request_id,
+                            response,
+                        },
+                    )
+                })
+            })
+        };
+
+        if let Some((tx, msg)) = send {
+            let _ = tx.send(msg).await;
         }
-        state.durable.add_proposal(cmd);
     }
 
     pub async fn add_proposal(&self, cmd: PaxosCommand) {
@@ -124,5 +143,4 @@ impl ReplicaState {
         let mut state = self.data.lock().await;
         state.volatile.add_client(client_id, tx);
     }
-
 }

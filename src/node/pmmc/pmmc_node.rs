@@ -65,12 +65,136 @@ impl PmmcNode {
                     }
 
                     _ = hb.tick() => {
-                            state.send_heartbeat();
+                            state.send_heartbeat().await;
                     }
 
                     else => break,
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, sync::Arc, time::Duration};
+
+    use tokio::{
+        sync::mpsc,
+        time::{sleep, timeout},
+    };
+    use uuid::Uuid;
+
+    use crate::{
+        cluster::network_simulator::NetworkSimulator,
+        message::Message,
+        monitor::{NoOpObserver, PaxosObserver},
+        node::{
+            classic_paxos::ballot::Ballot,
+            config::PmmcNodeConfig,
+            peer_topology::PeerTopology,
+        },
+    };
+
+    use super::PmmcNode;
+
+    async fn new_node_with_peer() -> (
+        PmmcNode,
+        mpsc::Sender<Message>,
+        mpsc::Receiver<Message>,
+        Uuid,
+        Uuid,
+    ) {
+        let node_id = Uuid::new_v4();
+        let peer_id = Uuid::new_v4();
+        let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        let (node_tx, node_rx) = mpsc::channel(64);
+        let (peer_tx, peer_rx) = mpsc::channel(64);
+
+        let mut peers_map = HashMap::new();
+        peers_map.insert(node_id, node_tx.clone());
+        peers_map.insert(peer_id, peer_tx);
+        let simulator = Arc::new(NetworkSimulator::new(node_id, peers_map, Arc::clone(&observer)));
+        let topology = PeerTopology::new(vec![peer_id], vec![], vec![node_id]);
+
+        let node = PmmcNode::new(
+            node_id,
+            node_rx,
+            Arc::clone(&observer),
+            simulator,
+            2,
+            PmmcNodeConfig::default(),
+            topology,
+        )
+        .await
+        .expect("node init should work");
+
+        (node, node_tx, peer_rx, node_id, peer_id)
+    }
+
+    #[tokio::test]
+    async fn does_not_start_election_while_leader_active() {
+        let (mut node, node_tx, mut peer_rx, node_id, _peer_id) = new_node_with_peer().await;
+        node.start();
+
+        node_tx
+            .send(Message::ADOPTED {
+                from: Uuid::new_v4(),
+                to: node_id,
+                ballot: Ballot::new(0, node_id),
+                pvalues: vec![],
+            })
+            .await
+            .expect("send should work");
+
+        sleep(Duration::from_millis(60)).await;
+        while peer_rx.try_recv().is_ok() {}
+
+        let got_p1a = timeout(Duration::from_millis(500), async {
+            loop {
+                match peer_rx.recv().await {
+                    Some(Message::P1A { .. }) => return true,
+                    Some(_) => {}
+                    None => return false,
+                }
+            }
+        })
+        .await
+        .unwrap_or(false);
+
+        assert!(
+            !got_p1a,
+            "active leader should not keep starting elections"
+        );
+    }
+
+    #[tokio::test]
+    async fn heartbeat_tick_sends_when_active() {
+        let (mut node, node_tx, mut peer_rx, node_id, _peer_id) = new_node_with_peer().await;
+        node.start();
+
+        node_tx
+            .send(Message::ADOPTED {
+                from: Uuid::new_v4(),
+                to: node_id,
+                ballot: Ballot::new(0, node_id),
+                pvalues: vec![],
+            })
+            .await
+            .expect("send should work");
+
+        let got_heartbeat = timeout(Duration::from_millis(700), async {
+            loop {
+                match peer_rx.recv().await {
+                    Some(Message::HEARTBEAT { .. }) => return true,
+                    Some(_) => {}
+                    None => return false,
+                }
+            }
+        })
+        .await
+        .unwrap_or(false);
+
+        assert!(got_heartbeat, "active leader should emit periodic heartbeats");
     }
 }

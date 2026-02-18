@@ -11,12 +11,13 @@ use crate::{
     monitor::PaxosObserver,
     node::{
         classic_paxos::ballot::Ballot,
-        pmmc::{leader::{
-            commander::{Commander},
-            leader_state::LeaderDurable,
-            scout::Scout,
-        }, proposal::ProposalsStore},
+        pmmc::{
+            leader::{commander::Commander, leader_state::LeaderDurable, scout::Scout},
+            proposal::ProposalsStore,
+        },
+        pvalue::PValue,
     },
+    paxos_command::PaxosCommand,
 };
 
 pub struct LeaderVolatile {
@@ -65,15 +66,21 @@ impl LeaderVolatile {
         self.commander = None;
     }
 
-    pub fn start_commanders(
+    pub fn start_commander(
         &mut self,
         uuid: Uuid,
+        quorum: usize,
         ballot: Ballot,
         proposals: ProposalsStore,
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
     ) {
-        self.commander = Some(Commander::new(uuid, 1, ballot, proposals, peers, observer));
+        let commander = Commander::new(uuid, quorum, ballot, proposals, peers, observer);
+        let runner = commander.clone();
+        tokio::spawn(async move {
+            runner.run().await;
+        });
+        self.commander = Some(commander);
     }
     pub async fn start_scout(
         &mut self,
@@ -85,6 +92,13 @@ impl LeaderVolatile {
         self.scout = Some(Scout::new(uuid, quorum, ballot, Arc::clone(&observer)));
         self.highest_seen = ballot;
         self.reset_election_deadline();
+    }
+
+    pub fn scout_pvalues(&self) -> Vec<PValue> {
+        if let Some(scout) = &self.scout {
+            return scout.pvalues();
+        }
+        return Vec::new();
     }
 
     pub fn set_highest_seen(&mut self, ballot: Ballot) {
@@ -115,17 +129,30 @@ impl LeaderVolatile {
         }
     }
 
+    pub async fn add_to_commander(&mut self, slot: usize, cmd: PaxosCommand) {
+        if let Some(commander) = self.commander.as_mut() {
+            return commander.add_pending(slot, cmd).await;
+        }
+    }
+
     pub async fn p1b(&mut self, msg: Message) -> Message {
         if let Some(scout) = self.scout.as_mut() {
-            return scout.handle_message(msg).await
+            return scout.handle_message(msg).await;
         }
         Message::NACK
     }
 
     pub async fn p2b(&mut self, msg: Message) -> Message {
         if let Some(commander) = self.commander.as_mut() {
-            return commander.handle_message(msg).await
+            return commander.handle_message(msg).await;
         }
         Message::NACK
+    }
+}
+
+#[cfg(test)]
+impl LeaderVolatile {
+    pub(crate) fn has_scout(&self) -> bool {
+        self.scout.is_some()
     }
 }

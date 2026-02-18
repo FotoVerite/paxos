@@ -21,9 +21,7 @@ impl ReplicaVolatile {
         self.clients.insert(client_id, tx);
     }
 
-    pub async fn send_client_response(&self, client_id: ClientId, msg: ClientMessage) {
-        if let Some(tx) = self.clients.get(&client_id) {
-            tx.send(msg).await;
-        }
+    pub fn sender(&self, client_id: ClientId) -> Option<Sender<ClientMessage>> {
+        self.clients.get(&client_id).cloned()
     }
 }

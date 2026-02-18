@@ -65,7 +65,7 @@ impl AcceptorState {
         let slot = value.slot();
 
         let ballot = value.ballot();
-        if state.ballot_num > ballot {
+        if state.ballot_num != ballot {
             return false;
         }
         state.ballot_num = ballot;

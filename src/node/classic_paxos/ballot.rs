@@ -17,11 +17,11 @@ impl Ballot {
     }
 
     pub fn init(&self, node_id: Uuid) -> Self {
-        if self.node_id != Uuid::nil() || self.node_id != node_id {
-            panic!("Trying to init a non owned ballot")
+        if self.node_id != Uuid::nil() && self.node_id != node_id {
+            panic!("Trying to init a non owned ballot");
         }
         Self {
-            node_id: self.node_id,
+            node_id,
             number: self.number,
         }
     }
