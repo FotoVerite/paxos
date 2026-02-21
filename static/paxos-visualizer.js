@@ -14,6 +14,7 @@ class PaxosVisualizer {
         this.nodeRadius = options.nodeRadius || 150;
         this.nodeCircleRadius = options.nodeCircleRadius || 20;
         this.nodeStateOffsetY = options.nodeStateOffsetY || 35;
+        this.centerYOffset = options.centerYOffset || 0;
         this.nodeCount = 0;
         this.clusterInfo = null;
         this.layoutMode = options.layoutMode || 'circle'; // 'circle' or 'role-grouped'
@@ -30,6 +31,7 @@ class PaxosVisualizer {
         this.nodeCapabilities = {}; // Store role info per node
         this.scheduledResets = new Map();
         this.currentLeaderId = null;
+        this.crashedNodes = new Set();
 
         // Event colors - customizable
         this.eventColors = options.eventColors || {
@@ -203,13 +205,18 @@ class PaxosVisualizer {
         this.nodeElements = {};
         this.eventCounts = {};
         this.clearScheduledResets();
+        this.currentLeaderId = null;
+        this.crashedNodes.clear();
 
         // Re-add defs
         this.setupSVG();
 
         // Calculate center
         const rect = this.svg.getBoundingClientRect();
-        this.center = { x: rect.width / 2, y: rect.height / 2 };
+        this.center = {
+            x: rect.width / 2,
+            y: rect.height / 2 + this.centerYOffset,
+        };
 
         // Background
         const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -566,6 +573,18 @@ class PaxosVisualizer {
         if (!circle) return;
 
         const roles = this.nodeCapabilities[nodeId]?.roles || [];
+        if (this.crashedNodes.has(nodeId)) {
+            circle.setAttribute('fill', '#dc2626');
+            circle.setAttribute('stroke', '#991b1b');
+            circle.setAttribute('stroke-width', '3');
+            circle.style.filter = 'drop-shadow(0 0 8px rgba(220, 38, 38, 0.7))';
+            const glow = element.element.querySelector('.paxos-node-glow');
+            if (glow) {
+                glow.setAttribute('stroke', '#ef4444');
+                glow.setAttribute('opacity', '0.45');
+            }
+            return;
+        }
         const color = this.getColorForRoles(roles);
         circle.setAttribute('fill', color);
         const isLeader = this.currentLeaderId === nodeId;
@@ -660,6 +679,7 @@ class PaxosVisualizer {
         }
 
         nodeId = this.#normalizeNodeId(nodeId);
+        if (this.crashedNodes.has(nodeId)) return;
 
         if (
             this.currentLeaderId !== null &&
@@ -698,6 +718,26 @@ class PaxosVisualizer {
         if (this.currentLeaderId === nodeId) {
             this.currentLeaderId = null;
         }
+    }
+
+    /**
+     * Mark a node as crashed (red) or recovered.
+     * @param {number} nodeId - Node ID to update
+     * @param {boolean} crashed - True if crashed
+     */
+    setNodeCrashed(nodeId, crashed = true) {
+        nodeId = this.#normalizeNodeId(nodeId);
+        if (crashed) {
+            this.crashedNodes.add(nodeId);
+            if (this.currentLeaderId === nodeId) {
+                this.currentLeaderId = null;
+            }
+            this.resetNodeToRoleColor(nodeId);
+            return;
+        }
+
+        this.crashedNodes.delete(nodeId);
+        this.resetNodeToRoleColor(nodeId);
     }
 
     /**

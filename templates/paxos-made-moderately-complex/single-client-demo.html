@@ -33,6 +33,9 @@
         <h3>Scenario</h3>
         <select id="scenarioSelect">
           <option value="pmmc_single_client">PMMC Single Client (5 nodes)</option>
+          <option value="pmmc_leader_crash">PMMC Leader Crash (2L, 2R, 3A)</option>
+          <option value="pmmc_replica_crash_failover">PMMC Replica Crash Failover (2L, 2R, 3A)</option>
+          <option value="pmmc_leader_partition_heal">PMMC Leader Partition + Heal (2L, 2R, 3A)</option>
           <option value="pmmc_role_split">PMMC Role Split (2L, 2R, 3A)</option>
         </select>
       </div>
@@ -71,6 +74,7 @@
       <div class="event-log-actions">
         <span class="event-filter-status" id="eventFilterStatus">All events</span>
         <button type="button" class="event-filter-toggle" id="eventFilterToggle">Filters</button>
+        <button type="button" class="event-copy-all" id="eventCopyAllBtn">Copy All Logs</button>
       </div>
     </div>
     <div class="event-log-wrapper">

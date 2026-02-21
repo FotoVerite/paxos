@@ -13,7 +13,10 @@ export function createPlaybackDelayPlugin({ minDelay = 300, baseDelay = 400 } = 
       const speed = snapshot.simulation.speed || 1;
       const eventType = event?.eventType;
       const isFastControlPlane =
-        eventType === 'PmmcPreempted' || eventType === 'PmmcAdopted';
+        eventType === 'PmmcPreempted' ||
+        eventType === 'PmmcAdopted' ||
+        eventType === 'LeaderSteppedDown' ||
+        eventType === 'NodeCrashed';
       const localBaseDelay = isFastControlPlane ? 70 : baseDelay;
       const localMinDelay = isFastControlPlane ? 30 : minDelay;
       const delay = Math.max(localMinDelay, localBaseDelay / speed);

@@ -51,6 +51,10 @@ impl PmmcNode {
         self.state.connect_client(client_id).await
     }
 
+    pub async fn is_leader(&self) -> bool {
+        self.state.is_leader().await
+    }
+
     pub fn start(&mut self) {
         let mut rx = self.rx.take().expect("worker already started");
         let state = Arc::clone(&self.state);

@@ -49,6 +49,10 @@ async fn handle_socket(
                     break;
                 }
             }
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
+                info!("Receiver lagged for {} (skipped {} messages), continuing", ip, skipped);
+                continue;
+            }
             Err(e) => {
                 info!("Receiver error for {}: {}", ip, e);
                 break;

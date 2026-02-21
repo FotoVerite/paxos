@@ -29,6 +29,7 @@ export function createEventLogPlugin({
   filterToggle,
   filterClose,
   filterStatus,
+  copyAllButton,
 } = {}) {
   const activePresets = Array.isArray(presets) && presets.length > 0 ? presets : FILTER_PRESETS;
   const excludedTypeSet = new Set(excludeTypes || []);
@@ -38,6 +39,7 @@ export function createEventLogPlugin({
   let activeFilter = defaultFilter || 'all';
   const typeCounts = {};
   const filterButtons = new Map();
+  let scrollRaf = null;
 
   function formatEventText(eventType, eventData, ctx) {
     const viz = getEventVisualizer(eventType);
@@ -99,6 +101,7 @@ export function createEventLogPlugin({
   function setActiveFilter(key) {
     activeFilter = key || 'all';
     updateVisibility();
+    scrollToActive();
     updateFilterButtons();
   }
 
@@ -107,7 +110,6 @@ export function createEventLogPlugin({
       const shouldShow = matchesFilter(item);
       item.node.classList.toggle('filtered', !shouldShow);
     }
-    scrollToActive();
   }
 
   function updateFutureClasses() {
@@ -115,20 +117,71 @@ export function createEventLogPlugin({
       const isFuture = item.frameIndex > cursor;
       item.node.classList.toggle('future', isFuture);
     }
-    scrollToActive();
   }
 
   function scrollToActive() {
     if (!eventLog) return;
-    const activeItem = items.find(
-      (item) => item.frameIndex <= cursor && matchesFilter(item)
+    if (scrollRaf !== null) {
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = null;
+    }
+    let activeItem = items.find(
+      (item) => item.frameIndex === cursor && matchesFilter(item)
     );
+    if (!activeItem) {
+      activeItem = items.find(
+        (item) => item.frameIndex <= cursor && matchesFilter(item)
+      );
+    }
     if (!activeItem) return;
-    activeItem.node.scrollIntoView({ block: 'nearest' });
+    // Defer until after DOM/layout settles; prepend insertions can otherwise
+    // anchor the viewport and override immediate scrollTop writes.
+    scrollRaf = requestAnimationFrame(() => {
+      eventLog.scrollTop = activeItem.node.offsetTop;
+      scrollRaf = null;
+    });
+  }
+
+  async function copyAllLogs() {
+    const lines = [...items]
+      .reverse()
+      .map((item) => {
+        const time = item.node.querySelector('.event-time')?.textContent || '';
+        const text = item.textEl?.textContent || '';
+        return time ? `${time} ${text}` : text;
+      })
+      .filter(Boolean);
+    const payload = lines.join('\n');
+    if (!payload) return false;
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = payload;
+        ta.setAttribute('readonly', 'true');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      return true;
+    } catch (err) {
+      console.error('[event-log] failed to copy logs:', err);
+      return false;
+    }
   }
 
   return {
     init() {
+      if (eventLog) {
+        // Disable browser scroll anchoring so prepending entries does not
+        // fight plugin-controlled positioning.
+        eventLog.style.overflowAnchor = 'none';
+      }
       if (!filterChips) return;
       filterChips.innerHTML = '';
       filterButtons.clear();
@@ -153,6 +206,17 @@ export function createEventLogPlugin({
       if (filterClose && filterBar) {
         filterClose.addEventListener('click', () => {
           filterBar.classList.add('hidden');
+        });
+      }
+
+      if (copyAllButton) {
+        copyAllButton.addEventListener('click', async () => {
+          const originalText = copyAllButton.textContent;
+          const copied = await copyAllLogs();
+          copyAllButton.textContent = copied ? 'Copied' : 'Copy failed';
+          setTimeout(() => {
+            copyAllButton.textContent = originalText;
+          }, 1200);
         });
       }
 
@@ -213,18 +277,29 @@ export function createEventLogPlugin({
         item.textEl.textContent = formatEventText(item.eventType, item.eventData, ctx);
       }
       updateVisibility();
+      scrollToActive();
     },
 
     onRestore({ targetIndex }) {
       if (!eventLog) return;
       cursor = targetIndex;
       updateFutureClasses();
+      scrollToActive();
     },
 
     onPlaybackUpdate(playbackState) {
       if (!eventLog) return;
       cursor = playbackState.cursor ?? cursor;
       updateFutureClasses();
+      if (playbackState?.playerMode === 'follow') {
+        if (scrollRaf !== null) {
+          cancelAnimationFrame(scrollRaf);
+          scrollRaf = null;
+        }
+        eventLog.scrollTop = 0;
+        return;
+      }
+      scrollToActive();
     },
 
     onReset() {

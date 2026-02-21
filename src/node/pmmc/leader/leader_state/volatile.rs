@@ -1,7 +1,7 @@
 use std::{cmp::max, future::pending, sync::Arc, time::Duration};
 
 use rand::Rng;
-use tokio::time::{Instant, Interval};
+use tokio::{task::JoinHandle, time::{Instant, Interval}};
 use uuid::Uuid;
 
 use crate::{
@@ -27,7 +27,12 @@ pub struct LeaderVolatile {
     election_aimd: AimdTimeout,
     heartbeat: Option<Interval>,
     scout: Option<Scout>,
-    commander: Option<Commander>,
+    commander: Option<CommanderRuntime>,
+}
+
+struct CommanderRuntime {
+    commander: Commander,
+    task: JoinHandle<()>,
 }
 
 impl Default for LeaderVolatile {
@@ -62,8 +67,12 @@ impl LeaderVolatile {
         self.scout = None;
     }
 
-    pub fn drop_commander(&mut self) {
-        self.commander = None;
+    pub async fn drop_commander(&mut self) {
+        if let Some(runtime) = self.commander.take() {
+            runtime.commander.stop();
+            runtime.task.abort();
+            let _ = runtime.task.await;
+        }
     }
 
     pub fn start_commander(
@@ -76,12 +85,17 @@ impl LeaderVolatile {
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
     ) {
+        if let Some(runtime) = self.commander.take() {
+            runtime.commander.stop();
+            runtime.task.abort();
+        }
+
         let commander = Commander::new(uuid, quorum, ballot, replicas, proposals, peers, observer);
         let runner = commander.clone();
-        tokio::spawn(async move {
+        let task = tokio::spawn(async move {
             runner.run().await;
         });
-        self.commander = Some(commander);
+        self.commander = Some(CommanderRuntime { commander, task });
     }
     pub async fn start_scout(
         &mut self,
@@ -131,8 +145,8 @@ impl LeaderVolatile {
     }
 
     pub async fn add_to_commander(&mut self, slot: usize, cmd: PaxosCommand) {
-        if let Some(commander) = self.commander.as_mut() {
-            return commander.add_pending(slot, cmd).await;
+        if let Some(runtime) = self.commander.as_mut() {
+            return runtime.commander.add_pending(slot, cmd).await;
         }
     }
 
@@ -144,15 +158,15 @@ impl LeaderVolatile {
     }
 
     pub async fn p2b(&mut self, msg: Message) -> Message {
-        if let Some(commander) = self.commander.as_mut() {
-            return commander.handle_message(msg).await;
+        if let Some(runtime) = self.commander.as_mut() {
+            return runtime.commander.handle_message(msg).await;
         }
         Message::NACK
     }
 
     pub async fn ack(&mut self, from: Uuid, slot: usize) {
-        if let Some(commander) = self.commander.as_mut() {
-            commander.record_replica_ack(from, slot).await;
+        if let Some(runtime) = self.commander.as_mut() {
+            runtime.commander.record_replica_ack(from, slot).await;
         }
     }
 }

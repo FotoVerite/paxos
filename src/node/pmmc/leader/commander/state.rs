@@ -1,10 +1,11 @@
 use std::{
     collections::{HashMap, HashSet},
+    sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 
 use rand::Rng;
-use tokio::{sync::Mutex, time::Instant};
+use tokio::{sync::{Mutex, Notify}, time::Instant};
 use uuid::Uuid;
 
 use crate::{
@@ -34,6 +35,8 @@ pub struct CommanderData {
 
 pub struct CommanderState {
     data: Mutex<CommanderData>,
+    stopped: AtomicBool,
+    stop_notify: Notify,
 }
 
 impl CommanderState {
@@ -70,7 +73,25 @@ impl CommanderState {
         };
         Self {
             data: Mutex::new(data),
+            stopped: AtomicBool::new(false),
+            stop_notify: Notify::new(),
         }
+    }
+
+    pub fn stop(&self) {
+        self.stopped.store(true, Ordering::Release);
+        self.stop_notify.notify_waiters();
+    }
+
+    pub fn is_stopped(&self) -> bool {
+        self.stopped.load(Ordering::Acquire)
+    }
+
+    pub async fn wait_for_stop(&self) {
+        if self.is_stopped() {
+            return;
+        }
+        self.stop_notify.notified().await;
     }
 
     pub async fn process(&self, acceptor: Uuid, pvalue: PValue) -> Message {

@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::{
     cluster::network_simulator::{NetworkFailure, NetworkSimulator},
     message::{ClientMessage, Message},
-    monitor::PaxosObserver,
+    monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{config::PmmcNodeConfig, pmmc::pmmc_node::PmmcNode},
     paxos_command::PaxosCommand,
 };
@@ -18,7 +18,7 @@ pub struct PmmcCluster {
     total_number: usize,
     quorum_size: usize,
     pub nodes: Vec<PmmcNode>,
-    _observer: Arc<dyn PaxosObserver>,
+    observer: Arc<dyn PaxosObserver>,
     simulators: HashMap<Uuid, Arc<NetworkSimulator>>,
 }
 
@@ -110,7 +110,7 @@ impl PmmcCluster {
             total_number,
             quorum_size: quorum,
             nodes,
-            _observer: observer,
+            observer,
             simulators,
         })
     }
@@ -179,6 +179,79 @@ impl PmmcCluster {
     ) -> Option<(Sender<ClientMessage>, Receiver<ClientMessage>)> {
         let n = self.nodes.get(node)?;
         n.connect_client(client_id).await
+    }
+
+    pub async fn leader_index(&self) -> Option<usize> {
+        for (idx, node) in self.nodes.iter().enumerate() {
+            if node.is_leader().await {
+                return Some(idx);
+            }
+        }
+        None
+    }
+
+    pub async fn crash_node(&self, node: usize) -> Option<Uuid> {
+        let crashed_uuid = self.isolate_node(node).await?;
+
+        self.observer.on_event(Event::NodeCrashed {
+            id: crashed_uuid,
+            created_at: current_timestamp_millis(),
+        });
+
+        Some(crashed_uuid)
+    }
+
+    pub async fn isolate_node(&self, node: usize) -> Option<Uuid> {
+        let isolated_uuid = self.nodes.get(node)?.uuid;
+
+        for peer in &self.nodes {
+            if peer.uuid == isolated_uuid {
+                continue;
+            }
+            if let Some(isolated_sim) = self.simulators.get(&isolated_uuid) {
+                let mut partition_set = HashSet::new();
+                partition_set.insert(peer.uuid);
+                isolated_sim
+                    .set_failure(peer.uuid, NetworkFailure::Partition { nodes: partition_set })
+                    .await;
+            }
+            if let Some(peer_sim) = self.simulators.get(&peer.uuid) {
+                let mut partition_set = HashSet::new();
+                partition_set.insert(isolated_uuid);
+                peer_sim
+                    .set_failure(
+                        isolated_uuid,
+                        NetworkFailure::Partition { nodes: partition_set },
+                    )
+                    .await;
+            }
+        }
+
+        Some(isolated_uuid)
+    }
+
+    pub async fn heal_node(&self, node: usize) -> Option<Uuid> {
+        let healed_uuid = self.nodes.get(node)?.uuid;
+
+        if let Some(healed_sim) = self.simulators.get(&healed_uuid) {
+            for peer in &self.nodes {
+                if peer.uuid == healed_uuid {
+                    continue;
+                }
+                healed_sim.clear_failure(peer.uuid).await;
+            }
+        }
+
+        for peer in &self.nodes {
+            if peer.uuid == healed_uuid {
+                continue;
+            }
+            if let Some(peer_sim) = self.simulators.get(&peer.uuid) {
+                peer_sim.clear_failure(healed_uuid).await;
+            }
+        }
+
+        Some(healed_uuid)
     }
 
     pub fn node_uuid(ip: IpAddr, node_id: usize) -> Uuid {

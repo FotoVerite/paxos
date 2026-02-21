@@ -7,7 +7,7 @@
 export class DemoState {
   constructor() {
     this.cluster = null;
-    this.nodes = new Map(); // id -> { state, partitioned, decrees[], role, color }
+    this.nodes = new Map(); // id -> { state, partitioned, crashed, decrees[], role, color }
     this.simulation = {
       running: false,
       speed: 1.0,
@@ -40,6 +40,7 @@ export class DemoState {
         this.nodes.set(i, {
           state: '--',
           partitioned: false,
+          crashed: false,
           decrees: [],
           role: null,
           color: '#3b82f6',
@@ -63,6 +64,7 @@ export class DemoState {
       node = {
         state: '--',
         partitioned: false,
+        crashed: false,
         decrees: [],
         role: null,
         color: '#3b82f6',
@@ -109,6 +111,19 @@ export class DemoState {
     const node = this.nodes.get(nodeId);
     if (node) {
       node.partitioned = partitioned;
+      this.notify();
+    }
+  }
+
+  /**
+   * Mark node as crashed or recovered
+   * @param {number} nodeId - Node ID
+   * @param {boolean} crashed - True if crashed
+   */
+  setNodeCrashed(nodeId, crashed) {
+    const node = this.nodes.get(nodeId);
+    if (node) {
+      node.crashed = Boolean(crashed);
       this.notify();
     }
   }
@@ -208,6 +223,7 @@ export class DemoState {
         if (node) {
           node.state = '--';
           node.partitioned = false;
+          node.crashed = false;
           node.decrees = [];
           node.color = '#3b82f6';
         }
@@ -270,6 +286,7 @@ export class DemoState {
       this.nodes.set(id, {
         state: node.state,
         partitioned: node.partitioned,
+        crashed: Boolean(node.crashed),
         decrees: Array.isArray(node.decrees)
           ? node.decrees.map((decree) => ({ ...decree }))
           : [],

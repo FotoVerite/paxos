@@ -78,6 +78,7 @@ export function createClientStripPlugin({
         pending: 0,
         lastReq: null,
         kv: new Map(),
+        proposePulseUntil: 0,
       });
       if (selectedClientKey === null) {
         selectedClientKey = key;
@@ -111,7 +112,8 @@ export function createClientStripPlugin({
     const rows = Array.from(clients.entries())
       .map(([key, c]) => {
         const selected = key === selectedClientKey ? ' selected' : '';
-        return `<button type="button" class="client-pill${selected}" data-client-key="${key}"><span class="client-id">${c.label}</span><span class="client-meta">${c.sends}/${c.learned}</span></button>`;
+        const pulsing = c.proposePulseUntil > Date.now() ? ' propose-pulse' : '';
+        return `<button type="button" class="client-pill${selected}${pulsing}" data-client-key="${key}"><span class="client-id">${c.label}</span><span class="client-meta">${c.sends}/${c.learned}</span></button>`;
       })
       .join('');
     container.innerHTML = rows || '<div class="client-empty">No clients yet</div>';
@@ -168,6 +170,7 @@ export function createClientStripPlugin({
 
         client.sends += 1;
         client.lastReq = info?.requestId ?? null;
+        client.proposePulseUntil = Date.now() + 800;
         const requestKey = info?.requestId !== null && info?.requestId !== undefined
           ? `${info.clientId}:${info.requestId}`
           : null;

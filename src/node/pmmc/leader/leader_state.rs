@@ -78,6 +78,9 @@ impl LeaderState {
         if ballot != state.durable.ballot() {
             return false;
         }
+        if state.volatile.highest_seen > ballot {
+            return false;
+        }
         if state.durable.is_active() {
             return false;
         }
@@ -125,7 +128,7 @@ impl LeaderState {
         state.durable.set_as_passive();
         state.volatile.set_highest_seen(ballot);
         state.volatile.drop_scout();
-        state.volatile.drop_commander();
+        state.volatile.drop_commander().await;
         state.volatile.reset_election_deadline();
     }
 
@@ -142,7 +145,7 @@ impl LeaderState {
         state.durable.set_as_passive();
         state.volatile.set_highest_seen(ballot);
         state.volatile.drop_scout();
-        state.volatile.drop_commander();
+        state.volatile.drop_commander().await;
         state.volatile.aimd_backoff();
         state.volatile.reset_election_deadline();
     }

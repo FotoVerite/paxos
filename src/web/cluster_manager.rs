@@ -11,7 +11,7 @@ use crate::cluster::{cluster::Cluster, pmmc_cluster::PmmcCluster};
 use crate::decree_generator::DecreeGenerator;
 use crate::common::persistence::DATA_DIR;
 use crate::message::{ClientMessage, Message};
-use crate::monitor::PaxosObserver;
+use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::node::config::{ClassicNodeConfig, LearningStrategy, PmmcNodeConfig, Roles};
 use crate::paxos_command::PaxosCommand;
 use crate::console_observer::ConsoleObserver;
@@ -192,8 +192,15 @@ impl ClusterManager {
         // Create new cluster
         let (active_for_runner, node_count) = if scenario_type == "pmmc_single_client"
             || scenario_type == "pmmc_role_split"
+            || scenario_type == "pmmc_leader_crash"
+            || scenario_type == "pmmc_replica_crash_failover"
+            || scenario_type == "pmmc_leader_partition_heal"
         {
-            let mut cluster = if scenario_type == "pmmc_role_split" {
+            let mut cluster = if scenario_type == "pmmc_role_split"
+                || scenario_type == "pmmc_leader_crash"
+                || scenario_type == "pmmc_replica_crash_failover"
+                || scenario_type == "pmmc_leader_partition_heal"
+            {
                 Self::create_pmmc_role_split_cluster(0, ip, scenario_observer.clone()).await?
             } else {
                 Self::create_pmmc_cluster(0, ip, node_count, scenario_observer.clone()).await?
@@ -272,6 +279,25 @@ impl ClusterManager {
             let mut single_client_rx = None;
             let single_client_id = Uuid::from_u128(0xC0);
             let single_client_limit = 5usize;
+            let role_split_limit = 5usize;
+            let leader_crash_limit = 5usize;
+            let replica_crash_failover_limit = 5usize;
+            let leader_partition_heal_limit = 5usize;
+            let mut leader_crash_done = false;
+            let mut replica_crash_done = false;
+            let mut leader_partitioned_idx: Option<usize> = None;
+            let mut leader_partitioned_uuid: Option<Uuid> = None;
+            let mut leader_partition_healed = false;
+            let mut leader_partition_started_at: Option<std::time::Instant> = None;
+            let mut leader_partition_response_count = 0usize;
+            let mut client_node_index = if scenario_type == "pmmc_leader_crash"
+                || scenario_type == "pmmc_replica_crash_failover"
+                || scenario_type == "pmmc_leader_partition_heal"
+            {
+                2
+            } else {
+                0
+            };
 
             loop {
                 // Check if stop was signaled
@@ -346,13 +372,73 @@ impl ClusterManager {
                         }
                     },
                     ActiveCluster::Pmmc(cluster_for_runner) => {
-                        if scenario_type == "pmmc_single_client" {
-                            if proposal_count >= single_client_limit {
+                        if scenario_type == "pmmc_single_client"
+                            || scenario_type == "pmmc_leader_crash"
+                            || scenario_type == "pmmc_replica_crash_failover"
+                            || scenario_type == "pmmc_leader_partition_heal"
+                        {
+                            let is_leader_crash = scenario_type == "pmmc_leader_crash";
+                            let is_replica_crash_failover =
+                                scenario_type == "pmmc_replica_crash_failover";
+                            let is_leader_partition_heal =
+                                scenario_type == "pmmc_leader_partition_heal";
+                            let target_limit = if is_leader_crash {
+                                leader_crash_limit
+                            } else if is_replica_crash_failover {
+                                replica_crash_failover_limit
+                            } else if is_leader_partition_heal {
+                                leader_partition_heal_limit
+                            } else {
+                                single_client_limit
+                            };
+                            if proposal_count >= target_limit {
                                 println!(
-                                    "PMMC single-client completed after {} successful requests",
-                                    single_client_limit
+                                    "PMMC {} completed after {} successful requests",
+                                    if is_leader_crash {
+                                        "leader-crash"
+                                    } else {
+                                        "single-client"
+                                    },
+                                    target_limit
                                 );
                                 break;
+                            }
+
+                            if is_leader_partition_heal
+                                && !leader_partition_healed
+                                && leader_partitioned_idx.is_some()
+                                && (
+                                    leader_partition_started_at
+                                        .map(|t| t.elapsed() >= Duration::from_secs(2))
+                                        .unwrap_or(false)
+                                    || leader_partition_response_count >= 2
+                                )
+                            {
+                                let idx = leader_partitioned_idx.unwrap();
+                                let healed_uuid = {
+                                    let cluster = cluster_for_runner.lock().await;
+                                    cluster.heal_node(idx).await
+                                };
+                                if let Some(uuid) = healed_uuid {
+                                    let healed_id = leader_partitioned_uuid.unwrap_or(uuid);
+                                    observer_for_runner.on_event(Event::PartitionHealed {
+                                        partition_a: vec![],
+                                        partition_b: vec![healed_id],
+                                        created_at: current_timestamp_millis(),
+                                    });
+                                    println!(
+                                        "PMMC leader-partition-heal: healed isolated leader node {} ({})",
+                                        idx, uuid
+                                    );
+                                    leader_partition_healed = true;
+                                    leader_partition_started_at = None;
+                                    leader_partition_response_count = 0;
+                                } else {
+                                    eprintln!(
+                                        "PMMC leader-partition-heal: failed healing leader node {}",
+                                        idx
+                                    );
+                                }
                             }
 
                             if proposal_count == 0 {
@@ -363,14 +449,18 @@ impl ClusterManager {
 
                             if single_client_tx.is_none() || single_client_rx.is_none() {
                                 let cluster = cluster_for_runner.lock().await;
-                                match cluster.connect_client_to(0, single_client_id).await {
+                                match cluster
+                                    .connect_client_to(client_node_index, single_client_id)
+                                    .await
+                                {
                                     Some((tx, rx)) => {
                                         single_client_tx = Some(tx);
                                         single_client_rx = Some(rx);
                                     }
                                     None => {
                                         eprintln!(
-                                            "Failed to attach PMMC single-client to replica node 0"
+                                            "Failed to attach PMMC client to replica node {}",
+                                            client_node_index
                                         );
                                         break;
                                     }
@@ -418,6 +508,143 @@ impl ClusterManager {
                                         );
                                     }
                                     proposal_count += 1;
+
+                                    if is_leader_crash && !leader_crash_done && proposal_count >= 1 {
+                                        let (leader_idx_opt, cluster_size) = {
+                                            let cluster = cluster_for_runner.lock().await;
+                                            (cluster.leader_index().await, cluster.num_nodes())
+                                        };
+
+                                        let Some(crashed_idx) = leader_idx_opt else {
+                                            eprintln!(
+                                                "PMMC leader-crash: no active leader yet; delaying crash"
+                                            );
+                                            continue;
+                                        };
+
+                                        let crashed_uuid = {
+                                            let cluster = cluster_for_runner.lock().await;
+                                            cluster.crash_node(crashed_idx).await
+                                        };
+
+                                        match crashed_uuid {
+                                            Some(uuid) => {
+                                                println!(
+                                                    "PMMC leader-crash: isolated leader node {} ({})",
+                                                    crashed_idx, uuid
+                                                );
+                                                if crashed_idx == client_node_index {
+                                                    if is_leader_crash {
+                                                        // Role-split topology: replicas are nodes 2 and 3.
+                                                        client_node_index = if client_node_index == 2 {
+                                                            3
+                                                        } else {
+                                                            2
+                                                        };
+                                                    } else {
+                                                        client_node_index =
+                                                            (client_node_index + 1) % cluster_size;
+                                                    }
+                                                    single_client_tx = None;
+                                                    single_client_rx = None;
+                                                }
+                                                leader_crash_done = true;
+                                                sleep(Duration::from_millis(700)).await;
+                                            }
+                                            None => {
+                                                eprintln!(
+                                                    "PMMC leader-crash: failed to isolate leader node {}",
+                                                    crashed_idx
+                                                );
+                                            }
+                                        }
+                                    }
+
+                                    if is_replica_crash_failover
+                                        && !replica_crash_done
+                                        && proposal_count >= 1
+                                    {
+                                        let crashed_uuid = {
+                                            let cluster = cluster_for_runner.lock().await;
+                                            cluster.crash_node(2).await
+                                        };
+                                        match crashed_uuid {
+                                            Some(uuid) => {
+                                                println!(
+                                                    "PMMC replica-crash-failover: crashed replica node 2 ({})",
+                                                    uuid
+                                                );
+                                                if client_node_index == 2 {
+                                                    client_node_index = 3;
+                                                    single_client_tx = None;
+                                                    single_client_rx = None;
+                                                }
+                                                replica_crash_done = true;
+                                                sleep(Duration::from_millis(700)).await;
+                                            }
+                                            None => {
+                                                eprintln!(
+                                                    "PMMC replica-crash-failover: failed to crash replica node 2"
+                                                );
+                                            }
+                                        }
+                                    }
+
+                                    if is_leader_partition_heal && leader_partitioned_idx.is_none() && proposal_count >= 1 {
+                                        let maybe_partition = {
+                                            let cluster = cluster_for_runner.lock().await;
+                                            let leader_idx = cluster.leader_index().await;
+                                            match leader_idx {
+                                                Some(idx) => {
+                                                    let isolated = cluster.isolate_node(idx).await;
+                                                    let uuids = cluster.get_node_uuids();
+                                                    Some((idx, isolated, uuids))
+                                                }
+                                                None => None,
+                                            }
+                                        };
+
+                                        match maybe_partition {
+                                            Some((idx, Some(uuid), uuids)) => {
+                                                let partition_a: Vec<Uuid> =
+                                                    uuids.into_iter().filter(|u| *u != uuid).collect();
+                                                observer_for_runner.on_event(Event::PartitionCreated {
+                                                    partition_a,
+                                                    partition_b: vec![uuid],
+                                                    created_at: current_timestamp_millis(),
+                                                });
+                                                println!(
+                                                    "PMMC leader-partition-heal: isolated leader node {} ({})",
+                                                    idx, uuid
+                                                );
+                                                leader_partitioned_idx = Some(idx);
+                                                leader_partitioned_uuid = Some(uuid);
+                                                leader_partition_started_at =
+                                                    Some(std::time::Instant::now());
+                                                leader_partition_response_count = 0;
+                                                sleep(Duration::from_millis(700)).await;
+                                            }
+                                            Some((idx, None, _)) => {
+                                                eprintln!(
+                                                    "PMMC leader-partition-heal: failed to isolate leader node {}",
+                                                    idx
+                                                );
+                                            }
+                                            None => {
+                                                eprintln!(
+                                                    "PMMC leader-partition-heal: no active leader yet; delaying partition"
+                                                );
+                                            }
+                                        }
+                                    }
+
+                                    if is_leader_partition_heal
+                                        && leader_partitioned_idx.is_some()
+                                        && !leader_partition_healed
+                                    {
+                                        leader_partition_response_count += 1;
+                                    }
+
                                     continue;
                                 }
                                 Ok(Some(ClientMessage::PROPOSE { .. })) => {
@@ -429,6 +656,19 @@ impl ClusterManager {
                                     break;
                                 }
                                 Err(_) => {
+                                    if is_replica_crash_failover || is_leader_partition_heal {
+                                        eprintln!(
+                                            "PMMC {} timed out waiting for response to request {}; retrying",
+                                            if is_replica_crash_failover {
+                                                "replica-crash-failover"
+                                            } else {
+                                                "leader-partition-heal"
+                                            },
+                                            request_id
+                                        );
+                                        sleep(Duration::from_millis(250)).await;
+                                        continue;
+                                    }
                                     eprintln!(
                                         "PMMC single-client timed out waiting for response to request {}",
                                         request_id
@@ -437,6 +677,13 @@ impl ClusterManager {
                                 }
                             }
                         } else if scenario_type == "pmmc_role_split" {
+                            if proposal_count >= role_split_limit {
+                                println!(
+                                    "PMMC role-split completed after {} proposals",
+                                    role_split_limit
+                                );
+                                break;
+                            }
                             if proposal_count == 0 {
                                 // Allow initial PMMC leader election churn to settle
                                 // before issuing the first client request.

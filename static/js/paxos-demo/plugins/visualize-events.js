@@ -23,6 +23,7 @@ const NODE_STATE_LABELS = {
   PmmcHeartbeat: 'heart',
   PmmcAck: 'ack',
   LeaderSteppedDown: 'passive',
+  NodeCrashed: 'crash',
 };
 
 function createQuietVisualizer(visualizer) {
@@ -37,6 +38,7 @@ function createQuietVisualizer(visualizer) {
     drawBeamsTo: noopAsync,
     drawBeamsFrom: noopAsync,
     setNodePartitioned: noop,
+    setNodeCrashed: noop,
     setLeader: noop,
     clearLeader: noop,
   };
@@ -69,6 +71,13 @@ export function createVisualizeEventsPlugin({ skip = new Set() } = {}) {
         if (snapshot.leaderId === eventData.id) {
           ctx.state.setLeader(null);
         }
+      }
+      if (eventType === 'NodeCrashed' && eventData?.id !== undefined) {
+        const snapshot = ctx.state.snapshot();
+        if (snapshot.leaderId === eventData.id) {
+          ctx.state.setLeader(null);
+        }
+        ctx.state.setNodeCrashed(eventData.id, true);
       }
 
       const playbackMode = ctx.playbackMode;

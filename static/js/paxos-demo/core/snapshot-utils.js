@@ -9,6 +9,7 @@ export function cloneStateSnapshot(snapshot) {
     nodes.set(id, {
       state: node.state,
       partitioned: node.partitioned,
+      crashed: Boolean(node.crashed),
       decrees: Array.isArray(node.decrees)
         ? node.decrees.map((decree) => ({ ...decree }))
         : [],
@@ -51,6 +52,9 @@ export function syncVisualizerToState(snapshot, visualizer) {
       visualizer.setNodePartitioned(nodeId, Boolean(node.partitioned));
     } else if (typeof visualizer.resetNodeToRoleColor === 'function') {
       visualizer.resetNodeToRoleColor(nodeId);
+    }
+    if (typeof visualizer.setNodeCrashed === 'function') {
+      visualizer.setNodeCrashed(nodeId, Boolean(node.crashed));
     }
   });
 

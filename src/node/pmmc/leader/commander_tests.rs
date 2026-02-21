@@ -222,6 +222,43 @@ async fn run_rebroadcasts_p2a_periodically_until_quorum() {
 }
 
 #[tokio::test]
+async fn run_stops_rebroadcasts_after_stop_signal() {
+    let leader = Uuid::new_v4();
+    let peer = Uuid::new_v4();
+    let ballot = Ballot::new(1, leader);
+    let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+    let mut proposals = BTreeMap::new();
+    proposals.insert(0, cmd(1));
+
+    let (peer_tx, mut peer_rx) = mpsc::channel(8);
+    let mut peers_map = HashMap::new();
+    peers_map.insert(peer, peer_tx);
+    let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)));
+    let commander = Commander::new(leader, 2, ballot, vec![peer], proposals, peers, observer);
+    let runner = commander.clone();
+    tokio::spawn(async move {
+        runner.run().await;
+    });
+
+    sleep(Duration::from_millis(320)).await;
+    let before_stop = std::iter::from_fn(|| peer_rx.try_recv().ok())
+        .filter(|m| matches!(m, Message::P2A { .. }))
+        .count();
+    assert!(before_stop >= 1, "commander should emit p2a before stop");
+
+    commander.stop();
+    sleep(Duration::from_millis(380)).await;
+    let after_stop = std::iter::from_fn(|| peer_rx.try_recv().ok())
+        .filter(|m| matches!(m, Message::P2A { .. }))
+        .count();
+
+    assert_eq!(
+        after_stop, 0,
+        "commander should emit no further p2a once stop is signaled"
+    );
+}
+
+#[tokio::test]
 async fn run_rebroadcasts_accepted_to_only_unacked_replicas_once_decided() {
     let leader = Uuid::new_v4();
     let r1 = Uuid::new_v4();

@@ -62,6 +62,9 @@ impl ReplicaDurable {
         if self.next_execute_slot > pvalue.slot() {
             return;
         }
+        // Learned decisions advance the proposal watermark so a failover replica
+        // does not repropose an already-decided slot.
+        self.next_slot = self.next_slot.max(pvalue.slot() + 1);
         if let Some(proposal) = self.proposals.remove(&pvalue.slot()) {
             if proposal != pvalue.cmd() {
                 self.add_proposal(proposal);

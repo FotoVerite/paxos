@@ -288,6 +288,12 @@ impl PaxosObserver for ConsoleObserver {
                         .bold()
                 );
             }
+            Event::NodeCrashed { id, .. } => {
+                println!(
+                    "{}",
+                    format!("[CRASH] Node {} crashed", node_label(id)).red().bold()
+                );
+            }
             Event::BallotAdopted { id, ballot } => {
                 println!(
                     "{}",

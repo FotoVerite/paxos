@@ -63,6 +63,20 @@ function getReachableTargets(fromId, totalNodes, canCommunicate) {
   return targets;
 }
 
+function getLeaderTargets(snapshot, fromId, canCommunicate) {
+  const nodes = snapshot?.nodes;
+  if (!(nodes instanceof Map)) return [];
+  const targets = [];
+  nodes.forEach((node, nodeId) => {
+    const isLeader = Array.isArray(node?.role?.roles) && node.role.roles.includes('Leader');
+    if (!isLeader || nodeId === fromId) return;
+    if (canCommunicate(fromId, nodeId)) {
+      targets.push(nodeId);
+    }
+  });
+  return targets;
+}
+
 async function drawBeamsTo(visualizer, fromId, toIds, color, duration, pattern) {
   if (!toIds || toIds.length === 0) return;
   if (typeof visualizer.drawBeamsTo === 'function') {
@@ -374,15 +388,45 @@ export const EVENT_VISUALIZERS = {
     }
   },
 
+  NodeCrashed: {
+    color: '#ef4444',
+    name: 'Crash',
+    format(event, labels) {
+      return `[CRASH] ${nodeText(labels, event.id)} crashed`;
+    },
+    async visualize(event, visualizer) {
+      if (typeof visualizer.clearLeader === 'function') {
+        visualizer.clearLeader(event.id);
+      }
+      if (typeof visualizer.setNodeState === 'function') {
+        visualizer.setNodeState(event.id, 'crash');
+      }
+      if (typeof visualizer.setNodeCrashed === 'function') {
+        visualizer.setNodeCrashed(event.id, true);
+      }
+    }
+  },
+
   PmmcPropose: {
     color: '#60a5fa',
     name: 'PMMC Propose',
     format(event, labels) {
       return `[PMMC Propose] ${nodeText(labels, event.id)} slot ${event.slot}`;
     },
-    async visualize(event, visualizer) {
+    async visualize(event, visualizer, state, canCommunicate) {
       visualizer.activateNode(event.id, this.color);
-      scheduleNodeReset(visualizer, event.id, 250);
+      const snapshot = state.snapshot();
+      const duration = getBeamDuration(snapshot, 260);
+      let targets = getLeaderTargets(snapshot, event.id, canCommunicate);
+      if (targets.length === 0) {
+        targets = getReachableTargets(
+          event.id,
+          snapshot.cluster?.total_nodes,
+          canCommunicate
+        );
+      }
+      await drawBeamsTo(visualizer, event.id, targets, this.color, duration, 'solid');
+      scheduleNodeReset(visualizer, event.id, duration + 50);
     }
   },
 
@@ -465,7 +509,7 @@ export const EVENT_VISUALIZERS = {
       return `[ADOPTED] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${event.ballot.number}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      const duration = getBeamDuration(state.snapshot(), 320);
+      const duration = getBeamDuration(state.snapshot(), 160);
       if (canCommunicate(event.from, event.to)) {
         await visualizer.drawBeam(event.from, event.to, this.color, duration, 'solid');
       }
@@ -481,7 +525,7 @@ export const EVENT_VISUALIZERS = {
       return `[PREEMPT] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${event.ballot.number}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      const duration = getBeamDuration(state.snapshot(), 320);
+      const duration = getBeamDuration(state.snapshot(), 160);
       if (canCommunicate(event.from, event.to)) {
         await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dashed');
       }

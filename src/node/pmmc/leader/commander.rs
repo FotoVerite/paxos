@@ -55,6 +55,10 @@ impl Commander {
     pub async fn record_replica_ack(&self, from: Uuid, slot: usize) {
         self.state.record_replica_ack(from, slot).await;
     }
+
+    pub fn stop(&self) {
+        self.state.stop();
+    }
     async fn p2b(&mut self, acceptor: Uuid, pvalue: PValue, ballot: Ballot) -> Message {
         if self.ballot < ballot {
             return Message::PREEMPT {
@@ -85,6 +89,9 @@ impl Commander {
         let state = Arc::clone(&self.state);
         let peers = Arc::clone(&self.peers);
         loop {
+            if state.is_stopped() {
+                break;
+            }
             select! {
                 _ = time::sleep_until(state.deadline().await) => {
                     let (mut pvalues, all_replicas) = state.tick_snapshot().await;
@@ -111,6 +118,9 @@ impl Commander {
                         }
                     }
                     state.reset_deadline().await;
+                }
+                _ = state.wait_for_stop() => {
+                    break;
                 }
 
 

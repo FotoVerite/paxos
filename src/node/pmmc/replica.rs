@@ -358,6 +358,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn learned_decision_advances_proposal_slot_for_failover_replicas() {
+        let replica = new_replica().await;
+        let leader = Uuid::new_v4();
+        let ballot = Ballot::new(14, leader);
+        let learned = client_cmd(82, 14);
+        let fresh = client_cmd(83, 15);
+
+        let _ = replica
+            .handle_message(Message::ACCEPTED {
+                from: Uuid::new_v4(),
+                pvalue: PValue::new(0, ballot, learned),
+            })
+            .await;
+
+        let slot = replica.state.add_proposal(fresh).await;
+        assert_eq!(
+            slot, 1,
+            "replica must not repropose slot 0 after learning it"
+        );
+    }
+
+    #[tokio::test]
     async fn duplicate_client_request_returns_cached_response_after_first_execution() {
         let uuid = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);

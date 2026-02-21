@@ -33,6 +33,7 @@ let filterChips;
 let filterToggle;
 let filterClose;
 let filterStatus;
+let copyAllLogsBtn;
 let nodeLabelModeSelect;
 let clientStrip;
 let clientFeed;
@@ -42,8 +43,8 @@ const FRAME_WINDOW_MICROS = 50;
 const NODE_LABEL_MODE_STORAGE_KEY = 'paxos.nodeLabelMode';
 const PMMC_LOG_PRESETS = [
   { key: 'all', label: 'All', types: null },
-  { key: 'flow', label: 'Flow', types: ['PmmcPropose', 'PmmcP1A', 'PmmcP1B', 'PmmcP2A', 'PmmcP2B'] },
-  { key: 'leader', label: 'Leader', types: ['LeaderElected', 'LeaderSteppedDown', 'PmmcAdopted', 'PmmcPreempted', 'PmmcHeartbeat'] },
+  { key: 'flow', label: 'Flow', types: ['PmmcPropose', 'PmmcP1A', 'PmmcP1B', 'PmmcP2A', 'PmmcP2B', 'NodeCrashed', 'PartitionCreated', 'PartitionHealed'] },
+  { key: 'leader', label: 'Leader', types: ['LeaderElected', 'LeaderSteppedDown', 'NodeCrashed', 'PartitionCreated', 'PartitionHealed', 'PmmcAdopted', 'PmmcPreempted', 'PmmcHeartbeat'] },
   { key: 'acks', label: 'Acks', types: ['PmmcAck'] },
 ];
 const PMMC_CLIENT_DEBUG = true;
@@ -133,7 +134,7 @@ function buildController() {
       clusterRenderPlugin,
       createEventLogPlugin({
         eventLog,
-        limit: 80,
+        limit: 500,
         presets: PMMC_LOG_PRESETS,
         defaultFilter: 'flow',
         excludeTypes: ['NodeCapabilities', 'BatchInitialDecrees', 'LedgerDump', 'InitialDecree'],
@@ -142,6 +143,7 @@ function buildController() {
         filterToggle,
         filterClose,
         filterStatus,
+        copyAllButton: copyAllLogsBtn,
       }),
       createVisualizeEventsPlugin(),
       createNodeCapabilitiesPlugin(),
@@ -193,10 +195,10 @@ function createTopologyPanelPlugin({ container } = {}) {
     container.innerHTML = `
       <div class="topology-title">Topology</div>
       <div class="topology-grid">
-        <div class="topology-item"><span>Leaders</span><span>${totals.leaders}</span></div>
-        <div class="topology-item"><span>Replicas</span><span>${totals.replicas}</span></div>
-        <div class="topology-item"><span>Acceptors</span><span>${totals.acceptors}</span></div>
-        <div class="topology-item"><span>Nodes</span><span>${clusterSize}</span></div>
+        <div class="topology-item topology-item-leader"><span>Leaders</span><span class="topology-value">${totals.leaders}</span></div>
+        <div class="topology-item topology-item-replica"><span>Replicas</span><span class="topology-value">${totals.replicas}</span></div>
+        <div class="topology-item topology-item-acceptor"><span>Acceptors</span><span class="topology-value">${totals.acceptors}</span></div>
+        <div class="topology-item topology-item-node"><span>Nodes</span><span class="topology-value">${clusterSize}</span></div>
       </div>
     `;
   }
@@ -309,7 +311,13 @@ async function playScenario() {
   try {
     scenarioStartInFlight = true;
     const scenarioType = scenarioSelect?.value || 'pmmc_single_client';
-    const scenarioNodeCount = scenarioType === 'pmmc_role_split' ? 7 : 5;
+    const scenarioNodeCount =
+      scenarioType === 'pmmc_role_split' ||
+      scenarioType === 'pmmc_leader_crash' ||
+      scenarioType === 'pmmc_replica_crash_failover' ||
+      scenarioType === 'pmmc_leader_partition_heal'
+        ? 7
+        : 5;
     const response = await fetch('/api/start-scenario', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -467,6 +475,7 @@ function initUI() {
   filterToggle = document.getElementById('eventFilterToggle');
   filterClose = document.getElementById('eventFilterClose');
   filterStatus = document.getElementById('eventFilterStatus');
+  copyAllLogsBtn = document.getElementById('eventCopyAllBtn');
   nodeLabelModeSelect = document.getElementById('nodeLabelMode');
   clientStrip = document.getElementById('clientStrip');
   clientFeed = document.getElementById('clientFeed');
@@ -475,8 +484,9 @@ function initUI() {
 
   visualizer = new PaxosVisualizer('basicProtocolSvg', {
     nodeRadius: 210,
-    nodeCircleRadius: 30,
+    nodeCircleRadius: 27,
     nodeStateOffsetY: 38,
+    centerYOffset: 15,
   });
 
   if (nodeLabelModeSelect) {
@@ -501,7 +511,6 @@ function initUI() {
   }
 
   scenarioSelect?.addEventListener('change', async () => {
-    if (!scenarioStarted) return;
     await resetScenario();
   });
 

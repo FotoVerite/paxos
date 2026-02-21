@@ -25,3 +25,17 @@
 ## P3 (Nice-to-have)
 - [ ] Move PMMC routing policy out of generic router path into a PMMC-specific routing module.
 - [ ] Add a concise PMMC architecture note (role responsibilities + message flow) for future contributors.
+
+## Scenario Backlog
+- [x] Add `pmmc_replica_crash_failover` scenario.
+- [x] Add `pmmc_leader_partition_heal` scenario.
+- [x] Bugfix `pmmc_replica_crash_failover` scenario behavior/visualization.
+- [x] Bugfix `pmmc_leader_partition_heal` scenario behavior/visualization.
+- [ ] Add `leader_crash_recovery_with_client_retry` scenario.
+- [ ] Add `acceptor_minority_crash` scenario.
+- [ ] Add `acceptor_majority_loss_then_recover` scenario.
+- [ ] Add `dual_leader_preemption_storm` scenario.
+- [ ] Add `delayed_messages_reordering` scenario.
+- [ ] Add `client_duplicate_request_dedup` scenario.
+- [ ] Add `late_joining_replica_catchup` scenario.
+- [ ] Add `rolling_restart` scenario.

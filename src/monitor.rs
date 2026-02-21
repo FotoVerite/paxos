@@ -185,6 +185,10 @@ pub enum Event {
         id: Uuid,
         created_at: u64,
     },
+    NodeCrashed {
+        id: Uuid,
+        created_at: u64,
+    },
 }
 
 pub trait PaxosObserver: Send + Sync {

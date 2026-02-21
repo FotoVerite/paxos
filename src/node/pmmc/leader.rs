@@ -391,6 +391,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn delayed_adopted_after_preempt_does_not_reactivate_leader() {
+        let leader = mk_leader();
+        let ballot = leader.state.ballot().await;
+        let higher = Ballot::new(ballot.number + 1, Uuid::new_v4());
+
+        let _ = leader
+            .handle_message(Message::ADOPTED {
+                from: Uuid::new_v4(),
+                to: leader.uuid,
+                ballot,
+                pvalues: vec![],
+            })
+            .await;
+        assert!(leader.is_leader().await);
+
+        let _ = leader
+            .handle_message(Message::PREEMPT {
+                from: Uuid::new_v4(),
+                to: leader.uuid,
+                ballot: higher,
+            })
+            .await;
+        assert!(!leader.is_leader().await);
+
+        let _ = leader
+            .handle_message(Message::ADOPTED {
+                from: Uuid::new_v4(),
+                to: leader.uuid,
+                ballot,
+                pvalues: vec![],
+            })
+            .await;
+        assert!(!leader.is_leader().await);
+    }
+
+    #[tokio::test]
     async fn commander_respects_leader_quorum_for_p2b() {
         let leader = mk_leader();
         let ballot = leader.state.ballot().await;
