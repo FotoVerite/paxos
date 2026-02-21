@@ -99,8 +99,17 @@ pub async fn stop_scenario_handler(
     info!("Stopping scenario for {}", ip);
 
     let cm = get_cm(state, addr, headers).await;
-    let cm = cm.lock().await;
-    match cm.reset().await {
+    let cm = match cm.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            info!("Stop already in progress for {}, returning early", ip);
+            return (
+                axum::http::StatusCode::OK,
+                "Scenario already stopping".to_string(),
+            );
+        }
+    };
+    match cm.reset(ip).await {
         Ok(_) => {
             info!("Scenario stopped for {}", ip);
             (axum::http::StatusCode::OK, "Scenario stopped".to_string())

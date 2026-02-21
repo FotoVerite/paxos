@@ -142,24 +142,52 @@ class PaxosVisualizer {
         this.nodeCapabilities[nodeId] = { roles, learningStrategy };
     }
 
+    normalizeRoles(roles) {
+        const input = Array.isArray(roles) ? roles : [];
+        const out = new Set();
+        for (const role of input) {
+            if (role === 'Leader' || role === 'Proposer') out.add('Leader');
+            if (role === 'Replica' || role === 'Learner') out.add('Replica');
+            if (role === 'Acceptor') out.add('Acceptor');
+        }
+        return [...out];
+    }
+
+    hasRole(roles, role) {
+        return this.normalizeRoles(roles).includes(role);
+    }
+
     /**
      * Get color based on node roles
-     * Full (3 roles): blue
-     * Acceptor only: orange
-     * Proposer only: purple
-     * Learner only: green
-     * Mixed (2 roles): gray
+     * Leader only: blue
+     * Replica only: green
+     * Acceptor only: teal
+     * Mixed roles: slate
      */
     getColorForRoles(roles) {
-        if (!roles || roles.length === 0) return '#3b82f6'; // default blue
-        if (roles.length === 3) return '#3b82f6'; // full roles - blue
-        if (roles.length === 1) {
-            const role = roles[0];
-            if (role === 'Acceptor') return '#f59e0b';  // orange
-            if (role === 'Proposer') return '#8b5cf6';  // purple
-            if (role === 'Learner') return '#10b981';   // green
+        const normalized = this.normalizeRoles(roles);
+        if (normalized.length === 0) return '#3b82f6';
+        if (normalized.length === 3) return '#4f46e5';
+        if (normalized.length === 1) {
+            const role = normalized[0];
+            if (role === 'Leader') return '#3b82f6';
+            if (role === 'Replica') return '#22c55e';
+            if (role === 'Acceptor') return '#14b8a6';
         }
-        return '#6b7280'; // gray for mixed 2-role nodes
+        return '#64748b';
+    }
+
+    getStrokeForRoles(roles) {
+        const normalized = this.normalizeRoles(roles);
+        if (normalized.length === 0) return '#1e40af';
+        if (normalized.length === 3) return '#4338ca';
+        if (normalized.length === 1) {
+            const role = normalized[0];
+            if (role === 'Leader') return '#1e40af';
+            if (role === 'Replica') return '#15803d';
+            if (role === 'Acceptor') return '#0f766e';
+        }
+        return '#475569';
     }
 
     /**
@@ -315,18 +343,18 @@ class PaxosVisualizer {
         };
 
         for (let i = 0; i < this.nodeCount; i++) {
-            const caps = this.nodeCapabilities[i] || { roles: ['Proposer', 'Acceptor', 'Learner'] };
-            if (caps.roles.includes('Proposer')) groups.proposers.push(i);
-            if (caps.roles.includes('Acceptor')) groups.acceptors.push(i);
-            if (caps.roles.includes('Learner')) groups.learners.push(i);
+            const caps = this.nodeCapabilities[i] || { roles: ['Leader', 'Acceptor', 'Replica'] };
+            if (this.hasRole(caps.roles, 'Leader')) groups.proposers.push(i);
+            if (this.hasRole(caps.roles, 'Acceptor')) groups.acceptors.push(i);
+            if (this.hasRole(caps.roles, 'Replica')) groups.learners.push(i);
         }
 
         const sectionHeight = 160;
         const startY = 80;
 
-        this.placeRoleGrid(groups.proposers, startY, 'PROPOSERS', '#60a5fa');
-        this.placeRoleGrid(groups.acceptors, startY + sectionHeight, 'ACCEPTORS', '#f59e0b');
-        this.placeRoleGrid(groups.learners, startY + sectionHeight * 2, 'LEARNERS', '#10b981');
+        this.placeRoleGrid(groups.proposers, startY, 'LEADERS', '#3b82f6');
+        this.placeRoleGrid(groups.acceptors, startY + sectionHeight, 'ACCEPTORS', '#14b8a6');
+        this.placeRoleGrid(groups.learners, startY + sectionHeight * 2, 'REPLICAS', '#22c55e');
     }
 
     placeRoleGrid(nodeIds, startY, label, color) {
@@ -378,18 +406,18 @@ class PaxosVisualizer {
 
         if (caps) {
             const roles = caps.roles;
-            if (roles.includes('Proposer') && roles.includes('Acceptor') && roles.includes('Learner')) {
-                nodeFill = '#6366f1'; // Indigo for full nodes
+            if (this.hasRole(roles, 'Leader') && this.hasRole(roles, 'Acceptor') && this.hasRole(roles, 'Replica')) {
+                nodeFill = '#4f46e5';
                 nodeStroke = '#4338ca';
-            } else if (roles.includes('Proposer')) {
-                nodeFill = '#3b82f6'; // Blue
+            } else if (this.hasRole(roles, 'Leader')) {
+                nodeFill = '#3b82f6';
                 nodeStroke = '#1e40af';
-            } else if (roles.includes('Acceptor')) {
-                nodeFill = '#f59e0b'; // Amber
-                nodeStroke = '#b45309';
-            } else if (roles.includes('Learner')) {
-                nodeFill = '#10b981'; // Emerald
-                nodeStroke = '#047857';
+            } else if (this.hasRole(roles, 'Acceptor')) {
+                nodeFill = '#14b8a6';
+                nodeStroke = '#0f766e';
+            } else if (this.hasRole(roles, 'Replica')) {
+                nodeFill = '#22c55e';
+                nodeStroke = '#15803d';
             }
         }
 
@@ -447,18 +475,18 @@ class PaxosVisualizer {
     }
 
     renderNodeBadges(group, x, y, nodeId) {
-        const caps = this.nodeCapabilities[nodeId] || { roles: ['Proposer', 'Acceptor', 'Learner'] };
+        const caps = this.nodeCapabilities[nodeId] || { roles: ['Leader', 'Acceptor', 'Replica'] };
         const badgeY = y - 38;
         const badgeSize = 16;
         const badgeSpacing = 18;
 
         const roles = [
-            { id: 'Proposer', label: 'P', color: '#60a5fa' },
-            { id: 'Acceptor', label: 'A', color: '#f59e0b' },
-            { id: 'Learner', label: 'L', color: '#10b981' }
+            { id: 'Leader', label: 'L', color: '#60a5fa' },
+            { id: 'Acceptor', label: 'A', color: '#2dd4bf' },
+            { id: 'Replica', label: 'R', color: '#4ade80' }
         ];
 
-        let activeRoles = roles.filter(r => caps.roles.includes(r.id));
+        let activeRoles = roles.filter(r => this.hasRole(caps.roles, r.id));
         const totalWidth = activeRoles.length * badgeSpacing;
         let startX = x - totalWidth / 2 + badgeSize / 2;
 
@@ -540,7 +568,16 @@ class PaxosVisualizer {
         const roles = this.nodeCapabilities[nodeId]?.roles || [];
         const color = this.getColorForRoles(roles);
         circle.setAttribute('fill', color);
-        circle.style.filter = '';
+        const isLeader = this.currentLeaderId === nodeId;
+        if (isLeader) {
+            circle.setAttribute('stroke', '#fbbf24');
+            circle.setAttribute('stroke-width', '4');
+            circle.style.filter = 'drop-shadow(0 0 8px #fbbf24)';
+        } else {
+            circle.setAttribute('stroke', this.getStrokeForRoles(roles));
+            circle.setAttribute('stroke-width', '2');
+            circle.style.filter = '';
+        }
 
         const glow = element.element.querySelector('.paxos-node-glow');
         if (glow) {

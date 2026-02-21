@@ -285,6 +285,39 @@
   gap: 6px;
 }
 
+.pmmc-demo .topology-panel {
+  background: #0b1220;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pmmc-demo .topology-title {
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pmmc-demo .topology-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pmmc-demo .topology-item {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 10px;
+  color: #cbd5e1;
+  display: flex;
+  justify-content: space-between;
+}
+
 .pmmc-demo .client-snapshot-head {
   color: #93c5fd;
   font-size: 11px;

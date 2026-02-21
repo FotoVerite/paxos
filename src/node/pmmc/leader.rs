@@ -36,10 +36,11 @@ impl Leader {
         peers: Arc<NetworkSimulator>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
+        #[cfg(feature = "persistence")]
         let state: LeaderDurable = Persistence::load(&format!("leader_{}.bin", uuid)).await?;
 
         #[cfg(not(feature = "persistence"))]
-        let state = LeaderData::default();
+        let state: LeaderDurable = LeaderDurable::default();
 
         let state = LeaderState::init(uuid, state);
         let leader = Self {

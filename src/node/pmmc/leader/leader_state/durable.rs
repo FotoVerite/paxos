@@ -65,12 +65,13 @@ impl LeaderDurable {
         }
     }
 
-    pub fn add(&mut self, slot: usize, cmd: PaxosCommand) {
+    pub fn add(&mut self, slot: usize, cmd: PaxosCommand) -> bool {
         match self.proposals.entry(slot) {
             Entry::Vacant(v) => {
                 v.insert(cmd);
+                true
             }
-            Entry::Occupied(_) => {}
+            Entry::Occupied(_) => {false}
         }
     }
 

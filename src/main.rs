@@ -1,6 +1,7 @@
 use paxos::{
     cluster::{cluster::Cluster, pmmc_cluster::PmmcCluster},
     console_observer::ConsoleObserver,
+    node::config::{PmmcNodeConfig, Roles},
     scenario::ScenarioBuilder,
     scenario_loader::ScenarioLoader,
     scenario_runner::ScenarioRunner,
@@ -8,6 +9,7 @@ use paxos::{
 };
 use std::{net::IpAddr, sync::Arc};
 use tokio::time::{Duration, sleep};
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -44,6 +46,10 @@ async fn main() -> anyhow::Result<()> {
         run_with_web_server().await
     } else if args.len() > 1 && args[1] == "pmmc" {
         run_pmmc_builtin_scenario().await
+    } else if args.len() > 1 && args[1] == "pmmc-role-split" {
+        run_pmmc_role_split_debug_scenario(true).await
+    } else if args.len() > 1 && args[1] == "pmmc-role-split-sticky" {
+        run_pmmc_role_split_debug_scenario(false).await
     } else if args.len() > 1 && args[1] == "json" {
         run_json_scenario().await
     } else {
@@ -203,5 +209,85 @@ async fn run_pmmc_builtin_scenario() -> anyhow::Result<()> {
     cluster.heal_partition(0, 2).await;
     sleep(Duration::from_secs(1)).await;
     println!("=== PMMC Scenario Complete ===");
+    Ok(())
+}
+
+async fn run_pmmc_role_split_debug_scenario(alternate_replicas: bool) -> anyhow::Result<()> {
+    println!(
+        "Starting PMMC role-split debug scenario (2L, 2R, 3A) mode={}...\n",
+        if alternate_replicas {
+            "alternate replicas"
+        } else {
+            "sticky replica"
+        }
+    );
+    let ip = IpAddr::V4([127, 0, 0, 1].into());
+    let observer = Arc::new(ConsoleObserver);
+    let mut configs = Vec::new();
+    for _ in 0..2 {
+        configs.push(PmmcNodeConfig {
+            roles: Roles {
+                proposer: true,
+                acceptor: false,
+                learner: false,
+            },
+        });
+    }
+    for _ in 0..2 {
+        configs.push(PmmcNodeConfig {
+            roles: Roles {
+                proposer: false,
+                acceptor: false,
+                learner: true,
+            },
+        });
+    }
+    for _ in 0..3 {
+        configs.push(PmmcNodeConfig {
+            roles: Roles {
+                proposer: false,
+                acceptor: true,
+                learner: false,
+            },
+        });
+    }
+
+    let mut cluster = PmmcCluster::new_with_configs(0, ip, configs, observer).await?;
+    for i in 0..cluster.num_nodes() {
+        cluster.nodes[i].start();
+    }
+    sleep(Duration::from_millis(350)).await;
+
+    println!(
+        "--- Phase 1: replica proposals ({}) ---",
+        if alternate_replicas {
+            "RR over replica nodes N2/N3"
+        } else {
+            "single replica node N2"
+        }
+    );
+    for i in 0..8usize {
+        let replica = if alternate_replicas {
+            if i % 2 == 0 { 2 } else { 3 }
+        } else {
+            2
+        };
+        cluster
+            .propose_from(
+                replica,
+                paxos::paxos_command::PaxosCommand::PUT {
+                    key: "pmmc-role-split".to_string(),
+                    version: 1,
+                    value: i + 1,
+                }
+                .with_client(Uuid::from_u128(0xC0), i as u64 + 1),
+            )
+            .await;
+        sleep(Duration::from_millis(350)).await;
+    }
+
+    println!("--- Phase 2: observe for liveness (no new proposals, just protocol traffic) ---");
+    sleep(Duration::from_secs(4)).await;
+    println!("=== PMMC Role-Split Debug Scenario Complete ===");
     Ok(())
 }

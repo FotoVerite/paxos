@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use tokio::{
-    sync::Mutex,
-    time::Instant,
-};
+use tokio::{sync::Mutex, time::Instant};
 use uuid::Uuid;
 
 use crate::{
@@ -13,9 +10,7 @@ use crate::{
     node::{
         classic_paxos::ballot::Ballot,
         pmmc::{
-            leader::{
-                leader_state::{durable::LeaderDurable, volatile::LeaderVolatile},
-            },
+            leader::leader_state::{durable::LeaderDurable, volatile::LeaderVolatile},
             proposal::ProposalsStore,
         },
         pvalue::PValue,
@@ -112,8 +107,9 @@ impl LeaderState {
 
     pub async fn add(&self, slot: usize, cmd: PaxosCommand) {
         let mut state = self.data.lock().await;
-        state.durable.add(slot, cmd.clone());
-        state.volatile.add_to_commander(slot, cmd).await;
+        if state.durable.add(slot, cmd.clone()) {
+            state.volatile.add_to_commander(slot, cmd).await;
+        }
     }
 
     pub async fn proposal(&self) -> ProposalsStore {
@@ -128,7 +124,7 @@ impl LeaderState {
         }
         state.durable.set_as_passive();
         state.volatile.set_highest_seen(ballot);
-        state.volatile.drop_scount();
+        state.volatile.drop_scout();
         state.volatile.drop_commander();
         state.volatile.reset_election_deadline();
     }
@@ -145,7 +141,7 @@ impl LeaderState {
         }
         state.durable.set_as_passive();
         state.volatile.set_highest_seen(ballot);
-        state.volatile.drop_scount();
+        state.volatile.drop_scout();
         state.volatile.drop_commander();
         state.volatile.aimd_backoff();
         state.volatile.reset_election_deadline();

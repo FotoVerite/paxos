@@ -61,4 +61,41 @@ impl Persistence {
 
         Ok(())
     }
+
+    pub async fn purge_known_state_files() -> Result<usize> {
+        if !Path::new(DATA_DIR).exists() {
+            return Ok(0);
+        }
+
+        let prefixes = [
+            "ledger_",
+            "acceptor_",
+            "leader_",
+            "replica_",
+            "decree_notes_",
+            "store_",
+        ];
+
+        let mut removed = 0usize;
+        let mut entries = fs::read_dir(DATA_DIR).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let file_type = entry.file_type().await?;
+            if !file_type.is_file() {
+                continue;
+            }
+
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else {
+                continue;
+            };
+
+            if prefixes.iter().any(|prefix| name.starts_with(prefix)) {
+                if fs::remove_file(entry.path()).await.is_ok() {
+                    removed += 1;
+                }
+            }
+        }
+
+        Ok(removed)
+    }
 }

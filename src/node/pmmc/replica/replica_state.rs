@@ -1,4 +1,4 @@
-use tokio::sync::{mpsc::Sender, Mutex};
+use tokio::sync::{Mutex, Notify, mpsc::Sender};
 use uuid::Uuid;
 
 use crate::{
@@ -17,12 +17,12 @@ use crate::{
 pub mod durable;
 mod volatile;
 
-pub struct ReplicaDate {
+pub struct ReplicaData {
     durable: ReplicaDurable,
     volatile: ReplicaVolatile,
 }
 
-impl Default for ReplicaDate {
+impl Default for ReplicaData {
     fn default() -> Self {
         Self {
             durable: ReplicaDurable::default(),
@@ -32,22 +32,29 @@ impl Default for ReplicaDate {
 }
 
 pub struct ReplicaState {
-    data: Mutex<ReplicaDate>,
+    data: Mutex<ReplicaData>,
+    decision_notify: Notify,
 }
 
 impl ReplicaState {
     pub fn init(data: ReplicaDurable) -> Self {
         return Self {
-            data: Mutex::new(ReplicaDate {
+            data: Mutex::new(ReplicaData {
                 durable: data,
                 volatile: ReplicaVolatile::default(),
             }),
+            decision_notify: Notify::new(),
         };
     }
 
     pub async fn proposal(&self) -> ProposalsStore {
         let state = self.data.lock().await;
         state.durable.proposals()
+    }
+
+     pub async fn proposal_slot(&self) -> usize {
+        let state = self.data.lock().await;
+        state.durable.proposal_slot()
     }
 
     pub async fn execution_slot(&self) -> usize {
@@ -66,7 +73,11 @@ impl ReplicaState {
         }
     }
 
-    pub async fn proposal_handler(&self, cmd: PaxosCommand) {
+    pub async fn wait_for_decision(&self) {
+        self.decision_notify.notified().await;
+    }
+
+    pub async fn proposal_handler(&self, cmd: PaxosCommand) -> Option<usize> {
         let client_id = cmd.client_id();
         let request_id = cmd.request_id();
 
@@ -75,8 +86,9 @@ impl ReplicaState {
             let (cached, response) = state.durable.is_cached(&cmd);
 
             if !cached {
+                let slot = state.durable.proposal_slot();
                 state.durable.add_proposal(cmd);
-                return;
+                return Some(slot);
             }
 
             response.and_then(|response| {
@@ -94,17 +106,24 @@ impl ReplicaState {
 
         if let Some((tx, msg)) = send {
             let _ = tx.send(msg).await;
+            return None
         }
+        return None
     }
 
-    pub async fn add_proposal(&self, cmd: PaxosCommand) {
+    pub async fn add_proposal(&self, cmd: PaxosCommand) -> usize {
         let mut state = self.data.lock().await;
+        let slot = state.durable.proposal_slot();
         state.durable.add_proposal(cmd);
+        slot
     }
 
     pub async fn add_decision(&self, pvalue: PValue) {
-        let mut state = self.data.lock().await;
-        state.durable.add_decision(pvalue);
+        {
+            let mut state = self.data.lock().await;
+            state.durable.add_decision(pvalue);
+        }
+        self.decision_notify.notify_one();
     }
 
     pub async fn increment_execution_slot(&self) {
@@ -120,6 +139,11 @@ impl ReplicaState {
     pub async fn is_cached(&self, cmd: &PaxosCommand) -> (bool, Option<ReplyOutcome>) {
         let state = self.data.lock().await;
         state.durable.is_cached(cmd)
+    }
+
+    pub async fn update_cache(&self, cmd: &PaxosCommand, response: ReplyOutcome) {
+        let mut state = self.data.lock().await;
+        state.durable.update_cache(cmd, response);
     }
 
     pub async fn dump(&self) -> ReplicaDurable {

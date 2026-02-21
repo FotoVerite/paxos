@@ -1,13 +1,20 @@
+use std::collections::HashSet;
 use std::net::IpAddr;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
+use tokio::fs;
 use tokio::time::{Duration, sleep};
 use uuid::Uuid;
 
 use crate::cluster::{cluster::Cluster, pmmc_cluster::PmmcCluster};
 use crate::decree_generator::DecreeGenerator;
-use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
+use crate::common::persistence::DATA_DIR;
+use crate::message::{ClientMessage, Message};
+use crate::monitor::PaxosObserver;
+use crate::node::config::{ClassicNodeConfig, LearningStrategy, PmmcNodeConfig, Roles};
 use crate::paxos_command::PaxosCommand;
+use crate::console_observer::ConsoleObserver;
 use crate::web::scenarios::{
     AsymmetricProposersScenario, CatchUpScenario, CompetingProposersScenario, HappyPathScenario,
     NetworkPartitionScenario, PartialRolesScenario, SimpleHappyPathScenario,
@@ -27,7 +34,26 @@ enum ActiveCluster {
     Pmmc(Arc<Mutex<PmmcCluster>>),
 }
 
+struct ObserverFanout {
+    websocket: Arc<WebSocketObserver>,
+    console: Arc<ConsoleObserver>,
+}
+
+impl PaxosObserver for ObserverFanout {
+    fn on_event(&self, event: crate::monitor::Event) {
+        self.websocket.on_event(event.clone());
+        self.console.on_event(event);
+    }
+
+    fn on_message(&self, indexes: &[Uuid], message: Message) {
+        self.websocket.on_message(indexes, message.clone());
+        self.console.on_message(indexes, message);
+    }
+}
+
 impl ClusterManager {
+    const CLEANUP_NODE_SLOTS_PER_IP: usize = 256;
+
     pub fn new() -> Self {
         Self {
             cluster: Mutex::new(None),
@@ -70,6 +96,42 @@ impl ClusterManager {
         PmmcCluster::new(id, ip, node_count, observer).await
     }
 
+    async fn create_pmmc_role_split_cluster(
+        id: usize,
+        ip: IpAddr,
+        observer: Arc<dyn crate::monitor::PaxosObserver>,
+    ) -> anyhow::Result<PmmcCluster> {
+        let mut configs = Vec::new();
+        for _ in 0..2 {
+            configs.push(PmmcNodeConfig {
+                roles: Roles {
+                    proposer: true,
+                    acceptor: false,
+                    learner: false,
+                },
+            });
+        }
+        for _ in 0..2 {
+            configs.push(PmmcNodeConfig {
+                roles: Roles {
+                    proposer: false,
+                    acceptor: false,
+                    learner: true,
+                },
+            });
+        }
+        for _ in 0..3 {
+            configs.push(PmmcNodeConfig {
+                roles: Roles {
+                    proposer: false,
+                    acceptor: true,
+                    learner: false,
+                },
+            });
+        }
+        PmmcCluster::new_with_configs(id, ip, configs, observer).await
+    }
+
     pub async fn start_scenario(
         &self,
         ip: IpAddr,
@@ -88,6 +150,17 @@ impl ClusterManager {
         {
             let mut current = self.cluster.lock().await;
             *current = None;
+        }
+
+        // Always start scenarios from a clean durable state to avoid stale
+        // ballots/decisions poisoning liveness across runs.
+        if let Ok(removed) = self.purge_persisted_state_for_ip(ip).await {
+            if removed > 0 {
+                println!(
+                    "Purged {} persisted state files for {} before scenario start",
+                    removed, ip
+                );
+            }
         }
 
         // Clear the observer to reset visualizer state
@@ -111,10 +184,20 @@ impl ClusterManager {
             _ => crate::node::config::LearningStrategy::ProposerManaged,
         };
 
+        let scenario_observer: Arc<dyn PaxosObserver> = Arc::new(ObserverFanout {
+            websocket: self.observer.clone(),
+            console: Arc::new(ConsoleObserver),
+        });
+
         // Create new cluster
-        let (active_for_runner, node_count) = if scenario_type == "pmmc_single_client" {
-            let mut cluster =
-                Self::create_pmmc_cluster(0, ip, node_count, self.observer.clone()).await?;
+        let (active_for_runner, node_count) = if scenario_type == "pmmc_single_client"
+            || scenario_type == "pmmc_role_split"
+        {
+            let mut cluster = if scenario_type == "pmmc_role_split" {
+                Self::create_pmmc_role_split_cluster(0, ip, scenario_observer.clone()).await?
+            } else {
+                Self::create_pmmc_cluster(0, ip, node_count, scenario_observer.clone()).await?
+            };
             let node_count = cluster.num_nodes();
             self.observer
                 .set_cluster_info(node_count, cluster.quorum_size(), cluster.get_node_uuids())
@@ -130,13 +213,13 @@ impl ClusterManager {
             (ActiveCluster::Pmmc(cluster_arc), node_count)
         } else {
             let mut cluster = if scenario_type == "partial_roles" {
-                PartialRolesScenario::init_cluster(0, ip, self.observer.clone(), learning_strat)
+                PartialRolesScenario::init_cluster(0, ip, scenario_observer.clone(), learning_strat)
                     .await?
             } else if scenario_type == "simple_happy_path" {
                 SimpleHappyPathScenario::init_cluster(
                     0,
                     ip,
-                    self.observer.clone(),
+                    scenario_observer.clone(),
                     leader_node,
                     learning_strat,
                 )
@@ -145,7 +228,7 @@ impl ClusterManager {
                 AsymmetricProposersScenario::init_cluster(
                     0,
                     ip,
-                    self.observer.clone(),
+                    scenario_observer.clone(),
                     learning_strat,
                 )
                 .await?
@@ -154,7 +237,7 @@ impl ClusterManager {
                     0,
                     ip,
                     node_count,
-                    self.observer.clone(),
+                    scenario_observer.clone(),
                     learning_strat,
                 )
                 .await?
@@ -185,6 +268,10 @@ impl ClusterManager {
         tokio::spawn(async move {
             let start = std::time::Instant::now();
             let mut proposal_count = 0;
+            let mut single_client_tx = None;
+            let mut single_client_rx = None;
+            let single_client_id = Uuid::from_u128(0xC0);
+            let single_client_limit = 5usize;
 
             loop {
                 // Check if stop was signaled
@@ -259,14 +346,110 @@ impl ClusterManager {
                         }
                     },
                     ActiveCluster::Pmmc(cluster_for_runner) => {
-                        if scenario_type == "pmmc_single_client" && proposal_count % 2 == 0 {
+                        if scenario_type == "pmmc_single_client" {
+                            if proposal_count >= single_client_limit {
+                                println!(
+                                    "PMMC single-client completed after {} successful requests",
+                                    single_client_limit
+                                );
+                                break;
+                            }
+
+                            if proposal_count == 0 {
+                                // Allow initial PMMC leader election churn to settle
+                                // before issuing the first client request.
+                                sleep(Duration::from_millis(500)).await;
+                            }
+
+                            if single_client_tx.is_none() || single_client_rx.is_none() {
+                                let cluster = cluster_for_runner.lock().await;
+                                match cluster.connect_client_to(0, single_client_id).await {
+                                    Some((tx, rx)) => {
+                                        single_client_tx = Some(tx);
+                                        single_client_rx = Some(rx);
+                                    }
+                                    None => {
+                                        eprintln!(
+                                            "Failed to attach PMMC single-client to replica node 0"
+                                        );
+                                        break;
+                                    }
+                                }
+                            }
+
+                            let request_id = proposal_count as u64 + 1;
+                            let value = proposal_count + 1;
+                            let cmd = PaxosCommand::PUT {
+                                key: "pmmc-single-client".to_string(),
+                                version: 1,
+                                value,
+                            }
+                            .with_client(single_client_id, request_id);
+
+                            if let Some(tx) = &single_client_tx {
+                                if tx.send(ClientMessage::PROPOSE { cmd }).await.is_err() {
+                                    eprintln!("PMMC single-client channel closed before send");
+                                    break;
+                                }
+                            }
+
+                            let recv_future = async {
+                                if let Some(rx) = &mut single_client_rx {
+                                    rx.recv().await
+                                } else {
+                                    None
+                                }
+                            };
+
+                            let recv_result = tokio::select! {
+                                _ = stop_rx.recv() => {
+                                    println!("Scenario stopped early");
+                                    break;
+                                }
+                                result = tokio::time::timeout(Duration::from_secs(3), recv_future) => result,
+                            };
+
+                            match recv_result {
+                                Ok(Some(ClientMessage::RESPONSE { request_id: rid, .. })) => {
+                                    if rid != request_id {
+                                        eprintln!(
+                                            "PMMC single-client out-of-order response id={}, expected={}",
+                                            rid, request_id
+                                        );
+                                    }
+                                    proposal_count += 1;
+                                    continue;
+                                }
+                                Ok(Some(ClientMessage::PROPOSE { .. })) => {
+                                    eprintln!("PMMC single-client received unexpected PROPOSE on response channel");
+                                    break;
+                                }
+                                Ok(None) => {
+                                    eprintln!("PMMC single-client response channel closed");
+                                    break;
+                                }
+                                Err(_) => {
+                                    eprintln!(
+                                        "PMMC single-client timed out waiting for response to request {}",
+                                        request_id
+                                    );
+                                    break;
+                                }
+                            }
+                        } else if scenario_type == "pmmc_role_split" {
+                            if proposal_count == 0 {
+                                // Allow initial PMMC leader election churn to settle
+                                // before issuing the first client request.
+                                sleep(Duration::from_millis(500)).await;
+                            }
                             let cluster = cluster_for_runner.lock().await;
                             let value = proposal_count + 1;
                             let client_id = Uuid::from_u128(0xC0);
                             let request_id = proposal_count as u64 + 1;
+                            let proposer_index = 2;
                             cluster
                                 .propose_from(
-                                    0,
+                                    proposer_index,
                                     PaxosCommand::PUT {
                                         key: "pmmc-single-client".to_string(),
                                         version: 1,
@@ -320,24 +503,10 @@ impl ClusterManager {
         Ok(())
     }
 
-    pub async fn reset(&self) -> anyhow::Result<()> {
-        // Get node UUIDs BEFORE stopping scenario (which clears the cluster)
-        let mut uuids = Vec::new();
+    pub async fn reset(&self, ip: IpAddr) -> anyhow::Result<()> {
+        // Clear the cluster reference
         {
             let mut current = self.cluster.lock().await;
-            if let Some(active) = current.as_ref() {
-                match active {
-                    ActiveCluster::Classic(cluster_arc) => {
-                        let cluster = cluster_arc.lock().await;
-                        uuids = cluster.get_node_uuids();
-                    }
-                    ActiveCluster::Pmmc(cluster_arc) => {
-                        let cluster = cluster_arc.lock().await;
-                        uuids = cluster.get_node_uuids();
-                    }
-                }
-            }
-            // Clear the cluster reference
             *current = None;
         }
 
@@ -349,29 +518,75 @@ impl ClusterManager {
             }
         }
 
-        // Delete .bin files for each node
-        for uuid in uuids {
-            let ledger_path = format!(".paxos/ledger_{}.bin", uuid);
-            let acceptor_path = format!(".paxos/acceptor_{}.bin", uuid);
-            let leader_path = format!(".paxos/leader_{}.bin", uuid);
-            let replica_path = format!(".paxos/replica_{}.bin", uuid);
-            let decree_notes_path = format!(".paxos/decree_notes_{}.bin", uuid);
-            let store_path = format!(".paxos/store_{}.bin", uuid);
-
-            let _ = std::fs::remove_file(&ledger_path);
-            let _ = std::fs::remove_file(&acceptor_path);
-            let _ = std::fs::remove_file(&leader_path);
-            let _ = std::fs::remove_file(&replica_path);
-            let _ = std::fs::remove_file(&decree_notes_path);
-            let _ = std::fs::remove_file(&store_path);
-
-            println!("Deleted state files for node {}", uuid);
-        }
+        // Remove all persisted node versions (including stale UUIDs/corrupt/tmp variants).
+        let removed = self.purge_persisted_state_for_ip(ip).await?;
+        println!("Deleted {} persisted state files for {}", removed, ip);
 
         // Clear the observer state
         self.observer.clear().await;
 
         println!("Reset complete - ready for new scenario selection");
         Ok(())
+    }
+
+    fn owned_uuid_set_for_ip(ip: IpAddr, slots: usize) -> HashSet<String> {
+        let mut out = HashSet::with_capacity(slots * 2);
+        for i in 0..slots {
+            out.insert(crate::cluster::cluster::Cluster::node_uuid(ip, i).to_string());
+            out.insert(crate::cluster::pmmc_cluster::PmmcCluster::node_uuid(ip, i).to_string());
+        }
+        out
+    }
+
+    fn extract_uuid_from_state_filename(name: &str) -> Option<&str> {
+        const PREFIXES: [&str; 6] = [
+            "ledger_",
+            "acceptor_",
+            "leader_",
+            "replica_",
+            "decree_notes_",
+            "store_",
+        ];
+
+        let prefix = PREFIXES.iter().find(|p| name.starts_with(**p))?;
+        let rest = &name[prefix.len()..];
+        let idx = rest.find(".bin")?;
+        let candidate = &rest[..idx];
+        if Uuid::parse_str(candidate).is_ok() {
+            Some(candidate)
+        } else {
+            None
+        }
+    }
+
+    async fn purge_persisted_state_for_ip(&self, ip: IpAddr) -> anyhow::Result<usize> {
+        if !Path::new(DATA_DIR).exists() {
+            return Ok(0);
+        }
+
+        let owned = Self::owned_uuid_set_for_ip(ip, Self::CLEANUP_NODE_SLOTS_PER_IP);
+        let mut removed = 0usize;
+        let mut entries = fs::read_dir(DATA_DIR).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let file_type = entry.file_type().await?;
+            if !file_type.is_file() {
+                continue;
+            }
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else {
+                continue;
+            };
+            let Some(uuid) = Self::extract_uuid_from_state_filename(name) else {
+                continue;
+            };
+            if !owned.contains(uuid) {
+                continue;
+            }
+            if fs::remove_file(entry.path()).await.is_ok() {
+                removed += 1;
+            }
+        }
+
+        Ok(removed)
     }
 }

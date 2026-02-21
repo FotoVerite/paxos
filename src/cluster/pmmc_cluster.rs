@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::{NetworkFailure, NetworkSimulator},
-    message::Message,
+    message::{ClientMessage, Message},
     monitor::PaxosObserver,
     node::{config::PmmcNodeConfig, pmmc::pmmc_node::PmmcNode},
     paxos_command::PaxosCommand,
@@ -172,9 +172,22 @@ impl PmmcCluster {
         }
     }
 
+    pub async fn connect_client_to(
+        &self,
+        node: usize,
+        client_id: Uuid,
+    ) -> Option<(Sender<ClientMessage>, Receiver<ClientMessage>)> {
+        let n = self.nodes.get(node)?;
+        n.connect_client(client_id).await
+    }
+
     pub fn node_uuid(ip: IpAddr, node_id: usize) -> Uuid {
         let namespace = Uuid::NAMESPACE_DNS;
         let name = format!("{}:pmmc:{}", ip, node_id);
         Uuid::new_v5(&namespace, name.as_bytes())
     }
 }
+
+#[cfg(test)]
+#[path = "pmmc_cluster_tests.rs"]
+mod tests;

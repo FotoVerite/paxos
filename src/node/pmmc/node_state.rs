@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use tokio::time::Instant;
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
-    message::Message,
+    message::{ClientMessage, Message},
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
         config::{LearningStrategy, PmmcNodeConfig},
@@ -129,10 +130,9 @@ impl NodeState {
     pub async fn propose(&self, cmd: PaxosCommand) {
         if let Some(replica) = &self.replica {
             // Add to the replica's local proposals store
-            replica.state.add_proposal(cmd.clone()).await;
+            let slot = replica.state.add_proposal(cmd.clone()).await;
             // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
             // Passive leaders ignore it; only the active one runs a commander.
-            let slot = replica.state.execution_slot().await;
             self.observer.on_event(Event::PmmcPropose {
                 id: self.uuid,
                 slot,
@@ -147,6 +147,19 @@ impl NodeState {
                 })
                 .await;
         }
+    }
+
+    pub async fn connect_client(
+        &self,
+        client_id: Uuid,
+    ) -> Option<(mpsc::Sender<ClientMessage>, mpsc::Receiver<ClientMessage>)> {
+        let replica = self.replica.as_ref()?;
+        let (client_tx, client_rx) = mpsc::channel(64);
+        let (resp_tx, resp_rx) = mpsc::channel(64);
+        replica
+            .spawn_client_handler(client_id, client_rx, resp_tx)
+            .await;
+        Some((client_tx, resp_rx))
     }
 
     pub async fn handle_message(&self, msg: Message) {

@@ -414,7 +414,7 @@ export const EVENT_VISUALIZERS = {
     },
     async visualize(event, visualizer, state, canCommunicate) {
       visualizer.activateNode(event.from, this.color);
-      const duration = getBeamDuration(state.snapshot(), 380);
+      const duration = getBeamDuration(state.snapshot(), 240);
       if (canCommunicate(event.from, event.to)) {
         await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dashed');
       }

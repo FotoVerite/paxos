@@ -1,10 +1,7 @@
-use std::collections::{btree_map::Entry, BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
 use crate::{
-    node::{
-        pmmc::proposal::ProposalsStore,
-        pvalue::PValue,
-    },
+    node::{pmmc::proposal::ProposalsStore, pvalue::PValue},
     paxos_command::{ClientId, PaxosCommand, RequestId},
     rsm::kv_store::ReplyOutcome,
 };
@@ -88,6 +85,12 @@ impl ReplicaDurable {
             (true, self.cache.get(&client_key).and_then(|v| v.clone()))
         } else {
             (false, None)
+        }
+    }
+
+    pub fn update_cache(&mut self, cmd: &PaxosCommand, response: ReplyOutcome) {
+        if let Some(identity) = cmd.client_identity() {
+            self.cache.insert(identity, Some(response));
         }
     }
 

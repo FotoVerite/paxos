@@ -1,5 +1,5 @@
-use crate::common::persistence::Persistence;
 use crate::cluster::network_simulator::NetworkSimulator;
+use crate::common::persistence::Persistence;
 use crate::common::types::DecreeId;
 use crate::message::{ClientMessage, Message};
 use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
@@ -10,8 +10,8 @@ use crate::rsm::kv_store::KVStore;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::select;
-use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 mod replica_state;
 
@@ -28,10 +28,11 @@ impl Replica {
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
     ) -> Result<Self> {
+        #[cfg(feature = "persistence")]
         let data: ReplicaDurable = Persistence::load(&format!("replica_{}.bin", uuid)).await?;
 
         #[cfg(not(feature = "persistence"))]
-        let state = ReplicaDurable::default();
+        let data: ReplicaDurable = ReplicaDurable::default();
         let replica = Self {
             uuid,
             store: Arc::new(KVStore::init(uuid).await?),
@@ -68,31 +69,41 @@ impl Replica {
         let state = Arc::clone(&self.state);
         let peers = Arc::clone(&self.peers);
         let uuid = self.uuid;
+        let observer = Arc::clone(&self.observer);
 
         state.add_client(client_id, tx).await;
         tokio::spawn(async move {
             loop {
                 select! {
-                    Some(msg) = rx.recv() => {
-                        match msg {
-                            ClientMessage::PROPOSE { cmd } => {
-                                // Add to local proposals store (handles dedup/caching)
-                                state.proposal_handler(cmd.clone()).await;
-                                // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
-                                // Passive leaders ignore it; only the active one runs a commander.
-                                let slot = state.execution_slot().await;
-                                peers.broadcast(Message::PROPOSE {
-                                    from: uuid,
-                                    slot,
-                                    cmd,
-                                }).await;
-                            },
-                            _ => {},
+                        Some(msg) = rx.recv() => {
+                            match msg {
+                                ClientMessage::PROPOSE { cmd } => {
+                                    // Add to local proposals store (handles dedup/caching)
+                                    let slot = match state.proposal_handler(cmd.clone()).await {
+                                        Some(slot) => slot,
+                                        None => continue,
+                                    };
+                                    let cmd_for_event = cmd.clone();
+                                    // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
+                                    // Passive leaders ignore it; only the active one runs a commander.
+                                    peers.broadcast(Message::PROPOSE {
+                                        from: uuid,
+                                        slot,
+                                        cmd,
+                                    }).await;
+                                    observer.on_event(Event::PmmcPropose {
+                                        id: uuid,
+                                        slot,
+                                        cmd: cmd_for_event,
+                                        created_at: current_timestamp_millis(),
+                                    });
+                                },
+                                _ => {},
+                            }
                         }
-                    }
 
-                    else => break,
-                }
+                        else => break,
+                    }
             }
         });
     }
@@ -104,11 +115,14 @@ impl Replica {
         let node_id = self.uuid;
         tokio::spawn(async move {
             loop {
+                let mut progressed = false;
                 while let Some(cmd) = state.next_decision().await {
+                    progressed = true;
                     let slot = state.execution_slot().await;
                     let response = store.apply(cmd.operation().clone()).await;
                     match response {
                         Ok(response) => {
+                            state.update_cache(&cmd, response.clone()).await;
                             state.increment_execution_slot().await;
                             observer.on_event(Event::LearnedValue {
                                 id: node_id,
@@ -116,16 +130,21 @@ impl Replica {
                                 value: cmd.clone(),
                                 created_at: current_timestamp_millis(),
                             });
-                            state.send_client_response(
-                                cmd.client_id(),
-                                ClientMessage::RESPONSE {
-                                    request_id: cmd.request_id(),
-                                    response,
-                                },
-                            ).await;
+                            state
+                                .send_client_response(
+                                    cmd.client_id(),
+                                    ClientMessage::RESPONSE {
+                                        request_id: cmd.request_id(),
+                                        response,
+                                    },
+                                )
+                                .await;
                         }
                         _ => {}
                     }
+                }
+                if !progressed {
+                    state.wait_for_decision().await;
                 }
             }
         });
@@ -134,8 +153,8 @@ impl Replica {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc};
     use std::time::Duration;
+    use std::{collections::HashMap, sync::Arc};
 
     use tokio::{sync::mpsc, time::timeout};
     use uuid::Uuid;
@@ -161,6 +180,26 @@ mod tests {
             observer: Arc::clone(&observer),
             peers: Arc::new(NetworkSimulator::new(uuid, HashMap::new(), observer)),
         }
+    }
+
+    async fn new_replica_with_peer() -> (Replica, Uuid, mpsc::Receiver<Message>) {
+        let uuid = Uuid::new_v4();
+        let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        let peer = Uuid::new_v4();
+        let (peer_tx, peer_rx) = mpsc::channel(16);
+        let mut peers_map = HashMap::new();
+        peers_map.insert(peer, peer_tx);
+
+        let peers = Arc::new(NetworkSimulator::new(
+            uuid,
+            peers_map,
+            Arc::clone(&observer),
+        ));
+        let replica = Replica::new(uuid, observer, peers)
+            .await
+            .expect("replica init should work");
+
+        (replica, peer, peer_rx)
     }
 
     fn client_cmd(value: usize, request_id: u64) -> PaxosCommand {
@@ -321,7 +360,13 @@ mod tests {
     #[tokio::test]
     async fn duplicate_client_request_returns_cached_response_after_first_execution() {
         let uuid = Uuid::new_v4();
-        let replica = Replica::new(uuid, Arc::new(NoOpObserver))
+        let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        let peers = Arc::new(NetworkSimulator::new(
+            uuid,
+            HashMap::new(),
+            Arc::clone(&observer),
+        ));
+        let replica = Replica::new(uuid, observer, peers)
             .await
             .expect("replica init should work");
         let client_id = Uuid::new_v4();
@@ -334,7 +379,9 @@ mod tests {
 
         let (client_tx, client_rx) = mpsc::channel(8);
         let (resp_tx, mut resp_rx) = mpsc::channel(8);
-        replica.spawn_client_handler(client_id, client_rx, resp_tx).await;
+        replica
+            .spawn_client_handler(client_id, client_rx, resp_tx)
+            .await;
 
         client_tx
             .send(ClientMessage::PROPOSE { cmd: cmd.clone() })
@@ -365,6 +412,109 @@ mod tests {
             .expect("duplicate request should return cached response")
             .expect("channel should stay open");
         assert!(matches!(second, ClientMessage::RESPONSE { .. }));
+    }
+
+    #[tokio::test]
+    async fn duplicate_inflight_request_does_not_rebroadcast_propose() {
+        let (replica, _leader, mut leader_rx) = new_replica_with_peer().await;
+        let client_id = Uuid::new_v4();
+        let cmd = PaxosCommand::PUT {
+            key: "dup-inflight".to_string(),
+            version: 1,
+            value: 5,
+        }
+        .with_client(client_id, 111);
+
+        let (client_tx, client_rx) = mpsc::channel(8);
+        let (resp_tx, _resp_rx) = mpsc::channel(8);
+        replica
+            .spawn_client_handler(client_id, client_rx, resp_tx)
+            .await;
+
+        client_tx
+            .send(ClientMessage::PROPOSE { cmd: cmd.clone() })
+            .await
+            .expect("first propose should send");
+
+        let first = timeout(Duration::from_millis(300), leader_rx.recv())
+            .await
+            .expect("first propose should be broadcast")
+            .expect("leader channel should stay open");
+        assert!(
+            matches!(first, Message::PROPOSE { slot, .. } if slot == 0),
+            "first broadcast proposal should reserve slot 0"
+        );
+
+        client_tx
+            .send(ClientMessage::PROPOSE { cmd })
+            .await
+            .expect("duplicate propose should send");
+
+        let second = timeout(Duration::from_millis(200), leader_rx.recv()).await;
+        assert!(
+            second.is_err(),
+            "duplicate in-flight request should not rebroadcast PROPOSE"
+        );
+    }
+
+    #[tokio::test]
+    async fn duplicate_cached_request_does_not_rebroadcast_propose() {
+        let (replica, leader, mut leader_rx) = new_replica_with_peer().await;
+        let client_id = Uuid::new_v4();
+        let cmd = PaxosCommand::PUT {
+            key: "dup-cached".to_string(),
+            version: 1,
+            value: 8,
+        }
+        .with_client(client_id, 222);
+
+        let (client_tx, client_rx) = mpsc::channel(8);
+        let (resp_tx, mut resp_rx) = mpsc::channel(8);
+        replica
+            .spawn_client_handler(client_id, client_rx, resp_tx)
+            .await;
+
+        client_tx
+            .send(ClientMessage::PROPOSE { cmd: cmd.clone() })
+            .await
+            .expect("first propose should send");
+
+        let first = timeout(Duration::from_millis(300), leader_rx.recv())
+            .await
+            .expect("first propose should be broadcast")
+            .expect("leader channel should stay open");
+        assert!(
+            matches!(first, Message::PROPOSE { slot, .. } if slot == 0),
+            "first broadcast proposal should reserve slot 0"
+        );
+
+        let _ = replica
+            .handle_message(Message::ACCEPTED {
+                from: leader,
+                pvalue: PValue::new(0, Ballot::new(1, leader), cmd.clone()),
+            })
+            .await;
+
+        let _ = timeout(Duration::from_millis(400), resp_rx.recv())
+            .await
+            .expect("first response should arrive")
+            .expect("response channel should stay open");
+
+        client_tx
+            .send(ClientMessage::PROPOSE { cmd })
+            .await
+            .expect("duplicate propose should send");
+
+        let _cached = timeout(Duration::from_millis(400), resp_rx.recv())
+            .await
+            .expect("cached response should arrive")
+            .expect("response channel should stay open");
+
+        let second = timeout(Duration::from_millis(200), leader_rx.recv()).await;
+        assert!(
+            second.is_err(),
+            "duplicate cached request should not rebroadcast PROPOSE"
+        );
     }
 
     #[tokio::test]

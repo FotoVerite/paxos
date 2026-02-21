@@ -1,19 +1,17 @@
-use std::{sync::Arc, time::Duration};
+use std::{future::pending, sync::Arc, time::Duration};
 
 use tokio::{
     select,
-    sync::mpsc::Receiver,
+    sync::mpsc::{self, Receiver},
     time::{self, Instant, MissedTickBehavior, sleep_until},
 };
 use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
-    message::Message,
+    message::{ClientMessage, Message},
     monitor::PaxosObserver,
-    node::{
-        config::PmmcNodeConfig, pmmc::node_state::NodeState,
-    },
+    node::{config::PmmcNodeConfig, pmmc::node_state::NodeState},
     paxos_command::PaxosCommand,
 };
 
@@ -46,6 +44,13 @@ impl PmmcNode {
         self.state.propose(cmd).await;
     }
 
+    pub async fn connect_client(
+        &self,
+        client_id: Uuid,
+    ) -> Option<(mpsc::Sender<ClientMessage>, mpsc::Receiver<ClientMessage>)> {
+        self.state.connect_client(client_id).await
+    }
+
     pub fn start(&mut self) {
         let mut rx = self.rx.take().expect("worker already started");
         let state = Arc::clone(&self.state);
@@ -62,11 +67,12 @@ impl PmmcNode {
                     }
 
                     _ = async {
-                        if let Some(deadline) = state.election_deadline().await {
-                            sleep_until(deadline).await;
-                        }
-                    } => {
-                        state.start_election().await;
+                        match state.election_deadline().await {
+                                Some(deadline) => sleep_until(deadline).await,
+                                None => pending::<()>().await,
+                            }
+                        } => {
+                            state.start_election().await;
                     }
 
                     _ = hb.tick() => {
@@ -95,9 +101,7 @@ mod tests {
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
         node::{
-            classic_paxos::ballot::Ballot,
-            config::PmmcNodeConfig,
-            peer_topology::PeerTopology,
+            classic_paxos::ballot::Ballot, config::PmmcNodeConfig, peer_topology::PeerTopology,
         },
     };
 
@@ -119,7 +123,11 @@ mod tests {
         let mut peers_map = HashMap::new();
         peers_map.insert(node_id, node_tx.clone());
         peers_map.insert(peer_id, peer_tx);
-        let simulator = Arc::new(NetworkSimulator::new(node_id, peers_map, Arc::clone(&observer)));
+        let simulator = Arc::new(NetworkSimulator::new(
+            node_id,
+            peers_map,
+            Arc::clone(&observer),
+        ));
         let topology = PeerTopology::new(vec![peer_id], vec![], vec![node_id]);
 
         let node = PmmcNode::new(
@@ -180,10 +188,7 @@ mod tests {
         .await
         .unwrap_or(false);
 
-        assert!(
-            !got_p1a,
-            "active leader should not keep starting elections"
-        );
+        assert!(!got_p1a, "active leader should not keep starting elections");
     }
 
     #[tokio::test]
@@ -213,6 +218,9 @@ mod tests {
         .await
         .unwrap_or(false);
 
-        assert!(got_heartbeat, "active leader should emit periodic heartbeats");
+        assert!(
+            got_heartbeat,
+            "active leader should emit periodic heartbeats"
+        );
     }
 }

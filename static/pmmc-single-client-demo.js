@@ -37,6 +37,7 @@ let nodeLabelModeSelect;
 let clientStrip;
 let clientFeed;
 let clientSnapshot;
+let topologyPanel;
 const FRAME_WINDOW_MICROS = 50;
 const NODE_LABEL_MODE_STORAGE_KEY = 'paxos.nodeLabelMode';
 const PMMC_LOG_PRESETS = [
@@ -106,6 +107,7 @@ function canCommunicate(from, to) {
 }
 
 function buildController() {
+  const topologyPlugin = createTopologyPanelPlugin({ container: topologyPanel });
   const clusterRenderPlugin = {
     onCluster(clusterInfo, ctx) {
       if (ctx.state.snapshot().simulation.selectedNode === null && clusterInfo.total_nodes > 0) {
@@ -143,6 +145,7 @@ function buildController() {
       }),
       createVisualizeEventsPlugin(),
       createNodeCapabilitiesPlugin(),
+      topologyPlugin,
       createPmmcEventDebugPlugin(),
       createClientStripPlugin({
         container: clientStrip,
@@ -160,6 +163,60 @@ function buildController() {
       createPlaybackDelayPlugin(),
     ],
   });
+}
+
+function createTopologyPanelPlugin({ container } = {}) {
+  const roleByNode = new Map();
+  const totals = { leaders: 0, replicas: 0, acceptors: 0 };
+
+  function normalizeRoles(roles = []) {
+    return {
+      leader: roles.includes('Leader'),
+      replica: roles.includes('Replica'),
+      acceptor: roles.includes('Acceptor'),
+    };
+  }
+
+  function recalcTotals() {
+    totals.leaders = 0;
+    totals.replicas = 0;
+    totals.acceptors = 0;
+    for (const roleSet of roleByNode.values()) {
+      if (roleSet.leader) totals.leaders += 1;
+      if (roleSet.replica) totals.replicas += 1;
+      if (roleSet.acceptor) totals.acceptors += 1;
+    }
+  }
+
+  function render(clusterSize = 0) {
+    if (!container) return;
+    container.innerHTML = `
+      <div class="topology-title">Topology</div>
+      <div class="topology-grid">
+        <div class="topology-item"><span>Leaders</span><span>${totals.leaders}</span></div>
+        <div class="topology-item"><span>Replicas</span><span>${totals.replicas}</span></div>
+        <div class="topology-item"><span>Acceptors</span><span>${totals.acceptors}</span></div>
+        <div class="topology-item"><span>Nodes</span><span>${clusterSize}</span></div>
+      </div>
+    `;
+  }
+
+  return {
+    onCluster(clusterInfo) {
+      render(clusterInfo?.total_nodes || 0);
+    },
+    onReset() {
+      roleByNode.clear();
+      recalcTotals();
+      render(0);
+    },
+    onEvent({ eventType, eventData }, ctx) {
+      if (eventType !== 'NodeCapabilities' || !eventData) return;
+      roleByNode.set(eventData.id, normalizeRoles(eventData.roles || []));
+      recalcTotals();
+      render(ctx?.state?.snapshot()?.cluster?.total_nodes || roleByNode.size);
+    },
+  };
 }
 
 function updatePlaybackControls(playbackState) {
@@ -251,13 +308,15 @@ async function playScenario() {
 
   try {
     scenarioStartInFlight = true;
+    const scenarioType = scenarioSelect?.value || 'pmmc_single_client';
+    const scenarioNodeCount = scenarioType === 'pmmc_role_split' ? 7 : 5;
     const response = await fetch('/api/start-scenario', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        node_count: 5,
+        node_count: scenarioNodeCount,
         duration_secs: 30,
-        scenario_type: scenarioSelect?.value || 'pmmc_single_client',
+        scenario_type: scenarioType,
       }),
     });
 
@@ -412,6 +471,7 @@ function initUI() {
   clientStrip = document.getElementById('clientStrip');
   clientFeed = document.getElementById('clientFeed');
   clientSnapshot = document.getElementById('clientSnapshot');
+  topologyPanel = document.getElementById('topologyPanel');
 
   visualizer = new PaxosVisualizer('basicProtocolSvg', {
     nodeRadius: 210,

@@ -58,7 +58,7 @@ impl LeaderVolatile {
         self.election_deadline = Instant::now() + base + Duration::from_millis(jitter);
     }
 
-    pub fn drop_scount(&mut self) {
+    pub fn drop_scout(&mut self) {
         self.scout = None;
     }
 

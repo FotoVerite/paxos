@@ -136,6 +136,9 @@ impl CommanderState {
 
     pub async fn add_pending(&self, slot: usize, cmd: PaxosCommand) {
         let mut state = self.data.lock().await;
+        if state.proposals.contains_key(&slot) {
+            return;
+        }
         state.proposals.insert(
             slot,
             PendingSlot {
@@ -162,5 +165,58 @@ impl CommanderState {
     pub async fn backoff(&self) {
         let mut state = self.data.lock().await;
         state.aimd_timeout.backoff();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use uuid::Uuid;
+
+    use crate::{
+        message::Message,
+        node::{classic_paxos::ballot::Ballot, pvalue::PValue},
+        paxos_command::PaxosCommand,
+    };
+
+    use super::CommanderState;
+
+    fn cmd(v: usize) -> PaxosCommand {
+        PaxosCommand::PUT {
+            key: "k".to_string(),
+            version: 1,
+            value: v,
+        }
+    }
+
+    #[tokio::test]
+    async fn add_pending_for_same_slot_should_keep_first_command_regression() {
+        let id = Uuid::new_v4();
+        let ballot = Ballot::new(1, id);
+        let mut initial = BTreeMap::new();
+        initial.insert(0, cmd(10));
+        let state = CommanderState::new(id, ballot, 2, vec![], initial);
+
+        state.add_pending(0, cmd(99)).await;
+        let proposals = state.proposals().await;
+
+        assert_eq!(
+            proposals.get(&0).map(|p| p.cmd.clone()),
+            Some(cmd(10)),
+            "regression: same-slot add_pending should not overwrite existing command"
+        );
+    }
+
+    #[tokio::test]
+    async fn process_ignores_p2b_for_unknown_slot() {
+        let id = Uuid::new_v4();
+        let ballot = Ballot::new(2, id);
+        let state = CommanderState::new(id, ballot, 2, vec![], BTreeMap::new());
+
+        let reply = state
+            .process(Uuid::new_v4(), PValue::new(7, ballot, cmd(7)))
+            .await;
+        assert!(matches!(reply, Message::NACK));
     }
 }
