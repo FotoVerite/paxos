@@ -4,6 +4,7 @@ pub mod competing_proposers;
 pub mod happy_path;
 pub mod network_partition;
 pub mod partial_roles;
+pub mod pmmc;
 pub mod simple_happy_path;
 
 pub use asymmetric_proposers::AsymmetricProposersScenario;

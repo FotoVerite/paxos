@@ -195,11 +195,13 @@ impl ClusterManager {
             || scenario_type == "pmmc_leader_crash"
             || scenario_type == "pmmc_replica_crash_failover"
             || scenario_type == "pmmc_leader_partition_heal"
+            || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
         {
             let mut cluster = if scenario_type == "pmmc_role_split"
                 || scenario_type == "pmmc_leader_crash"
                 || scenario_type == "pmmc_replica_crash_failover"
                 || scenario_type == "pmmc_leader_partition_heal"
+                || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
             {
                 Self::create_pmmc_role_split_cluster(0, ip, scenario_observer.clone()).await?
             } else {
@@ -283,6 +285,7 @@ impl ClusterManager {
             let leader_crash_limit = 5usize;
             let replica_crash_failover_limit = 5usize;
             let leader_partition_heal_limit = 5usize;
+            let acceptor_majority_loss_then_recover_limit = 7usize;
             let mut leader_crash_done = false;
             let mut replica_crash_done = false;
             let mut leader_partitioned_idx: Option<usize> = None;
@@ -290,9 +293,14 @@ impl ClusterManager {
             let mut leader_partition_healed = false;
             let mut leader_partition_started_at: Option<std::time::Instant> = None;
             let mut leader_partition_response_count = 0usize;
+            let mut acceptor_majority_partitioned = false;
+            let mut acceptor_majority_healed = false;
+            let mut acceptor_majority_partition_b: Vec<Uuid> = Vec::new();
+            let mut acceptor_majority_timeout_count = 0usize;
             let mut client_node_index = if scenario_type == "pmmc_leader_crash"
                 || scenario_type == "pmmc_replica_crash_failover"
                 || scenario_type == "pmmc_leader_partition_heal"
+                || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
             {
                 2
             } else {
@@ -376,29 +384,41 @@ impl ClusterManager {
                             || scenario_type == "pmmc_leader_crash"
                             || scenario_type == "pmmc_replica_crash_failover"
                             || scenario_type == "pmmc_leader_partition_heal"
+                            || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
                         {
                             let is_leader_crash = scenario_type == "pmmc_leader_crash";
                             let is_replica_crash_failover =
                                 scenario_type == "pmmc_replica_crash_failover";
                             let is_leader_partition_heal =
                                 scenario_type == "pmmc_leader_partition_heal";
+                            let is_acceptor_majority_loss_then_recover =
+                                scenario_type == "pmmc_acceptor_majority_loss_then_recover";
                             let target_limit = if is_leader_crash {
                                 leader_crash_limit
                             } else if is_replica_crash_failover {
                                 replica_crash_failover_limit
                             } else if is_leader_partition_heal {
                                 leader_partition_heal_limit
+                            } else if is_acceptor_majority_loss_then_recover {
+                                acceptor_majority_loss_then_recover_limit
                             } else {
                                 single_client_limit
                             };
                             if proposal_count >= target_limit {
+                                let scenario_label = if is_leader_crash {
+                                    "leader-crash"
+                                } else if is_replica_crash_failover {
+                                    "replica-crash-failover"
+                                } else if is_leader_partition_heal {
+                                    "leader-partition-heal"
+                                } else if is_acceptor_majority_loss_then_recover {
+                                    "acceptor-majority-loss-then-recover"
+                                } else {
+                                    "single-client"
+                                };
                                 println!(
                                     "PMMC {} completed after {} successful requests",
-                                    if is_leader_crash {
-                                        "leader-crash"
-                                    } else {
-                                        "single-client"
-                                    },
+                                    scenario_label,
                                     target_limit
                                 );
                                 break;
@@ -645,6 +665,57 @@ impl ClusterManager {
                                         leader_partition_response_count += 1;
                                     }
 
+                                    if is_acceptor_majority_loss_then_recover
+                                        && !acceptor_majority_partitioned
+                                        && proposal_count >= 2
+                                    {
+                                        let maybe_partition = {
+                                            let cluster = cluster_for_runner.lock().await;
+                                            let uuids = cluster.get_node_uuids();
+                                            if uuids.len() >= 7 {
+                                                let mut isolated = Vec::new();
+                                                for idx in [5usize, 6usize] {
+                                                    if let Some(uuid) = cluster.isolate_node(idx).await {
+                                                        isolated.push(uuid);
+                                                    }
+                                                }
+                                                Some((uuids, isolated))
+                                            } else {
+                                                None
+                                            }
+                                        };
+
+                                        match maybe_partition {
+                                            Some((uuids, isolated)) if isolated.len() == 2 => {
+                                                let partition_a: Vec<Uuid> = uuids
+                                                    .into_iter()
+                                                    .filter(|u| !isolated.contains(u))
+                                                    .collect();
+                                                observer_for_runner.on_event(Event::PartitionCreated {
+                                                    partition_a,
+                                                    partition_b: isolated.clone(),
+                                                    created_at: current_timestamp_millis(),
+                                                });
+                                                println!(
+                                                    "PMMC acceptor-majority-loss-then-recover: isolated acceptors 5 and 6"
+                                                );
+                                                acceptor_majority_partitioned = true;
+                                                acceptor_majority_partition_b = isolated;
+                                                sleep(Duration::from_millis(700)).await;
+                                            }
+                                            Some(_) => {
+                                                eprintln!(
+                                                    "PMMC acceptor-majority-loss-then-recover: failed to isolate acceptor majority"
+                                                );
+                                            }
+                                            None => {
+                                                eprintln!(
+                                                    "PMMC acceptor-majority-loss-then-recover: expected role-split topology with 7 nodes"
+                                                );
+                                            }
+                                        }
+                                    }
+
                                     continue;
                                 }
                                 Ok(Some(ClientMessage::PROPOSE { .. })) => {
@@ -656,6 +727,46 @@ impl ClusterManager {
                                     break;
                                 }
                                 Err(_) => {
+                                    if is_acceptor_majority_loss_then_recover
+                                        && acceptor_majority_partitioned
+                                        && !acceptor_majority_healed
+                                    {
+                                        acceptor_majority_timeout_count += 1;
+                                        let (healed, uuids) = {
+                                            let cluster = cluster_for_runner.lock().await;
+                                            let mut healed = Vec::new();
+                                            for idx in [5usize, 6usize] {
+                                                if let Some(uuid) = cluster.heal_node(idx).await {
+                                                    healed.push(uuid);
+                                                }
+                                            }
+                                            (healed, cluster.get_node_uuids())
+                                        };
+
+                                        if healed.len() == 2 {
+                                            let partition_a: Vec<Uuid> = uuids
+                                                .into_iter()
+                                                .filter(|u| !acceptor_majority_partition_b.contains(u))
+                                                .collect();
+                                            observer_for_runner.on_event(Event::PartitionHealed {
+                                                partition_a,
+                                                partition_b: acceptor_majority_partition_b.clone(),
+                                                created_at: current_timestamp_millis(),
+                                            });
+                                            println!(
+                                                "PMMC acceptor-majority-loss-then-recover: healed acceptors 5 and 6 after {} timeout(s)",
+                                                acceptor_majority_timeout_count
+                                            );
+                                            acceptor_majority_healed = true;
+                                            sleep(Duration::from_millis(700)).await;
+                                        } else {
+                                            eprintln!(
+                                                "PMMC acceptor-majority-loss-then-recover: failed to heal acceptor majority"
+                                            );
+                                        }
+                                        continue;
+                                    }
+
                                     if is_replica_crash_failover || is_leader_partition_heal {
                                         eprintln!(
                                             "PMMC {} timed out waiting for response to request {}; retrying",

@@ -33,7 +33,7 @@
 - [x] Bugfix `pmmc_leader_partition_heal` scenario behavior/visualization.
 - [ ] Add `leader_crash_recovery_with_client_retry` scenario.
 - [ ] Add `acceptor_minority_crash` scenario.
-- [ ] Add `acceptor_majority_loss_then_recover` scenario.
+- [x] Add `acceptor_majority_loss_then_recover` scenario.
 - [ ] Add `dual_leader_preemption_storm` scenario.
 - [ ] Add `delayed_messages_reordering` scenario.
 - [ ] Add `client_duplicate_request_dedup` scenario.

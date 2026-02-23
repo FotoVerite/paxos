@@ -315,7 +315,8 @@ async function playScenario() {
       scenarioType === 'pmmc_role_split' ||
       scenarioType === 'pmmc_leader_crash' ||
       scenarioType === 'pmmc_replica_crash_failover' ||
-      scenarioType === 'pmmc_leader_partition_heal'
+      scenarioType === 'pmmc_leader_partition_heal' ||
+      scenarioType === 'pmmc_acceptor_majority_loss_then_recover'
         ? 7
         : 5;
     const response = await fetch('/api/start-scenario', {
