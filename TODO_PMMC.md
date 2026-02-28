@@ -6,6 +6,7 @@ scenarios, visualizer behavior, and upcoming reconfiguration support.
 ## Current Priorities
 
 ### P0: Keep PMMC stable while we reorganize
+- [ ] Extract PMMC scenario execution out of `/Users/matthewbergman/learning/paxos/src/web/cluster_manager.rs` into dedicated PMMC scenario runner/modules. `ClusterManager::start_scenario` should only coordinate setup, cluster construction, and runner dispatch.
 - [ ] Run and verify the current PMMC scenarios end-to-end after the persistence refactor:
   - [ ] `pmmc_single_client`
   - [ ] `pmmc_role_split`

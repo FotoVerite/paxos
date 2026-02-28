@@ -2,6 +2,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
 use tokio::time::{Duration, sleep};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::cluster::{cluster::Cluster, pmmc_cluster::PmmcCluster};
@@ -14,7 +15,7 @@ use crate::paxos_command::PaxosCommand;
 use crate::console_observer::ConsoleObserver;
 use crate::web::scenarios::{
     AsymmetricProposersScenario, CatchUpScenario, CompetingProposersScenario, HappyPathScenario,
-    NetworkPartitionScenario, PartialRolesScenario, SimpleHappyPathScenario,
+    NetworkPartitionScenario, PartialRolesScenario, ScenarioType, SimpleHappyPathScenario,
 };
 use crate::web::websocket_observer::WebSocketObserver;
 
@@ -29,6 +30,32 @@ pub struct ClusterManager {
 enum ActiveCluster {
     Classic(Arc<Mutex<Cluster>>),
     Pmmc(Arc<Mutex<PmmcCluster>>),
+}
+
+enum ScenarioCompletionReason {
+    StopSignal,
+    DurationElapsed,
+    TargetReached(&'static str),
+    ClientAttachFailed(usize),
+    ClientChannelClosed,
+    ResponseChannelClosed,
+    RequestTimeout(u64),
+    UnexpectedClientMessage,
+}
+
+impl ScenarioCompletionReason {
+    fn label(&self) -> &'static str {
+        match self {
+            Self::StopSignal => "stop_signal",
+            Self::DurationElapsed => "duration_elapsed",
+            Self::TargetReached(_) => "target_reached",
+            Self::ClientAttachFailed(_) => "client_attach_failed",
+            Self::ClientChannelClosed => "client_channel_closed",
+            Self::ResponseChannelClosed => "response_channel_closed",
+            Self::RequestTimeout(_) => "request_timeout",
+            Self::UnexpectedClientMessage => "unexpected_client_message",
+        }
+    }
 }
 
 struct ObserverFanout {
@@ -127,19 +154,43 @@ impl ClusterManager {
         PmmcCluster::new_with_configs(id, ip, configs, observer).await
     }
 
+    fn pmmc_topology_summary(scenario_type: ScenarioType, node_count: usize) -> &'static str {
+        match scenario_type {
+            ScenarioType::PmmcRoleSplit
+            | ScenarioType::PmmcLeaderCrash
+            | ScenarioType::PmmcReplicaCrashFailover
+            | ScenarioType::PmmcLeaderPartitionHeal
+            | ScenarioType::PmmcAcceptorMajorityLossThenRecover
+            | ScenarioType::PmmcStaggeredLeaderJoin => "2 leaders, 2 replicas, 3 acceptors",
+            _ if node_count > 0 => "all nodes have leader+acceptor+replica roles",
+            _ => "unknown",
+        }
+    }
+
+    #[instrument(
+        name = "cluster_manager.start_scenario",
+        skip(self),
+        fields(
+            client_ip = %ip,
+            scenario_type = scenario_type.as_str(),
+            node_count = node_count,
+            duration_secs = duration_secs,
+            learning_strategy = learning_strategy,
+            leader_node = ?leader_node
+        )
+    )]
     pub async fn start_scenario(
         &self,
         ip: IpAddr,
         node_count: usize,
         duration_secs: u64,
-        scenario_type: &str,
+        scenario_type: ScenarioType,
         learning_strategy: &str,
         leader_node: Option<usize>,
     ) -> anyhow::Result<()> {
-        println!(
-            "Starting new scenario '{}' with {} nodes for {} seconds",
-            scenario_type, node_count, duration_secs
-        );
+        let scenario_run_id = Uuid::new_v4();
+        info!("Starting new scenario");
+        info!(%scenario_run_id, "Allocated scenario run id");
 
         // Clear any previous cluster state
         {
@@ -151,10 +202,7 @@ impl ClusterManager {
         // ballots/decisions poisoning liveness across runs.
         if let Ok(removed) = self.purge_persisted_state_for_ip(ip).await {
             if removed > 0 {
-                println!(
-                    "Purged {} persisted state files for {} before scenario start",
-                    removed, ip
-                );
+                info!(removed_state_files = removed, "Purged persisted state before scenario start");
             }
         }
 
@@ -162,7 +210,7 @@ impl ClusterManager {
         self.observer.clear().await;
 
         // Setup scenario-specific initial state
-        if scenario_type == "catch_up" {
+        if scenario_type == ScenarioType::CatchUp {
             CatchUpScenario::setup(ip, node_count).await?;
         }
 
@@ -185,26 +233,20 @@ impl ClusterManager {
         });
 
         // Create new cluster
-        let (active_for_runner, node_count) = if scenario_type == "pmmc_single_client"
-            || scenario_type == "pmmc_role_split"
-            || scenario_type == "pmmc_leader_crash"
-            || scenario_type == "pmmc_replica_crash_failover"
-            || scenario_type == "pmmc_leader_partition_heal"
-            || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
-            || scenario_type == "pmmc_staggered_leader_join"
-        {
-            let mut cluster = if scenario_type == "pmmc_role_split"
-                || scenario_type == "pmmc_leader_crash"
-                || scenario_type == "pmmc_replica_crash_failover"
-                || scenario_type == "pmmc_leader_partition_heal"
-                || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
-                || scenario_type == "pmmc_staggered_leader_join"
-            {
+        let (active_for_runner, node_count) = if scenario_type.is_pmmc() {
+            let mut cluster = if scenario_type.uses_role_split_topology() {
                 Self::create_pmmc_role_split_cluster(0, ip, scenario_observer.clone()).await?
             } else {
                 Self::create_pmmc_cluster(0, ip, node_count, scenario_observer.clone()).await?
             };
             let node_count = cluster.num_nodes();
+            info!(
+                runtime = "pmmc",
+                actual_node_count = node_count,
+                quorum_size = cluster.quorum_size(),
+                topology = Self::pmmc_topology_summary(scenario_type, node_count),
+                "Initialized PMMC cluster"
+            );
             self.observer
                 .set_cluster_info(node_count, cluster.quorum_size(), cluster.get_node_uuids())
                 .await;
@@ -218,10 +260,10 @@ impl ClusterManager {
             *current = Some(ActiveCluster::Pmmc(cluster_arc.clone()));
             (ActiveCluster::Pmmc(cluster_arc), node_count)
         } else {
-            let mut cluster = if scenario_type == "partial_roles" {
+            let mut cluster = if scenario_type == ScenarioType::PartialRoles {
                 PartialRolesScenario::init_cluster(0, ip, scenario_observer.clone(), learning_strat)
                     .await?
-            } else if scenario_type == "simple_happy_path" {
+            } else if scenario_type == ScenarioType::SimpleHappyPath {
                 SimpleHappyPathScenario::init_cluster(
                     0,
                     ip,
@@ -230,7 +272,7 @@ impl ClusterManager {
                     learning_strat,
                 )
                 .await?
-            } else if scenario_type == "asymmetric_proposers" {
+            } else if scenario_type == ScenarioType::AsymmetricProposers {
                 AsymmetricProposersScenario::init_cluster(
                     0,
                     ip,
@@ -250,6 +292,13 @@ impl ClusterManager {
             };
 
             let node_count = cluster.nodes.len();
+            info!(
+                runtime = "classic",
+                actual_node_count = node_count,
+                quorum_size = cluster.quorum_size(),
+                topology = "classic Paxos roles derived from node config",
+                "Initialized Classic cluster"
+            );
             self.observer
                 .set_cluster_info(node_count, cluster.quorum_size(), cluster.get_node_uuids())
                 .await;
@@ -266,10 +315,10 @@ impl ClusterManager {
 
         // Spawn scenario runner based on type
         let mut stop_rx = stop_tx.subscribe();
-        let scenario_type = scenario_type.to_string();
         let observer_for_runner = self.observer.clone();
         let mut decree_gen = self.decree_generator.lock().await.clone();
         let leader_for_runner = leader_node.unwrap_or(0); // Default to node 0 if not specified
+        info!(%scenario_run_id, actual_node_count = node_count, "Launching scenario runner task");
 
         tokio::spawn(async move {
             let start = std::time::Instant::now();
@@ -277,13 +326,6 @@ impl ClusterManager {
             let mut single_client_tx = None;
             let mut single_client_rx = None;
             let single_client_id = Uuid::from_u128(0xC0);
-            let single_client_limit = 5usize;
-            let role_split_limit = 5usize;
-            let leader_crash_limit = 5usize;
-            let replica_crash_failover_limit = 5usize;
-            let leader_partition_heal_limit = 5usize;
-            let acceptor_majority_loss_then_recover_limit = 7usize;
-            let staggered_leader_join_limit = 5usize;
             let mut leader_crash_done = false;
             let mut replica_crash_done = false;
             let mut leader_partitioned_idx: Option<usize> = None;
@@ -299,32 +341,24 @@ impl ClusterManager {
             let mut leader0_joined = false;
             let mut leader1_joined = false;
             let mut client_attempt_count = 0usize;
-            let mut client_node_index = if scenario_type == "pmmc_leader_crash"
-                || scenario_type == "pmmc_replica_crash_failover"
-                || scenario_type == "pmmc_leader_partition_heal"
-                || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
-                || scenario_type == "pmmc_staggered_leader_join"
-            {
-                2
-            } else {
-                0
-            };
+            let mut completion_reason: Option<ScenarioCompletionReason> = None;
+            let mut client_node_index = scenario_type.initial_client_node_index();
 
             loop {
                 // Check if stop was signaled
                 if stop_rx.try_recv().is_ok() {
-                    println!("Scenario stopped early");
+                    completion_reason = Some(ScenarioCompletionReason::StopSignal);
                     break;
                 }
 
                 if start.elapsed().as_secs() >= duration_secs {
-                    println!("Scenario completed after {} seconds", duration_secs);
+                    completion_reason = Some(ScenarioCompletionReason::DurationElapsed);
                     break;
                 }
 
                 match &active_for_runner {
-                    ActiveCluster::Classic(cluster_for_runner) => match scenario_type.as_str() {
-                        "competing_proposers" => {
+                    ActiveCluster::Classic(cluster_for_runner) => match scenario_type {
+                        ScenarioType::CompetingProposers => {
                             CompetingProposersScenario::execute_iteration(
                                 cluster_for_runner,
                                 proposal_count,
@@ -332,7 +366,7 @@ impl ClusterManager {
                             )
                             .await;
                         }
-                        "asymmetric_proposers" => {
+                        ScenarioType::AsymmetricProposers => {
                             AsymmetricProposersScenario::execute_iteration(
                                 cluster_for_runner,
                                 proposal_count,
@@ -340,7 +374,7 @@ impl ClusterManager {
                             )
                             .await;
                         }
-                        "network_partition" => {
+                        ScenarioType::NetworkPartition => {
                             NetworkPartitionScenario::execute_iteration(
                                 cluster_for_runner,
                                 proposal_count,
@@ -350,13 +384,13 @@ impl ClusterManager {
                             )
                             .await;
                         }
-                        "catch_up" => {
+                        ScenarioType::CatchUp => {
                             let mut cluster = cluster_for_runner.lock().await;
                             if let Err(e) = CatchUpScenario::propose_gap_filler(&mut cluster, 0).await {
                                 eprintln!("Error proposing gap filler: {}", e);
                             }
                         }
-                        "partial_roles" => {
+                        ScenarioType::PartialRoles => {
                             PartialRolesScenario::execute_iteration(
                                 cluster_for_runner,
                                 proposal_count,
@@ -364,7 +398,7 @@ impl ClusterManager {
                             )
                             .await;
                         }
-                        "simple_happy_path" => {
+                        ScenarioType::SimpleHappyPath => {
                             SimpleHappyPathScenario::execute_iteration(
                                 cluster_for_runner,
                                 proposal_count,
@@ -383,35 +417,25 @@ impl ClusterManager {
                         }
                     },
                     ActiveCluster::Pmmc(cluster_for_runner) => {
-                        if scenario_type == "pmmc_single_client"
-                            || scenario_type == "pmmc_leader_crash"
-                            || scenario_type == "pmmc_replica_crash_failover"
-                            || scenario_type == "pmmc_leader_partition_heal"
-                            || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
-                            || scenario_type == "pmmc_staggered_leader_join"
-                        {
-                            let is_leader_crash = scenario_type == "pmmc_leader_crash";
+                        if matches!(
+                            scenario_type,
+                            ScenarioType::PmmcSingleClient
+                                | ScenarioType::PmmcLeaderCrash
+                                | ScenarioType::PmmcReplicaCrashFailover
+                                | ScenarioType::PmmcLeaderPartitionHeal
+                                | ScenarioType::PmmcAcceptorMajorityLossThenRecover
+                                | ScenarioType::PmmcStaggeredLeaderJoin
+                        ) {
+                            let is_leader_crash = scenario_type == ScenarioType::PmmcLeaderCrash;
                             let is_replica_crash_failover =
-                                scenario_type == "pmmc_replica_crash_failover";
+                                scenario_type == ScenarioType::PmmcReplicaCrashFailover;
                             let is_leader_partition_heal =
-                                scenario_type == "pmmc_leader_partition_heal";
+                                scenario_type == ScenarioType::PmmcLeaderPartitionHeal;
                             let is_acceptor_majority_loss_then_recover =
-                                scenario_type == "pmmc_acceptor_majority_loss_then_recover";
+                                scenario_type == ScenarioType::PmmcAcceptorMajorityLossThenRecover;
                             let is_staggered_leader_join =
-                                scenario_type == "pmmc_staggered_leader_join";
-                            let target_limit = if is_leader_crash {
-                                leader_crash_limit
-                            } else if is_replica_crash_failover {
-                                replica_crash_failover_limit
-                            } else if is_leader_partition_heal {
-                                leader_partition_heal_limit
-                            } else if is_acceptor_majority_loss_then_recover {
-                                acceptor_majority_loss_then_recover_limit
-                            } else if is_staggered_leader_join {
-                                staggered_leader_join_limit
-                            } else {
-                                single_client_limit
-                            };
+                                scenario_type == ScenarioType::PmmcStaggeredLeaderJoin;
+                            let target_limit = scenario_type.pmmc_target_limit().unwrap_or(5);
                             if proposal_count >= target_limit {
                                 let scenario_label = if is_leader_crash {
                                     "leader-crash"
@@ -431,6 +455,8 @@ impl ClusterManager {
                                     scenario_label,
                                     target_limit
                                 );
+                                completion_reason =
+                                    Some(ScenarioCompletionReason::TargetReached(scenario_label));
                                 break;
                             }
 
@@ -520,13 +546,25 @@ impl ClusterManager {
                                     .await
                                 {
                                     Some((tx, rx)) => {
+                                        info!(
+                                            %scenario_run_id,
+                                            client_id = %single_client_id,
+                                            replica_index = client_node_index,
+                                            "Attached PMMC client to replica"
+                                        );
                                         single_client_tx = Some(tx);
                                         single_client_rx = Some(rx);
                                     }
                                     None => {
-                                        eprintln!(
-                                            "Failed to attach PMMC client to replica node {}",
-                                            client_node_index
+                                        warn!(
+                                            %scenario_run_id,
+                                            replica_index = client_node_index,
+                                            "Failed to attach PMMC client to replica"
+                                        );
+                                        completion_reason = Some(
+                                            ScenarioCompletionReason::ClientAttachFailed(
+                                                client_node_index,
+                                            ),
                                         );
                                         break;
                                     }
@@ -544,8 +582,23 @@ impl ClusterManager {
                             .with_client(single_client_id, request_id);
 
                             if let Some(tx) = &single_client_tx {
+                                info!(
+                                    %scenario_run_id,
+                                    client_id = %single_client_id,
+                                    request_id,
+                                    replica_index = client_node_index,
+                                    proposal_attempt = client_attempt_count,
+                                    proposed_value = value,
+                                    "Dispatching PMMC client request"
+                                );
                                 if tx.send(ClientMessage::PROPOSE { cmd }).await.is_err() {
-                                    eprintln!("PMMC single-client channel closed before send");
+                                    warn!(
+                                        %scenario_run_id,
+                                        request_id,
+                                        "PMMC single-client channel closed before send"
+                                    );
+                                    completion_reason =
+                                        Some(ScenarioCompletionReason::ClientChannelClosed);
                                     break;
                                 }
                             }
@@ -560,7 +613,7 @@ impl ClusterManager {
 
                             let recv_result = tokio::select! {
                                 _ = stop_rx.recv() => {
-                                    println!("Scenario stopped early");
+                                    completion_reason = Some(ScenarioCompletionReason::StopSignal);
                                     break;
                                 }
                                 result = tokio::time::timeout(Duration::from_secs(3), recv_future) => result,
@@ -574,6 +627,13 @@ impl ClusterManager {
                                             rid, request_id
                                         );
                                     }
+                                    info!(
+                                        %scenario_run_id,
+                                        client_id = %single_client_id,
+                                        request_id = rid,
+                                        proposal_count = proposal_count + 1,
+                                        "Received PMMC client response"
+                                    );
                                     proposal_count += 1;
 
                                     if is_leader_crash && !leader_crash_done && proposal_count >= 1 {
@@ -766,11 +826,18 @@ impl ClusterManager {
                                     continue;
                                 }
                                 Ok(Some(ClientMessage::PROPOSE { .. })) => {
-                                    eprintln!("PMMC single-client received unexpected PROPOSE on response channel");
+                                    warn!(
+                                        %scenario_run_id,
+                                        "PMMC single-client received unexpected PROPOSE on response channel"
+                                    );
+                                    completion_reason =
+                                        Some(ScenarioCompletionReason::UnexpectedClientMessage);
                                     break;
                                 }
                                 Ok(None) => {
-                                    eprintln!("PMMC single-client response channel closed");
+                                    warn!(%scenario_run_id, "PMMC single-client response channel closed");
+                                    completion_reason =
+                                        Some(ScenarioCompletionReason::ResponseChannelClosed);
                                     break;
                                 }
                                 Err(_) => {
@@ -878,15 +945,20 @@ impl ClusterManager {
                                         "PMMC single-client timed out waiting for response to request {}",
                                         request_id
                                     );
+                                    completion_reason =
+                                        Some(ScenarioCompletionReason::RequestTimeout(request_id));
                                     break;
                                 }
                             }
-                        } else if scenario_type == "pmmc_role_split" {
-                            if proposal_count >= role_split_limit {
+                        } else if scenario_type == ScenarioType::PmmcRoleSplit {
+                            if proposal_count >= scenario_type.pmmc_target_limit().unwrap_or(5) {
                                 println!(
                                     "PMMC role-split completed after {} proposals",
-                                    role_split_limit
+                                    scenario_type.pmmc_target_limit().unwrap_or(5)
                                 );
+                                completion_reason = Some(ScenarioCompletionReason::TargetReached(
+                                    "role-split",
+                                ));
                                 break;
                             }
                             if proposal_count == 0 {
@@ -917,11 +989,49 @@ impl ClusterManager {
                 proposal_count += 1;
                 sleep(Duration::from_millis(1000)).await;
             }
+
+            match completion_reason.unwrap_or(ScenarioCompletionReason::DurationElapsed) {
+                ScenarioCompletionReason::TargetReached(target) => info!(
+                    %scenario_run_id,
+                    target,
+                    proposal_count,
+                    client_attempt_count,
+                    elapsed_ms = start.elapsed().as_millis() as u64,
+                    "Scenario runner completed"
+                ),
+                ScenarioCompletionReason::ClientAttachFailed(replica_index) => warn!(
+                    %scenario_run_id,
+                    completion_reason = ScenarioCompletionReason::ClientAttachFailed(replica_index).label(),
+                    replica_index,
+                    proposal_count,
+                    client_attempt_count,
+                    elapsed_ms = start.elapsed().as_millis() as u64,
+                    "Scenario runner stopped"
+                ),
+                ScenarioCompletionReason::RequestTimeout(request_id) => warn!(
+                    %scenario_run_id,
+                    completion_reason = ScenarioCompletionReason::RequestTimeout(request_id).label(),
+                    request_id,
+                    proposal_count,
+                    client_attempt_count,
+                    elapsed_ms = start.elapsed().as_millis() as u64,
+                    "Scenario runner stopped"
+                ),
+                reason => info!(
+                    %scenario_run_id,
+                    completion_reason = reason.label(),
+                    proposal_count,
+                    client_attempt_count,
+                    elapsed_ms = start.elapsed().as_millis() as u64,
+                    "Scenario runner stopped"
+                ),
+            }
         });
 
         Ok(())
     }
 
+    #[instrument(name = "cluster_manager.propose", skip(self, decree))]
     pub async fn propose(&self, decree: PaxosCommand) -> anyhow::Result<()> {
         let current = self.cluster.lock().await;
         match current.as_ref() {
@@ -935,10 +1045,14 @@ impl ClusterManager {
                 cluster.propose_from(0, decree).await;
                 Ok(())
             }
-            None => Err(anyhow::anyhow!("No active cluster")),
+            None => {
+                warn!("Rejecting proposal because no active cluster exists");
+                Err(anyhow::anyhow!("No active cluster"))
+            }
         }
     }
 
+    #[instrument(name = "cluster_manager.stop_scenario", skip(self))]
     pub async fn stop_scenario(&self) -> anyhow::Result<()> {
         // Signal the scenario task to stop
         {
@@ -951,10 +1065,11 @@ impl ClusterManager {
         // Clear the cluster
         let mut current = self.cluster.lock().await;
         *current = None;
-        println!("Scenario stopped");
+        info!("Scenario stopped");
         Ok(())
     }
 
+    #[instrument(name = "cluster_manager.reset", skip(self), fields(client_ip = %ip))]
     pub async fn reset(&self, ip: IpAddr) -> anyhow::Result<()> {
         // Clear the cluster reference
         {
@@ -972,16 +1087,18 @@ impl ClusterManager {
 
         // Remove all persisted node versions (including stale UUIDs/corrupt/tmp variants).
         let removed = self.purge_persisted_state_for_ip(ip).await?;
-        println!("Deleted {} persisted state files for {}", removed, ip);
+        info!(removed_state_files = removed, "Deleted persisted state files");
 
         // Clear the observer state
         self.observer.clear().await;
 
-        println!("Reset complete - ready for new scenario selection");
+        info!("Reset complete");
         Ok(())
     }
 
     async fn purge_persisted_state_for_ip(&self, ip: IpAddr) -> anyhow::Result<usize> {
-        Persistence::cluster(ip).purge_known_state_files().await
+        let removed = Persistence::cluster(ip).purge_known_state_files().await?;
+        info!(client_ip = %ip, removed_state_files = removed, "Purged cluster persistence root");
+        Ok(removed)
     }
 }
