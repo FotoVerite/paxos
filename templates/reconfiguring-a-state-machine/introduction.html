@@ -1,0 +1,53 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Introduction - Reconfiguring a
+State Machine{% endblock %} {% block body_class %}rsm-page{% endblock %} {%
+block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/abstract.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Introduction</h1>
+
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          A fault-tolerant system may need to change the set of processes that
+          is executing it— a procedure called reconfiguration. Reconfiguration
+          can be performed to reduce the vulnerability to further failures after
+          a process has failed or to replace hardware without shutting down
+          the system. Distinguishing process failure from transient
+          communication problems is often a challenging engineering problem.
+          Waiting too long to reconfigure can reduce fault tolerance, but not
+          waiting long enough can lead to thrashing. A reconfigurable system
+          provides an interface for reconfiguring it, separating reconfiguration
+          from the decision of when to reconfigure and what new configuration to
+          use. That decision can be made by any desired algorithm or by a human
+          operator
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=1"
+          target="_blank"
+        >
+          LAMPORT, P. 1 §2 - Introduction
+        </a>
+      </cite>
+
+     
+
+    </div>
+
+     <p>In a fault-tolerant system, reconfiguration is a critical mechanism for maintaining system availability and resilience. It allows the system to adapt dynamically to changes in its environment, such as process failures or hardware upgrades, without requiring a complete system shutdown. </p>
+
+  
+  </div>
+    {{ nav::breadcrumb( prev_url="/abstract", prev_label="Abstract",
+    current_label="Introduction", next_url="/garbage-collection", next_label="Garbage Collection" ) }}
+  {% endblock %}
+</div>

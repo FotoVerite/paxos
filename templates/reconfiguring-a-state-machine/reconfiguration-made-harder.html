@@ -1,0 +1,43 @@
+{% extends "reconfiguring-a-state-machine/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Reconfiguration Made Harder{% endblock %}
+{% block body_class %}rsm-page{% endblock %}
+{% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Reconfiguration Made Harder</h1>
+
+    <div class="inner-panel">
+      <h2>Why It Gets Hard</h2>
+      <p>
+        Once assumptions are relaxed, old and new configurations can overlap in time. Delays and failures
+        make simple handoff rules insufficient.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Operational Risk</h2>
+      <p>
+        Without strict transition semantics, systems can oscillate between views or accept stale leadership,
+        causing churn and potential liveness collapse.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Implementation Direction</h2>
+      <p>
+        Introduce explicit transition phases and guard rails (epoch checks, activation gates, catch-up
+        requirements) before allowing newly configured leaders to propose.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/correctness",
+    prev_label="Correctness",
+    current_label="Reconfiguration Made Harder",
+    next_url="/stopping-a-state-machine",
+    next_label="Stopping a State Machine"
+  ) }}
+</div>
+{% endblock %}

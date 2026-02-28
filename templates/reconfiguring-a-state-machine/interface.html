@@ -1,0 +1,44 @@
+{% extends "reconfiguring-a-state-machine/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Interface - Reconfiguring a State Machine{% endblock %}
+{% block body_class %}rsm-page{% endblock %}
+{% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Interface</h1>
+
+    <div class="inner-panel">
+      <h2>Control Surface</h2>
+      <p>
+        A usable reconfiguration API should expose explicit operations for proposing, activating, and observing
+        configuration transitions.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Required Visibility</h2>
+      <ul>
+        <li>Current configuration and epoch</li>
+        <li>Pending transition state</li>
+        <li>Catch-up readiness of joining members</li>
+      </ul>
+    </div>
+
+    <div class="inner-panel">
+      <h2>UI/Visualizer Implication</h2>
+      <p>
+        We should represent configuration epochs as first-class timeline events, separate from normal client
+        command flow.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/combining-command-sequences",
+    prev_label="Combining Sequences",
+    current_label="Interface",
+    next_url="/conclusion",
+    next_label="Conclusion"
+  ) }}
+</div>
+{% endblock %}

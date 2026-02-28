@@ -6,7 +6,11 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_simulator::{NetworkFailure, NetworkSimulator},
+    cluster::{
+        network_fabric::NetworkFabric,
+        network_simulator::{NetworkFailure, NetworkSimulator},
+    },
+    common::persistence::Persistence,
     common::types::DecreeId,
     message::Message,
     monitor::PaxosObserver,
@@ -61,6 +65,7 @@ impl Cluster {
         let total_number = configs.len();
 
         let node_uuids: Vec<Uuid> = (0..total_number).map(|i| Self::node_uuid(ip, i)).collect();
+        let persistence = Persistence::cluster(ip);
 
         let proposer_ids: Vec<Uuid> = configs
             .iter()
@@ -101,21 +106,19 @@ impl Cluster {
             receivers.push(rx);
         }
 
+        let fabric = Arc::new(NetworkFabric::new(Arc::clone(&observer)));
+        for (idx, uuid) in node_uuids.iter().enumerate() {
+            fabric.register(*uuid, peers[idx].clone()).await;
+        }
+
         let mut nodes = Vec::new();
         let mut simulators = HashMap::new();
         let mut node_indices = HashMap::new();
 
         for (i, (rx, config)) in receivers.into_iter().zip(configs.into_iter()).enumerate() {
-            let peers_map: HashMap<Uuid, Sender<Message>> = node_uuids
-                .iter()
-                .enumerate()
-                .map(|(idx, uuid)| (*uuid, peers[idx].clone()))
-                .collect();
-
-            let simulator = Arc::new(NetworkSimulator::new(
+            let simulator = Arc::new(NetworkSimulator::from_fabric(
                 node_uuids[i],
-                peers_map,
-                Arc::clone(&observer),
+                Arc::clone(&fabric),
             ));
             simulators.insert(node_uuids[i], Arc::clone(&simulator));
             node_indices.insert(node_uuids[i], i);
@@ -127,6 +130,7 @@ impl Cluster {
                 rx,
                 Arc::clone(&observer),
                 simulator,
+                persistence.node(node_uuid),
                 quorum,
                 config,
                 topology.clone(),

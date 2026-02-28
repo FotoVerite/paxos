@@ -1,5 +1,5 @@
 use crate::cluster::network_simulator::NetworkSimulator;
-use crate::common::persistence::Persistence;
+use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
 use crate::message::{ClientMessage, Message};
 use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
@@ -25,17 +25,18 @@ pub struct Replica {
 impl Replica {
     pub async fn new(
         uuid: Uuid,
+        persistence: NodePersistence,
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
     ) -> Result<Self> {
         #[cfg(feature = "persistence")]
-        let data: ReplicaDurable = Persistence::load(&format!("replica_{}.bin", uuid)).await?;
+        let data: ReplicaDurable = persistence.load("replica.bin").await?;
 
         #[cfg(not(feature = "persistence"))]
         let data: ReplicaDurable = ReplicaDurable::default();
         let replica = Self {
             uuid,
-            store: Arc::new(KVStore::init(uuid).await?),
+            store: Arc::new(KVStore::init(uuid, persistence).await?),
             state: Arc::new(ReplicaState::init(data)),
             observer: Arc::clone(&observer),
             peers,
@@ -175,7 +176,15 @@ mod tests {
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         Replica {
             uuid,
-            store: Arc::new(KVStore::init(uuid).await.expect("store init should work")),
+            store: Arc::new(
+                KVStore::init(
+                    uuid,
+                    crate::common::persistence::ClusterPersistence::for_test("pmmc_replica")
+                        .node(uuid),
+                )
+                .await
+                .expect("store init should work"),
+            ),
             state: Arc::new(ReplicaState::init(ReplicaDurable::default())),
             observer: Arc::clone(&observer),
             peers: Arc::new(NetworkSimulator::new(uuid, HashMap::new(), observer)),
@@ -195,7 +204,13 @@ mod tests {
             peers_map,
             Arc::clone(&observer),
         ));
-        let replica = Replica::new(uuid, observer, peers)
+        let replica = Replica::new(
+            uuid,
+            crate::common::persistence::ClusterPersistence::for_test("replica_with_peer")
+                .node(uuid),
+            observer,
+            peers,
+        )
             .await
             .expect("replica init should work");
 
@@ -388,7 +403,13 @@ mod tests {
             HashMap::new(),
             Arc::clone(&observer),
         ));
-        let replica = Replica::new(uuid, observer, peers)
+        let replica = Replica::new(
+            uuid,
+            crate::common::persistence::ClusterPersistence::for_test("replica_client")
+                .node(uuid),
+            observer,
+            peers,
+        )
             .await
             .expect("replica init should work");
         let client_id = Uuid::new_v4();

@@ -5,6 +5,7 @@ use tokio::{sync::mpsc::Receiver, time::sleep};
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
+    common::persistence::NodePersistence,
     common::types::DecreeId,
     message::Message,
     monitor::PaxosObserver,
@@ -29,6 +30,7 @@ impl PaxosNode {
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
+        persistence: NodePersistence,
         quorum: usize,
         config: ClassicNodeConfig,
         topology: crate::node::peer_topology::PeerTopology,
@@ -43,6 +45,7 @@ impl PaxosNode {
                     uuid,
                     quorum,
                     peers,
+                    persistence,
                     Arc::clone(&inflight_proposals),
                     observer,
                     config,

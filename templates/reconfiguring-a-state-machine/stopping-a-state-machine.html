@@ -1,0 +1,43 @@
+{% extends "reconfiguring-a-state-machine/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Stopping a State Machine{% endblock %}
+{% block body_class %}rsm-page{% endblock %}
+{% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Stopping a State Machine</h1>
+
+    <div class="inner-panel">
+      <h2>Stop Command Concept</h2>
+      <p>
+        The paper introduces mechanisms to stop advancing one configuration's command stream so a successor
+        can safely take over.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Stop Sign, Padding, Brick Wall</h2>
+      <p>
+        These techniques handle boundary conditions: where to terminate, how to fill uncertain tail slots,
+        and how to prevent old configuration progress from crossing a safety boundary.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>System Mapping</h2>
+      <p>
+        In our implementation, this likely corresponds to explicit stop markers in the replicated log and
+        strict replica/leader checks against the latest effective configuration epoch.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/reconfiguration-made-harder",
+    prev_label="Reconfiguration Made Harder",
+    current_label="Stopping a State Machine",
+    next_url="/choosing-a-new-configuration",
+    next_label="Choosing New Configuration"
+  ) }}
+</div>
+{% endblock %}

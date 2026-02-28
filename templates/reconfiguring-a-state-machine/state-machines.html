@@ -1,0 +1,43 @@
+{% extends "reconfiguring-a-state-machine/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}State Machines - Reconfiguring a State Machine{% endblock %}
+{% block body_class %}rsm-page{% endblock %}
+{% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">State Machines</h1>
+
+    <div class="inner-panel">
+      <h2>Commands and Histories</h2>
+      <p>
+        Replicated state machines execute an ordered sequence of commands. Reconfiguration must preserve this
+        single logical sequence even while the executor set changes.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Preliminaries</h2>
+      <p>
+        A configuration defines which processes participate and how consensus is run for a command range.
+        The tricky part is handing off from one configuration to the next without ambiguity.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Garbage Collection</h2>
+      <p>
+        Membership changes add metadata and historical dependencies. Practical systems need explicit pruning
+        rules so obsolete config state can be removed after it is no longer needed for safety.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/introduction",
+    prev_label="Introduction",
+    current_label="State Machines",
+    next_url="/reconfiguration-made-easy",
+    next_label="Reconfiguration Made Easy"
+  ) }}
+</div>
+{% endblock %}

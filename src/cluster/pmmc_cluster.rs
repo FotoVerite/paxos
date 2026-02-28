@@ -5,8 +5,14 @@ use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use uuid::Uuid;
 
+use crate::cluster::cluster_configuration::ClusterConfiguration;
+use crate::node::peer_topology::PeerTopology;
 use crate::{
-    cluster::network_simulator::{NetworkFailure, NetworkSimulator},
+    cluster::{
+        network_fabric::NetworkFabric,
+        network_simulator::{NetworkFailure, NetworkSimulator},
+    },
+    common::persistence::Persistence,
     message::{ClientMessage, Message},
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{config::PmmcNodeConfig, pmmc::pmmc_node::PmmcNode},
@@ -41,6 +47,7 @@ impl PmmcCluster {
     ) -> anyhow::Result<Self> {
         let total_number = configs.len();
         let node_uuids: Vec<Uuid> = (0..total_number).map(|i| Self::node_uuid(ip, i)).collect();
+        let persistence = Persistence::cluster(ip);
 
         let proposer_ids: Vec<Uuid> = configs
             .iter()
@@ -76,19 +83,17 @@ impl PmmcCluster {
             receivers.push(rx);
         }
 
+        let fabric = Arc::new(NetworkFabric::new(Arc::clone(&observer)));
+        for (idx, uuid) in node_uuids.iter().enumerate() {
+            fabric.register(*uuid, peers[idx].clone()).await;
+        }
+
         let mut nodes = Vec::new();
         let mut simulators = HashMap::new();
         for (i, (rx, config)) in receivers.into_iter().zip(configs.into_iter()).enumerate() {
-            let peers_map: HashMap<Uuid, Sender<Message>> = node_uuids
-                .iter()
-                .enumerate()
-                .map(|(idx, uuid)| (*uuid, peers[idx].clone()))
-                .collect();
-
-            let simulator = Arc::new(NetworkSimulator::new(
+            let simulator = Arc::new(NetworkSimulator::from_fabric(
                 node_uuids[i],
-                peers_map,
-                Arc::clone(&observer),
+                Arc::clone(&fabric),
             ));
             simulators.insert(node_uuids[i], Arc::clone(&simulator));
 
@@ -97,6 +102,70 @@ impl PmmcCluster {
                 rx,
                 Arc::clone(&observer),
                 simulator,
+                persistence.node(node_uuids[i]),
+                quorum,
+                config,
+                topology.clone(),
+            )
+            .await?;
+            nodes.push(node);
+        }
+
+        Ok(Self {
+            _id: id,
+            total_number,
+            quorum_size: quorum,
+            nodes,
+            observer,
+            simulators,
+        })
+    }
+
+
+
+    pub async fn new_with_configuration(
+        id: usize,
+        ip: IpAddr,
+        configuration: ClusterConfiguration,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> anyhow::Result<Self> {
+        let total_number = configuration.len();
+        let persistence = Persistence::cluster(ip);
+        let node_configs = configuration.node_configs();
+        let node_uuids: Vec<Uuid> = node_configs.iter().map(|(uuid, _)| *uuid).collect();
+        let configs: Vec<PmmcNodeConfig> =
+            node_configs.iter().map(|(_, config)| config.clone()).collect();
+        let topology = PeerTopology::from(&configuration);
+        let quorum = configuration.quorum();
+
+        let mut peers = Vec::<Sender<Message>>::with_capacity(total_number);
+        let mut receivers = Vec::<Receiver<Message>>::with_capacity(total_number);
+        for _ in 0..total_number {
+            let (tx, rx) = mpsc::channel(1024);
+            peers.push(tx);
+            receivers.push(rx);
+        }
+
+        let fabric = Arc::new(NetworkFabric::new(Arc::clone(&observer)));
+        for (idx, uuid) in node_uuids.iter().enumerate() {
+            fabric.register(*uuid, peers[idx].clone()).await;
+        }
+
+        let mut nodes = Vec::new();
+        let mut simulators = HashMap::new();
+        for (i, (rx, config)) in receivers.into_iter().zip(configs.into_iter()).enumerate() {
+            let simulator = Arc::new(NetworkSimulator::from_fabric(
+                node_uuids[i],
+                Arc::clone(&fabric),
+            ));
+            simulators.insert(node_uuids[i], Arc::clone(&simulator));
+
+            let node = PmmcNode::new(
+                node_uuids[i],
+                rx,
+                Arc::clone(&observer),
+                simulator,
+                persistence.node(node_uuids[i]),
                 quorum,
                 config,
                 topology.clone(),

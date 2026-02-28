@@ -23,6 +23,7 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "ansi", "env-filter"]
 tracing-appender = "0.2"
 uuid = { version = "1.19.0", features = ["v4", "v5", "std", "serde"] }
 derive_more = { version = "2.1.1", features = ["full"] }
+thiserror = "2.0.18"
 
 [features]
 default = ["persistence"]

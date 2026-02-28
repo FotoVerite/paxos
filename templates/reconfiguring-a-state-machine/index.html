@@ -1,0 +1,46 @@
+{% extends "reconfiguring-a-state-machine/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Reconfiguring a State Machine - Overview{% endblock %}
+{% block body_class %}rsm-page{% endblock %}
+{% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Reconfiguring a State Machine</h1>
+    <p>
+      This section is a rough, implementation-oriented walkthrough of Lamport, Malkhi, and Zhou's
+      tutorial on configuration changes for replicated state machines.
+    </p>
+    <p>
+      Source paper: <a href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf" target="_blank">Reconfiguring a State Machine ↗</a>
+    </p>
+
+    <div class="inner-panel">
+      <h2>Why This Matters</h2>
+      <p>
+        Paxos tutorials usually assume a fixed set of participants. Real systems need to add, remove,
+        and replace nodes without breaking safety or freezing availability.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>How This Track Is Organized</h2>
+      <p>This rough pass mirrors the paper's flow so we can iterate toward code:</p>
+      <ul>
+        <li>State machines and command logs</li>
+        <li>A simple reconfiguration mechanism</li>
+        <li>Correctness intuition</li>
+        <li>Harder cases and edge handling</li>
+        <li>Operational interface for real systems</li>
+      </ul>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/paxos/whitepapers",
+    prev_label="Whitepapers",
+    current_label="Reconfiguring a State Machine",
+    next_url="/abstract",
+    next_label="Abstract"
+  ) }}
+</div>
+{% endblock %}

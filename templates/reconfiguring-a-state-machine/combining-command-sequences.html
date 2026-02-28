@@ -1,0 +1,42 @@
+{% extends "reconfiguring-a-state-machine/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Combining Command Sequences{% endblock %}
+{% block body_class %}rsm-page{% endblock %}
+{% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Combining Command Sequences</h1>
+
+    <div class="inner-panel">
+      <h2>One Logical Timeline</h2>
+      <p>
+        Even with multiple configurations, clients must observe one linearizable command history.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Boundary Semantics</h2>
+      <p>
+        The transition mechanism must define exactly how suffixes from an old configuration interact with
+        prefixes of the new configuration.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Validation Plan</h2>
+      <p>
+        Scenario tests should assert no duplicate execution, no lost commands, and monotonic slot/config
+        progression across a transition.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/choosing-a-new-configuration",
+    prev_label="Choosing New Configuration",
+    current_label="Combining Sequences",
+    next_url="/interface",
+    next_label="Interface"
+  ) }}
+</div>
+{% endblock %}

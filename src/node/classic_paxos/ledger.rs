@@ -1,5 +1,5 @@
 use crate::{
-    common::{persistence::Persistence, types::DecreeId},
+    common::{persistence::NodePersistence, types::DecreeId},
     paxos_command::PaxosCommand,
 };
 use anyhow::Result;
@@ -23,14 +23,15 @@ impl LedgerState {
 }
 
 pub struct Ledger {
-    uuid: Uuid,
+    persistence: NodePersistence,
     state: Mutex<LedgerState>,
 }
 
 impl Ledger {
-    pub async fn init(uuid: Uuid) -> Result<Self> {
+    pub async fn init(_uuid: Uuid, persistence: NodePersistence) -> Result<Self> {
         #[cfg(feature = "persistence")]
-        let state = Persistence::load(&format!("ledger_{}.bin", uuid))
+        let state = persistence
+            .load("ledger.bin")
             .await
             .unwrap_or_else(|_| LedgerState::init());
 
@@ -38,7 +39,7 @@ impl Ledger {
         let state = LedgerState::init();
 
         Ok(Self {
-            uuid,
+            persistence,
             state: Mutex::new(state),
         })
     }
@@ -46,14 +47,15 @@ impl Ledger {
     /// Create a ledger with fresh empty state (for tests)
     pub fn new(uuid: Uuid) -> Self {
         Self {
-            uuid,
+            persistence: crate::common::persistence::ClusterPersistence::for_test("ledger_tests")
+                .node(uuid),
             state: Mutex::new(LedgerState::init()),
         }
     }
 
     async fn save(&self) -> Result<()> {
         let state = self.state.lock().await;
-        Persistence::save(&format!("ledger_{}.bin", self.uuid), &*state).await
+        self.persistence.save("ledger.bin", &*state).await
     }
 
     pub async fn insert(&self, slot: DecreeId, value: PaxosCommand) -> bool {
@@ -129,12 +131,15 @@ impl Ledger {
     }
 
     /// Pre-populate a ledger file with initial decrees (used for scenario setup)
-    pub async fn prepopulate(uuid: Uuid, decrees: Vec<Option<PaxosCommand>>) -> Result<()> {
+    pub async fn prepopulate(
+        persistence: &NodePersistence,
+        decrees: Vec<Option<PaxosCommand>>,
+    ) -> Result<()> {
         let state = LedgerState {
             log: Vec::new(),
             decrees,
         };
 
-        Persistence::save(&format!("ledger_{}.bin", uuid), &state).await
+        persistence.save("ledger.bin", &state).await
     }
 }

@@ -1,0 +1,422 @@
+@import "./vars.css";
+
+body.rsm-page {
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(
+      circle at 8% 8%,
+      rgba(109, 207, 246, 0.08),
+      transparent 40%
+    ),
+    linear-gradient(
+      180deg,
+      var(--rsm-ink-0) 0%,
+      var(--rsm-ink-1) 45%,
+      var(--rsm-ink-2) 100%
+    );
+  color: var(--rsm-text-main);
+}
+em {
+  font-style: italic;
+  color: var(--rsm-signal-amber);
+}
+
+p {
+  margin: 0 0 1.5rem 0;
+}
+.rsm-container {
+  position: relative;
+  max-width: var(--rsm-container-max-width);
+  margin: 0 auto;
+  padding: var(--rsm-container-padding);
+}
+
+.rsm-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 52px;
+  width: 2px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 179, 71, 0.45),
+    rgba(66, 211, 146, 0.35)
+  );
+  pointer-events: none;
+}
+
+.panel {
+  position: relative;
+  background: linear-gradient(
+    160deg,
+    rgba(18, 28, 37, 0.88),
+    rgba(13, 19, 25, 0.88)
+  );
+  border: 1px solid rgba(255, 179, 71, 0.2);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.panel::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -28%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 179, 71, 0.08),
+    transparent 65%
+  );
+}
+
+.panel-title,
+.rsm-container h1 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffe8c6;
+  margin: 0 0 1rem 0;
+}
+
+.panel-title {
+  position: relative;
+  overflow: hidden;
+  padding: 2rem 1.45rem 2rem 1.45rem;
+  border-radius: 0;
+  border: 1px solid rgba(109, 207, 246, 0.28);
+  border-bottom: 3px solid rgba(255, 179, 71, 0.85);
+  background:
+    linear-gradient(
+      165deg,
+      rgba(13, 22, 30, 0.96) 0%,
+      rgba(16, 27, 36, 0.95) 55%,
+      rgba(12, 20, 27, 0.95) 100%
+    );
+  clip-path: polygon(
+    14px 0,
+    calc(100% - 14px) 0,
+    100% 14px,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    14px 100%,
+    0 calc(100% - 14px),
+    0 14px
+  );
+  font-size: 2.3rem;
+  line-height: 1.05;
+}
+
+.panel-title::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, rgba(109, 207, 246, 0.14) 1px, transparent 1px),
+    linear-gradient(rgba(255, 179, 71, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(72, 104, 96, 0.326), rgba(115, 65, 24, 0.22));
+  background-size:
+    28px 28px,
+    28px 28px,
+    56px 2px;
+  background-position:
+    0 0,
+    0 0,
+    0 calc(100% - 8px);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 30%, black 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 30%, black 100%);
+}
+
+.panel-title::after {
+  content: "CTRL";
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: rgba(255, 179, 71, 0.95);
+  padding: 0.2rem 0.34rem 0.16rem 0.42rem;
+  border: 1px solid rgba(255, 179, 71, 0.42);
+  background: rgba(255, 179, 71, 0.08);
+  border-radius: 2px;
+}
+
+.rsm-container h1 {
+  font-size: 2.25rem;
+}
+
+.rsm-container h2 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--rsm-signal-amber);
+  font-size: 1.35rem;
+  margin: 0 0 0.65rem 0;
+}
+
+.rsm-container p,
+.rsm-container li {
+  color: var(--rsm-text-main);
+  line-height: 1.72;
+}
+
+.rsm-container a {
+  color: var(--rsm-signal-cyan);
+}
+
+.inner-panel {
+  position: relative;
+  margin: 1rem 0;
+  padding: 1rem 1rem 1rem 1.15rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(66, 211, 146, 0.22);
+  background: linear-gradient(
+    180deg,
+    rgba(11, 18, 24, 0.7),
+    rgba(10, 14, 19, 0.66)
+  );
+}
+
+.inner-panel::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(
+    180deg,
+    var(--rsm-signal-amber),
+    var(--rsm-signal-green)
+  );
+}
+
+.inner-panel ul {
+  margin: 0.4rem 0 0.3rem 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .rsm-container::before {
+    left: 18px;
+  }
+
+  .rsm-container h1 {
+    font-size: 1.9rem;
+  }
+
+  .panel-title {
+    font-size: 1.8rem;
+    padding: 1.05rem 1.05rem 0.98rem 1.05rem;
+  }
+
+  .panel {
+    padding: 1.15rem;
+  }
+}
+.quote-container {
+  /* Layout & Base Style */
+  background-color: var(--charcoal);
+  border-left: 3px solid var(--steel);
+  padding: 1.5rem 2rem;
+  margin: 0 0 2rem 0;
+  padding: 2rem;
+  position: relative;
+  /* The "Switch Throw" Entry */
+  opacity: 1;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 15px),
+    calc(100% - 15px) 100%,
+    0 100%
+  );
+
+  /* The Signal LED */
+  &::before {
+    content: "";
+    position: absolute;
+    top: 1.2rem;
+    right: 1.5rem;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--signal-amber);
+    box-shadow: 0 0 8px var(--signal-amber);
+    animation: signalPulse 3s ease-in-out infinite;
+  }
+
+  blockquote {
+    margin: 0;
+
+    p {
+      color: #d1d1d1;
+      font-family: var(--font-body);
+      font-size: 1.05rem;
+      line-height: 1.6;
+      margin-bottom: 1.2rem;
+    }
+
+    hr {
+      /* Reset default */
+      border: none;
+      height: 1px;
+      margin: 2rem 0;
+      position: relative;
+      overflow: visible;
+
+      /* The "Track" line - a subtle dashed steel line */
+      background: repeating-linear-gradient(
+        90deg,
+        var(--steel),
+        var(--steel) 4px,
+        transparent 4px,
+        transparent 8px
+      );
+      opacity: 0.4;
+
+      /* The "Switch Junction" icon in the center */
+      &::after {
+        content: "⑂"; /* Junction icon */
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background-color: var(
+          --charcoal
+        ); /* Matches container bg to "cut" the line */
+        padding: 0 12px;
+        color: var(--steel);
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        letter-spacing: normal;
+      }
+
+      /* Optional: A small "Pulse" on the junction if you want more pop */
+      &::before {
+        content: "";
+        position: absolute;
+        left: calc(50% - 3px);
+        top: calc(50% - 3px);
+        width: 6px;
+        height: 6px;
+        background: var(--signal-amber);
+        border-radius: 50%;
+        opacity: 0.2;
+        filter: blur(2px);
+      }
+    }
+  }
+
+  .quote-source {
+    display: block;
+    font-family: var(--font-header);
+    font-style: normal;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-align: right;
+
+    a {
+      color: var(--steel);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      transition: color 0.2s ease;
+
+      &::before {
+        content: "REF_LOG //";
+        font-family: var(--font-mono);
+        margin-right: 8px;
+        opacity: 0.6;
+      }
+
+      &:hover {
+        color: var(--signal-amber);
+      }
+    }
+  }
+}
+
+.inscription-label {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-header);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--steel);
+  padding: 4px 12px;
+  margin-bottom: -1px; /* Ties it to the container border */
+  margin-left: 1.5rem;
+  border-bottom: none; /* Merges with the box below */
+  background: var(--charcoal);
+  position: relative;
+  z-index: 2;
+
+  /* The "Signal Light" status within the label */
+  &::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    background: var(--signal-amber);
+    border-radius: 50%;
+    margin-right: 10px;
+    box-shadow: 0 0 5px var(--signal-amber);
+  }
+
+  /* Adding a "Serial Number" look to the end */
+  &::after {
+    content: "ID_//" attr(data-id); /* Pulls from HTML data attribute if present */
+    font-family: var(--font-mono);
+    font-weight: 400;
+    margin-left: 15px;
+    opacity: 0.5;
+    font-size: 0.65rem;
+  }
+}
+
+/* Animations kept outside for global reuse if needed */
+
+@keyframes signalPulse {
+  0%,
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.7;
+    filter: brightness(1.3);
+  }
+}
+
+.header-icon {
+  position: absolute;
+  width: 36px;
+  top: 40px;
+  z-index: 2;
+
+  &.large {
+    right: 30px;
+    top: 35px;
+    width: 45px;
+  }
+
+  &.xl {
+    width: 70px;
+    right: 30px;
+    top: 30px;
+  }
+
+  &.full {
+    width: 100px;
+    right: 30px;
+    top: 35px;
+  }
+}

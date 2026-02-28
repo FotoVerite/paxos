@@ -1,15 +1,12 @@
-use std::collections::HashSet;
 use std::net::IpAddr;
-use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
-use tokio::fs;
 use tokio::time::{Duration, sleep};
 use uuid::Uuid;
 
 use crate::cluster::{cluster::Cluster, pmmc_cluster::PmmcCluster};
+use crate::common::persistence::Persistence;
 use crate::decree_generator::DecreeGenerator;
-use crate::common::persistence::DATA_DIR;
 use crate::message::{ClientMessage, Message};
 use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::node::config::{ClassicNodeConfig, LearningStrategy, PmmcNodeConfig, Roles};
@@ -52,8 +49,6 @@ impl PaxosObserver for ObserverFanout {
 }
 
 impl ClusterManager {
-    const CLEANUP_NODE_SLOTS_PER_IP: usize = 256;
-
     pub fn new() -> Self {
         Self {
             cluster: Mutex::new(None),
@@ -196,12 +191,14 @@ impl ClusterManager {
             || scenario_type == "pmmc_replica_crash_failover"
             || scenario_type == "pmmc_leader_partition_heal"
             || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
+            || scenario_type == "pmmc_staggered_leader_join"
         {
             let mut cluster = if scenario_type == "pmmc_role_split"
                 || scenario_type == "pmmc_leader_crash"
                 || scenario_type == "pmmc_replica_crash_failover"
                 || scenario_type == "pmmc_leader_partition_heal"
                 || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
+                || scenario_type == "pmmc_staggered_leader_join"
             {
                 Self::create_pmmc_role_split_cluster(0, ip, scenario_observer.clone()).await?
             } else {
@@ -286,6 +283,7 @@ impl ClusterManager {
             let replica_crash_failover_limit = 5usize;
             let leader_partition_heal_limit = 5usize;
             let acceptor_majority_loss_then_recover_limit = 7usize;
+            let staggered_leader_join_limit = 5usize;
             let mut leader_crash_done = false;
             let mut replica_crash_done = false;
             let mut leader_partitioned_idx: Option<usize> = None;
@@ -297,10 +295,15 @@ impl ClusterManager {
             let mut acceptor_majority_healed = false;
             let mut acceptor_majority_partition_b: Vec<Uuid> = Vec::new();
             let mut acceptor_majority_timeout_count = 0usize;
+            let mut staggered_join_initialized = false;
+            let mut leader0_joined = false;
+            let mut leader1_joined = false;
+            let mut client_attempt_count = 0usize;
             let mut client_node_index = if scenario_type == "pmmc_leader_crash"
                 || scenario_type == "pmmc_replica_crash_failover"
                 || scenario_type == "pmmc_leader_partition_heal"
                 || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
+                || scenario_type == "pmmc_staggered_leader_join"
             {
                 2
             } else {
@@ -385,6 +388,7 @@ impl ClusterManager {
                             || scenario_type == "pmmc_replica_crash_failover"
                             || scenario_type == "pmmc_leader_partition_heal"
                             || scenario_type == "pmmc_acceptor_majority_loss_then_recover"
+                            || scenario_type == "pmmc_staggered_leader_join"
                         {
                             let is_leader_crash = scenario_type == "pmmc_leader_crash";
                             let is_replica_crash_failover =
@@ -393,6 +397,8 @@ impl ClusterManager {
                                 scenario_type == "pmmc_leader_partition_heal";
                             let is_acceptor_majority_loss_then_recover =
                                 scenario_type == "pmmc_acceptor_majority_loss_then_recover";
+                            let is_staggered_leader_join =
+                                scenario_type == "pmmc_staggered_leader_join";
                             let target_limit = if is_leader_crash {
                                 leader_crash_limit
                             } else if is_replica_crash_failover {
@@ -401,6 +407,8 @@ impl ClusterManager {
                                 leader_partition_heal_limit
                             } else if is_acceptor_majority_loss_then_recover {
                                 acceptor_majority_loss_then_recover_limit
+                            } else if is_staggered_leader_join {
+                                staggered_leader_join_limit
                             } else {
                                 single_client_limit
                             };
@@ -413,6 +421,8 @@ impl ClusterManager {
                                     "leader-partition-heal"
                                 } else if is_acceptor_majority_loss_then_recover {
                                     "acceptor-majority-loss-then-recover"
+                                } else if is_staggered_leader_join {
+                                    "staggered-leader-join"
                                 } else {
                                     "single-client"
                                 };
@@ -461,6 +471,42 @@ impl ClusterManager {
                                 }
                             }
 
+                            if is_staggered_leader_join && !staggered_join_initialized {
+                                let maybe_init = {
+                                    let cluster = cluster_for_runner.lock().await;
+                                    let uuids = cluster.get_node_uuids();
+                                    if uuids.len() >= 2 {
+                                        let isolated_0 = cluster.isolate_node(0).await;
+                                        let isolated_1 = cluster.isolate_node(1).await;
+                                        Some((uuids, isolated_0, isolated_1))
+                                    } else {
+                                        None
+                                    }
+                                };
+
+                                match maybe_init {
+                                    Some((uuids, Some(u0), Some(u1))) => {
+                                        let partition_a: Vec<Uuid> =
+                                            uuids.into_iter().filter(|u| *u != u0 && *u != u1).collect();
+                                        observer_for_runner.on_event(Event::PartitionCreated {
+                                            partition_a,
+                                            partition_b: vec![u0, u1],
+                                            created_at: current_timestamp_millis(),
+                                        });
+                                        println!(
+                                            "PMMC staggered-leader-join: isolated leaders 0 and 1; they will join on attempts 3 and 5"
+                                        );
+                                        staggered_join_initialized = true;
+                                    }
+                                    _ => {
+                                        eprintln!(
+                                            "PMMC staggered-leader-join: failed to initialize leader isolation"
+                                        );
+                                        break;
+                                    }
+                                }
+                            }
+
                             if proposal_count == 0 {
                                 // Allow initial PMMC leader election churn to settle
                                 // before issuing the first client request.
@@ -489,6 +535,7 @@ impl ClusterManager {
 
                             let request_id = proposal_count as u64 + 1;
                             let value = proposal_count + 1;
+                            client_attempt_count += 1;
                             let cmd = PaxosCommand::PUT {
                                 key: "pmmc-single-client".to_string(),
                                 version: 1,
@@ -727,6 +774,53 @@ impl ClusterManager {
                                     break;
                                 }
                                 Err(_) => {
+                                    if is_staggered_leader_join {
+                                        if !leader0_joined && client_attempt_count >= 3 {
+                                            let healed = {
+                                                let cluster = cluster_for_runner.lock().await;
+                                                cluster.heal_node(0).await
+                                            };
+                                            if let Some(uuid) = healed {
+                                                observer_for_runner.on_event(Event::PartitionHealed {
+                                                    partition_a: vec![],
+                                                    partition_b: vec![uuid],
+                                                    created_at: current_timestamp_millis(),
+                                                });
+                                                println!(
+                                                    "PMMC staggered-leader-join: leader 0 joined on attempt {}",
+                                                    client_attempt_count
+                                                );
+                                                leader0_joined = true;
+                                                sleep(Duration::from_millis(500)).await;
+                                            }
+                                        }
+                                        if !leader1_joined && client_attempt_count >= 5 {
+                                            let healed = {
+                                                let cluster = cluster_for_runner.lock().await;
+                                                cluster.heal_node(1).await
+                                            };
+                                            if let Some(uuid) = healed {
+                                                observer_for_runner.on_event(Event::PartitionHealed {
+                                                    partition_a: vec![],
+                                                    partition_b: vec![uuid],
+                                                    created_at: current_timestamp_millis(),
+                                                });
+                                                println!(
+                                                    "PMMC staggered-leader-join: leader 1 joined on attempt {}",
+                                                    client_attempt_count
+                                                );
+                                                leader1_joined = true;
+                                                sleep(Duration::from_millis(500)).await;
+                                            }
+                                        }
+                                        eprintln!(
+                                            "PMMC staggered-leader-join timed out waiting for response to request {}; retrying",
+                                            request_id
+                                        );
+                                        sleep(Duration::from_millis(250)).await;
+                                        continue;
+                                    }
+
                                     if is_acceptor_majority_loss_then_recover
                                         && acceptor_majority_partitioned
                                         && !acceptor_majority_healed
@@ -887,64 +981,7 @@ impl ClusterManager {
         Ok(())
     }
 
-    fn owned_uuid_set_for_ip(ip: IpAddr, slots: usize) -> HashSet<String> {
-        let mut out = HashSet::with_capacity(slots * 2);
-        for i in 0..slots {
-            out.insert(crate::cluster::cluster::Cluster::node_uuid(ip, i).to_string());
-            out.insert(crate::cluster::pmmc_cluster::PmmcCluster::node_uuid(ip, i).to_string());
-        }
-        out
-    }
-
-    fn extract_uuid_from_state_filename(name: &str) -> Option<&str> {
-        const PREFIXES: [&str; 6] = [
-            "ledger_",
-            "acceptor_",
-            "leader_",
-            "replica_",
-            "decree_notes_",
-            "store_",
-        ];
-
-        let prefix = PREFIXES.iter().find(|p| name.starts_with(**p))?;
-        let rest = &name[prefix.len()..];
-        let idx = rest.find(".bin")?;
-        let candidate = &rest[..idx];
-        if Uuid::parse_str(candidate).is_ok() {
-            Some(candidate)
-        } else {
-            None
-        }
-    }
-
     async fn purge_persisted_state_for_ip(&self, ip: IpAddr) -> anyhow::Result<usize> {
-        if !Path::new(DATA_DIR).exists() {
-            return Ok(0);
-        }
-
-        let owned = Self::owned_uuid_set_for_ip(ip, Self::CLEANUP_NODE_SLOTS_PER_IP);
-        let mut removed = 0usize;
-        let mut entries = fs::read_dir(DATA_DIR).await?;
-        while let Some(entry) = entries.next_entry().await? {
-            let file_type = entry.file_type().await?;
-            if !file_type.is_file() {
-                continue;
-            }
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else {
-                continue;
-            };
-            let Some(uuid) = Self::extract_uuid_from_state_filename(name) else {
-                continue;
-            };
-            if !owned.contains(uuid) {
-                continue;
-            }
-            if fs::remove_file(entry.path()).await.is_ok() {
-                removed += 1;
-            }
-        }
-
-        Ok(removed)
+        Persistence::cluster(ip).purge_known_state_files().await
     }
 }

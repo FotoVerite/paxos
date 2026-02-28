@@ -1,0 +1,146 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Reconfiguration Made Harder -
+Protocol {% endblock %} {% block body_class %}rsm-page{% endblock %}{% block
+extra_stylesheets %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Reconfiguration Made Harder</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/hard.svg"
+        class="math-logo"
+      ></object>
+    </div>
+
+    <div class="inscription-label" data-id="LC-3">The Problem</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          Algorithm $\mathcal{R_\alpha}$ of Section 2.3 has the practical
+          drawback that a reconfiguration introduces a sequence of noop commands
+          of length about $\alpha$. This can be inconvenient for large values of
+          $\alpha$ —for example, $\alpha$ = $2^{64}$. The bound on concurrency
+          implied by $\alpha$, even if not a practical concern, may also be
+          considered inelegant. We now present reconfiguration algorithms that
+          permit any number of commands to be chosen concurrently during normal
+          execution, when no reconfiguration is in progress.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=4"
+          target="_blank"
+        >
+          LAMPORT, P.4 $ §3
+        </a>
+      </cite>
+    </div>
+    <p>
+      While the previous protocol works, Lamport dislikes it because he feels
+      it's hacky and inelegant. The approach spreads configuration logic
+      throughout the log and introduces an artificial bound on concurrency
+      determined by $\alpha$. He also points out that the fast-foreword trick of
+      the no-ops he can cause slowdown at large a $\alpha$ and also pollutes the
+      log further. Instead he has come up with a more complicated method that
+      will work with the system concurrently and with less log pollution. The
+      system will executes a sequence of ordinary non-reconfigurable state
+      machines.
+    </p>
+
+    <p>
+      He wants to shift configuration from log positions to the lifetime of a
+      particular state-machine instance.
+    </p>
+
+    <div class="inscription-label" data-id="LC-3">The Solution</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          We obtain a reconfigurable state-machine implementation by combining
+          the executions of a sequence of separate non-reconfigurable
+          state-machine implementations. To reconfigure when executing
+          state-machine implementation number $v$, we stop that execution,
+          choose the new configuration, and start the execution of statemachine
+          implementation number $v + 1$ by that configuration. The starting
+          state of state machine $v + 1$ is the final state of state machine
+          $v$.
+        </p>
+        <hr />
+        <p>
+          This approach requires solving three largely orthogonal problems: (i)
+          stopping the current state machine, (ii) choosing the configuration to
+          implement the next state machine, and (iii) combining the sequence of
+          commands chosen for each separate state machine into a single
+          sequence. We consider them separately, starting with three basic
+          methods for implementing a stoppable state machine.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=5"
+          target="_blank"
+        >
+          LAMPORT, P.5 $ §3
+        </a>
+      </cite>
+    </div>
+    <p>
+      Each new state machine begins from the final state of the previous one. In
+      modern systems that state is always a snapshot of the the replica after
+      stop has been called.
+    </p>
+
+    <p>
+      If the system is currently running state machine $v$, reconfiguration is
+      performed by stopping it, selecting a new configuration, and starting
+      state machine $v + 1$ with that configuration and the state $v$'s
+      snapshot.
+    </p>
+
+    <p>
+      In this sense, the sequence of state machines forms a single logical
+      history. State machine $v+1$ continues execution from the state/snapshot
+      produced by $v$, and later machines continue from the ones before them.
+    </p>
+
+    <p>This approach requires solving three largely independent problems.</p>
+
+    <ul>
+      <li>Stopping the current state machine</li>
+      <li>Choosing the configuration for the next state machine</li>
+      <li>
+        Combining the commands chosen by each machine into a single history
+      </li>
+    </ul>
+  </div>
+  {{ nav::breadcrumb( prev_url="/correctness", prev_label="Correctness
+  Collection", current_label="Protocol",
+  next_url="/reconfiguration-made-harder/stopping-the-machine", next_label="Stopping" ) }}
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

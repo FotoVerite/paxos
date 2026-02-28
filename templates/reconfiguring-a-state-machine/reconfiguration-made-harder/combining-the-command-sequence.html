@@ -1,0 +1,167 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Combining the Command Sequence {%
+endblock %} {% block body_class %}rsm-page{% endblock %}{% block
+extra_stylesheets %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Combining the Command Sequence</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/combining.svg"
+        class="math-logo"
+      ></object>
+    </div>
+
+    <div class="inscription-label" data-id="LC-3.3">
+      Last Interesting Command
+    </div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          If a state machine has been stopped, it has a unique
+          <em>“last interesting”</em> command.
+        </p>
+        <p>
+          For the Stop-Sign or Brick-Wall method, that command is the (first)
+          stop command. For the delayed Stop-Sign method, it is $α − 1$ commands
+          after the stop command. For the Padding method, it is the last
+          non-noop command.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=7"
+          target="_blank"
+        >
+          LAMPORT, P7 $ §3.3
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Once a state machine stops there is a clear boundary in the command
+      stream. Lamport calls the command that defines this boundary the
+      <em>last interesting command</em>.
+    </p>
+
+    <p>Everything after this point belongs to the next configuration.</p>
+
+    <p>For the Brick-Wall and Instant Stop Sign it is the Command itself.</p>
+    <p>
+      For the delayed Stop-Sign it is the $\alpha window of commands that ran
+      after it was called.
+    </p>
+    <p>For Padding, it is the last command before the infinite no-ops</p>
+
+    <div class="inscription-label" data-id="LC-3.2">Continuation</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          Let $η(v)$ be the number of the last interesting command of state
+          machine number $v$, and define $η(0)$ to equal 0. Let us assign the
+          “number” $(v, i)$ to the $i^{th}$ command chosen for state machine
+          number $v$. With the usual lexicographical ordering of pairs, this
+          provides a linearly ordered numbering of the sequence of all chosen
+          commands.
+        </p>
+        <p>
+          However, it is not a useful numbering scheme because it does not tell
+          a client whether there are any commands between the ones numbered $(4,
+          417)$ and $(5, 1)$. It is better to number commands with consecutive
+          positive integers. To give commands integer numbers, we observe that
+          there is no reason why a state machine’s command numbers should start
+          with 1. Let us make the starting number a parameter of the state
+          machine, and let the first command of state machine number v + 1 be
+          one greater than that of the last interesting command of state machine
+          $v$. In other words the first command of state machine $v + 1$ has
+          number $η(v)+1$. Thus, command i is the one chosen as command number i
+          of state machine number v, where η(v −1) < i ≤ η(v). To implement
+          this, the choosing of commands in state machine v + 1 cannot begin
+          until the value of $η(v)$ is known.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=7"
+          target="_blank"
+        >
+          LAMPORT, P7 $ §3.2
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      This numbering is necessary so clients can reason about the command
+      stream. This reinforces choosing R1 from the previous section since the
+      number of $n(v) cannot be known till the system is fully stopped and said
+      boundary defined.
+    </p>
+
+    <div class="inscription-label" data-id="LC-3.2">implementation</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          In a naive implementation, each process would maintain a
+          two-dimensional array of data, where element $(v, i)$ contains the
+          data maintained for consensus instance i of state machine number v.
+          However, for state machine v, there is no consensus instance i if i ≤
+          η(v −1), and it does not matter what value is chosen by instance i if
+          i > η(v). In any state-machine implementation that uses a sequence of
+          completely separate consensus instances, a process need maintain
+          information for instance i only for the largest state machine number v
+          for which processing of command i has been initiated. To make this
+          true using a state-machine implementation like Stoppable Paxos, in
+          which the execution of other consensus instances can depend on the
+          state of consensus instance i, the implementation must be modified so
+          it can forget the state of instance i when i > η(v). For Stoppable
+          Paxos, the modification is simple.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=7"
+          target="_blank"
+        >
+          LAMPORT, P7 $ §3.2
+        </a>
+      </cite>
+    </div>
+    <p>
+      A naive implementation might store consensus state indexed by both the
+      configuration number and the slot number. Much like the memory management
+      of a node in paxos one actually only needs to store the previous last
+      unique command for a snapshot.
+    </p>
+  </div>
+  {{ nav::breadcrumb(
+  prev_url="/reconfiguration-made-harder/choosing-a-new-configuration",
+  prev_label="Configuration", current_label="Combining Sequences",
+  next_url="/reconfiguration-made-harder/proof", next_label="Proof" ) }}
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

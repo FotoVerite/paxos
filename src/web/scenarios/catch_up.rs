@@ -1,4 +1,5 @@
 use crate::cluster::cluster::Cluster;
+use crate::common::persistence::Persistence;
 use crate::common::types::DecreeId;
 use crate::node::classic_paxos::acceptor::Acceptor;
 use crate::node::classic_paxos::ledger::Ledger;
@@ -18,6 +19,7 @@ impl CatchUpScenario {
         // Pre-populate ledger and acceptor state before cluster starts
         for node_id in 0..node_count {
             let node_uuid = Cluster::node_uuid(ip, node_id);
+            let node_persistence = Persistence::cluster(ip).node(node_uuid);
             let ledger = if node_id == 0 {
                 catching_up_ledger.clone()
             } else {
@@ -25,7 +27,7 @@ impl CatchUpScenario {
             };
 
             // Prepopulate ledger
-            Ledger::prepopulate(node_uuid, ledger.clone()).await?;
+            Ledger::prepopulate(&node_persistence, ledger.clone()).await?;
 
             // Prepopulate acceptor with the same decrees
             let initial_decrees: Vec<(DecreeId, PaxosCommand)> = ledger
@@ -33,7 +35,7 @@ impl CatchUpScenario {
                 .enumerate()
                 .filter_map(|(idx, opt)| opt.as_ref().map(|cmd| (DecreeId(idx), cmd.clone())))
                 .collect();
-            Acceptor::prepopulate(node_uuid, initial_decrees).await?;
+            Acceptor::prepopulate(&node_persistence, initial_decrees).await?;
         }
 
         Ok(())

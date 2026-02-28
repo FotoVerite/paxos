@@ -1,0 +1,170 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Reconfiguration Made Easy -
+Protocol {% endblock %} {% block body_class %}rsm-page{% endblock %}{% block
+extra_stylesheets %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Reconfiguration Made Easy</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/changing.svg"
+        class="math-logo"
+      ></object>
+    </div>
+
+    <div class="inscription-label" data-id="LC-2.3">Definition</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          A <em>configuration</em> is the set of processes (clients, acceptors,
+          learners, etc.) that are executing the system. The consensus algorithm
+          used to implement a state machine assumes a fixed configuration, so
+          each instance of that algorithm must execute under a single
+          configuration. (It is the set of acceptors that is important; adding
+          or removing clients or learners while executing a consensus algorithm
+          is not a problem.)
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=3"
+          target="_blank"
+        >
+          LAMPORT, P. 3 §2.3- Reconfiguration Made Easy
+        </a>
+      </cite>
+    </div>
+    <p>
+      It is useful to start with a precise definition of configuration. In
+      Paxos, consensus for a particular <em>command</em> is executed by a fixed
+      set of acceptors.That set cannot change once a slot is being decided.
+    </p>
+
+    <p>
+      This does not mean the system can never change. Instead, each
+      <em>command</em> in the log is associated with a configuration. A decision
+      made using one configuration remains tied to that configuration even if
+      later commands use a different one.
+    </p>
+
+    <p>
+      For example, suppose command <span>$i$</span> is decided using five
+      acceptors. The quorum requirements for that decision remain based on those
+      five nodes. Removing two of them later does not retroactively shrink the
+      quorum, and adding new nodes does not increase it.
+    </p>
+
+    <p>
+      This is why adding <em>learners</em>, <em>clients</em>, or
+      <em>proposers</em> is usually easy. They do not affect the quorum system
+      that guarantees safety. Changing acceptors is harder because it alters the
+      structure the algorithm relies on.
+    </p>
+
+    <div class="inscription-label" data-id="LC-2.3">
+      Protocol $\mathcal{R_1}$
+    </div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          In the easy approach, reconfiguration is achieved by using different
+          configurations for different instances. We define the configuration at
+          command number $i$ to be the one used to execute consensus instance
+          $i$.
+        </p>
+
+        <p>
+          To prevent chaos, processes must agree on the configuration at command
+          $i$. The easy way to obtain a reconfigurable state-machine
+          implementation is to introduce a component $cfg$ of the state-machine
+          state that specifies the current configuration.
+        </p>
+
+        <p>
+          In other words, the configuration at command $i$ is determined by the
+          value of $cfg$ in the state immediately following execution of command
+          $i - 1$, or by its initial value if $i = 1$. (We use ordinal numbers
+          for commands, so the first command is number $1$.)
+        </p>
+
+        <p>
+          We add reconfiguration commands of the form $rcfg(C)$, which specifies
+          a new configuration $C$.
+        </p>
+
+        <hr />
+
+        <p>
+          The obvious way to define the state machine is to let executing
+          $rcfg(C)$ set $cfg$ to $C$, so reconfiguration occurs immediately. We
+          call this method $\mathcal{R_1}$. The problem with $\mathcal{R_1}$ is
+          that it prevents concurrent processing of different proposed commands.
+          Since the configuration used to execute instance $i + 1$ of the
+          consensus algorithm can be changed by executing command $i$, the
+          state-machine implementation cannot begin choosing command $i + 1$
+          until command $i$ has been chosen
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=3"
+          target="_blank"
+        >
+          LAMPORT, P. 3 §2.3- Reconfiguration Made Easy
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Lamport's easy solution is to define a configuration for each slot,
+      beginning with the first slot. $rcfg(C)$ is a command itself, so every
+      configuration change must pass through the system in order to take effect.
+      Because of this, the configuration for slot $i$ is determined by the state
+      produced by slot $i - 1$. The system must first reach consensus on that
+      state before the next slot knows which configuration to use.
+    </p>
+
+    <p>
+      If the configuration were allowed to change immediately (Lamport calls
+      this approach R1), the system could not safely process multiple slots at
+      the same time. Without this invariant, a slot would have no reliable way
+      to know whether it was using the correct configuration.
+    </p>
+
+    <p>
+      The consequence is that proposals effectively serialize: slot $i$ must be
+      decided before slot $i + 1$ can safely begin. That obviously hurts
+      performance.
+    </p>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/garbage-collection", prev_label="Garbage Collection",
+  current_label="Protocol", next_url="/reconfiguration-made-easy/alpha",
+  next_label="Alpha" ) }}
+</div>
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

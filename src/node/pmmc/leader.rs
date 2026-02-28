@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
-    common::persistence::Persistence,
+    common::persistence::NodePersistence,
     message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
@@ -21,6 +21,7 @@ mod scout;
 
 pub struct Leader {
     uuid: Uuid,
+    persistence: NodePersistence,
     quorum: usize,
     replicas: Vec<Uuid>,
     peers: Arc<NetworkSimulator>,
@@ -31,13 +32,14 @@ pub struct Leader {
 impl Leader {
     pub async fn new(
         uuid: Uuid,
+        persistence: NodePersistence,
         quorum: usize,
         replicas: Vec<Uuid>,
         peers: Arc<NetworkSimulator>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
         #[cfg(feature = "persistence")]
-        let state: LeaderDurable = Persistence::load(&format!("leader_{}.bin", uuid)).await?;
+        let state: LeaderDurable = persistence.load("leader.bin").await?;
 
         #[cfg(not(feature = "persistence"))]
         let state: LeaderDurable = LeaderDurable::default();
@@ -45,6 +47,7 @@ impl Leader {
         let state = LeaderState::init(uuid, state);
         let leader = Self {
             uuid,
+            persistence,
             peers,
             quorum,
             replicas,
@@ -138,7 +141,7 @@ impl Leader {
     #[allow(dead_code)]
     async fn save(&self) -> anyhow::Result<()> {
         let state = self.state.dump().await;
-        Persistence::save(&format!("leader_{}.bin", self.uuid), &state).await?;
+        self.persistence.save("leader.bin", &state).await?;
         Ok(())
     }
 
@@ -194,13 +197,14 @@ mod tests {
 
     use super::{Leader, LeaderDurable, LeaderState};
 
-    fn cleanup_leader_files(uuid: Uuid) {
-        let _ = fs::remove_file(format!(".paxos/leader_{}.bin", uuid));
-        let _ = fs::remove_file(format!(".paxos/Leader_{}.bin", uuid));
+    fn cleanup_leader_files(root: &crate::common::persistence::NodePersistence) {
+        let _ = fs::remove_file(root.dir().join("leader.bin"));
     }
 
     fn mk_leader() -> Leader {
         let uuid = Uuid::nil();
+        let persistence =
+            crate::common::persistence::ClusterPersistence::for_test("pmmc_leader").node(uuid);
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let peers = Arc::new(NetworkSimulator::new(
             uuid,
@@ -211,6 +215,7 @@ mod tests {
 
         Leader {
             uuid,
+            persistence,
             quorum: 2,
             replicas: vec![],
             peers,
@@ -221,6 +226,8 @@ mod tests {
 
     fn mk_leader_with_peer() -> (Leader, Uuid, mpsc::Receiver<Message>) {
         let uuid = Uuid::new_v4();
+        let persistence =
+            crate::common::persistence::ClusterPersistence::for_test("pmmc_leader").node(uuid);
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let peer = Uuid::new_v4();
         let (tx, rx) = mpsc::channel(8);
@@ -232,6 +239,7 @@ mod tests {
         (
             Leader {
                 uuid,
+                persistence,
                 quorum: 2,
                 replicas: vec![],
                 peers,
@@ -311,7 +319,9 @@ mod tests {
     #[tokio::test]
     async fn persistence_round_trip_preserves_active_state() {
         let uuid = Uuid::nil();
-        cleanup_leader_files(uuid);
+        let persistence =
+            crate::common::persistence::ClusterPersistence::for_test("leader_reload").node(uuid);
+        cleanup_leader_files(&persistence);
 
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let peers = Arc::new(NetworkSimulator::new(
@@ -319,7 +329,14 @@ mod tests {
             HashMap::new(),
             Arc::clone(&observer),
         ));
-        let leader = Leader::new(uuid, 2, vec![], peers, Arc::clone(&observer))
+        let leader = Leader::new(
+            uuid,
+            persistence.clone(),
+            2,
+            vec![],
+            peers,
+            Arc::clone(&observer),
+        )
             .await
             .expect("leader init should work");
         let ballot = leader.state.ballot().await;
@@ -341,7 +358,7 @@ mod tests {
             HashMap::new(),
             Arc::clone(&observer),
         ));
-        let reloaded = Leader::new(uuid, 2, vec![], peers2, observer)
+        let reloaded = Leader::new(uuid, persistence.clone(), 2, vec![], peers2, observer)
             .await
             .expect("leader reload should work");
 
@@ -349,7 +366,7 @@ mod tests {
             reloaded.is_leader().await,
             "active status should survive leader restart"
         );
-        cleanup_leader_files(uuid);
+        cleanup_leader_files(&persistence);
     }
 
     #[tokio::test]

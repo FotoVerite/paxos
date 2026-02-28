@@ -1,0 +1,80 @@
+{% import "macros/nav.html" as nav %}
+
+<nav class="rsm-navbar">
+  <div class="nav-container">
+    <div class="nav-brand">
+      <a href="{{ nav::site_url(raw_url="/") }}" class="brand-link">
+        <span class="brand-text rsm-brand">Reconfiguring a State Machine</span>
+      </a>
+    </div>
+
+    <button class="hamburger-menu" id="hamburgerBtn">
+      <span></span><span></span><span></span>
+    </button>
+
+    <div class="nav-menu" id="navMenu">
+      <div class="nav-item"><a href="{{ nav::site_url(raw_url="/") }}" class="nav-link">Home</a></div>
+      <div class="nav-item"><a href="{{ nav::site_url(raw_url="/abstract") }}" class="nav-link">Abstract</a></div>
+      <div class="nav-item"><a href="{{ nav::site_url(raw_url="/introduction") }}" class="nav-link">Introduction</a></div>
+
+      <div class="nav-group">
+        <button class="nav-group-toggle" data-group="protocol">
+          <span class="nav-group-text">Protocol</span>
+          <span class="nav-group-arrow">›</span>
+        </button>
+        <div class="nav-submenu" id="protocol-menu">
+          <a href="{{ nav::site_url(raw_url="/state-machines") }}" class="nav-link nav-sublink">State Machines</a>
+          <a href="{{ nav::site_url(raw_url="/reconfiguration-made-easy") }}" class="nav-link nav-sublink">Reconfiguration Made Easy</a>
+          <a href="{{ nav::site_url(raw_url="/correctness") }}" class="nav-link nav-sublink">Correctness</a>
+          <a href="{{ nav::site_url(raw_url="/reconfiguration-made-harder") }}" class="nav-link nav-sublink">Reconfiguration Made Harder</a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-group-toggle" data-group="details">
+          <span class="nav-group-text">Details</span>
+          <span class="nav-group-arrow">›</span>
+        </button>
+        <div class="nav-submenu" id="details-menu">
+          <a href="{{ nav::site_url(raw_url="/stopping-a-state-machine") }}" class="nav-link nav-sublink">Stopping a State Machine</a>
+          <a href="{{ nav::site_url(raw_url="/choosing-a-new-configuration") }}" class="nav-link nav-sublink">Choosing New Configuration</a>
+          <a href="{{ nav::site_url(raw_url="/combining-command-sequences") }}" class="nav-link nav-sublink">Combining Sequences</a>
+          <a href="{{ nav::site_url(raw_url="/interface") }}" class="nav-link nav-sublink">Interface</a>
+          <a href="{{ nav::site_url(raw_url="/conclusion") }}" class="nav-link nav-sublink">Conclusion</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+  const hamburger = document.getElementById('hamburgerBtn');
+  const navMenu = document.getElementById('navMenu');
+  const navGroupToggles = document.querySelectorAll('.nav-group-toggle');
+
+  if (hamburger && navMenu) {
+    hamburger.addEventListener('click', () => {
+      navMenu.classList.toggle('active');
+      hamburger.classList.toggle('active');
+    });
+  }
+
+  navGroupToggles.forEach(toggle => {
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      const group = toggle.dataset.group;
+      const submenu = document.getElementById(`${group}-menu`);
+      if (!submenu) return;
+      submenu.classList.toggle('active');
+      toggle.classList.toggle('active');
+    });
+  });
+
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      if (!navMenu || !hamburger) return;
+      navMenu.classList.remove('active');
+      hamburger.classList.remove('active');
+    });
+  });
+</script>

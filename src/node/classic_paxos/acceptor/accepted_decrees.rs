@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 use crate::{
-    common::{persistence::Persistence, types::DecreeId},
+    common::{persistence::NodePersistence, types::DecreeId},
     message::Message,
     monitor::{Event, PaxosObserver},
     node::classic_paxos::{
@@ -113,7 +113,7 @@ impl AcceptedDecrees {
     }
 
     pub async fn prepopulate(
-        uuid: Uuid,
+        persistence: &NodePersistence,
         initial_decrees: Vec<(DecreeId, PaxosCommand)>,
     ) -> anyhow::Result<()> {
         let mut state = HashMap::new();
@@ -136,7 +136,7 @@ impl AcceptedDecrees {
             );
         }
 
-        Persistence::save(&format!("acceptor_{}.bin", uuid), &state).await
+        persistence.save("acceptor.bin", &state).await
     }
 }
 

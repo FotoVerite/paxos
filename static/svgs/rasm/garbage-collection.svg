@@ -1,0 +1,34 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" >
+  <defs>
+    <pattern id="reclaimedHatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="#E74C3C" stroke-width="0.8" opacity="0.5" />
+    </pattern>
+    
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <line x1="10" y1="50" x2="90" y2="50" stroke="#4A4E52" stroke-width="2" stroke-dasharray="3 2" />
+  
+  <rect x="10" y="38" width="40" height="24" fill="url(#reclaimedHatch)" stroke="#4A4E52" stroke-width="0.5" />
+
+  <g transform="translate(50, 50)">
+    <rect x="-1.5" y="-15" width="3" height="30" fill="#72787E" />
+    
+    <circle cx="0" cy="0" r="4.5" fill="#FFB100" filter="url(#glow)" />
+    
+    <circle cx="0" cy="0" r="4.5" fill="none" stroke="#FFB100" stroke-width="0.5">
+       <animate attributeName="r" from="4.5" to="12" dur="2s" repeatCount="indefinite" />
+       <animate attributeName="opacity" from="0.6" to="0" dur="2s" repeatCount="indefinite" />
+    </circle>
+  </g>
+
+  <line x1="53" y1="50" x2="85" y2="50" stroke="#FFB100" stroke-width="2.5" />
+  
+  <path d="M86 46 L90 50 L86 54" fill="none" stroke="#FFB100" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

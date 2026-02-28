@@ -1,0 +1,114 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Reconfiguration Made Harder -
+Stopping the Machine {% endblock %} {% block body_class %}rsm-page{% endblock
+%}{% block extra_stylesheets %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Stopping the Machine</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/stopping.svg"
+        class="math-logo"
+      ></object>
+    </div>
+
+    <div class="inscription-label" data-id="LC-3">The Stop Sign</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          The Stop-Sign method adds to the state machine a stop command that
+          turns every subsequent state-machine command into a noop. Unlike
+          algorithm $\mathcal{R_1}$ of Section 2.3, this method allows multiple
+          commands to be chosen concurrently. Any command chosen after the stop
+          command simply has no effect.
+        </p>
+        <hr />
+        <p>
+          However, the Stop-Sign method has the following problem. As explained
+          in Section 2.1, an ordinary state-machine implementation allows an
+          output like “this command was executed” to be generated as soon as the
+          command has been chosen. The Stop-Sign method does not allow any
+          command’s output to be generated before every lower-numbered command
+          has been chosen, since one of those commands could turn out to be
+          stop. The delayed Stop-Sign method allows command number i to be
+          executed, if possible, as soon as it and all commands numbered at most
+          i −$\alpha$ have been chosen. Just as $\mathcal{R_\alpha}$ generalizes
+          R1 to make the reconfiguration command take effect $\alpha$ commands
+          later, the delayed Stop-Sign method generalizes the stop command to
+          take effect $\alpha$ commands later. In other words, if command number
+          i is a stop, then all commands starting with number $i + \alpha$ are
+          treated as noops. As with $\mathcal{R_\alpha}$, the client proposing
+          the stop command can at the same time propose $\alpha$ − 1 consecutive
+          noop commands.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=5"
+          target="_blank"
+        >
+          LAMPORT, P.5 $ §3.1.1 - The Stop Sign
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Instead of immediately continuing with a new configuration, the current
+      state machine can be terminated by a <em><code>STOP</code></em> command.
+      Once a stop command is chosen, later commands in that state machine no
+      longer affect its state. These commands are still chosen in the normal
+      manner but the learner should ignore them and not change state because of
+      them.
+    </p>
+
+    <p>
+      Like other commands, <em><code>STOP</code></em> is proposed and decided
+      through the consensus protocol. It's proposed and put into the system
+      along with $\alpha$ amount of no-op as a delayed stop.
+    </p>
+
+    <p>
+      As with $\mathcal{R_\alpha}$, this delay preserves parallelism. Commands
+      can continue to be chosen concurrently within the $\alpha$ window. The
+      difference is that instead of activating a new configuration after the
+      window, the system treats commands beyond that point as having no effect
+      on the state machine.
+    </p>
+
+    <p>
+      The same problem is appearing here as before. Delays are needed for
+      safety. Log pollution is continuing but in a different form. Lamport
+      explores how to curtail this with padding command.
+    </p>
+  </div>
+  {{ nav::breadcrumb( prev_url="/reconfiguration-made-harder/overview",
+  prev_label="Overview", current_label="Stopping",
+  next_url="/reconfiguration-made-harder/padding", next_label="Padding" ) }}
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Reconfiguration Made Harder - Proof
+{% endblock %} {% block body_class %}rsm-page{% endblock %}{% block
+extra_stylesheets %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Proof</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/proof.svg"
+        class="math-logo"
+      ></object>
+    </div>
+
+    <p>
+      For a leader in paxos for any given proposal there are two options for a
+      given slot.
+    </p>
+
+    <div class="inscription-label" data-id="LC-3">Leader Proposal</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          <strong>P1.</strong>
+          Command c (and no other command) might have been chosen by a lower
+          numbered ballot.
+        </p>
+
+        <p>
+          <strong>P2.</strong>
+          No command has been chosen by a lower-numbered ballot.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P6 $ §3.1.3 - The Brick Wall
+        </a>
+      </cite>
+    </div>
+
+    <p>Given this Lamport puts forth</p>
+
+    <div class="inscription-label" data-id="LC-3">Proof</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          Stopping Paxos prevents a leader from proposing a command if a
+          <em>stop</em> could be chosen for a lower-numbered instance. To
+          describe how this is done, we define $\xi(b,i)$ for ballot $b$ of
+          consensus instance $i$. The value $\xi(b,i)$ equals the command $c$ of
+          case P1 above, and equals $\bot$ in case P2. Stopping Paxos places the
+          following additional constraints on what command a leader may propose
+          in ballot $b$ of instance $i$:
+        </p>
+
+        <p>
+          <strong>S1.</strong>
+          The leader cannot propose any command if there exists some $j < i$
+          such that it proposed a reconfiguration command in ballot $b$ of
+          instance $j$ or $\xi(b,j)$ is a reconfiguration command.
+        </p>
+
+        <p>
+          <strong>S2.</strong>
+          The leader cannot propose a reconfiguration command if there exists
+          some $k > i$ such that it has proposed a command in ballot $b$ of
+          instance $k$ or $\xi(b,k) \ne \bot$.
+        </p>
+
+        <p>
+          It is not hard to show that S1 and S2 prevent instance $i$ from
+          choosing any command if a lower-numbered instance chooses
+          <em>stop</em>. However, S1 can prevent progress if a reconfiguration
+          command is proposed but not chosen by a ballot numbered less than $b$
+          in instance $j < i$. To eliminate this problem we modify the
+          definition of $\xi$ approximately as follows.
+        </p>
+        <hr />
+        <p>
+          In case P1, $\xi(b,i)$ equals $\bot$ if $c$ is a reconfiguration
+          command proposed in ballot $b' < b$ and some command was proposed in
+          ballot $b''$ of instance $k$ with $b'' > b'$ and $k > i$.
+        </p>
+
+        <hr />
+
+        <p>
+          The precise definition and the proof that this works are not trivial.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P6 $ §3.1.3 - The Brick Wall
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      For stoppable paxos to work it must prevent leaders from proposing a
+      command if a reconfiguration could have been chosen in a previous slot.
+      This is the same issue that we saw in the joint consensus. To get around
+      this issue he take $pmax$ and reworks it to $\xi(b,i)$. that includes
+      additional logic. 
+    </p>
+
+    <p>The function $\xi(b, i) has two invariants.</p>
+
+    <p>
+      <em>S1: </em> A leader cannot propose a command if there might have been a
+      reconfiguration command decided that is less then the or equal to the
+      current command. This fundamentally leads to S2.
+    </p>
+
+    <p>
+      <em>S2: </em> A leader cannot propose a reconfiguration command if there
+      are any inflight proposals greater then the potential $k$ slot for said
+      command.
+    </p>
+
+    <p>
+      Once the reconfiguration command is decided on it is easy enough to prove
+      by proof that there will be no more commands. $\xi$ would always emit
+      $\bot$ but what if a reconfiguration command loses the race.
+    </p>
+    <p>
+      Lamport resolves this by refining the definition of $\xi$ so that stale
+      reconfiguration proposals can be ignored once the system has clearly moved
+      past them.
+    </p>
+  </div>
+  {{ nav::breadcrumb( prev_url="/reconfiguration-made-harder/brick-wall",
+  prev_label="Brick Wall", current_label="Choosing a Reconfiguration",
+  next_url="/reconfiguration-made-harder/choosing-a-new-configuration", next_label="Choosing" ) }}
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

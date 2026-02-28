@@ -1,4 +1,5 @@
 use paxos::{
+    common::persistence::ClusterPersistence,
     common::types::DecreeId,
     console_observer::ConsoleObserver,
     node::classic_paxos::{decree_notes::DecreeNotes, proposer::Proposer},
@@ -11,16 +12,13 @@ use uuid::Uuid;
 
 #[tokio::test]
 async fn test_proposer_persistence() -> anyhow::Result<()> {
-    // Determine a temp dir for this test to avoid conflicts, or just use .paxos
-    // The code hardcodes ".paxos", so we must expect files there.
-
-    // Setup
     let uuid = Uuid::new_v4();
+    let persistence = ClusterPersistence::for_test("persistence_test").node(uuid);
     let observer = Arc::new(ConsoleObserver);
 
     // 1. Init DecreeNotes and Proposer
     // Use load_or_init to ensure it starts fresh (or loads empty)
-    let decree_notes = Arc::new(Mutex::new(DecreeNotes::load_or_init(uuid).await?));
+    let decree_notes = Arc::new(Mutex::new(DecreeNotes::load_or_init(&persistence).await?));
 
     // We expect it to be empty initially
     {
@@ -28,23 +26,28 @@ async fn test_proposer_persistence() -> anyhow::Result<()> {
         assert!(notes.state.is_empty());
     }
 
-    let proposer = Proposer::new(uuid, 3, Arc::clone(&decree_notes), observer.clone());
+    let proposer = Proposer::new(
+        uuid,
+        3,
+        persistence.clone(),
+        Arc::clone(&decree_notes),
+        observer.clone(),
+    );
 
     // 2. Propose a value -> should bump ballot to (1, 1) and save
     proposer.propose(DecreeId(0), PaxosCommand::NOOP).await;
 
-    // 3. Check persistence file exists
-    // The path is defined in src/common/persistence.rs as .paxos/
-    let filename = format!(".paxos/decree_notes_{}.bin", uuid);
+    // 3. Check persistence file exists under the node-scoped test directory.
+    let filename = persistence.dir().join("decree_notes.bin");
     assert!(
         Path::new(&filename).exists(),
         "Persistence file {} should exist",
-        filename
+        filename.display()
     );
 
     // 4. Simulate restart: Load fresh DecreeNotes from disk
     // Drop logic not strictly needed as we load a new instance
-    let recovered_notes = DecreeNotes::load_or_init(uuid).await?;
+    let recovered_notes = DecreeNotes::load_or_init(&persistence).await?;
     let recovered_note = recovered_notes
         .state
         .get(&DecreeId(0))

@@ -1,0 +1,160 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Choosing a Configuration {%
+endblock %} {% block body_class %}rsm-page{% endblock %}{% block
+extra_stylesheets %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Choosing a Configuration</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/changing.svg"
+        class="math-logo"
+      ></object>
+    </div>
+
+    <div class="inscription-label" data-id="LC-3.2">Updating Configuration</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          When changing from state-machine implementation $v$ to state-machine
+          implementation $v + 1$, there are two basic ways to choose the new
+          configuration that executes implementation $v + 1$
+        </p>
+        <hr />
+        <p>
+          <strong>R1. </strong>Let it be chosen by a reconfiguration command
+          executed by state machine $v$.
+        </p>
+        <p>
+          <strong>R2.</strong> Use a special instance of the consensus
+          algorithm, executed by the same configuration that executes state
+          machine $v$.
+        </p>
+
+        <hr />
+
+        <p>
+          Option <em>R2</em> has the potential advantage of allowing the
+          processes in configuration $v + 1$ to be determined and commands to be
+          chosen for state machine $v + 1$ before state machine v has been
+          stopped. It is not clear if this is ever a good idea in practice.
+        </p>
+        <p>
+          For option <em>R1</em> to work, we must: (a) Make sure that a
+          reconfiguration command is passed before configuration v is
+          terminated, and (b) Decide what to do if multiple reconfiguration
+          commands are passed.
+        </p>
+
+        <hr />
+        <p>
+          The solution to (a) is obvious for the Stop-Sign and Brick-Wall
+          methods—namely, let the stop command specify the new configuration.
+        </p>
+        <p>
+          For the Padding method, a client should make sure that a
+          reconfiguration command has been chosen before it proposes an infinite
+          sequence of noops. (If no reconfiguration is chosen, then
+          configuration v + 1 is the same as configuration v.)
+        </p>
+
+        <p>
+          Problem (b) does not exist for the Brick-Wall method. For the other
+          methods, there are two obvious choices: use either the first
+          reconfiguration command that was passed or the last one. If we use the
+          first one, then the system can start choosing commands for
+          configuration v + 1 as soon as all chosen commands through the first
+          reconfiguration command are known
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=7"
+          target="_blank"
+        >
+          LAMPORT, P7 $ §3.2
+        </a>
+      </cite>
+    </div>
+    <p>
+      Reconfiguration can be decided in two places: inside the current state
+      machine or outside it.
+    </p>
+    <p>
+      <em>R2</em> runs a separate consensus instance to decide the next
+      configuration. This means the system could determine configuration $v + 1$
+      before state machine $v$ fully stops.
+    </p>
+
+    <p>
+      In theory this allows overlap between the two machines. In practice it
+      adds a second coordination problem and Lamport notes it is unclear whether
+      this is ever worth the complexity.
+    </p>
+
+    <p>This leads to <em>R1</em> being the simpler option.</p>
+
+    <p>Which can lead to two problems.</p>
+
+    <ol>
+      <li>A reconfiguration must be chosen before the machine stops.</li>
+      <li>Multiple reconfiguration commands might appear in the log.</li>
+    </ol>
+
+    <p>
+      <em>Stop Sign</em> includes the configuration directly in the stop
+      command. If several are proposed, Paxos simply chooses one like any other
+      command.
+    </p>
+
+    <p>
+      <em>Padding</em> works differently. The reconfiguration command is a
+      normal log entry, and padding (a sequence of no-op commands) is used to
+      drive the log forward until the machine stops.
+    </p>
+
+    <p>
+      <em>Brick Wall</em> avoids the second issue entirely. Once a stop is
+      chosen at slot <em>i</em>, nothing after <em>i</em> can be chosen. That
+      means the reconfiguration that appears before the wall is automatically
+      the one the system uses.
+    </p>
+
+    <p>
+      Lamport’s presentation makes Brick Wall stand out as the cleanest option.
+      The second problem disappears, and the first is handled naturally by
+      Paxos: the log itself determines the configuration once the stop entry is
+      chosen.
+    </p>
+  </div>
+  {{ nav::breadcrumb( prev_url="/reconfiguration-made-harder/padding",
+  prev_label="Padding", current_label="Brick Wall",
+  next_url="/reconfiguration-made-harder/proof", next_label="Proof" ) }}
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
 use crate::message::Message;
 use crate::monitor::PaxosObserver;
@@ -15,6 +16,7 @@ use crate::paxos_command::PaxosCommand;
 pub struct Proposer {
     uuid: Uuid,
     quorum_size: usize,
+    persistence: NodePersistence,
     decree_notes: Arc<Mutex<DecreeNotes>>,
     state: Mutex<HashMap<DecreeId, ProposedDecree>>,
     observer: Arc<dyn PaxosObserver>,
@@ -24,12 +26,14 @@ impl Proposer {
     pub fn new(
         uuid: Uuid,
         quorum_size: usize,
+        persistence: NodePersistence,
         decree_notes: Arc<Mutex<DecreeNotes>>,
         observer: Arc<dyn PaxosObserver>,
     ) -> Self {
         Self {
             uuid,
             quorum_size,
+            persistence,
             decree_notes,
             state: Mutex::new(HashMap::new()),
             observer,
@@ -59,7 +63,7 @@ impl Proposer {
         // Persist the updated ballot number
         #[cfg(feature = "persistence")]
         {
-            if let Err(e) = decree_notes.save(self.uuid).await {
+            if let Err(e) = decree_notes.save(&self.persistence).await {
                 tracing::error!("[Node {}] Failed to persist decree notes: {}", self.uuid, e);
             }
         }

@@ -1,0 +1,40 @@
+:root {
+  --rsm-ink-0: #070a0d;
+  --rsm-ink-1: #0d1319;
+  --rsm-ink-2: #121c25;
+  --rsm-steel: #2a3a47;
+  --rsm-steel-soft: #3a4f60;
+  --rsm-signal-amber: #ffb347;
+  --rsm-signal-green: #42d392;
+  --rsm-signal-red: #ff5d5d;
+  --rsm-signal-cyan: #6dcff6;
+  --rsm-text-main: #dce7ee;
+  --rsm-text-muted: #9fb0bc;
+
+  --charcoal: #1A1A1B;
+  --steel: #72787E;
+  --signal-amber: #FFB100;
+  --signal-green: #2ECC71;
+  --fault-red: #E74C3C;
+  --bg-muted: #242526;
+
+  --rsm-container-max-width: 1180px;
+  --rsm-container-padding: 2.5rem 1.25rem;
+
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 22px;
+  --space-2xl: 32px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --rsm-container-padding: 1.5rem 0.85rem;
+  }
+}

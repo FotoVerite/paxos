@@ -1,0 +1,41 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="configGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g transform="translate(10, 40)">
+    <path d="M0 0 H30" stroke="#4A4E52" stroke-width="3" stroke-dasharray="2 1" />
+    <rect x="25" y="-5" width="10" height="10" fill="#1A1A1B" stroke="#72787E" stroke-width="1" />
+  </g>
+
+  <g transform="translate(42, 40)">
+    <path d="M-8 -12 L8 -12 L12 -8 L12 8 L8 12 L-8 12 L-12 8 L-12 -8 Z" 
+          fill="#1A1A1B" stroke="#FFB100" stroke-width="2" filter="url(#configGlow)" />
+    
+    <rect x="-4" y="-4" width="8" height="8" fill="none" stroke="#FFB100" stroke-width="1" opacity="0.8">
+      <animate attributeName="stroke-dasharray" from="0, 32" to="32, 0" dur="2s" repeatCount="indefinite" />
+    </rect>
+    <path d="M-2 0 H2 M0 -2 V2" stroke="#FFB100" stroke-width="1" />
+  </g>
+
+  <path d="M50 52 V65" stroke="#FFB100" stroke-width="1.5" stroke-dasharray="2 2" opacity="0.6" />
+  <path d="M47 62 L50 65 L53 62" fill="none" stroke="#FFB100" stroke-width="1.5" />
+
+  <g transform="translate(50, 72)">
+    <path d="M0 0 H40" stroke="#FFB100" stroke-width="4" filter="url(#configGlow)" />
+    <circle cx="0" cy="0" r="4" fill="#FFB100" />
+    
+    <circle r="4" fill="none" stroke="#FFB100" stroke-width="0.5">
+      <animate attributeName="r" from="4" to="12" dur="1.5s" repeatCount="indefinite" />
+      <animate attributeName="opacity" from="0.8" to="0" dur="1.5s" repeatCount="indefinite" />
+    </circle>
+  </g>
+
+  <path d="M15 20 H85 M15 85 H85" stroke="#4A4E52" stroke-width="0.5" opacity="0.2" />
+</svg>

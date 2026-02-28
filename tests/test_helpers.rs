@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 use paxos::{
     cluster::cluster::Cluster,
+    common::persistence::ClusterPersistence,
     common::types::DecreeId,
     message::Message,
     monitor::{Event, PaxosObserver},
@@ -390,6 +391,7 @@ impl NodeBuilder {
         Ok(Proposer::new(
             uuid,
             quorum,
+            ClusterPersistence::for_test("test_helpers").node(uuid),
             Arc::clone(&self.decree_notes),
             Arc::clone(&self.observer) as Arc<dyn PaxosObserver>, // Cast to trait object
         ))
@@ -397,7 +399,12 @@ impl NodeBuilder {
 
     pub async fn acceptor(&self, id: usize) -> anyhow::Result<Acceptor> {
         let uuid = self.generate_uuid(id);
-        Acceptor::new(uuid, Arc::clone(&self.observer) as Arc<dyn PaxosObserver>).await // Cast to trait object
+        Acceptor::new(
+            uuid,
+            ClusterPersistence::for_test("test_helpers").node(uuid),
+            Arc::clone(&self.observer) as Arc<dyn PaxosObserver>,
+        )
+        .await
     }
 
     /// Generate a random UUID for test isolation
@@ -418,7 +425,7 @@ impl NodeBuilder {
     #[allow(dead_code)]
     pub async fn ledger(&self, id: usize) -> anyhow::Result<Ledger> {
         let uuid = self.generate_uuid(id);
-        Ledger::init(uuid).await
+        Ledger::init(uuid, ClusterPersistence::for_test("test_helpers").node(uuid)).await
     }
 }
 

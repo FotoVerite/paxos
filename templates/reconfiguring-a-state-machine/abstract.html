@@ -1,0 +1,48 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Abstract - Reconfiguring a State
+Machine{% endblock %} {% block body_class %}rsm-page{% endblock %} {% block
+content %}
+<div class="rsm-container">
+  <div class="panel">
+    <div class="header-icon full" >
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/abstract.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Abstract</h1>
+
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          Reconfiguration means changing the set of processes executing a
+          distributed system. We explain several methods for reconfiguring a
+          system implemented using the state-machine approach, including some
+          new ones. We discuss the relation between these methods and earlier
+          reconfiguration algorithms—especially view changing in group
+          communication.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=1"
+          target="_blank"
+        >
+          LAMPORT, P. 1
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      The core theme is to treat configuration changes as part of replicated
+      state evolution, not an external side channel.
+    </p>
+
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/", prev_label="Overview",
+  current_label="Abstract", next_url="/introduction", next_label="Introduction"
+  ) }}
+</div>
+{% endblock %}

@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
+    common::persistence::NodePersistence,
     message::{ClientMessage, Message},
     monitor::PaxosObserver,
     node::{config::PmmcNodeConfig, pmmc::node_state::NodeState},
@@ -27,6 +28,7 @@ impl PmmcNode {
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
         peers: Arc<NetworkSimulator>,
+        persistence: NodePersistence,
         quorum: usize,
         config: PmmcNodeConfig,
         topology: crate::node::peer_topology::PeerTopology,
@@ -35,7 +37,8 @@ impl PmmcNode {
             uuid,
             rx: Some(rx),
             state: Arc::new(
-                NodeState::init(uuid, quorum, peers, observer, config, topology).await?,
+                NodeState::init(uuid, quorum, peers, persistence, observer, config, topology)
+                    .await?,
             ),
         })
     }
@@ -139,6 +142,7 @@ mod tests {
             node_rx,
             Arc::clone(&observer),
             simulator,
+            crate::common::persistence::ClusterPersistence::for_test("pmmc_node").node(node_id),
             2,
             PmmcNodeConfig::default(),
             topology,

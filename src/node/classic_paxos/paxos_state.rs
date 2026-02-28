@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
+    common::persistence::NodePersistence,
     common::types::DecreeId,
     message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
@@ -36,18 +37,20 @@ impl PaxosState {
         uuid: Uuid,
         quorum: usize,
         peers: Arc<NetworkSimulator>,
+        persistence: NodePersistence,
         inflight_proposals: Arc<InflightProposals>,
         observer: Arc<dyn PaxosObserver>,
         config: ClassicNodeConfig,
         topology: crate::node::peer_topology::PeerTopology,
     ) -> anyhow::Result<Self> {
-        let ledger = Ledger::init(uuid).await?;
-        let decree_notes = Arc::new(Mutex::new(DecreeNotes::load_or_init(uuid).await?));
+        let ledger = Ledger::init(uuid, persistence.clone()).await?;
+        let decree_notes = Arc::new(Mutex::new(DecreeNotes::load_or_init(&persistence).await?));
 
         let proposer = if config.roles.proposer {
             Some(Proposer::new(
                 uuid,
                 quorum,
+                persistence.clone(),
                 Arc::clone(&decree_notes),
                 Arc::clone(&observer),
             ))
@@ -56,7 +59,7 @@ impl PaxosState {
         };
 
         let acceptor = if config.roles.acceptor {
-            Some(Acceptor::new(uuid, Arc::clone(&observer)).await?)
+            Some(Acceptor::new(uuid, persistence.clone(), Arc::clone(&observer)).await?)
         } else {
             None
         };

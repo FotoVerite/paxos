@@ -1,0 +1,42 @@
+{% extends "reconfiguring-a-state-machine/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Choosing a New Configuration{% endblock %}
+{% block body_class %}rsm-page{% endblock %}
+{% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Choosing a New Configuration</h1>
+
+    <div class="inner-panel">
+      <h2>Policy vs Safety</h2>
+      <p>
+        Safety rules define what transitions are legal; policy decides when to trigger them. Keep these concerns
+        separate so operator logic cannot violate protocol invariants.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Input Signals</h2>
+      <p>
+        Typical drivers include failures, planned maintenance, load distribution, and capacity growth.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>For This Project</h2>
+      <p>
+        Start with deterministic scenario-driven reconfiguration commands, then add policy hooks once the core
+        protocol behavior is validated.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/stopping-a-state-machine",
+    prev_label="Stopping a State Machine",
+    current_label="Choosing New Configuration",
+    next_url="/combining-command-sequences",
+    next_label="Combining Sequences"
+  ) }}
+</div>
+{% endblock %}

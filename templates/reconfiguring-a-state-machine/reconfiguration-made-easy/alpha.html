@@ -1,0 +1,142 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Reconfiguration Made Easy - With
+$\alpha${% endblock %} {% block body_class %}rsm-page{% endblock %}{% block
+extra_stylesheets %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Alpaha</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/alpha.svg"
+        class="math-logo"
+      ></object>
+    </div>
+
+    <div class="inscription-label" data-id="LC-2.3">Definition</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          To allow concurrent processing of commands, we define the state
+          machine (by introducing additional state) so that executing $rcfg(C)$
+          as command number $i$ causes cfg to change after executing command $i$
+          + $\alpha$ − 1, for some positive $\alpha$. A reconfiguration command
+          thus takes effect $\alpha$ commands later, allowing the concurrent
+          processing of up to $\alpha$ commands ... We call this method
+          $\mathcal{R_\alpha}$. As the notation implies, $\mathcal{R_1}$ is the
+          $\alpha = 1$ case of $\mathcal{R_\alpha}$.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=4"
+          target="_blank"
+        >
+          LAMPORT, P. 3 §2.3- Reconfiguration Made Easy
+        </a>
+      </cite>
+    </div>
+    <p>
+      The parameter $\alpha$ introduces a delay before a configuration change
+      takes effect. If $rcfg(C)$ is placed in slot $i$, the new configuration
+      does not become active until slot $i + \alpha$. This allows the system to
+      continue processing additional slots while the reconfiguration moves
+      through the log.
+    </p>
+
+    <p>
+      In other words, $\alpha$ defines how many commands can safely be in flight
+      before the new configuration must be used. The case $\mathcal{R}_1$ is
+      simply the smallest delay where $\alpha = 1$.
+    </p>
+
+    <div class="inscription-label" data-id="LC-2.3">Noops</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          To make the reconfiguration happen right away, a client that proposes
+          a reconfiguration command can propose <code>noops </code>as the next
+          α−1 commands. A sequence of successive commands, with successive
+          command numbers, can be batched so that they are proposed, chosen, and
+          executed as efficiently as (using no more messages than) a single
+          command. Thus, α can be made arbitrarily large, permitting the
+          concurrent processing of any desired number of commands.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=4"
+          target="_blank"
+        >
+          LAMPORT, $. 3 §2.3- Reconfiguration Made Easy
+        </a>
+      </cite>
+    </div>
+    <p>
+      $\alpha$ can be any positive value. A configuration change only takes
+      effect after $\alpha$ commands have been processed.
+    </p>
+
+    <p>
+      If a client wants the new configuration to take effect immediately, it can
+      fill the next $\alpha - 1$ slots with no-op commands. Once those commands
+      are chosen, the new configuration becomes active.
+    </p>
+
+    <div class="inscription-label" data-id="LC-2.3">Security</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          With method Rα, reconfiguration is performed using the ordinary
+          state-machine interface for proposing commands. Only a subset of the
+          clients might be authorized to propose reconfiguration commands,
+          effectively separating the reconfiguration interface from that used to
+          propose other commands
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=4"
+          target="_blank"
+        >
+          LAMPORT, P. 4 §2.3- Reconfiguration Made Easy
+        </a>
+      </cite>
+    </div>
+    <p>
+      Because reconfiguration commands temporarily restrict concurrency while
+      the change moves through the log, it makes sense to limit who can issue
+      them. Systems often restrict $rcfg(C)$ to a subset of clients so that
+      membership changes cannot be abused or triggered accidentally.
+    </p>
+  </div>
+  {{ nav::breadcrumb( prev_url="/reconfiguration-made-easy/protocol", prev_label="Protocol",
+  current_label="Alpha", next_url="/correctness",
+  next_label="Correctness" ) }}
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,31 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" >
+  <defs>
+    <filter id="relayGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <line x1="10" y1="50" x2="90" y2="50" stroke="#4A4E52" stroke-width="1" stroke-dasharray="2 2" />
+
+  <g transform="translate(15, 35)">
+    <rect x="0" y="0" width="30" height="30" fill="none" stroke="#4A4E52" stroke-width="1.5" />
+    <rect x="4" y="10" width="6" height="10" fill="#4A4E52" opacity="0.4" />
+    <rect x="12" y="10" width="6" height="10" fill="#4A4E52" opacity="0.4" />
+    <rect x="20" y="10" width="6" height="10" fill="#FFB100" filter="url(#relayGlow)" /> </g>
+
+
+
+  <g transform="translate(55, 35)">
+    <rect x="0" y="0" width="30" height="30" fill="none" stroke="#FFB100" stroke-width="1.5" opacity="0.6" />
+    <rect x="4" y="10" width="6" height="10" fill="#FFB100" filter="url(#relayGlow)" />
+    <rect x="12" y="10" width="6" height="10" fill="#FFB100" opacity="0.4" />
+    <rect x="20" y="10" width="6" height="10" fill="#FFB100" opacity="0.2" />
+  </g>
+
+  <path d="M10 80 H90" stroke="#72787E" stroke-width="0.5" stroke-dasharray="4 2" />
+  <path d="M85 77 L90 80 L85 83" fill="none" stroke="#72787E" stroke-width="0.5" />
+</svg>

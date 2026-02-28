@@ -1,0 +1,39 @@
+{% extends "reconfiguring-a-state-machine/base.html" %}
+{% import "macros/nav.html" as nav %}
+{% block title %}Conclusion - Reconfiguring a State Machine{% endblock %}
+{% block body_class %}rsm-page{% endblock %}
+{% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Conclusion</h1>
+
+    <p>
+      Reconfiguration belongs inside the replicated-state-machine model, not as an operational afterthought.
+      The tutorial provides a path from simple transitions to realistic handling of delays and failures.
+    </p>
+
+    <div class="inner-panel">
+      <h2>What We Have Now</h2>
+      <p>
+        A rough sectioned reading track aligned with the paper and your current PMMC workflow.
+      </p>
+    </div>
+
+    <div class="inner-panel">
+      <h2>Next Step</h2>
+      <p>
+        After you review this content flow, we can design the concrete PMMC membership-change message/state
+        additions and scenario plan.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/interface",
+    prev_label="Interface",
+    current_label="Conclusion",
+    next_url="/",
+    next_label="Back to Overview"
+  ) }}
+</div>
+{% endblock %}

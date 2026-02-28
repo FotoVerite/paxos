@@ -1,0 +1,58 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="industrialHatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="#4A4E52" stroke-width="0.5" />
+    </pattern>
+    
+    <pattern id="steelStipple" width="2" height="2" patternUnits="userSpaceOnUse">
+      <circle cx="0.5" cy="0.5" r="0.15" fill="#72787E" opacity="0.4"/>
+    </pattern>
+
+    <filter id="signalGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="0.6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <mask id="punchHoldMask">
+      <rect x="0" y="0" width="20" height="40" fill="white" />
+      <circle cx="2" cy="28" r="2.2" fill="black" />
+      <circle cx="18" cy="28" r="2.2" fill="black" />
+    </mask>
+
+    <mask id="columnClipMask">
+      <rect x="0" y="0" width="100" height="100" fill="white" />
+      <path d="M2 26h16l-3 6H5Z" fill="black" />
+    </mask>
+
+    <g id="baseFoundation">
+      <path stroke="#4A4E52" stroke-width="0.3" stroke-dasharray="2,1" d="M4 31.5V65m12-33.5V65"/>
+      <path fill="url(#industrialHatch)" stroke="#72787E" stroke-width="0.5" d="M0 65h20v4H0z"/>
+    </g>
+  </defs>
+
+  <g transform="translate(8)">
+    <use href="#baseFoundation"/>
+    <path fill="#242526" stroke="#72787E" stroke-width="0.3" d="M8 30.5h4v34.5H8z"/>
+    <path stroke="#72787E" stroke-width="0.8" fill="url(#industrialHatch)" d="M2 26h16v4H2z"/>
+  </g>
+
+  <g transform="translate(40)">
+    <use href="#baseFoundation"/>
+    <path fill="#242526" stroke="#72787E" stroke-width="0.3" d="M8 30.5h4v34.5H8z"/>
+    <rect x="2" y="26" width="16" height="4" fill="url(#industrialHatch)" stroke="#72787E" mask="url(#punchHoldMask)" />
+    <g filter="url(#signalGlow)">
+      <circle cx="2" cy="28" r="0.8" fill="#FFB100" />
+      <circle cx="18" cy="28" r="0.8" fill="#FFB100" />
+    </g>
+    <circle cx="2" cy="28" r="2.2" fill="none" stroke="#72787E" stroke-width="0.4" />
+    <circle cx="18" cy="28" r="2.2" fill="none" stroke="#72787E" stroke-width="0.4" />
+  </g>
+
+  <g transform="translate(72)">
+    <use href="#baseFoundation"/>
+    <path fill="#242526" stroke="#72787E" stroke-width="0.3" d="M8 30.5h4v34.5H8z" mask="url(#columnClipMask)" />
+    <path d="M2 26h16l-3 6H5Z" fill="url(#steelStipple)" stroke="#72787E" stroke-width="0.5"/>
+    <path d="M4 32c1-4-4-4-2-8m14 8c-1-4 4-6 1-8" stroke="#72787E" stroke-width="0.4" fill="none" opacity="0.6"/>
+    <path fill="#FFB100" fill-opacity="0.9" d="M2 24h16v1H2z" filter="url(#signalGlow)"/>
+  </g>
+</svg>

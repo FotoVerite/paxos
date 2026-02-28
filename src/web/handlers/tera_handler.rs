@@ -120,6 +120,25 @@ pub async fn paxos_made_moderately_complex_handler(
     render_template(&state.tera, &template_name, context)
 }
 
+pub async fn reconfiguring_a_state_machine_handler(
+    uri: Uri,
+    path: Option<Path<String>>,
+    Subdomain(subdomain): Subdomain,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let path = path.map(|p| p.0).unwrap_or_else(|| "index".to_string());
+    let path = path.trim_end_matches('/');
+
+    let template_name = if path.is_empty() || path == "index" {
+        "reconfiguring-a-state-machine/index.html".to_string()
+    } else {
+        format!("reconfiguring-a-state-machine/{}.html", path)
+    };
+
+    let context = build_site_context("reconfiguring-a-state-machine", &uri, &subdomain);
+    render_template(&state.tera, &template_name, context)
+}
+
 pub async fn paxos_handler(
     uri: Uri,
     Subdomain(subdomain): Subdomain,
@@ -147,6 +166,16 @@ pub async fn paxos_handler(
                 format!("paxos-made-moderately-complex/{}.html", path)
             };
             ("paxos-made-moderately-complex", template_name)
+        }
+        "reconfiguring-a-state-machine" => {
+            let template_name = if path.is_empty() || path == "/" {
+                "reconfiguring-a-state-machine/index.html".to_string()
+            } else if path.ends_with('/') {
+                format!("reconfiguring-a-state-machine/{}index.html", path)
+            } else {
+                format!("reconfiguring-a-state-machine/{}.html", path)
+            };
+            ("reconfiguring-a-state-machine", template_name)
         }
         _ => {
             let template_name = if path.is_empty() {

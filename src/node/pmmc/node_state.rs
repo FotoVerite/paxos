@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     cluster::network_simulator::NetworkSimulator,
+    common::persistence::NodePersistence,
     message::{ClientMessage, Message},
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
@@ -31,6 +32,7 @@ impl NodeState {
         uuid: Uuid,
         quorum: usize,
         peers: Arc<NetworkSimulator>,
+        persistence: NodePersistence,
         observer: Arc<dyn PaxosObserver>,
         config: PmmcNodeConfig,
         topology: crate::node::peer_topology::PeerTopology,
@@ -39,6 +41,7 @@ impl NodeState {
             Some(
                 Leader::new(
                     uuid,
+                    persistence.clone(),
                     quorum,
                     topology.learners.clone(),
                     Arc::clone(&peers),
@@ -51,13 +54,21 @@ impl NodeState {
         };
 
         let acceptor = if config.roles.acceptor {
-            Some(Acceptor::new(uuid, Arc::clone(&observer)).await?)
+            Some(Acceptor::new(uuid, persistence.clone(), Arc::clone(&observer)).await?)
         } else {
             None
         };
 
         let replica = if config.roles.learner {
-            Some(Replica::new(uuid, Arc::clone(&observer), Arc::clone(&peers)).await?)
+            Some(
+                Replica::new(
+                    uuid,
+                    persistence.clone(),
+                    Arc::clone(&observer),
+                    Arc::clone(&peers),
+                )
+                .await?,
+            )
         } else {
             None
         };
@@ -345,6 +356,7 @@ mod tests {
             node_id,
             2,
             peers,
+            crate::common::persistence::ClusterPersistence::for_test("node_state").node(node_id),
             observer,
             PmmcNodeConfig::default(),
             topology,

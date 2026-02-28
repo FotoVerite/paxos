@@ -1,7 +1,7 @@
 mod accepted_decree;
 mod accepted_decrees;
 mod prev_vote;
-use crate::common::persistence::Persistence;
+use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
 use crate::message::Message;
 use crate::monitor::PaxosObserver;
@@ -15,19 +15,25 @@ use uuid::Uuid;
 
 pub struct Acceptor {
     uuid: Uuid,
+    persistence: NodePersistence,
     state: Mutex<AcceptedDecrees>,
     observer: Arc<dyn PaxosObserver>,
 }
 impl Acceptor {
-    pub async fn new(uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> Result<Self> {
+    pub async fn new(
+        uuid: Uuid,
+        persistence: NodePersistence,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> Result<Self> {
         #[cfg(feature = "persistence")]
-        let state = Persistence::load(&format!("acceptor_{}.bin", uuid)).await?;
+        let state = persistence.load("acceptor.bin").await?;
 
         #[cfg(not(feature = "persistence"))]
         let state = AcceptedDecrees::init();
 
         Ok(Self {
             uuid,
+            persistence,
             state: Mutex::new(state),
             observer,
         })
@@ -35,7 +41,7 @@ impl Acceptor {
 
     async fn save(&self) -> Result<()> {
         let state = self.state.lock().await;
-        Persistence::save(&format!("acceptor_{}.bin", self.uuid), &*state).await
+        self.persistence.save("acceptor.bin", &*state).await
     }
 
     async fn prepare(&self, decree_num: DecreeId, ballot: Ballot, from: Uuid) -> Message {
@@ -114,9 +120,9 @@ impl Acceptor {
     }
 
     pub async fn prepopulate(
-        uuid: Uuid,
+        persistence: &NodePersistence,
         initial_decrees: Vec<(DecreeId, PaxosCommand)>,
     ) -> anyhow::Result<()> {
-        AcceptedDecrees::prepopulate(uuid, initial_decrees).await
+        AcceptedDecrees::prepopulate(persistence, initial_decrees).await
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    common::{persistence::Persistence, types::DecreeId},
+    common::{persistence::NodePersistence, types::DecreeId},
     node::classic_paxos::ballot::Ballot,
 };
 use anyhow::Result;
@@ -24,13 +24,13 @@ impl DecreeNotes {
         }
     }
 
-    pub async fn save(&self, uuid: Uuid) -> Result<()> {
-        Persistence::save(&format!("decree_notes_{}.bin", uuid), self).await
+    pub async fn save(&self, persistence: &NodePersistence) -> Result<()> {
+        persistence.save("decree_notes.bin", self).await
     }
 
-    pub async fn load_or_init(uuid: Uuid) -> Result<Self> {
+    pub async fn load_or_init(persistence: &NodePersistence) -> Result<Self> {
         #[cfg(feature = "persistence")]
-        let notes = Persistence::load(&format!("decree_notes_{}.bin", uuid)).await?;
+        let notes = persistence.load("decree_notes.bin").await?;
 
         #[cfg(not(feature = "persistence"))]
         let notes = DecreeNotes::new();

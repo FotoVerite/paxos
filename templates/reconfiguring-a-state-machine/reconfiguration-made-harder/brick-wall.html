@@ -1,0 +1,87 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Reconfiguration Made Harder - Brick
+Wall {% endblock %} {% block body_class %}rsm-page{% endblock %}{% block
+extra_stylesheets %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Brick Wall</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/wall.svg"
+        class="math-logo"
+      ></object>
+    </div>
+
+    <div class="inscription-label" data-id="LC-3">Stoppable Paxos</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          The Stop-Sign and Padding methods use the underlying state-machine
+          implementation, so their correctness follows immediately from the
+          correctness of that implementation. However, they may seem
+          unintuitive—the Stop-Sign method because it can choose commands that
+          are never executed by the state machine and the Padding method because
+          it fills the sequence with infinitely many noop commands. We now
+          describe the Brick-Wall method that is conceptually simpler but
+          requires a new state-machine implementation called Stoppable Paxos.
+        </p>
+
+        <hr />
+
+        <p>
+          Like the Stop-Sign method, Stoppable Paxos assumes a special stop
+          command. However, it guarantees that if a stop command is chosen as
+          command number i, then no command can ever be chosen for any command
+          number greater than $i$.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=6"
+          target="_blank"
+        >
+          LAMPORT, P6 $ §3.1.3 - The Brick Wall
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      Both the command Stop-Sign and the instruction Padding work for
+      reconfiguration purposes. But Lamport hates how they pollute the log and
+      either cause learners to ignore commands or add infinite no-ops. His
+      solution, add a halt to all future decisions.
+    </p>
+
+  </div>
+  {{ nav::breadcrumb(
+  prev_url="/reconfiguration-made-harder/padding",
+  prev_label="Padding", current_label="Brick Wall",
+  next_url="/reconfiguration-made-harder/proof", next_label="Proof" ) }}
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

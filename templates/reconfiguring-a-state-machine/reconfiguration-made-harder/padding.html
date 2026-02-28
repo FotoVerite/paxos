@@ -1,0 +1,91 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Reconfiguration Made Harder -
+Padding {% endblock %} {% block body_class %}rsm-page{% endblock %}{% block
+extra_stylesheets %}
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+{% endblock %} {% block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <h1 class="panel-title">Padding</h1>
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/padding.svg"
+        class="math-logo"
+      ></object>
+    </div>
+
+    <div class="inscription-label" data-id="LC-3">Padding</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          We have already observed that we can batch a sequence of commands and
+          process them essentially as easily as a single command. This applies
+          equally well to an infinite sequence of consecutive commands, if all
+          but a finite number of them are noop commands. (It is easy to devise a
+          finite encoding of the information needed to execute the infinite
+          number of consensus instances.) In the Padding method, a client stops
+          the state machine by proposing an infinite number of noop commands.
+          More precisely, it proposes noops for all commands numbered greater
+          than some i. When command number j has been chosen for all positive
+          integers j, the state machine has stopped.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=5"
+          target="_blank"
+        >
+          LAMPORT, P.5 $ §3.1.2 - Padding
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      I’m going to be blunt: “infinite noops” is a mathematical move, not
+      something you literally run. This is Lamport going off on his math journey
+      and how to define consensus in TLA+. Padding is a instruction that
+      configures the leaders. It's a fucking boolean or state change that forces
+      a leader to propose only no-ops after a slot number $j$
+    </p>
+
+    <p>
+      Commands may still be chosen after the logical end of the computation, but
+      they have no effect on the state. While this is mathematically clean and
+      preserves safety, it is operationally awkward and makes the log harder to
+      reason about, since the system never produces a clear “last command.”.
+      Padding is simply a reconfiguration of the leader, there is no history in
+      the log itself to indicate it was called. During the transition between
+      state machines $v$ and $v+1$, the log may contain commands that are chosen
+      but end up doing nothing.
+    </p>
+  </div>
+  {{ nav::breadcrumb(
+  prev_url="/reconfiguration-made-harder/stopping-the-machine",
+  prev_label="Overview", current_label="padding",
+  next_url="/reconfiguration-made-harder/brick-wall", next_label="Brick Wall" ) }}
+</div>
+
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

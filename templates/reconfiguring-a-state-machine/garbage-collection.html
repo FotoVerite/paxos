@@ -1,0 +1,87 @@
+{% extends "reconfiguring-a-state-machine/base.html" %} {% import
+"macros/nav.html" as nav %} {% block title %}Gabarge Collection - Reconfiguring
+a State Machine{% endblock %} {% block body_class %}rsm-page{% endblock %} {%
+block content %}
+<div class="rsm-container">
+  <div class="panel">
+    <div class="header-icon full">
+      <object
+        type="image/svg+xml"
+        data="/svgs/rasm/garbage-collection.svg"
+        class="math-logo"
+      ></object>
+    </div>
+    <h1 class="panel-title">Garbage Collection</h1>
+
+    <div class="inscription-label" data-id="LC-2.2">System Instruction</div>
+    <div class="quote-container">
+      <blockquote>
+        <p>
+          In a non-reconfigurable system, we could allow the acceptors to
+          maintain forever their information for each instance of the consensus
+          algorithm. At any time, a learner could then learn the entire sequence
+          of chosen commands by communicating with enough acceptors, where
+          enough generally means a majority. In practice, consensus instances
+          must usually be garbage collected. Periodically, learners checkpoint
+          the state at some point in the execution sequence and instruct the
+          acceptors to forget about consensus instances for earlier commands.
+          Although command indices continue growing monotonically, the memory
+          taken by lower numbered commands may be reclaimed.
+        </p>
+        <hr class="scad-tapper" />
+        <p>
+          Exactly how this is done is an engineering detail that does not
+          concern us.
+        </p>
+      </blockquote>
+      <cite class="quote-source">
+        <a
+          href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf#page=3"
+          target="_blank"
+        >
+          LAMPORT, P. 3 §2.2- Garbage Collection
+        </a>
+      </cite>
+    </div>
+
+    <p>
+      In an ideal system with infinite memory, we could store the state of every
+      instance of the consensus algorithm. This would allow for a new learner
+      the entire state of the replica by just applying the entire sequence of
+      commands by communicating with the system.
+    </p>
+
+    <p>
+      Memory is limited, and so is time. Playing back the entire sequence of
+      commands is not practical. Imagine a system with millions of commands. The
+      overhead of replaying all commands would be prohibitive. Therefore, we
+      must garbage collect old consensus instances to reclaim memory and
+      maintain performance.
+    </p>
+
+    <p>
+      These snapshots are usually referred to as snapshots  and are typically performed periodically, and the system
+      maintains a record of the last snapshotted state. When a learner needs to
+      know the state of the system, it can either retrieve the most recent
+      snapshot or replay commands from that snapshot onwards. These
+      snapshots are compacted data that allows the system to quickly recover
+      to a known good state without having to replay all previous commands.
+    </p>
+
+    <p>
+      Snapshot is controlled by the Replicas/Learners of the system. Leaders
+      can crash or have partial information. Replicas have full ownership of
+      their state and know when compaction would be appropriate.
+    </p>
+
+    <p>
+      While not essential how compacting is done for reconfiguration it is
+      essential for it to be efficient and scalable.
+    </p>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/introduction", prev_label="Introduction",
+  current_label="Garbage Collection", next_url="/reconfiguration-made-easy/protocol", next_label="Reconfiguration Made Easy"
+  ) }}
+</div>
+{% endblock %}

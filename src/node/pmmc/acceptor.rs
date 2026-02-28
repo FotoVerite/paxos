@@ -3,7 +3,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    common::persistence::Persistence,
+    common::persistence::NodePersistence,
     message::Message,
     monitor::{Event, PaxosObserver},
     node::{
@@ -17,19 +17,25 @@ pub mod accepted_state;
 
 pub struct Acceptor {
     uuid: Uuid,
+    persistence: NodePersistence,
     state: AcceptorState,
     observer: Arc<dyn PaxosObserver>,
 }
 
 impl Acceptor {
-    pub async fn new(uuid: Uuid, observer: Arc<dyn PaxosObserver>) -> anyhow::Result<Self> {
-        let state: AcceptedData = Persistence::load(&format!("acceptor_{}.bin", uuid)).await?;
+    pub async fn new(
+        uuid: Uuid,
+        persistence: NodePersistence,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> anyhow::Result<Self> {
+        let state: AcceptedData = persistence.load("acceptor.bin").await?;
 
         #[cfg(not(feature = "persistence"))]
         let state = AcceptedData::default();
 
         Ok(Self {
             uuid,
+            persistence,
             observer,
             state: AcceptorState::init(state),
         })
@@ -73,7 +79,7 @@ impl Acceptor {
 
     pub async fn save(&self) -> anyhow::Result<()> {
         let state = self.state.dump().await;
-        Persistence::save(&format!("acceptor_{}.bin", self.uuid), &state).await?;
+        self.persistence.save("acceptor.bin", &state).await?;
         Ok(())
     }
 
@@ -106,7 +112,12 @@ mod tests {
     use super::Acceptor;
 
     async fn new_acceptor() -> Acceptor {
-        Acceptor::new(Uuid::new_v4(), Arc::new(NoOpObserver))
+        let uuid = Uuid::new_v4();
+        Acceptor::new(
+            uuid,
+            crate::common::persistence::ClusterPersistence::for_test("pmmc_acceptor").node(uuid),
+            Arc::new(NoOpObserver),
+        )
             .await
             .expect("acceptor should initialize")
     }

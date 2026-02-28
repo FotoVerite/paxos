@@ -1,5 +1,7 @@
 use uuid::Uuid;
 
+use crate::cluster::cluster_configuration::ClusterConfiguration;
+
 /// Topology information about which peers have which roles.
 /// This is built by the Cluster and passed to each node.
 #[derive(Debug, Clone)]
@@ -18,5 +20,11 @@ impl PeerTopology {
             acceptors,
             learners,
         }
+    }
+}
+
+impl From<&ClusterConfiguration> for PeerTopology {
+    fn from(config: &ClusterConfiguration) -> Self {
+        Self::new(config.acceptors(), config.replicas(), config.leaders())
     }
 }

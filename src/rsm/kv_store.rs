@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    common::persistence::Persistence,
+    common::persistence::NodePersistence,
     paxos_command::PaxosCommand,
     rsm::{
         entry::KVEntry,
@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub struct KVStore {
-    uuid: Uuid,
+    persistence: NodePersistence,
     data: Mutex<HashMap<String, KVEntry>>,
 }
 
@@ -26,14 +26,14 @@ pub enum ReplyOutcome {
 }
 
 impl KVStore {
-    pub async fn init(uuid: Uuid) -> anyhow::Result<Self> {
-        let state = Persistence::load(&format!("store_{}.bin", uuid)).await?;
+    pub async fn init(_uuid: Uuid, persistence: NodePersistence) -> anyhow::Result<Self> {
+        let state = persistence.load("store.bin").await?;
 
         #[cfg(not(feature = "persistence"))]
         let state = HashMap::new();
 
         Ok(Self {
-            uuid,
+            persistence,
             data: Mutex::new(state),
         })
     }
@@ -42,7 +42,7 @@ impl KVStore {
         let data = self.data.lock().await;
         let state = data.clone();
         drop(data);
-        Persistence::save(&format!("store_{}.bin", self.uuid), &state).await?;
+        self.persistence.save("store.bin", &state).await?;
         Ok(())
     }
 
