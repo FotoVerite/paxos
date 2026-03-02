@@ -33,8 +33,8 @@ async fn out_of_order_promise_after_accept() {
         from: test_helpers::test_uuid(2),
         decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
-        accepted_value: PaxosCommand::NOOP,
+        accepted_ballot: Ballot::default(),
+        accepted_value: PaxosCommand::BLANK,
     };
     let _accept = proposer.handle_message(promise).await;
 
@@ -43,8 +43,8 @@ async fn out_of_order_promise_after_accept() {
         from: test_helpers::test_uuid(3),
         decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
-        accepted_value: PaxosCommand::NOOP,
+        accepted_ballot: Ballot::default(),
+        accepted_value: PaxosCommand::BLANK,
     };
 
     // Proposer should handle it gracefully (may already have sent Accept, or queue it)
@@ -239,8 +239,8 @@ async fn proposer_with_insufficient_promises() {
         from: test_helpers::test_uuid(2),
         decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
-        accepted_value: PaxosCommand::NOOP,
+        accepted_ballot: Ballot::default(),
+        accepted_value: PaxosCommand::BLANK,
     };
 
     let resp1 = proposer.handle_message(promise1).await;
@@ -256,8 +256,8 @@ async fn proposer_with_insufficient_promises() {
         from: test_helpers::test_uuid(3),
         decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
-        accepted_value: PaxosCommand::NOOP,
+        accepted_ballot: Ballot::default(),
+        accepted_value: PaxosCommand::BLANK,
     };
 
     let resp2 = proposer.handle_message(promise2).await;
@@ -273,8 +273,8 @@ async fn proposer_with_insufficient_promises() {
         from: test_helpers::test_uuid(4),
         decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
-        accepted_value: PaxosCommand::NOOP,
+        accepted_ballot: Ballot::default(),
+        accepted_value: PaxosCommand::BLANK,
     };
 
     let resp3 = proposer.handle_message(promise3).await;
@@ -338,8 +338,8 @@ async fn proposer_promise_from_itself() {
         from: test_helpers::test_uuid(1), // Same as proposer id
         decree_num: DecreeId(0),
         ballot: prepare_ballot,
-        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
-        accepted_value: PaxosCommand::NOOP,
+        accepted_ballot: Ballot::default(),
+        accepted_value: PaxosCommand::BLANK,
     };
 
     let resp = proposer.handle_message(promise_from_self).await;

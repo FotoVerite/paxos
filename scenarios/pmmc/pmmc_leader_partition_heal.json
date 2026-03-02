@@ -1,0 +1,54 @@
+{
+  "name": "pmmc_leader_partition_heal",
+  "description": "Isolate the current leader after one success, then heal it after two more successful replies.",
+  "topology": {
+    "kind": "role_split",
+    "node_count": 7
+  },
+  "clients": [
+    {
+      "id": "c0",
+      "start_replica_index": 2
+    }
+  ],
+  "request_plan": {
+    "kind": {
+      "type": "sequential_kv_puts",
+      "key": "pmmc-single-client",
+      "value_prefix": "val",
+      "start_at": 1
+    },
+    "wait_for_reply": true
+  },
+  "completion": {
+    "type": "success_count",
+    "count": 5
+  },
+  "actions": [
+    {
+      "when": {
+        "type": "after_successes",
+        "count": 1
+      },
+      "action": {
+        "type": "isolate_current_leader"
+      }
+    },
+    {
+      "when": {
+        "type": "after_successes",
+        "count": 3
+      },
+      "action": {
+        "type": "heal_current_leader"
+      }
+    }
+  ],
+  "timings": {
+    "initial_settle_ms": 500,
+    "response_timeout_ms": 2000,
+    "retry_backoff_ms": 250,
+    "post_action_pause_ms": 700,
+    "loop_interval_ms": 1000
+  }
+}

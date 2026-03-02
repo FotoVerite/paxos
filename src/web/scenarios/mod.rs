@@ -1,19 +1,14 @@
-pub mod asymmetric_proposers;
 pub mod catch_up;
-pub mod competing_proposers;
-pub mod happy_path;
-pub mod network_partition;
-pub mod partial_roles;
+pub mod classic;
 pub mod pmmc;
-pub mod simple_happy_path;
 
-pub use asymmetric_proposers::AsymmetricProposersScenario;
+use std::sync::Arc;
+
+use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
+use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
 pub use catch_up::CatchUpScenario;
-pub use competing_proposers::CompetingProposersScenario;
-pub use happy_path::HappyPathScenario;
-pub use network_partition::NetworkPartitionScenario;
-pub use partial_roles::PartialRolesScenario;
-pub use simple_happy_path::SimpleHappyPathScenario;
+pub use classic::{ClassicScenarioExecution, ClassicScenarioLoader};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScenarioType {
@@ -23,7 +18,7 @@ pub enum ScenarioType {
     NetworkPartition,
     CatchUp,
     PartialRoles,
-    SimpleHappyPath,
+    HappyPathWithLeader,
     PmmcSingleClient,
     PmmcRoleSplit,
     PmmcLeaderCrash,
@@ -42,7 +37,7 @@ impl ScenarioType {
             "network_partition" => Self::NetworkPartition,
             "catch_up" => Self::CatchUp,
             "partial_roles" => Self::PartialRoles,
-            "simple_happy_path" => Self::SimpleHappyPath,
+            "happy_path_with_leader" => Self::HappyPathWithLeader,
             "pmmc_single_client" => Self::PmmcSingleClient,
             "pmmc_role_split" => Self::PmmcRoleSplit,
             "pmmc_leader_crash" => Self::PmmcLeaderCrash,
@@ -62,7 +57,7 @@ impl ScenarioType {
             Self::NetworkPartition => "network_partition",
             Self::CatchUp => "catch_up",
             Self::PartialRoles => "partial_roles",
-            Self::SimpleHappyPath => "simple_happy_path",
+            Self::HappyPathWithLeader => "happy_path_with_leader",
             Self::PmmcSingleClient => "pmmc_single_client",
             Self::PmmcRoleSplit => "pmmc_role_split",
             Self::PmmcLeaderCrash => "pmmc_leader_crash",
@@ -100,6 +95,19 @@ impl ScenarioType {
         )
     }
 
+    pub fn pmmc_topology_summary(self, node_count: usize) -> &'static str {
+        match self {
+            Self::PmmcRoleSplit
+            | Self::PmmcLeaderCrash
+            | Self::PmmcReplicaCrashFailover
+            | Self::PmmcLeaderPartitionHeal
+            | Self::PmmcAcceptorMajorityLossThenRecover
+            | Self::PmmcStaggeredLeaderJoin => "2 leaders, 2 replicas, 3 acceptors",
+            _ if node_count > 0 => "all nodes have leader+acceptor+replica roles",
+            _ => "unknown",
+        }
+    }
+
     pub fn initial_client_node_index(self) -> usize {
         match self {
             Self::PmmcLeaderCrash
@@ -122,5 +130,113 @@ impl ScenarioType {
             Self::PmmcStaggeredLeaderJoin => Some(5),
             _ => None,
         }
+    }
+
+    pub fn classic_node_count(self, requested_node_count: usize) -> usize {
+        match self {
+            Self::AsymmetricProposers => 6,
+            Self::PartialRoles => 9,
+            Self::HappyPathWithLeader => 5,
+            _ => requested_node_count,
+        }
+    }
+
+    pub fn classic_topology_summary(self) -> &'static str {
+        match self {
+            Self::AsymmetricProposers => "2 proposer+learner nodes, 4 acceptor-only nodes",
+            Self::PartialRoles => "2 proposers, 3 acceptors, 2 learners, 2 full nodes",
+            Self::HappyPathWithLeader => "5 full-role nodes with designated leader event",
+            _ => "classic Paxos roles derived from node config",
+        }
+    }
+
+    pub fn classic_configs(
+        self,
+        requested_node_count: usize,
+        learning_strategy: LearningStrategy,
+    ) -> Vec<ClassicNodeConfig> {
+        let full_node = || ClassicNodeConfig {
+            roles: Roles::default(),
+            learning_strategy: learning_strategy.clone(),
+        };
+        let make_node = |roles: Roles| ClassicNodeConfig {
+            roles,
+            learning_strategy: learning_strategy.clone(),
+        };
+
+        match self {
+            Self::AsymmetricProposers => {
+                let mut configs = Vec::with_capacity(6);
+                for _ in 0..2 {
+                    configs.push(make_node(Roles {
+                        proposer: true,
+                        acceptor: false,
+                        learner: true,
+                    }));
+                }
+                for _ in 0..4 {
+                    configs.push(make_node(Roles {
+                        proposer: false,
+                        acceptor: true,
+                        learner: false,
+                    }));
+                }
+                configs
+            }
+            Self::PartialRoles => {
+                let mut configs = Vec::with_capacity(9);
+                for _ in 0..2 {
+                    configs.push(make_node(Roles {
+                        proposer: true,
+                        acceptor: false,
+                        learner: false,
+                    }));
+                }
+                for _ in 0..3 {
+                    configs.push(make_node(Roles {
+                        proposer: false,
+                        acceptor: true,
+                        learner: false,
+                    }));
+                }
+                for _ in 0..2 {
+                    configs.push(make_node(Roles {
+                        proposer: false,
+                        acceptor: false,
+                        learner: true,
+                    }));
+                }
+                for _ in 0..2 {
+                    configs.push(full_node());
+                }
+                configs
+            }
+            Self::HappyPathWithLeader => (0..5).map(|_| full_node()).collect(),
+            _ => (0..requested_node_count).map(|_| full_node()).collect(),
+        }
+    }
+
+    pub fn emit_classic_startup_events(
+        self,
+        observer: Arc<dyn PaxosObserver>,
+        node_uuids: &[Uuid],
+        leader_node: Option<usize>,
+    ) {
+        if self != Self::HappyPathWithLeader || node_uuids.is_empty() {
+            return;
+        }
+
+        let elected_leader = leader_node.unwrap_or_else(|| {
+            (std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+                % node_uuids.len() as u128) as usize
+        });
+
+        observer.on_event(Event::LeaderElected {
+            id: node_uuids[elected_leader],
+            created_at: current_timestamp_millis(),
+        });
     }
 }

@@ -257,8 +257,8 @@ async fn proposer_handles_promises_for_different_decrees() {
             from: test_helpers::test_uuid(2),
             decree_num: DecreeId(0),
             ballot: b0,
-            accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
-            accepted_value: PaxosCommand::NOOP,
+            accepted_ballot: Ballot::default(),
+            accepted_value: PaxosCommand::BLANK,
         })
         .await;
     assert!(
@@ -271,8 +271,8 @@ async fn proposer_handles_promises_for_different_decrees() {
             from: test_helpers::test_uuid(2),
             decree_num: DecreeId(1),
             ballot: b1,
-            accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
-            accepted_value: PaxosCommand::NOOP,
+            accepted_ballot: Ballot::default(),
+            accepted_value: PaxosCommand::BLANK,
         })
         .await;
     assert!(

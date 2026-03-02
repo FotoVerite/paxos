@@ -21,10 +21,14 @@ fn cmd(v: usize) -> PaxosCommand {
     }
 }
 
-fn mk_commander(quorum: usize, ballot: Ballot, proposals: BTreeMap<usize, PaxosCommand>) -> Commander {
+async fn mk_commander(
+    quorum: usize,
+    ballot: Ballot,
+    proposals: BTreeMap<usize, PaxosCommand>,
+) -> Commander {
     let id = ballot.node_id;
     let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-    let peers = Arc::new(NetworkSimulator::new(id, HashMap::new(), Arc::clone(&observer)));
+    let peers = Arc::new(NetworkSimulator::new(id, HashMap::new(), Arc::clone(&observer)).await);
     Commander::new(id, quorum, ballot, vec![], proposals, peers, observer)
 }
 
@@ -36,7 +40,7 @@ async fn p2b_returns_nack_until_quorum_then_accepted() {
     let a2 = Uuid::new_v4();
     let mut proposals = BTreeMap::new();
     proposals.insert(3, cmd(10));
-    let mut commander = mk_commander(2, ballot, proposals);
+    let mut commander = mk_commander(2, ballot, proposals).await;
 
     let first = commander
         .handle_message(Message::P2B {
@@ -70,7 +74,7 @@ async fn duplicate_acceptor_ack_does_not_count_twice() {
     let a2 = Uuid::new_v4();
     let mut proposals = BTreeMap::new();
     proposals.insert(1, cmd(1));
-    let mut commander = mk_commander(2, ballot, proposals);
+    let mut commander = mk_commander(2, ballot, proposals).await;
 
     let r1 = commander
         .handle_message(Message::P2B {
@@ -109,7 +113,7 @@ async fn higher_ballot_p2b_preempts_commander() {
     let ballot = Ballot::new(8, leader);
     let mut proposals = BTreeMap::new();
     proposals.insert(2, cmd(2));
-    let mut commander = mk_commander(2, ballot, proposals);
+    let mut commander = mk_commander(2, ballot, proposals).await;
     let higher = Ballot::new(9, Uuid::new_v4());
 
     let reply = commander
@@ -134,7 +138,7 @@ async fn lower_ballot_p2b_is_ignored() {
     let lower = Ballot::new(10, Uuid::new_v4());
     let mut proposals = BTreeMap::new();
     proposals.insert(2, cmd(2));
-    let mut commander = mk_commander(2, ballot, proposals);
+    let mut commander = mk_commander(2, ballot, proposals).await;
 
     let reply = commander
         .handle_message(Message::P2B {
@@ -157,7 +161,7 @@ async fn unhandled_message_returns_nack() {
     let ballot = Ballot::new(1, leader);
     let mut proposals = BTreeMap::new();
     proposals.insert(0, cmd(0));
-    let mut commander = mk_commander(1, ballot, proposals);
+    let mut commander = mk_commander(1, ballot, proposals).await;
 
     let reply = commander
         .handle_message(Message::P1A {
@@ -175,7 +179,7 @@ async fn unknown_slot_p2b_is_ignored() {
     let ballot = Ballot::new(3, leader);
     let mut proposals = BTreeMap::new();
     proposals.insert(0, cmd(0));
-    let mut commander = mk_commander(2, ballot, proposals);
+    let mut commander = mk_commander(2, ballot, proposals).await;
 
     let reply = commander
         .handle_message(Message::P2B {
@@ -200,7 +204,7 @@ async fn run_rebroadcasts_p2a_periodically_until_quorum() {
     let (peer_tx, mut peer_rx) = mpsc::channel(2);
     let mut peers_map = HashMap::new();
     peers_map.insert(peer, peer_tx);
-    let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)));
+    let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)).await);
     let commander = Commander::new(leader, 2, ballot, vec![peer], proposals, peers, observer);
     let runner = commander.clone();
     tokio::spawn(async move {
@@ -233,7 +237,7 @@ async fn run_stops_rebroadcasts_after_stop_signal() {
     let (peer_tx, mut peer_rx) = mpsc::channel(8);
     let mut peers_map = HashMap::new();
     peers_map.insert(peer, peer_tx);
-    let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)));
+    let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)).await);
     let commander = Commander::new(leader, 2, ballot, vec![peer], proposals, peers, observer);
     let runner = commander.clone();
     tokio::spawn(async move {
@@ -273,7 +277,7 @@ async fn run_rebroadcasts_accepted_to_only_unacked_replicas_once_decided() {
     let mut peers_map = HashMap::new();
     peers_map.insert(r1, r1_tx);
     peers_map.insert(r2, r2_tx);
-    let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)));
+    let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)).await);
     let commander = Commander::new(leader, 1, ballot, vec![r1, r2], proposals, peers, observer);
     let mut gate = commander.clone();
 
@@ -318,7 +322,7 @@ async fn all_replica_acks_compact_decided_slot() {
     let r1 = Uuid::new_v4();
     let r2 = Uuid::new_v4();
     let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-    let peers = Arc::new(NetworkSimulator::new(leader, HashMap::new(), Arc::clone(&observer)));
+    let peers = Arc::new(NetworkSimulator::new(leader, HashMap::new(), Arc::clone(&observer)).await);
     let mut proposals = BTreeMap::new();
     proposals.insert(5, cmd(5));
     let mut commander = Commander::new(leader, 1, ballot, vec![r1, r2], proposals, peers, observer);
@@ -365,7 +369,7 @@ async fn role_split_replica_acks_compaction_stops_accepted_rebroadcasts() {
     let mut peers_map = HashMap::new();
     peers_map.insert(r1, r1_tx);
     peers_map.insert(r2, r2_tx);
-    let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)));
+    let peers = Arc::new(NetworkSimulator::new(leader, peers_map, Arc::clone(&observer)).await);
     let mut commander = Commander::new(leader, 1, ballot, vec![r1, r2], proposals, peers, observer);
 
     let accepted = commander

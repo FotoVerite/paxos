@@ -1,0 +1,76 @@
+{
+  "name": "pmmc_acceptor_majority_loss_then_recover",
+  "description": "Isolate acceptors 5 and 6 after two successes, then heal them after the first timeout.",
+  "topology": {
+    "kind": "role_split",
+    "node_count": 7
+  },
+  "clients": [
+    {
+      "id": "c0",
+      "start_replica_index": 2
+    }
+  ],
+  "request_plan": {
+    "kind": {
+      "type": "sequential_kv_puts",
+      "key": "pmmc-single-client",
+      "value_prefix": "val",
+      "start_at": 1
+    },
+    "wait_for_reply": true
+  },
+  "completion": {
+    "type": "success_count",
+    "count": 7
+  },
+  "actions": [
+    {
+      "when": {
+        "type": "after_successes",
+        "count": 2
+      },
+      "action": {
+        "type": "isolate_node",
+        "node_index": 5
+      }
+    },
+    {
+      "when": {
+        "type": "after_successes",
+        "count": 2
+      },
+      "action": {
+        "type": "isolate_node",
+        "node_index": 6
+      }
+    },
+    {
+      "when": {
+        "type": "after_timeouts",
+        "count": 1
+      },
+      "action": {
+        "type": "heal_node",
+        "node_index": 5
+      }
+    },
+    {
+      "when": {
+        "type": "after_timeouts",
+        "count": 1
+      },
+      "action": {
+        "type": "heal_node",
+        "node_index": 6
+      }
+    }
+  ],
+  "timings": {
+    "initial_settle_ms": 500,
+    "response_timeout_ms": 2000,
+    "retry_backoff_ms": 250,
+    "post_action_pause_ms": 700,
+    "loop_interval_ms": 1000
+  }
+}

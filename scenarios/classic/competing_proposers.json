@@ -1,0 +1,21 @@
+{
+  "name": "competing_proposers",
+  "description": "Two concurrent proposals on each trigger: one fixed proposer and one random proposer from a competing set.",
+  "proposal_interval": 2,
+  "proposals": [
+    {
+      "author": "Proposer 0",
+      "selector": {
+        "type": "random_from_indices",
+        "indices": [0, 2, 3, 4]
+      }
+    },
+    {
+      "author": "Proposer 1",
+      "selector": {
+        "type": "fixed_index",
+        "index": 1
+      }
+    }
+  ]
+}

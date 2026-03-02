@@ -201,7 +201,7 @@ mod tests {
         let _ = fs::remove_file(root.dir().join("leader.bin"));
     }
 
-    fn mk_leader() -> Leader {
+    async fn mk_leader() -> Leader {
         let uuid = Uuid::nil();
         let persistence =
             crate::common::persistence::ClusterPersistence::for_test("pmmc_leader").node(uuid);
@@ -210,7 +210,7 @@ mod tests {
             uuid,
             HashMap::new(),
             Arc::clone(&observer),
-        ));
+        ).await);
         let state = Arc::new(LeaderState::init(uuid, LeaderDurable::default()));
 
         Leader {
@@ -224,7 +224,7 @@ mod tests {
         }
     }
 
-    fn mk_leader_with_peer() -> (Leader, Uuid, mpsc::Receiver<Message>) {
+    async fn mk_leader_with_peer() -> (Leader, Uuid, mpsc::Receiver<Message>) {
         let uuid = Uuid::new_v4();
         let persistence =
             crate::common::persistence::ClusterPersistence::for_test("pmmc_leader").node(uuid);
@@ -233,7 +233,7 @@ mod tests {
         let (tx, rx) = mpsc::channel(8);
         let mut peers_map = HashMap::new();
         peers_map.insert(peer, tx);
-        let peers = Arc::new(NetworkSimulator::new(uuid, peers_map, Arc::clone(&observer)));
+        let peers = Arc::new(NetworkSimulator::new(uuid, peers_map, Arc::clone(&observer)).await);
         let state = Arc::new(LeaderState::init(uuid, LeaderDurable::default()));
 
         (
@@ -261,7 +261,7 @@ mod tests {
 
     #[tokio::test]
     async fn adopted_for_current_ballot_activates_leader() {
-        let leader = mk_leader();
+        let leader = mk_leader().await;
         let ballot = leader.state.ballot().await;
         assert!(!leader.is_leader().await);
 
@@ -279,7 +279,7 @@ mod tests {
 
     #[tokio::test]
     async fn adopted_with_mismatched_ballot_does_not_activate_leader() {
-        let leader = mk_leader();
+        let leader = mk_leader().await;
         assert!(!leader.is_leader().await);
 
         let _ = leader
@@ -299,7 +299,7 @@ mod tests {
 
     #[tokio::test]
     async fn heartbeat_message_updates_leader_timers_when_ballot_is_higher() {
-        let leader = mk_leader();
+        let leader = mk_leader().await;
         let before = leader.election_deadline().await;
 
         let _ = leader
@@ -328,7 +328,7 @@ mod tests {
             uuid,
             HashMap::new(),
             Arc::clone(&observer),
-        ));
+        ).await);
         let leader = Leader::new(
             uuid,
             persistence.clone(),
@@ -357,7 +357,7 @@ mod tests {
             uuid,
             HashMap::new(),
             Arc::clone(&observer),
-        ));
+        ).await);
         let reloaded = Leader::new(uuid, persistence.clone(), 2, vec![], peers2, observer)
             .await
             .expect("leader reload should work");
@@ -371,7 +371,7 @@ mod tests {
 
     #[tokio::test]
     async fn unhandled_message_returns_nack() {
-        let leader = mk_leader();
+        let leader = mk_leader().await;
         let reply = leader
             .handle_message(Message::PROPOSE {
                 from: Uuid::new_v4(),
@@ -384,7 +384,7 @@ mod tests {
 
     #[tokio::test]
     async fn preempt_with_higher_ballot_deactivates_leader() {
-        let leader = mk_leader();
+        let leader = mk_leader().await;
         let ballot = leader.state.ballot().await;
         let _ = leader
             .handle_message(Message::ADOPTED {
@@ -409,7 +409,7 @@ mod tests {
 
     #[tokio::test]
     async fn delayed_adopted_after_preempt_does_not_reactivate_leader() {
-        let leader = mk_leader();
+        let leader = mk_leader().await;
         let ballot = leader.state.ballot().await;
         let higher = Ballot::new(ballot.number + 1, Uuid::new_v4());
 
@@ -445,7 +445,7 @@ mod tests {
 
     #[tokio::test]
     async fn commander_respects_leader_quorum_for_p2b() {
-        let leader = mk_leader();
+        let leader = mk_leader().await;
         let ballot = leader.state.ballot().await;
         let slot = 4usize;
         let command = cmd(42);
@@ -495,7 +495,7 @@ mod tests {
 
     #[tokio::test]
     async fn start_election_broadcasts_p1a() {
-        let (leader, _peer, mut rx) = mk_leader_with_peer();
+        let (leader, _peer, mut rx) = mk_leader_with_peer().await;
 
         leader.start_election().await;
 
@@ -517,7 +517,7 @@ mod tests {
 
     #[tokio::test]
     async fn heartbeat_is_only_sent_when_active() {
-        let (leader, _peer, mut rx) = mk_leader_with_peer();
+        let (leader, _peer, mut rx) = mk_leader_with_peer().await;
 
         leader.send_heartbeat().await;
         let no_msg = timeout(Duration::from_millis(20), rx.recv()).await;
@@ -546,7 +546,7 @@ mod tests {
 
     #[tokio::test]
     async fn p1b_quorum_emits_adopted_but_does_not_activate_until_adopted_message() {
-        let (leader, _peer, mut rx) = mk_leader_with_peer();
+        let (leader, _peer, mut rx) = mk_leader_with_peer().await;
         leader.start_election().await;
         let _ = timeout(Duration::from_millis(100), rx.recv()).await;
         let ballot = leader.state.ballot().await;
@@ -590,7 +590,7 @@ mod tests {
 
     #[tokio::test]
     async fn higher_ballot_p2b_emits_preempt_but_does_not_deactivate_until_preempt_message() {
-        let (leader, _peer, _rx) = mk_leader_with_peer();
+        let (leader, _peer, _rx) = mk_leader_with_peer().await;
         let ballot = leader.state.ballot().await;
         let cmd = cmd(9);
 

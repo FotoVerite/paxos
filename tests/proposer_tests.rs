@@ -50,8 +50,8 @@ async fn proposer_sends_accept_on_promise() {
         from: test_helpers::test_uuid(2),
         decree_num: DecreeId(0),
         ballot: Ballot::new(1, test_helpers::test_uuid(1)),
-        accepted_ballot: Ballot::new(0, test_helpers::test_uuid(0)),
-        accepted_value: PaxosCommand::NOOP,
+        accepted_ballot: Ballot::default(),
+        accepted_value: PaxosCommand::BLANK,
     };
     let resp = proposer.handle_message(promise).await;
 

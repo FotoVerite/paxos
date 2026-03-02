@@ -1,0 +1,13 @@
+{
+  "name": "happy_path",
+  "description": "Single periodic proposal from a randomly selected node in a full-role classic cluster.",
+  "proposal_interval": 20,
+  "proposals": [
+    {
+      "author": "Web User",
+      "selector": {
+        "type": "random_any"
+      }
+    }
+  ]
+}

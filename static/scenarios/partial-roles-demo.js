@@ -16,7 +16,7 @@ import { createNodeCapabilitiesPlugin } from '/js/paxos-demo/plugins/node-capabi
 const FRAME_WINDOW_MICROS = 50;
 
 const scenarioDescriptions = {
-  simple_happy_path:
+  happy_path_with_leader:
     'A 5-node cluster with one designated leader. Watch the leader propose commands, all nodes reach consensus, and learners execute them in order.',
   asymmetric_proposers:
     'Two dedicated proposer/learner nodes compete against 4 acceptor-only nodes. Proposers simultaneously propose values every iteration, demonstrating consensus with role separation.',
@@ -283,7 +283,7 @@ async function playScenario() {
 
   try {
     let nodeCount = 9;
-    if (scenarioValue === 'simple_happy_path') {
+    if (scenarioValue === 'happy_path_with_leader') {
       nodeCount = 5;
     }
 

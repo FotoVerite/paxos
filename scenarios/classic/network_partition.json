@@ -1,0 +1,49 @@
+{
+  "name": "network_partition",
+  "description": "A full-role classic cluster experiences a partition at iteration 0, heals at iteration 5, and continues proposing throughout.",
+  "topology": {
+    "groups": [
+      {
+        "count": 5,
+        "roles": {
+          "proposer": true,
+          "acceptor": true,
+          "learner": true
+        }
+      }
+    ]
+  },
+  "proposal_interval": 1,
+  "actions": [
+    {
+      "when": {
+        "type": "at_iteration",
+        "count": 0
+      },
+      "action": {
+        "type": "partition_groups",
+        "partition_a": [0, 1, 2],
+        "partition_b": [3, 4]
+      }
+    },
+    {
+      "when": {
+        "type": "at_iteration",
+        "count": 5
+      },
+      "action": {
+        "type": "heal_groups",
+        "partition_a": [0, 1, 2],
+        "partition_b": [3, 4]
+      }
+    }
+  ],
+  "proposals": [
+    {
+      "author": "Proposer",
+      "selector": {
+        "type": "random_any"
+      }
+    }
+  ]
+}

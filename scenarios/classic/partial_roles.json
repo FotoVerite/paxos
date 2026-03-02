@@ -1,0 +1,50 @@
+{
+  "name": "partial_roles",
+  "description": "A 9-node classic cluster with proposer-only, acceptor-only, learner-only, and full-role nodes.",
+  "topology": {
+    "groups": [
+      {
+        "count": 2,
+        "roles": {
+          "proposer": true,
+          "acceptor": false,
+          "learner": false
+        }
+      },
+      {
+        "count": 3,
+        "roles": {
+          "proposer": false,
+          "acceptor": true,
+          "learner": false
+        }
+      },
+      {
+        "count": 2,
+        "roles": {
+          "proposer": false,
+          "acceptor": false,
+          "learner": true
+        }
+      },
+      {
+        "count": 2,
+        "roles": {
+          "proposer": true,
+          "acceptor": true,
+          "learner": true
+        }
+      }
+    ]
+  },
+  "proposal_interval": 30,
+  "proposals": [
+    {
+      "author": "Partial Roles User",
+      "selector": {
+        "type": "random_from_indices",
+        "indices": [0, 1, 7, 8]
+      }
+    }
+  ]
+}

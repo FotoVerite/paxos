@@ -1,0 +1,28 @@
+{
+  "name": "happy_path_with_leader",
+  "description": "A 5-node full-role classic cluster with a designated leader event and leader-driven proposals.",
+  "topology": {
+    "groups": [
+      {
+        "count": 5,
+        "roles": {
+          "proposer": true,
+          "acceptor": true,
+          "learner": true
+        }
+      }
+    ]
+  },
+  "startup": {
+    "emit_leader_elected": true
+  },
+  "proposal_interval": 25,
+  "proposals": [
+    {
+      "author": "Leader",
+      "selector": {
+        "type": "leader"
+      }
+    }
+  ]
+}

@@ -187,7 +187,7 @@ mod tests {
             ),
             state: Arc::new(ReplicaState::init(ReplicaDurable::default())),
             observer: Arc::clone(&observer),
-            peers: Arc::new(NetworkSimulator::new(uuid, HashMap::new(), observer)),
+            peers: Arc::new(NetworkSimulator::new(uuid, HashMap::new(), observer).await),
         }
     }
 
@@ -203,7 +203,7 @@ mod tests {
             uuid,
             peers_map,
             Arc::clone(&observer),
-        ));
+        ).await);
         let replica = Replica::new(
             uuid,
             crate::common::persistence::ClusterPersistence::for_test("replica_with_peer")
@@ -402,7 +402,7 @@ mod tests {
             uuid,
             HashMap::new(),
             Arc::clone(&observer),
-        ));
+        ).await);
         let replica = Replica::new(
             uuid,
             crate::common::persistence::ClusterPersistence::for_test("replica_client")

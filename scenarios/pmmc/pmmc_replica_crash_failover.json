@@ -1,0 +1,57 @@
+{
+  "name": "pmmc_replica_crash_failover",
+  "description": "Crash replica node 2 after one successful request and fail over the client.",
+  "topology": {
+    "kind": "role_split",
+    "node_count": 7
+  },
+  "clients": [
+    {
+      "id": "c0",
+      "start_replica_index": 2
+    }
+  ],
+  "request_plan": {
+    "kind": {
+      "type": "sequential_kv_puts",
+      "key": "pmmc-single-client",
+      "value_prefix": "val",
+      "start_at": 1
+    },
+    "wait_for_reply": true
+  },
+  "completion": {
+    "type": "success_count",
+    "count": 5
+  },
+  "actions": [
+    {
+      "when": {
+        "type": "after_successes",
+        "count": 1
+      },
+      "action": {
+        "type": "crash_node",
+        "node_index": 2
+      }
+    },
+    {
+      "when": {
+        "type": "after_successes",
+        "count": 1
+      },
+      "action": {
+        "type": "move_client",
+        "client_id": "c0",
+        "replica_index": 3
+      }
+    }
+  ],
+  "timings": {
+    "initial_settle_ms": 500,
+    "response_timeout_ms": 2000,
+    "retry_backoff_ms": 250,
+    "post_action_pause_ms": 700,
+    "loop_interval_ms": 1000
+  }
+}

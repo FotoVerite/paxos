@@ -349,7 +349,7 @@ mod tests {
             node_id,
             peers_map,
             Arc::clone(&observer),
-        ));
+        ).await);
         let topology = PeerTopology::new(vec![peer_id], vec![node_id], vec![node_id]);
 
         let state = NodeState::init(

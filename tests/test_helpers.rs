@@ -361,6 +361,7 @@ pub async fn create_cluster(
 pub struct NodeBuilder {
     pub observer: Arc<RecordingObserver>,
     decree_notes: Arc<Mutex<DecreeNotes>>,
+    persistence: ClusterPersistence,
 }
 
 impl NodeBuilder {
@@ -370,6 +371,7 @@ impl NodeBuilder {
         Self {
             observer: RecordingObserver::new().arc(),
             decree_notes: Arc::new(Mutex::new(DecreeNotes::new())),
+            persistence: ClusterPersistence::for_test(&format!("test_helpers-{}", Uuid::new_v4())),
         }
     }
 
@@ -378,6 +380,7 @@ impl NodeBuilder {
         Self {
             observer,
             decree_notes: Arc::new(Mutex::new(DecreeNotes::new())),
+            persistence: ClusterPersistence::for_test(&format!("test_helpers-{}", Uuid::new_v4())),
         }
     }
 
@@ -391,7 +394,7 @@ impl NodeBuilder {
         Ok(Proposer::new(
             uuid,
             quorum,
-            ClusterPersistence::for_test("test_helpers").node(uuid),
+            self.persistence.node(uuid),
             Arc::clone(&self.decree_notes),
             Arc::clone(&self.observer) as Arc<dyn PaxosObserver>, // Cast to trait object
         ))
@@ -401,7 +404,7 @@ impl NodeBuilder {
         let uuid = self.generate_uuid(id);
         Acceptor::new(
             uuid,
-            ClusterPersistence::for_test("test_helpers").node(uuid),
+            self.persistence.node(uuid),
             Arc::clone(&self.observer) as Arc<dyn PaxosObserver>,
         )
         .await
@@ -425,7 +428,7 @@ impl NodeBuilder {
     #[allow(dead_code)]
     pub async fn ledger(&self, id: usize) -> anyhow::Result<Ledger> {
         let uuid = self.generate_uuid(id);
-        Ledger::init(uuid, ClusterPersistence::for_test("test_helpers").node(uuid)).await
+        Ledger::init(uuid, self.persistence.node(uuid)).await
     }
 }
 

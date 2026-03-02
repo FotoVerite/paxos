@@ -1,0 +1,35 @@
+{
+  "name": "pmmc_single_client",
+  "description": "Single client on a 5-node PMMC cluster. One outstanding KV command at a time.",
+  "topology": {
+    "kind": "full_mesh",
+    "node_count": 5
+  },
+  "clients": [
+    {
+      "id": "c0",
+      "start_replica_index": 0
+    }
+  ],
+  "request_plan": {
+    "kind": {
+      "type": "sequential_kv_puts",
+      "key": "pmmc-single-client",
+      "value_prefix": "val",
+      "start_at": 1
+    },
+    "wait_for_reply": true
+  },
+  "completion": {
+    "type": "success_count",
+    "count": 5
+  },
+  "actions": [],
+  "timings": {
+    "initial_settle_ms": 500,
+    "response_timeout_ms": 2000,
+    "retry_backoff_ms": 250,
+    "post_action_pause_ms": 700,
+    "loop_interval_ms": 1000
+  }
+}

@@ -135,14 +135,14 @@ pub struct NetworkHandle {
 }
 
 impl NetworkHandle {
-    pub fn new(
+    pub async fn new(
         me: Uuid,
         peers: HashMap<Uuid, mpsc::Sender<Message>>,
         observer: Arc<dyn PaxosObserver>,
     ) -> Self {
         let fabric = Arc::new(NetworkFabric::new(observer));
         for (uuid, sender) in peers {
-            fabric.blocking_write_register(uuid, sender);
+            fabric.register(uuid, sender).await;
         }
         Self { me, fabric }
     }
@@ -187,11 +187,5 @@ impl NetworkHandle {
 
     pub fn fabric(&self) -> Arc<NetworkFabric> {
         Arc::clone(&self.fabric)
-    }
-}
-
-impl NetworkFabric {
-    fn blocking_write_register(&self, uuid: Uuid, sender: mpsc::Sender<Message>) {
-        self.peers.blocking_write().insert(uuid, sender);
     }
 }

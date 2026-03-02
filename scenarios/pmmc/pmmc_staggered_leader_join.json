@@ -1,0 +1,74 @@
+{
+  "name": "pmmc_staggered_leader_join",
+  "description": "Isolate leaders 0 and 1 on start, then heal them on attempts 3 and 5.",
+  "topology": {
+    "kind": "role_split",
+    "node_count": 7
+  },
+  "clients": [
+    {
+      "id": "c0",
+      "start_replica_index": 2
+    }
+  ],
+  "request_plan": {
+    "kind": {
+      "type": "sequential_kv_puts",
+      "key": "pmmc-single-client",
+      "value_prefix": "val",
+      "start_at": 1
+    },
+    "wait_for_reply": true
+  },
+  "completion": {
+    "type": "success_count",
+    "count": 5
+  },
+  "actions": [
+    {
+      "when": {
+        "type": "on_start"
+      },
+      "action": {
+        "type": "isolate_node",
+        "node_index": 0
+      }
+    },
+    {
+      "when": {
+        "type": "on_start"
+      },
+      "action": {
+        "type": "isolate_node",
+        "node_index": 1
+      }
+    },
+    {
+      "when": {
+        "type": "after_attempts",
+        "count": 3
+      },
+      "action": {
+        "type": "heal_node",
+        "node_index": 0
+      }
+    },
+    {
+      "when": {
+        "type": "after_attempts",
+        "count": 5
+      },
+      "action": {
+        "type": "heal_node",
+        "node_index": 1
+      }
+    }
+  ],
+  "timings": {
+    "initial_settle_ms": 500,
+    "response_timeout_ms": 2000,
+    "retry_backoff_ms": 250,
+    "post_action_pause_ms": 500,
+    "loop_interval_ms": 1000
+  }
+}

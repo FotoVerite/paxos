@@ -1,0 +1,42 @@
+{
+  "name": "asymmetric_proposers",
+  "description": "Two dedicated proposer/learner nodes compete against four acceptor-only nodes, proposing simultaneously each tick after startup.",
+  "topology": {
+    "groups": [
+      {
+        "count": 2,
+        "roles": {
+          "proposer": true,
+          "acceptor": false,
+          "learner": true
+        }
+      },
+      {
+        "count": 4,
+        "roles": {
+          "proposer": false,
+          "acceptor": true,
+          "learner": false
+        }
+      }
+    ]
+  },
+  "start_at": 1,
+  "proposal_interval": 1,
+  "proposals": [
+    {
+      "author": "Proposer 0",
+      "selector": {
+        "type": "fixed_index",
+        "index": 0
+      }
+    },
+    {
+      "author": "Proposer 1",
+      "selector": {
+        "type": "fixed_index",
+        "index": 1
+      }
+    }
+  ]
+}
