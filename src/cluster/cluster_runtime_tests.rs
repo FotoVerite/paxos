@@ -9,7 +9,7 @@ use crate::{
     paxos_command::PaxosCommand,
 };
 
-use super::PmmcCluster;
+use super::ClusterRuntime;
 
 #[tokio::test]
 async fn role_split_cluster_sets_expected_quorum_and_node_count() {
@@ -43,7 +43,7 @@ async fn role_split_cluster_sets_expected_quorum_and_node_count() {
         });
     }
 
-    let cluster = PmmcCluster::new_with_configs(0, ip, configs, Arc::new(NoOpObserver))
+    let cluster = ClusterRuntime::new_with_configs(ip, configs, Arc::new(NoOpObserver))
         .await
         .expect("role-split cluster should initialize");
 
@@ -55,16 +55,16 @@ async fn role_split_cluster_sets_expected_quorum_and_node_count() {
 #[test]
 fn node_uuid_is_stable_and_unique_per_index() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let u0a = PmmcCluster::node_uuid(ip, 0);
-    let u0b = PmmcCluster::node_uuid(ip, 0);
-    let u1 = PmmcCluster::node_uuid(ip, 1);
+    let u0a = ClusterRuntime::node_uuid(ip, 0);
+    let u0b = ClusterRuntime::node_uuid(ip, 0);
+    let u1 = ClusterRuntime::node_uuid(ip, 1);
 
     assert_eq!(u0a, u0b, "same ip/index must produce stable UUID");
     assert_ne!(u0a, u1, "different node indexes must map to different UUIDs");
 
     let mut set = HashSet::new();
     for i in 0..8 {
-        set.insert(PmmcCluster::node_uuid(ip, i));
+        set.insert(ClusterRuntime::node_uuid(ip, i));
     }
     assert_eq!(set.len(), 8, "UUID mapping should be unique across indexes");
 }
@@ -72,7 +72,7 @@ fn node_uuid_is_stable_and_unique_per_index() {
 #[tokio::test]
 async fn single_node_cluster_persists_state_under_ip_node_directory() {
     let ip = IpAddr::V4([127, 0, 0, 42].into());
-    let mut cluster = PmmcCluster::new(0, ip, 1, Arc::new(NoOpObserver))
+    let cluster = ClusterRuntime::new(ip, 1, Arc::new(NoOpObserver))
         .await
         .expect("single-node PMMC cluster should initialize");
 
@@ -80,11 +80,11 @@ async fn single_node_cluster_persists_state_under_ip_node_directory() {
     let persistence = Persistence::cluster(ip).node(uuid);
     let _ = std::fs::remove_dir_all(persistence.dir());
 
-    cluster.nodes[0].start();
+    cluster.start_all().await;
 
     timeout(Duration::from_secs(2), async {
         loop {
-            if cluster.nodes[0].is_leader().await {
+            if cluster.leader().await.is_some() {
                 break;
             }
             sleep(Duration::from_millis(25)).await;

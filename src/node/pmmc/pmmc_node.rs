@@ -3,41 +3,40 @@ use std::{future::pending, sync::Arc, time::Duration};
 use tokio::{
     select,
     sync::mpsc::{self, Receiver},
+    task::JoinHandle,
     time::{self, Instant, MissedTickBehavior, sleep_until},
 };
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_simulator::NetworkSimulator,
+    cluster::{network_fabric::NetworkFabric, network_simulator::NetworkSimulator},
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
     monitor::PaxosObserver,
-    node::{config::PmmcNodeConfig, pmmc::node_state::NodeState},
+    node::{config::Roles, peer_topology::PeerTopology, pmmc::node_state::NodeState},
     paxos_command::PaxosCommand,
 };
 
 pub struct PmmcNode {
     pub uuid: Uuid,
-    rx: Option<Receiver<Message>>,
     state: Arc<NodeState>,
 }
 
 impl PmmcNode {
     pub async fn new(
         uuid: Uuid,
-        rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
-        peers: Arc<NetworkSimulator>,
+        fabric: Arc<NetworkFabric>,
+        handle: Arc<NetworkSimulator>,
         persistence: NodePersistence,
         quorum: usize,
-        config: PmmcNodeConfig,
-        topology: crate::node::peer_topology::PeerTopology,
+        roles: Roles,
+        topology: PeerTopology,
     ) -> anyhow::Result<Self> {
         Ok(Self {
             uuid,
-            rx: Some(rx),
             state: Arc::new(
-                NodeState::init(uuid, quorum, peers, persistence, observer, config, topology)
+                NodeState::init(uuid, quorum, fabric, handle, persistence, observer, roles, topology)
                     .await?,
             ),
         })
@@ -58,15 +57,14 @@ impl PmmcNode {
         self.state.is_leader().await
     }
 
-    pub fn start(&mut self) {
-        let mut rx = self.rx.take().expect("worker already started");
+    pub fn start(&self, mut rx: Receiver<Message>) -> JoinHandle<()> {
         let state = Arc::clone(&self.state);
         let mut hb = time::interval_at(
             Instant::now() + Duration::from_millis(150),
             Duration::from_millis(150),
         );
         hb.set_missed_tick_behavior(MissedTickBehavior::Skip);
-        tokio::spawn(async move {
+        return tokio::spawn(async move {
             loop {
                 select! {
                     Some(msg) = rx.recv() => {
@@ -95,7 +93,7 @@ impl PmmcNode {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc, time::Duration};
+    use std::{sync::Arc, time::Duration};
 
     use tokio::{
         sync::mpsc,
@@ -108,7 +106,7 @@ mod tests {
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
         node::{
-            classic_paxos::ballot::Ballot, config::PmmcNodeConfig, peer_topology::PeerTopology,
+            classic_paxos::ballot::Ballot, peer_topology::PeerTopology,
         },
     };
 
@@ -118,45 +116,43 @@ mod tests {
         PmmcNode,
         mpsc::Sender<Message>,
         mpsc::Receiver<Message>,
+        mpsc::Receiver<Message>,
         Uuid,
         Uuid,
     ) {
         let node_id = Uuid::new_v4();
         let peer_id = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let (node_tx, node_rx) = mpsc::channel(64);
+        let (inbox_tx, inbox_rx) = mpsc::channel(64);
         let (peer_tx, peer_rx) = mpsc::channel(64);
 
-        let mut peers_map = HashMap::new();
-        peers_map.insert(node_id, node_tx.clone());
-        peers_map.insert(peer_id, peer_tx);
-        let simulator = Arc::new(NetworkSimulator::new(
-            node_id,
-            peers_map,
+        let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
             Arc::clone(&observer),
-        ).await);
+        ));
+        fabric.register(peer_id, peer_tx).await;
+        let handle = Arc::new(NetworkSimulator::from_fabric(node_id, Arc::clone(&fabric)));
         let topology = PeerTopology::new(vec![peer_id], vec![], vec![node_id]);
 
         let node = PmmcNode::new(
             node_id,
-            node_rx,
             Arc::clone(&observer),
-            simulator,
+            fabric,
+            handle,
             crate::common::persistence::ClusterPersistence::for_test("pmmc_node").node(node_id),
             2,
-            PmmcNodeConfig::default(),
+            crate::node::config::Roles::default(),
             topology,
         )
         .await
         .expect("node init should work");
 
-        (node, node_tx, peer_rx, node_id, peer_id)
+        (node, inbox_tx, inbox_rx, peer_rx, node_id, peer_id)
     }
 
     #[tokio::test]
     async fn does_not_start_election_while_leader_active() {
-        let (mut node, node_tx, mut peer_rx, node_id, _peer_id) = new_node_with_peer().await;
-        node.start();
+        let (node, inbox_tx, inbox_rx, mut peer_rx, node_id, _peer_id) = new_node_with_peer().await;
+        node.start(inbox_rx);
 
         let adopted_ballot = timeout(Duration::from_millis(500), async {
             loop {
@@ -171,7 +167,7 @@ mod tests {
         .expect("node should start an election and emit p1a")
         .expect("peer channel should stay open");
 
-        node_tx
+        inbox_tx
             .send(Message::ADOPTED {
                 from: Uuid::new_v4(),
                 to: node_id,
@@ -201,10 +197,10 @@ mod tests {
 
     #[tokio::test]
     async fn heartbeat_tick_sends_when_active() {
-        let (mut node, node_tx, mut peer_rx, node_id, _peer_id) = new_node_with_peer().await;
-        node.start();
+        let (node, inbox_tx, inbox_rx, mut peer_rx, node_id, _peer_id) = new_node_with_peer().await;
+        node.start(inbox_rx);
 
-        node_tx
+        inbox_tx
             .send(Message::ADOPTED {
                 from: Uuid::new_v4(),
                 to: node_id,

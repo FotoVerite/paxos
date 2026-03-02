@@ -7,7 +7,7 @@ use tokio::time::{Duration, sleep};
 use tracing::{info, warn};
 use uuid::Uuid;
 
-use crate::cluster::pmmc_cluster::PmmcCluster;
+use crate::cluster::cluster_runtime::ClusterRuntime;
 use crate::message::ClientMessage;
 use crate::paxos_command::PaxosCommand;
 use crate::web::websocket_observer::WebSocketObserver;
@@ -46,7 +46,7 @@ pub struct PmmcScenarioRunState {
 
 pub struct PmmcScenarioExecution {
     context: PmmcScenarioContext,
-    cluster: Arc<Mutex<PmmcCluster>>,
+    cluster: Arc<Mutex<ClusterRuntime>>,
     observer: Arc<WebSocketObserver>,
     pool: ClientPool,
     executed_actions: HashSet<usize>,
@@ -60,7 +60,7 @@ impl PmmcScenarioExecution {
         scenario_run_id: Uuid,
         duration_secs: u64,
         spec: PmmcScenarioSpec,
-        cluster: Arc<Mutex<PmmcCluster>>,
+        cluster: Arc<Mutex<ClusterRuntime>>,
         observer: Arc<WebSocketObserver>,
     ) -> Self {
         Self {
@@ -224,7 +224,7 @@ impl PmmcScenarioExecution {
 
     async fn ensure_client_attached(
         context: &PmmcScenarioContext,
-        cluster_for_runner: &Arc<Mutex<PmmcCluster>>,
+        cluster_for_runner: &Arc<Mutex<ClusterRuntime>>,
         session: &mut ClientSession,
     ) -> Result<(), CompletionReason> {
         if session.is_attached() {

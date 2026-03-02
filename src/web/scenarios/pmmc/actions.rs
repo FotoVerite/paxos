@@ -6,7 +6,7 @@ use tokio::time::{Duration, sleep};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::cluster::pmmc_cluster::PmmcCluster;
+use crate::cluster::cluster_runtime::ClusterRuntime;
 use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::web::websocket_observer::WebSocketObserver;
 
@@ -29,7 +29,7 @@ pub(crate) enum PmmcTriggerKind {
 
 pub(crate) async fn run_triggered_actions(
     context: &PmmcScenarioContext,
-    cluster_for_runner: &Arc<Mutex<PmmcCluster>>,
+    cluster_for_runner: &Arc<Mutex<ClusterRuntime>>,
     observer_for_runner: &Arc<WebSocketObserver>,
     pool: &mut ClientPool,
     executed_actions: &mut HashSet<usize>,
@@ -58,7 +58,7 @@ pub(crate) async fn run_triggered_actions(
 }
 
 async fn apply_action(
-    cluster_for_runner: &Arc<Mutex<PmmcCluster>>,
+    cluster_for_runner: &Arc<Mutex<ClusterRuntime>>,
     observer_for_runner: &Arc<WebSocketObserver>,
     pool: &mut ClientPool,
     memory: &mut RunnerMemory,
@@ -145,13 +145,13 @@ fn trigger_matches(
     }
 }
 
-async fn current_leader_index(cluster_for_runner: &Arc<Mutex<PmmcCluster>>) -> Option<usize> {
+async fn current_leader_index(cluster_for_runner: &Arc<Mutex<ClusterRuntime>>) -> Option<usize> {
     let cluster = cluster_for_runner.lock().await;
     cluster.leader_index().await
 }
 
 async fn isolate_node(
-    cluster_for_runner: &Arc<Mutex<PmmcCluster>>,
+    cluster_for_runner: &Arc<Mutex<ClusterRuntime>>,
     node_index: usize,
 ) -> Option<(Uuid, Vec<Uuid>)> {
     let cluster = cluster_for_runner.lock().await;

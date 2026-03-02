@@ -1,17 +1,18 @@
 use std::sync::Arc;
 
-use tokio::time::Instant;
 use tokio::sync::mpsc;
+use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_simulator::NetworkSimulator,
+    cluster::{network_fabric::NetworkFabric, network_simulator::NetworkSimulator},
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
-        config::{LearningStrategy, PmmcNodeConfig},
+        config::{LearningStrategy, Roles},
         message_router::{MessageRouter, RoutingDecision},
+        peer_topology::PeerTopology,
         pmmc::{acceptor::Acceptor, leader::Leader, replica::Replica},
     },
     paxos_command::PaxosCommand,
@@ -20,7 +21,7 @@ use crate::{
 pub struct NodeState {
     uuid: Uuid,
     acceptor: Option<Acceptor>,
-    peers: Arc<NetworkSimulator>,
+    fabric: Arc<NetworkFabric>,
     leader: Option<Leader>,
     replica: Option<Replica>,
     router: MessageRouter,
@@ -31,20 +32,24 @@ impl NodeState {
     pub async fn init(
         uuid: Uuid,
         quorum: usize,
-        peers: Arc<NetworkSimulator>,
+        fabric: Arc<NetworkFabric>,
+        handle: Arc<NetworkSimulator>,
         persistence: NodePersistence,
         observer: Arc<dyn PaxosObserver>,
-        config: PmmcNodeConfig,
-        topology: crate::node::peer_topology::PeerTopology,
+        roles: Roles,
+        topology: PeerTopology,
     ) -> anyhow::Result<Self> {
-        let leader = if config.roles.proposer {
+        let mut roles_str = Vec::new();
+
+        let leader = if roles.proposer {
+            roles_str.push("Leader".to_string());
             Some(
                 Leader::new(
                     uuid,
                     persistence.clone(),
                     quorum,
                     topology.learners.clone(),
-                    Arc::clone(&peers),
+                    Arc::clone(&handle),
                     Arc::clone(&observer),
                 )
                 .await?,
@@ -53,37 +58,28 @@ impl NodeState {
             None
         };
 
-        let acceptor = if config.roles.acceptor {
+        let acceptor = if roles.acceptor {
+            roles_str.push("Acceptor".to_string());
             Some(Acceptor::new(uuid, persistence.clone(), Arc::clone(&observer)).await?)
         } else {
             None
         };
 
-        let replica = if config.roles.learner {
+        let replica = if roles.learner {
+            roles_str.push("Replica".to_string());
+
             Some(
                 Replica::new(
                     uuid,
                     persistence.clone(),
                     Arc::clone(&observer),
-                    Arc::clone(&peers),
+                    Arc::clone(&fabric),
                 )
                 .await?,
             )
         } else {
             None
         };
-
-        // Emit capabilities event
-        let mut roles_str = Vec::new();
-        if config.roles.proposer {
-            roles_str.push("Leader".to_string());
-        }
-        if config.roles.acceptor {
-            roles_str.push("Acceptor".to_string());
-        }
-        if config.roles.learner {
-            roles_str.push("Replica".to_string());
-        }
 
         observer.on_event(Event::NodeCapabilities {
             id: uuid,
@@ -100,7 +96,7 @@ impl NodeState {
             acceptor,
             leader,
             replica,
-            peers,
+            fabric,
             router,
             observer,
         };
@@ -140,18 +136,15 @@ impl NodeState {
 
     pub async fn propose(&self, cmd: PaxosCommand) {
         if let Some(replica) = &self.replica {
-            // Add to the replica's local proposals store
             let slot = replica.state.add_proposal(cmd.clone()).await;
-            // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
-            // Passive leaders ignore it; only the active one runs a commander.
             self.observer.on_event(Event::PmmcPropose {
                 id: self.uuid,
                 slot,
                 cmd: cmd.clone(),
                 created_at: current_timestamp_millis(),
             });
-            self.peers
-                .broadcast(Message::PROPOSE {
+            self.fabric
+                .broadcast(self.uuid, Message::PROPOSE {
                     from: self.uuid,
                     slot,
                     cmd,
@@ -228,16 +221,16 @@ impl NodeState {
         let decision = self.router.pmmc_route_response(msg);
         match decision {
             RoutingDecision::Broadcast => {
-                self.peers.broadcast(msg.clone()).await;
+                self.fabric.broadcast(self.uuid, msg.clone()).await;
             }
             RoutingDecision::SendTo(to) => {
                 self.emit_pmmc_message_event(msg, to);
-                self.peers.send(to, msg.clone()).await;
+                self.fabric.send(self.uuid, to, msg.clone()).await;
             }
             RoutingDecision::SendToMany(nodes) => {
                 for node in nodes {
                     self.emit_pmmc_message_event(msg, node);
-                    self.peers.send(node, msg.clone()).await;
+                    self.fabric.send(self.uuid, node, msg.clone()).await;
                 }
             }
             RoutingDecision::Drop => {}
@@ -308,17 +301,17 @@ impl NodeState {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc, time::Duration};
+    use std::{sync::Arc, time::Duration};
 
     use tokio::{sync::mpsc, time::timeout};
     use uuid::Uuid;
 
     use crate::{
-        cluster::network_simulator::NetworkSimulator,
+        cluster::{network_fabric::NetworkFabric, network_simulator::NetworkSimulator},
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
         node::{
-            classic_paxos::ballot::Ballot, config::PmmcNodeConfig, peer_topology::PeerTopology,
+            classic_paxos::ballot::Ballot, config::Roles, peer_topology::PeerTopology,
             pvalue::PValue,
         },
         paxos_command::PaxosCommand,
@@ -339,26 +332,20 @@ mod tests {
         let node_id = Uuid::new_v4();
         let peer_id = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let (node_tx, _node_rx) = mpsc::channel(32);
         let (peer_tx, mut peer_rx) = mpsc::channel(32);
-
-        let mut peers_map = HashMap::new();
-        peers_map.insert(node_id, node_tx);
-        peers_map.insert(peer_id, peer_tx);
-        let peers = Arc::new(NetworkSimulator::new(
-            node_id,
-            peers_map,
-            Arc::clone(&observer),
-        ).await);
+        let fabric = Arc::new(NetworkFabric::new(Arc::clone(&observer)));
+        fabric.register(peer_id, peer_tx).await;
+        let handle = Arc::new(NetworkSimulator::from_fabric(node_id, Arc::clone(&fabric)));
         let topology = PeerTopology::new(vec![peer_id], vec![node_id], vec![node_id]);
 
         let state = NodeState::init(
             node_id,
             2,
-            peers,
+            fabric,
+            handle,
             crate::common::persistence::ClusterPersistence::for_test("node_state").node(node_id),
             observer,
-            PmmcNodeConfig::default(),
+            Roles::default(),
             topology,
         )
         .await

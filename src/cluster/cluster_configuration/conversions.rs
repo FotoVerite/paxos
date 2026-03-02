@@ -17,32 +17,38 @@ impl TryFrom<(&ClusterConfiguration, ReconfigPatch)> for ClusterConfiguration {
             nodes: prev.nodes.clone(),
         };
         for (uuid, roles) in patch.add {
-            if new_config.nodes.contains_key(&uuid) {
+            if new_config.nodes.iter().any(|(existing_uuid, _)| *existing_uuid == uuid) {
                 return Err(ReconfigError::InvalidMembership(
                     "Node ID already in configuration",
                 ));
             }
-            new_config.nodes.insert(uuid, roles);
+            new_config.nodes.push((uuid, roles));
         }
 
         for uuid in patch.remove {
-            if !new_config.nodes.contains_key(&uuid) {
+            if !new_config
+                .nodes
+                .iter()
+                .any(|(existing_uuid, _)| *existing_uuid == uuid)
+            {
                 return Err(ReconfigError::InvalidMembership(
                     "Node not in configuration",
                 ));
             }
-            new_config.nodes.remove(&uuid);
+            new_config
+                .nodes
+                .retain(|(existing_uuid, _)| *existing_uuid != uuid);
         }
         if let Some(strategy) = patch.strategy {
             new_config.strategy = strategy
         }
-        if !new_config.nodes.values().any(|roles| roles.proposer) {
+        if !new_config.nodes.iter().any(|(_, roles)| roles.proposer) {
             return Err(ReconfigError::NoLeaders);
         }
-        if !new_config.nodes.values().any(|roles| roles.acceptor) {
+        if !new_config.nodes.iter().any(|(_, roles)| roles.acceptor) {
             return Err(ReconfigError::NoAcceptors);
         }
-        if !new_config.nodes.values().any(|roles| roles.learner) {
+        if !new_config.nodes.iter().any(|(_, roles)| roles.learner) {
             return Err(ReconfigError::NoLearners);
         }
         Ok(new_config)
@@ -71,11 +77,12 @@ mod tests {
         let l0 = Uuid::from_u128(11);
         let r0 = Uuid::from_u128(2);
         let r1 = Uuid::from_u128(22);
-        let mut nodes = HashMap::new();
-        nodes.insert(a0, roles(false, true, false));
-        nodes.insert(l0, roles(true, false, false));
-        nodes.insert(r0, roles(false, false, true));
-        nodes.insert(r1, roles(false, false, true));
+        let nodes = vec![
+            (a0, roles(false, true, false)),
+            (l0, roles(true, false, false)),
+            (r0, roles(false, false, true)),
+            (r1, roles(false, false, true)),
+        ];
 
         ClusterConfiguration {
             id: 7,
@@ -103,7 +110,7 @@ mod tests {
         .expect("add should succeed");
 
         assert_eq!(next.id, prev.id + 1);
-        assert!(next.nodes.contains_key(&new_uuid));
+        assert!(next.nodes.iter().any(|(uuid, _)| *uuid == new_uuid));
         assert_eq!(next.nodes.len(), prev.nodes.len() + 1);
     }
 
@@ -124,7 +131,7 @@ mod tests {
         ))
         .expect("remove should succeed");
 
-        assert!(!next.nodes.contains_key(&remove_uuid));
+        assert!(!next.nodes.iter().any(|(uuid, _)| *uuid == remove_uuid));
         assert_eq!(next.nodes.len(), prev.nodes.len() - 1);
     }
 

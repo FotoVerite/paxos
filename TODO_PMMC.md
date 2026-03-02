@@ -3,10 +3,101 @@
 This file tracks PMMC work across protocol, cluster/runtime structure, persistence,
 scenarios, visualizer behavior, and upcoming reconfiguration support.
 
+## Topline Architecture Plan
+
+This is the intended runtime/control-plane shape for PMMC and, eventually, Classic.
+Use this section as the reference when refactoring constructors, runtime ownership,
+and reconfiguration support.
+
+### Core boundaries
+
+1. `ClusterConfiguration` is desired state.
+- It says which logical members should exist, in what order, with which roles.
+- It owns config identity/epoch and transition strategy metadata.
+- It must preserve declared member order so scenario indices and display labels remain stable.
+
+2. `RuntimeRegistry` is actual live state.
+- It owns the currently running node runtimes keyed by UUID.
+- It tracks runtime lifecycle, not just existence.
+- Expected lifecycle states:
+  - `Starting`
+  - `Passive`
+  - `CatchingUp`
+  - `Active`
+  - `Retiring`
+  - `Stopped`
+  - `Crashed`
+
+3. `NetworkFabric` is transport only.
+- It owns routable endpoints and injected failures.
+- It should not know protocol semantics, config epochs, or role logic.
+- It should support:
+  - register endpoint
+  - unregister endpoint
+  - send / broadcast
+  - partition / loss / delay rules
+
+4. `Reconciler` moves actual runtime toward desired configuration.
+- It diffs `ClusterConfiguration` against `RuntimeRegistry`.
+- It decides:
+  - add runtime
+  - remove runtime
+  - rebuild runtime
+  - update roles under stable UUID
+- It gates activation based on protocol/config transition safety.
+
+### What this means concretely
+
+- UUID is the internal durable identity.
+- Node index/label is presentation and scenario convenience only.
+- Role assignment must be changeable without changing node identity.
+- Desired state and actual state must not be the same object.
+- Scenarios should request control-plane actions, not hand-build clusters directly.
+
+### Immediate implementation order
+
+1. Make `ClusterConfiguration` the canonical PMMC input path.
+- [ ] Add explicit bootstrap constructors for Classic configuration too.
+
+2. Introduce runtime registry.
+- [ ] Add `RuntimeRegistry` under `/Users/matthewbergman/learning/paxos/src/cluster/`.
+- [ ] Store live runtime handles, simulator handles, and lifecycle state by UUID.
+- [ ] Stop treating `Vec<Node>` as the only runtime source of truth.
+
+3. Separate runtime lifecycle from transport registration.
+- [ ] Give each logical node a stable ingress/endpoint entry in the registry/fabric.
+- [ ] Make node rebuild/restart possible without changing logical identity.
+- [ ] Make add/remove/update work through registry operations instead of cluster reconstruction.
+
+4. Add configuration application/reconciliation.
+- [ ] Add `apply_configuration(new_cfg)` on PMMC runtime.
+- [ ] Compute `added`, `removed`, `changed`, and `unchanged` members.
+- [ ] Handle:
+  - [ ] add node
+  - [ ] retire node
+  - [ ] role change under same UUID
+  - [ ] activation after catch-up
+
+5. Move scenario layer onto the control plane.
+- [ ] Scenarios should request:
+  - [ ] `apply_configuration`
+  - [ ] `crash_node`
+  - [ ] `heal_node`
+  - [ ] `propose`
+- [ ] Scenarios should stop manufacturing raw cluster node lists directly.
+
+### Best-practice rules to keep in mind
+
+- Do not confuse desired configuration with running runtime state.
+- Do not let ordering fall out of `HashMap` iteration or UUID sorting.
+- Do not treat joins as instantly active; leave room for catch-up and passive startup.
+- Do not delete retired nodes immediately; allow phased retirement and later cleanup.
+- Keep safety in protocol/config state, not in transport code.
+- Keep transport dumb and deterministic.
+
 ## Current Priorities
 
 ### P0: Keep PMMC stable while we reorganize
-- [ ] Extract PMMC scenario execution out of `/Users/matthewbergman/learning/paxos/src/web/cluster_manager.rs` into dedicated PMMC scenario runner/modules. `ClusterManager::start_scenario` should only coordinate setup, cluster construction, and runner dispatch.
 - [ ] Run and verify the current PMMC scenarios end-to-end after the persistence refactor:
   - [ ] `pmmc_single_client`
   - [ ] `pmmc_role_split`
@@ -15,23 +106,15 @@ scenarios, visualizer behavior, and upcoming reconfiguration support.
   - [ ] `pmmc_leader_partition_heal`
   - [ ] `pmmc_acceptor_majority_loss_then_recover`
   - [ ] `pmmc_staggered_leader_join`
-- [ ] Add one regression test that asserts PMMC state files land under `.paxos/ip/<ip>/nodes/<uuid>/`.
-- [ ] Remove any remaining PMMC code/tests that still defensively reference legacy flat filenames.
 
 ### P1: Finish the architecture cleanup before deeper feature work
 - [ ] Rename the node-facing compatibility type `NetworkSimulator` to `NetworkHandle`.
 - [ ] Stop treating `network_simulator.rs` as a real abstraction; leave it as a compatibility shim or remove it entirely.
-- [ ] Replace parallel `node_uuids` / `peers` / `receivers` / `configs` construction in clusters with a single endpoint/build record.
-- [ ] Centralize PMMC cluster construction paths so `new`, `new_with_configs`, and `new_with_configuration` share one builder pipeline.
 - [ ] Do the same cleanup for Classic so cluster bootstrapping shape matches PMMC.
 
 ## Protocol / Correctness
 
 ### PMMC core behavior
-- [x] Fix PMMC routing so `Message::ACCEPTED` reaches replicas in role-split topologies.
-- [x] Remove hot-spin in `PmmcNode` election branch when node has no leader role.
-- [x] Remove hot-spin in replica applier loop when no decision is available.
-- [x] Ensure role-split cluster can reach replica `ACK` compaction for decided slots.
 - [ ] Ensure duplicate client requests use cache-only response path and never rebroadcast `PROPOSE`.
 - [ ] Guard cache updates and reply paths against commands with missing client metadata.
 - [ ] Audit `Leader`, `Replica`, and `Commander` for any remaining repeated broadcast loops after `ACK` compaction.
@@ -50,7 +133,6 @@ scenarios, visualizer behavior, and upcoming reconfiguration support.
 ## Cluster / Runtime Reorganization
 
 ### Transport and node lifecycle
-- [x] Introduce shared `NetworkFabric`.
 - [ ] Make `NetworkFabric` the only real transport abstraction.
 - [ ] Support node lifecycle operations cleanly at the cluster level:
   - [ ] add logical node
@@ -63,12 +145,10 @@ scenarios, visualizer behavior, and upcoming reconfiguration support.
   - [ ] `Receiver<Message>`
   - [ ] node config
   - [ ] persistence handle
-- [ ] Make cluster membership/configuration the source of truth for UUID ownership.
+- [ ] Introduce `RuntimeRegistry` as the actual source of truth for live node runtimes.
+- [ ] Introduce a reconciler/apply path that moves runtime state toward `ClusterConfiguration`.
 
 ### Configuration model
-- [x] Introduce `ClusterConfiguration`.
-- [x] Add `TryFrom`-based patch conversion.
-- [x] Validate structural requirements (`NoLeaders`, `NoAcceptors`, `NoLearners`).
 - [ ] Decide whether `Default` should remain available for `ClusterConfiguration`.
 - [ ] Move configuration code to a clearer module layout if it keeps growing:
   - [ ] `configuration/`
@@ -83,8 +163,6 @@ scenarios, visualizer behavior, and upcoming reconfiguration support.
 ## Persistence
 
 ### New persistence layout
-- [x] Move PMMC/Classic state under `.paxos/ip/<ip>/nodes/<uuid>/`.
-- [x] Introduce `ClusterPersistence -> NodePersistence`.
 - [ ] Consider one more cleanup pass to make role code use semantic filenames only and never mention UUID-derived filenames.
 - [ ] Decide whether logs should move under `.paxos/ip/<ip>/logs/`.
 
@@ -105,8 +183,7 @@ scenarios, visualizer behavior, and upcoming reconfiguration support.
 This is the next major section, but we should prepare the code now so it lands cleanly.
 
 ### Immediate groundwork
-- [ ] Make configuration the source of truth for node identity and role assignment.
-- [ ] Thread `ClusterConfiguration` through PMMC cluster construction by default instead of only special paths.
+- [ ] Thread `ClusterConfiguration` through Classic cluster construction by default instead of raw node-config vectors.
 - [ ] Add explicit config id / epoch to active runtime state.
 - [ ] Decide where config awareness lives in message handling:
   - [ ] on every message
@@ -132,13 +209,7 @@ This is the next major section, but we should prepare the code now so it lands c
 ## Scenario Backlog
 
 ### Existing scenarios
-- [x] `pmmc_single_client`
-- [x] `pmmc_role_split`
-- [x] `pmmc_leader_crash`
-- [x] `pmmc_replica_crash_failover`
-- [x] `pmmc_leader_partition_heal`
-- [x] `pmmc_acceptor_majority_loss_then_recover`
-- [x] `pmmc_staggered_leader_join`
+- Existing PMMC demo scenarios are implemented. Keep them verified as the runtime changes.
 
 ### Still needed
 - [ ] `leader_crash_recovery_with_client_retry`
@@ -180,8 +251,6 @@ This is the next major section, but we should prepare the code now so it lands c
 ## Reconfiguring a State Machine Paper Track
 
 ### Content scaffolding
-- [x] Create the paper section and routes.
-- [x] Add the railway / control-room theme.
 - [ ] Fill each section with actual content instead of placeholders/rough structure.
 - [ ] Add diagrams tied to the actual implementation plan.
 
@@ -203,6 +272,10 @@ This is the next major section, but we should prepare the code now so it lands c
   - [ ] message flow
   - [ ] runtime ownership
   - [ ] persistence layout
+- [ ] Add a concise cluster/runtime note:
+  - [ ] `ClusterConfiguration` vs `RuntimeRegistry`
+  - [ ] `NetworkFabric` responsibilities
+  - [ ] reconciler / `apply_configuration(...)`
 - [ ] Add a reconfiguration architecture note once the strategy boundary is finalized.
 - [ ] Keep `/Users/matthewbergman/learning/paxos/AGENTS.md` in sync when architecture assumptions change.
 
@@ -215,8 +288,8 @@ This is the next major section, but we should prepare the code now so it lands c
 
 ## Suggested Next Order
 
-1. Stabilize current PMMC scenarios after the persistence refactor.
-2. Finish cluster/runtime cleanup around `NetworkFabric` and node construction.
-3. Make `ClusterConfiguration` the default PMMC construction path.
-4. Add reconfiguration events and strategy boundary.
-5. Start with the simplest reconfiguration scenario and visualizer support.
+1. Add `Cluster::new_with_configuration(...)` for Classic.
+2. Introduce `RuntimeRegistry` for PMMC and move crash/heal/isolate through it.
+3. Add a stable endpoint/runtime split so rebuilds do not change logical node identity.
+4. Add `apply_configuration(...)` / reconciliation for PMMC.
+5. Then start actual reconfiguration strategy work and visuals.

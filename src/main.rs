@@ -1,5 +1,5 @@
 use paxos::{
-    cluster::{cluster::Cluster, pmmc_cluster::PmmcCluster},
+    cluster::{cluster::Cluster, cluster_runtime::ClusterRuntime},
     console_observer::ConsoleObserver,
     node::config::{PmmcNodeConfig, Roles},
     scenario::ScenarioBuilder,
@@ -169,11 +169,9 @@ async fn run_pmmc_builtin_scenario() -> anyhow::Result<()> {
     println!("Starting PMMC cluster with basic console scenario...\n");
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = PmmcCluster::new(0, ip, 5, observer).await?;
+    let cluster = ClusterRuntime::new(ip, 5, observer).await?;
 
-    for i in 0..cluster.num_nodes() {
-        cluster.nodes[i].start();
-    }
+    cluster.start_all().await;
     sleep(Duration::from_millis(250)).await;
 
     println!("--- PMMC Phase: single client proposal ---");
@@ -252,10 +250,8 @@ async fn run_pmmc_role_split_debug_scenario(alternate_replicas: bool) -> anyhow:
         });
     }
 
-    let mut cluster = PmmcCluster::new_with_configs(0, ip, configs, observer).await?;
-    for i in 0..cluster.num_nodes() {
-        cluster.nodes[i].start();
-    }
+    let cluster = ClusterRuntime::new_with_configs(ip, configs, observer).await?;
+    cluster.start_all().await;
     sleep(Duration::from_millis(350)).await;
 
     println!(

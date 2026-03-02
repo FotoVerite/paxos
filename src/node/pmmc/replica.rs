@@ -1,4 +1,4 @@
-use crate::cluster::network_simulator::NetworkSimulator;
+use crate::cluster::network_fabric::NetworkFabric;
 use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
 use crate::message::{ClientMessage, Message};
@@ -20,14 +20,14 @@ pub struct Replica {
     store: Arc<KVStore>,
     pub state: Arc<ReplicaState>,
     observer: Arc<dyn PaxosObserver>,
-    peers: Arc<NetworkSimulator>,
+    fabric: Arc<NetworkFabric>,
 }
 impl Replica {
     pub async fn new(
         uuid: Uuid,
         persistence: NodePersistence,
         observer: Arc<dyn PaxosObserver>,
-        peers: Arc<NetworkSimulator>,
+        fabric: Arc<NetworkFabric>,
     ) -> Result<Self> {
         #[cfg(feature = "persistence")]
         let data: ReplicaDurable = persistence.load("replica.bin").await?;
@@ -39,7 +39,7 @@ impl Replica {
             store: Arc::new(KVStore::init(uuid, persistence).await?),
             state: Arc::new(ReplicaState::init(data)),
             observer: Arc::clone(&observer),
-            peers,
+            fabric,
         };
         replica.spawn_applier().await;
         Ok(replica)
@@ -68,7 +68,7 @@ impl Replica {
         tx: Sender<ClientMessage>,
     ) {
         let state = Arc::clone(&self.state);
-        let peers = Arc::clone(&self.peers);
+        let fabric = Arc::clone(&self.fabric);
         let uuid = self.uuid;
         let observer = Arc::clone(&self.observer);
 
@@ -87,7 +87,7 @@ impl Replica {
                                     let cmd_for_event = cmd.clone();
                                     // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
                                     // Passive leaders ignore it; only the active one runs a commander.
-                                    peers.broadcast(Message::PROPOSE {
+                                    fabric.broadcast(uuid, Message::PROPOSE {
                                         from: uuid,
                                         slot,
                                         cmd,
@@ -155,13 +155,12 @@ impl Replica {
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
-    use std::{collections::HashMap, sync::Arc};
+    use std::sync::Arc;
 
     use tokio::{sync::mpsc, time::timeout};
     use uuid::Uuid;
 
     use crate::{
-        cluster::network_simulator::NetworkSimulator,
         message::{ClientMessage, Message},
         monitor::{NoOpObserver, PaxosObserver},
         node::{classic_paxos::ballot::Ballot, pvalue::PValue},
@@ -174,6 +173,9 @@ mod tests {
     async fn new_replica() -> Replica {
         let uuid = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
+            Arc::clone(&observer),
+        ));
         Replica {
             uuid,
             store: Arc::new(
@@ -187,7 +189,7 @@ mod tests {
             ),
             state: Arc::new(ReplicaState::init(ReplicaDurable::default())),
             observer: Arc::clone(&observer),
-            peers: Arc::new(NetworkSimulator::new(uuid, HashMap::new(), observer).await),
+            fabric,
         }
     }
 
@@ -196,20 +198,16 @@ mod tests {
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let peer = Uuid::new_v4();
         let (peer_tx, peer_rx) = mpsc::channel(16);
-        let mut peers_map = HashMap::new();
-        peers_map.insert(peer, peer_tx);
-
-        let peers = Arc::new(NetworkSimulator::new(
-            uuid,
-            peers_map,
+        let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
             Arc::clone(&observer),
-        ).await);
+        ));
+        fabric.register(peer, peer_tx).await;
         let replica = Replica::new(
             uuid,
             crate::common::persistence::ClusterPersistence::for_test("replica_with_peer")
                 .node(uuid),
             observer,
-            peers,
+            fabric,
         )
             .await
             .expect("replica init should work");
@@ -398,17 +396,15 @@ mod tests {
     async fn duplicate_client_request_returns_cached_response_after_first_execution() {
         let uuid = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let peers = Arc::new(NetworkSimulator::new(
-            uuid,
-            HashMap::new(),
+        let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
             Arc::clone(&observer),
-        ).await);
+        ));
         let replica = Replica::new(
             uuid,
             crate::common::persistence::ClusterPersistence::for_test("replica_client")
                 .node(uuid),
             observer,
-            peers,
+            fabric,
         )
             .await
             .expect("replica init should work");

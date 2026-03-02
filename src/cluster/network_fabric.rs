@@ -14,7 +14,7 @@ pub enum NetworkFailure {
     None,
     Delay(Duration),
     PacketLoss { drop_rate: f32 },
-    Partition { nodes: HashSet<Uuid> },
+    Partition 
 }
 
 pub struct NetworkFabric {
@@ -70,7 +70,7 @@ impl NetworkFabric {
         let failures = self.failures.lock().await;
         match failures.get(&(from, to)) {
             Some(NetworkFailure::None) => false,
-            Some(NetworkFailure::Partition { nodes }) => nodes.contains(&to),
+            Some(NetworkFailure::Partition) => true,
             Some(NetworkFailure::PacketLoss { drop_rate }) => {
                 let mut rng = rand::rng();
                 rng.random::<f32>() < *drop_rate

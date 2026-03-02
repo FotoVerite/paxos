@@ -5,12 +5,16 @@ use tokio::time::{Duration, sleep};
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
-use crate::cluster::{cluster::Cluster, pmmc_cluster::PmmcCluster};
+use crate::cluster::{
+    cluster::Cluster,
+    cluster_configuration::ClusterConfiguration,
+    cluster_runtime::ClusterRuntime,
+};
 use crate::common::persistence::Persistence;
 use crate::decree_generator::DecreeGenerator;
 use crate::message::Message;
 use crate::monitor::PaxosObserver;
-use crate::node::config::{ClassicNodeConfig, LearningStrategy, PmmcNodeConfig, Roles};
+use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
 use crate::paxos_command::PaxosCommand;
 use crate::console_observer::ConsoleObserver;
 use crate::web::scenarios::{
@@ -29,7 +33,7 @@ pub struct ClusterManager {
 #[derive(Clone)]
 enum ActiveCluster {
     Classic(Arc<Mutex<Cluster>>),
-    Pmmc(Arc<Mutex<PmmcCluster>>),
+    Pmmc(Arc<Mutex<ClusterRuntime>>),
 }
 
 struct ScenarioObserver {
@@ -65,20 +69,21 @@ impl ClusterManager {
     async fn create_classic_cluster(
         id: usize,
         ip: IpAddr,
-        configs: Vec<ClassicNodeConfig>,
+        configuration: ClusterConfiguration,
         observer: Arc<dyn crate::monitor::PaxosObserver>,
     ) -> anyhow::Result<Cluster> {
-        Cluster::new_with_configs(id, ip, configs, observer).await
+        Cluster::new_with_configuration(id, ip, configuration, observer).await
     }
 
-    fn pmmc_configs_for_scenario(
+    fn pmmc_configuration_for_scenario(
+        ip: IpAddr,
         scenario_type: ScenarioType,
         node_count: usize,
-    ) -> Vec<PmmcNodeConfig> {
+    ) -> anyhow::Result<ClusterConfiguration> {
         if scenario_type.uses_role_split_topology() {
             let mut configs = Vec::with_capacity(7);
             for _ in 0..2 {
-                configs.push(PmmcNodeConfig {
+                configs.push(crate::node::config::PmmcNodeConfig {
                     roles: Roles {
                         proposer: true,
                         acceptor: false,
@@ -87,7 +92,7 @@ impl ClusterManager {
                 });
             }
             for _ in 0..2 {
-                configs.push(PmmcNodeConfig {
+                configs.push(crate::node::config::PmmcNodeConfig {
                     roles: Roles {
                         proposer: false,
                         acceptor: false,
@@ -96,7 +101,7 @@ impl ClusterManager {
                 });
             }
             for _ in 0..3 {
-                configs.push(PmmcNodeConfig {
+                configs.push(crate::node::config::PmmcNodeConfig {
                     roles: Roles {
                         proposer: false,
                         acceptor: true,
@@ -104,21 +109,39 @@ impl ClusterManager {
                     },
                 });
             }
-            configs
+            ClusterConfiguration::bootstrap_pmmc(ip, configs).map_err(Into::into)
         } else {
-            vec![PmmcNodeConfig::default(); node_count]
+            ClusterConfiguration::bootstrap_pmmc(
+                ip,
+                vec![crate::node::config::PmmcNodeConfig::default(); node_count],
+            )
+            .map_err(Into::into)
         }
     }
 
-    async fn create_pmmc_cluster(
-        id: usize,
+    async fn create_pmmc_runtime(
+        ip: IpAddr,
+        configuration: ClusterConfiguration,
+        observer: Arc<dyn crate::monitor::PaxosObserver>,
+    ) -> anyhow::Result<ClusterRuntime> {
+        ClusterRuntime::new_with_configuration(ip, configuration, observer).await
+    }
+
+    fn classic_configuration_for_scenario(
         ip: IpAddr,
         scenario_type: ScenarioType,
-        node_count: usize,
-        observer: Arc<dyn crate::monitor::PaxosObserver>,
-    ) -> anyhow::Result<PmmcCluster> {
-        let configs = Self::pmmc_configs_for_scenario(scenario_type, node_count);
-        PmmcCluster::new_with_configs(id, ip, configs, observer).await
+        requested_node_count: usize,
+        learning_strategy: LearningStrategy,
+        classic_spec: Option<&crate::web::scenarios::classic::spec::ClassicScenarioSpec>,
+    ) -> anyhow::Result<(ClusterConfiguration, usize)> {
+        let actual_node_count = classic_spec
+            .and_then(|spec| spec.node_count())
+            .unwrap_or_else(|| scenario_type.classic_node_count(requested_node_count));
+        let configs: Vec<ClassicNodeConfig> = classic_spec
+            .and_then(|spec| spec.node_configs(learning_strategy.clone()))
+            .unwrap_or_else(|| scenario_type.classic_configs(actual_node_count, learning_strategy));
+        let configuration = ClusterConfiguration::bootstrap_classic(ip, configs)?;
+        Ok((configuration, actual_node_count))
     }
 
     async fn prepare_scenario_start(
@@ -186,14 +209,9 @@ impl ClusterManager {
         classic_spec: Option<&crate::web::scenarios::classic::spec::ClassicScenarioSpec>,
     ) -> anyhow::Result<(ActiveCluster, usize)> {
         if scenario_type.is_pmmc() {
-            let mut cluster = Self::create_pmmc_cluster(
-                0,
-                ip,
-                scenario_type,
-                requested_node_count,
-                scenario_observer,
-            )
-            .await?;
+            let configuration =
+                Self::pmmc_configuration_for_scenario(ip, scenario_type, requested_node_count)?;
+            let cluster = Self::create_pmmc_runtime(ip, configuration, scenario_observer).await?;
             let node_count = cluster.num_nodes();
             info!(
                 runtime = "pmmc",
@@ -206,9 +224,7 @@ impl ClusterManager {
                 .set_cluster_info(node_count, cluster.quorum_size(), cluster.get_node_uuids())
                 .await;
             cluster.enable_failures().await;
-            for i in 0..node_count {
-                cluster.nodes[i].start();
-            }
+            cluster.start_all().await;
             sleep(Duration::from_millis(100)).await;
 
             let cluster_arc = Arc::new(Mutex::new(cluster));
@@ -216,14 +232,16 @@ impl ClusterManager {
                 .await;
             Ok((ActiveCluster::Pmmc(cluster_arc), node_count))
         } else {
-            let actual_node_count = classic_spec
-                .and_then(|spec| spec.node_count())
-                .unwrap_or_else(|| scenario_type.classic_node_count(requested_node_count));
-            let configs = classic_spec
-                .and_then(|spec| spec.node_configs(learning_strategy.clone()))
-                .unwrap_or_else(|| scenario_type.classic_configs(actual_node_count, learning_strategy));
+            let (configuration, _actual_node_count) = Self::classic_configuration_for_scenario(
+                ip,
+                scenario_type,
+                requested_node_count,
+                learning_strategy,
+                classic_spec,
+            )?;
             let mut cluster =
-                Self::create_classic_cluster(0, ip, configs, scenario_observer.clone()).await?;
+                Self::create_classic_cluster(0, ip, configuration, scenario_observer.clone())
+                    .await?;
             if let Some(spec) = classic_spec {
                 spec.emit_startup_events(scenario_observer, &cluster.get_node_uuids(), leader_node);
             } else {

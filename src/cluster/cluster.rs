@@ -1,5 +1,5 @@
 use rand::Rng;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     cluster::{
+        cluster_configuration::ClusterConfiguration,
         network_fabric::NetworkFabric,
         network_simulator::{NetworkFailure, NetworkSimulator},
     },
@@ -14,7 +15,10 @@ use crate::{
     common::types::DecreeId,
     message::Message,
     monitor::PaxosObserver,
-    node::{config::ClassicNodeConfig, paxos_node::PaxosNode},
+    node::{
+        config::{ClassicNodeConfig, LearningStrategy},
+        paxos_node::PaxosNode,
+    },
     paxos_command::PaxosCommand,
 };
 
@@ -62,41 +66,31 @@ impl Cluster {
         configs: Vec<ClassicNodeConfig>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
-        let total_number = configs.len();
+        let configuration = ClusterConfiguration::bootstrap_classic(ip, configs)?;
+        Self::new_with_configuration(id, ip, configuration, observer).await
+    }
 
-        let node_uuids: Vec<Uuid> = (0..total_number).map(|i| Self::node_uuid(ip, i)).collect();
+    pub async fn new_with_configuration(
+        id: usize,
+        ip: IpAddr,
+        configuration: ClusterConfiguration,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> anyhow::Result<Self> {
+        let total_number = configuration.len();
+        let node_uuids = configuration.member_uuids();
         let persistence = Persistence::cluster(ip);
 
-        let proposer_ids: Vec<Uuid> = configs
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| c.roles.proposer)
-            .map(|(i, _)| node_uuids[i])
-            .collect();
-        // Build role-aware peer lists in transport IDs (Uuid).
-        let acceptor_ids: Vec<Uuid> = configs
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| c.roles.acceptor)
-            .map(|(i, _)| node_uuids[i])
-            .collect();
-
-        let learner_ids: Vec<Uuid> = configs
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| c.roles.learner)
-            .map(|(i, _)| node_uuids[i])
-            .collect();
-
         use crate::node::peer_topology::PeerTopology;
-        let topology = PeerTopology::new(
-            acceptor_ids.clone(),
-            learner_ids.clone(),
-            proposer_ids.clone(),
-        );
-
-        // Calculate quorum based on acceptor count
-        let quorum = acceptor_ids.len() / 2 + 1;
+        let topology = PeerTopology::from(&configuration);
+        let quorum = configuration.quorum();
+        let configs: Vec<ClassicNodeConfig> = configuration
+            .members()
+            .into_iter()
+            .map(|(_, roles)| ClassicNodeConfig {
+                roles,
+                learning_strategy: LearningStrategy::default(),
+            })
+            .collect();
 
         let mut peers = Vec::<Sender<Message>>::with_capacity(total_number);
         let mut receivers = Vec::<Receiver<Message>>::with_capacity(total_number);
@@ -222,18 +216,10 @@ impl Cluster {
         };
         if let (Some(sim1), Some(sim2)) = (self.simulators.get(&node1), self.simulators.get(&node2))
         {
-            let mut partition_set = HashSet::new();
-            partition_set.insert(node1);
-            let failure = NetworkFailure::Partition {
-                nodes: partition_set,
-            };
+            let failure = NetworkFailure::Partition;
             sim2.set_failure(node1, failure.clone()).await;
 
-            let mut partition_set = HashSet::new();
-            partition_set.insert(node2);
-            let failure = NetworkFailure::Partition {
-                nodes: partition_set,
-            };
+            let failure = NetworkFailure::Partition;
             sim1.set_failure(node2, failure).await;
         }
     }
@@ -296,4 +282,58 @@ impl Cluster {
 fn random_node_idx(n: usize) -> usize {
     let mut rng = rand::rng();
     rng.random_range(0..n) as usize // inclusive range
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{net::IpAddr, sync::Arc};
+
+    use crate::{
+        cluster::cluster_configuration::ClusterConfiguration,
+        monitor::NoOpObserver,
+        node::config::{ClassicNodeConfig, Roles},
+    };
+
+    use super::Cluster;
+
+    #[tokio::test]
+    async fn new_with_configuration_builds_classic_cluster() {
+        let ip = IpAddr::V4([127, 0, 0, 11].into());
+        let configs = vec![
+            ClassicNodeConfig {
+                roles: Roles {
+                    proposer: true,
+                    acceptor: true,
+                    learner: true,
+                },
+                learning_strategy: Default::default(),
+            },
+            ClassicNodeConfig {
+                roles: Roles {
+                    proposer: false,
+                    acceptor: true,
+                    learner: true,
+                },
+                learning_strategy: Default::default(),
+            },
+            ClassicNodeConfig {
+                roles: Roles {
+                    proposer: true,
+                    acceptor: true,
+                    learner: false,
+                },
+                learning_strategy: Default::default(),
+            },
+        ];
+        let configuration =
+            ClusterConfiguration::bootstrap_classic(ip, configs).expect("config should build");
+
+        let cluster = Cluster::new_with_configuration(0, ip, configuration, Arc::new(NoOpObserver))
+            .await
+            .expect("classic cluster should build from configuration");
+
+        assert_eq!(cluster.num_nodes(), 3);
+        assert_eq!(cluster.quorum_size(), 2);
+        assert_eq!(cluster.get_node_uuids().len(), 3);
+    }
 }
