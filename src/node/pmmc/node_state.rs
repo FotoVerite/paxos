@@ -1,11 +1,14 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::{
-    cluster::{network_fabric::NetworkFabric, network_simulator::NetworkSimulator},
+    cluster::{
+        cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
+        network_simulator::NetworkSimulator,
+    },
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
     monitor::{Event, PaxosObserver, current_timestamp_millis},
@@ -15,7 +18,7 @@ use crate::{
         peer_topology::PeerTopology,
         pmmc::{acceptor::Acceptor, leader::Leader, replica::Replica},
     },
-    paxos_command::PaxosCommand,
+    rsm::entry::KVEntry,
 };
 
 pub struct NodeState {
@@ -31,24 +34,22 @@ pub struct NodeState {
 impl NodeState {
     pub async fn init(
         uuid: Uuid,
-        quorum: usize,
         fabric: Arc<NetworkFabric>,
         handle: Arc<NetworkSimulator>,
         persistence: NodePersistence,
         observer: Arc<dyn PaxosObserver>,
         roles: Roles,
-        topology: PeerTopology,
+        configuration: Arc<ClusterConfiguration>,
     ) -> anyhow::Result<Self> {
         let mut roles_str = Vec::new();
-
+        let topology = PeerTopology::from(&*configuration);
         let leader = if roles.proposer {
             roles_str.push("Leader".to_string());
             Some(
                 Leader::new(
                     uuid,
                     persistence.clone(),
-                    quorum,
-                    topology.learners.clone(),
+                    Arc::clone(&configuration),
                     Arc::clone(&handle),
                     Arc::clone(&observer),
                 )
@@ -74,6 +75,7 @@ impl NodeState {
                     persistence.clone(),
                     Arc::clone(&observer),
                     Arc::clone(&fabric),
+                    Arc::clone(&configuration),
                 )
                 .await?,
             )
@@ -111,6 +113,13 @@ impl NodeState {
         }
     }
 
+    pub async fn is_stopped(&self) -> bool {
+        match &self.replica {
+            None => true,
+            Some(replica) => replica.is_stopped().await,
+        }
+    }
+
     pub async fn election_deadline(&self) -> Option<Instant> {
         if let Some(leader) = &self.leader {
             Some(leader.election_deadline().await)
@@ -131,25 +140,6 @@ impl NodeState {
                 return;
             }
             leader.start_election().await;
-        }
-    }
-
-    pub async fn propose(&self, cmd: PaxosCommand) {
-        if let Some(replica) = &self.replica {
-            let slot = replica.state.add_proposal(cmd.clone()).await;
-            self.observer.on_event(Event::PmmcPropose {
-                id: self.uuid,
-                slot,
-                cmd: cmd.clone(),
-                created_at: current_timestamp_millis(),
-            });
-            self.fabric
-                .broadcast(self.uuid, Message::PROPOSE {
-                    from: self.uuid,
-                    slot,
-                    cmd,
-                })
-                .await;
         }
     }
 
@@ -304,14 +294,17 @@ mod tests {
     use std::{sync::Arc, time::Duration};
 
     use tokio::{sync::mpsc, time::timeout};
-    use uuid::Uuid;
 
     use crate::{
-        cluster::{network_fabric::NetworkFabric, network_simulator::NetworkSimulator},
+        cluster::{
+            cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
+            network_simulator::NetworkSimulator,
+        },
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
         node::{
-            classic_paxos::ballot::Ballot, config::Roles, peer_topology::PeerTopology,
+            classic_paxos::ballot::Ballot,
+            config::{PmmcNodeConfig, Roles},
             pvalue::PValue,
         },
         paxos_command::PaxosCommand,
@@ -329,24 +322,30 @@ mod tests {
 
     #[tokio::test]
     async fn accepted_is_routed_to_replica_and_replies_ack() {
-        let node_id = Uuid::new_v4();
-        let peer_id = Uuid::new_v4();
+        let ip = std::net::IpAddr::V4([127, 0, 0, 1].into());
+        let configuration = Arc::new(
+            ClusterConfiguration::bootstrap_pmmc(
+                ip,
+                vec![PmmcNodeConfig::default(), PmmcNodeConfig::default()],
+            )
+            .expect("test config should bootstrap"),
+        );
+        let node_id = configuration.member(0).expect("node 0 should exist");
+        let peer_id = configuration.member(1).expect("node 1 should exist");
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let (peer_tx, mut peer_rx) = mpsc::channel(32);
         let fabric = Arc::new(NetworkFabric::new(Arc::clone(&observer)));
         fabric.register(peer_id, peer_tx).await;
         let handle = Arc::new(NetworkSimulator::from_fabric(node_id, Arc::clone(&fabric)));
-        let topology = PeerTopology::new(vec![peer_id], vec![node_id], vec![node_id]);
 
         let state = NodeState::init(
             node_id,
-            2,
             fabric,
             handle,
             crate::common::persistence::ClusterPersistence::for_test("node_state").node(node_id),
             observer,
             Roles::default(),
-            topology,
+            configuration,
         )
         .await
         .expect("node state init should work");

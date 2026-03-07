@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::{
+    cluster::configuration_handler::types::ConfigurationCommand,
     common::types::DecreeId,
     node::{classic_paxos::ballot::Ballot, pvalue::PValue},
     paxos_command::PaxosCommand,
@@ -68,7 +69,12 @@ pub enum Message {
         ballot: Ballot,
         pvalues: Vec<PValue>,
     },
-
+    RECONFIGURE {
+        from: Uuid,
+        to: Uuid,
+        request_id: u64,
+        cmd: ConfigurationCommand,
+    },
     HEARTBEAT {
         from: Uuid,
         ballot: Ballot,
@@ -103,6 +109,12 @@ pub enum Message {
         to: Uuid,
         ballot: Ballot,
         pvalue: PValue,
+    },
+    CATCHUP_REQUEST {
+        from: Uuid,
+        to: Uuid,
+        from_slot: usize,
+        epoch: usize,
     },
 }
 

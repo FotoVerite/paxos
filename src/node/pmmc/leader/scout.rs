@@ -7,14 +7,12 @@ use uuid::Uuid;
 
 use crate::{
     message::Message,
-    monitor::PaxosObserver,
     node::{classic_paxos::ballot::Ballot, pvalue::PValue},
 };
 pub struct Scout {
     uuid: Uuid,
     quorum: usize,
     ballot: Ballot,
-    observer: Arc<dyn PaxosObserver>,
     adopted: HashSet<Uuid>,
     pvalues: HashMap<usize, PValue>,
 }
@@ -24,11 +22,10 @@ impl Scout {
         uuid: Uuid,
         quorum: usize,
         ballot: Ballot,
-        observer: Arc<dyn PaxosObserver>,
+        _observer: Arc<dyn crate::monitor::PaxosObserver>,
     ) -> Self {
         Self {
             uuid,
-            observer,
             quorum,
             ballot,
             adopted: HashSet::new(),

@@ -1,12 +1,18 @@
+use std::sync::Arc;
+
 use tokio::sync::{Mutex, Notify, mpsc::Sender};
 use uuid::Uuid;
 
 use crate::{
+    cluster::cluster_configuration::ClusterConfiguration,
     message::ClientMessage,
     node::{
         pmmc::{
             proposal::ProposalsStore,
-            replica::replica_state::{durable::ReplicaDurable, volatile::ReplicaVolatile},
+            replica::replica_state::{
+                durable::{ReconfigurationStrategyInEffect, ReplicaDurable},
+                volatile::ReplicaVolatile,
+            },
         },
         pvalue::PValue,
     },
@@ -16,6 +22,20 @@ use crate::{
 
 pub mod durable;
 mod volatile;
+
+pub enum ReplicaAdmissionOutcome {
+    Admitted {
+        slot: usize,
+        cmd: PaxosCommand,
+    },
+    Queued,
+    Stopped,
+    CachedResponse {
+        client_id: Uuid,
+        request_id: u64,
+        response: Option<ReplyOutcome>,
+    },
+}
 
 pub struct ReplicaData {
     durable: ReplicaDurable,
@@ -37,7 +57,10 @@ pub struct ReplicaState {
 }
 
 impl ReplicaState {
-    pub fn init(data: ReplicaDurable) -> Self {
+    pub fn init(mut data: ReplicaDurable, configuration: Arc<ClusterConfiguration>) -> Self {
+        data.set_alpha(configuration.alpha_max_inflight());
+        data.set_starting_slots(configuration.starting_slot());
+        data.set_strategy(configuration.strategy());
         return Self {
             data: Mutex::new(ReplicaData {
                 durable: data,
@@ -52,7 +75,7 @@ impl ReplicaState {
         state.durable.proposals()
     }
 
-     pub async fn proposal_slot(&self) -> usize {
+    pub async fn proposal_slot(&self) -> usize {
         let state = self.data.lock().await;
         state.durable.proposal_slot()
     }
@@ -60,6 +83,11 @@ impl ReplicaState {
     pub async fn execution_slot(&self) -> usize {
         let state = self.data.lock().await;
         state.durable.execution_slot()
+    }
+
+    pub async fn max_inflight_exceeded(&self) -> bool {
+        let state = self.data.lock().await;
+        state.durable.max_inflight_exceeded()
     }
 
     pub async fn send_client_response(&self, client_id: ClientId, response: ClientMessage) {
@@ -73,57 +101,72 @@ impl ReplicaState {
         }
     }
 
+    pub async fn is_stopped(&self) -> bool {
+        let state = self.data.lock().await;
+        match state.durable.reconfiguration_strategy_in_effect() {
+            ReconfigurationStrategyInEffect::None => false,
+            ReconfigurationStrategyInEffect::StopSign { slot, delayed } => true,
+            ReconfigurationStrategyInEffect::Padding => true,
+            ReconfigurationStrategyInEffect::BrickWall => true,
+        }
+    }
+
     pub async fn wait_for_decision(&self) {
         self.decision_notify.notified().await;
     }
 
-    pub async fn proposal_handler(&self, cmd: PaxosCommand) -> Option<usize> {
+    pub async fn proposal_handler(&self, cmd: PaxosCommand) -> ReplicaAdmissionOutcome {
         let client_id = cmd.client_id();
         let request_id = cmd.request_id();
 
-        let send = {
-            let mut state = self.data.lock().await;
-            let (cached, response) = state.durable.is_cached(&cmd);
+        let mut state = self.data.lock().await;
+        let (cached, response) = state.durable.is_cached(&cmd);
 
-            if !cached {
-                let slot = state.durable.proposal_slot();
-                state.durable.add_proposal(cmd);
-                return Some(slot);
+        if !cached {
+            match state.durable.reconfiguration_strategy_in_effect() {
+                ReconfigurationStrategyInEffect::BrickWall => {
+                    return ReplicaAdmissionOutcome::Stopped;
+                }
+                _ => {}
+            }
+            let slot = state.durable.proposal_slot();
+            if state.durable.max_inflight_exceeded() {
+                state.volatile.queued.push_back(cmd.clone());
+                state.durable.add_to_cache(&cmd);
+                return ReplicaAdmissionOutcome::Queued;
+            }
+            let cmd = state.durable.add_proposal(cmd.clone());
+            return ReplicaAdmissionOutcome::Admitted { slot, cmd };
+        }
+
+        return ReplicaAdmissionOutcome::CachedResponse {
+            client_id,
+            request_id,
+            response,
+        };
+    }
+
+    pub async fn add_decision(&self, pvalue: PValue) -> Option<ReplicaAdmissionOutcome> {
+        let admitted = {
+            let mut state = self.data.lock().await;
+            match state.durable.reconfiguration_strategy_in_effect() {
+                ReconfigurationStrategyInEffect::BrickWall => {
+                    return Some(ReplicaAdmissionOutcome::Stopped);
+                }
+                _ => {}
             }
 
-            response.and_then(|response| {
-                state.volatile.sender(client_id).map(|tx| {
-                    (
-                        tx,
-                        ClientMessage::RESPONSE {
-                            request_id,
-                            response,
-                        },
-                    )
-                })
-            })
+            if state.durable.add_decision(pvalue) {
+                if let Some(cmd) = state.volatile.queued.pop_front() {
+                    let slot = state.durable.proposal_slot();
+                    let cmd = state.durable.add_proposal(cmd.clone());
+                    return Some(ReplicaAdmissionOutcome::Admitted { slot, cmd });
+                }
+            }
+            None
         };
-
-        if let Some((tx, msg)) = send {
-            let _ = tx.send(msg).await;
-            return None
-        }
-        return None
-    }
-
-    pub async fn add_proposal(&self, cmd: PaxosCommand) -> usize {
-        let mut state = self.data.lock().await;
-        let slot = state.durable.proposal_slot();
-        state.durable.add_proposal(cmd);
-        slot
-    }
-
-    pub async fn add_decision(&self, pvalue: PValue) {
-        {
-            let mut state = self.data.lock().await;
-            state.durable.add_decision(pvalue);
-        }
         self.decision_notify.notify_one();
+        return admitted;
     }
 
     pub async fn increment_execution_slot(&self) {

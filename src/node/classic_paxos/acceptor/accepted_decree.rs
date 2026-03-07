@@ -43,6 +43,7 @@ impl Default for AcceptedDecree {
             next_bal: Ballot {
                 number: 0,
                 node_id: Uuid::nil(),
+                epoch: 0,
             },
             prev_vote: PrevVote::default(),
         }

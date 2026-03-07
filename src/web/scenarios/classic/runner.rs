@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rand::Rng;
 use tokio::sync::Mutex;
 
-use crate::cluster::cluster::Cluster;
+use crate::cluster::classic_cluster::ClassicCluster;
 use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::decree_generator::DecreeGenerator;
 use crate::paxos_command::PaxosCommand;
@@ -14,7 +14,7 @@ pub struct ClassicScenarioExecution;
 
 impl ClassicScenarioExecution {
     pub async fn execute_iteration(
-        cluster: &Arc<Mutex<Cluster>>,
+        cluster: &Arc<Mutex<ClassicCluster>>,
         proposal_count: usize,
         decree_gen: &mut DecreeGenerator,
         spec: &ClassicScenarioSpec,
@@ -64,7 +64,7 @@ impl ClassicScenarioExecution {
     }
 
     async fn run_actions(
-        cluster: &Arc<Mutex<Cluster>>,
+        cluster: &Arc<Mutex<ClassicCluster>>,
         proposal_count: usize,
         spec: &ClassicScenarioSpec,
         observer: Arc<dyn PaxosObserver>,
@@ -96,7 +96,7 @@ impl ClassicScenarioExecution {
     }
 
     async fn partition_groups(
-        cluster: &Arc<Mutex<Cluster>>,
+        cluster: &Arc<Mutex<ClassicCluster>>,
         partition_a: &[usize],
         partition_b: &[usize],
         observer: Arc<dyn PaxosObserver>,
@@ -116,7 +116,7 @@ impl ClassicScenarioExecution {
     }
 
     async fn heal_groups(
-        cluster: &Arc<Mutex<Cluster>>,
+        cluster: &Arc<Mutex<ClassicCluster>>,
         partition_a: &[usize],
         partition_b: &[usize],
         observer: Arc<dyn PaxosObserver>,
@@ -136,7 +136,7 @@ impl ClassicScenarioExecution {
     }
 
     fn resolve_proposer_uuid(
-        cluster: &Cluster,
+        cluster: &ClassicCluster,
         selector: &ClassicProposerSelector,
         leader_for_runner: usize,
     ) -> Option<uuid::Uuid> {

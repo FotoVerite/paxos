@@ -11,7 +11,7 @@ use crate::{
         network_fabric::NetworkFabric,
         network_simulator::{NetworkFailure, NetworkSimulator},
     },
-    common::persistence::Persistence,
+    common::persistence::{ClusterPersistence, Persistence},
     common::types::DecreeId,
     message::Message,
     monitor::PaxosObserver,
@@ -23,22 +23,22 @@ use crate::{
 };
 
 pub trait NodeRef {
-    fn resolve_uuid(self, cluster: &Cluster) -> Option<Uuid>;
+    fn resolve_uuid(self, cluster: &ClassicCluster) -> Option<Uuid>;
 }
 
 impl NodeRef for Uuid {
-    fn resolve_uuid(self, _cluster: &Cluster) -> Option<Uuid> {
+    fn resolve_uuid(self, _cluster: &ClassicCluster) -> Option<Uuid> {
         Some(self)
     }
 }
 
 impl NodeRef for usize {
-    fn resolve_uuid(self, cluster: &Cluster) -> Option<Uuid> {
+    fn resolve_uuid(self, cluster: &ClassicCluster) -> Option<Uuid> {
         cluster.nodes.get(self).map(|n| n.uuid)
     }
 }
 
-pub struct Cluster {
+pub struct ClassicCluster {
     _id: usize,
     total_number: usize,
     pub nodes: Vec<PaxosNode>,
@@ -46,9 +46,11 @@ pub struct Cluster {
     simulators: HashMap<Uuid, Arc<NetworkSimulator>>,
     node_indices: HashMap<Uuid, usize>,
     quorum_size: usize,
+    persistence: Arc<ClusterPersistence>,
+    cleanup_on_drop: bool,
 }
 
-impl Cluster {
+impl ClassicCluster {
     pub async fn new(
         id: usize,
         ip: IpAddr,
@@ -78,7 +80,7 @@ impl Cluster {
     ) -> anyhow::Result<Self> {
         let total_number = configuration.len();
         let node_uuids = configuration.member_uuids();
-        let persistence = Persistence::cluster(ip);
+        let persistence = Arc::new(Persistence::cluster(ip));
 
         use crate::node::peer_topology::PeerTopology;
         let topology = PeerTopology::from(&configuration);
@@ -141,6 +143,8 @@ impl Cluster {
             simulators,
             node_indices,
             quorum_size: quorum,
+            persistence,
+            cleanup_on_drop: false,
         })
     }
 
@@ -278,6 +282,27 @@ impl Cluster {
         let name = format!("{}:{}", ip, node_id);
         Uuid::new_v5(&namespace, name.as_bytes())
     }
+
+    pub fn set_cleanup_on_drop(&mut self, enabled: bool) {
+        self.cleanup_on_drop = enabled;
+    }
+
+    pub async fn cleanup(&self) -> anyhow::Result<()> {
+        self.persistence.purge_cluster_dir().await?;
+        Ok(())
+    }
+}
+
+impl Drop for ClassicCluster {
+    fn drop(&mut self) {
+        if !self.cleanup_on_drop {
+            return;
+        }
+
+        if let Err(err) = self.persistence.purge_cluster_dir_blocking() {
+            tracing::warn!("failed to purge Classic cluster persistence on drop: {}", err);
+        }
+    }
 }
 fn random_node_idx(n: usize) -> usize {
     let mut rng = rand::rng();
@@ -294,7 +319,7 @@ mod tests {
         node::config::{ClassicNodeConfig, Roles},
     };
 
-    use super::Cluster;
+    use super::ClassicCluster;
 
     #[tokio::test]
     async fn new_with_configuration_builds_classic_cluster() {
@@ -328,7 +353,7 @@ mod tests {
         let configuration =
             ClusterConfiguration::bootstrap_classic(ip, configs).expect("config should build");
 
-        let cluster = Cluster::new_with_configuration(0, ip, configuration, Arc::new(NoOpObserver))
+        let cluster = ClassicCluster::new_with_configuration(0, ip, configuration, Arc::new(NoOpObserver))
             .await
             .expect("classic cluster should build from configuration");
 

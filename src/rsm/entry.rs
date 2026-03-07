@@ -34,25 +34,4 @@ impl KVEntry {
         Ok(())
     }
 
-    pub fn sub(&mut self, value: KVValue, version: KVVersion) -> KVResult<()> {
-        if self.version != version {
-            return Err(ClerkResponseError::ErrVersion {
-                version: self.version,
-            });
-        }
-        self.value -= value;
-        self.version.next();
-        Ok(())
-    }
-
-    pub fn mul(&mut self, value: KVValue, version: KVVersion) -> KVResult<()> {
-        if self.version != version {
-            return Err(ClerkResponseError::ErrVersion {
-                version: self.version,
-            });
-        }
-        self.value += value;
-        self.version.next();
-        Ok(())
-    }
 }

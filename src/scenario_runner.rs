@@ -1,4 +1,4 @@
-use crate::cluster::cluster::Cluster;
+use crate::cluster::classic_cluster::ClassicCluster;
 use crate::scenario::{Scenario, ScenarioStep};
 use tokio::time::sleep;
 
@@ -7,7 +7,7 @@ pub struct ScenarioRunner;
 impl ScenarioRunner {
     /// Execute a scenario against a cluster.
     /// No assertions - just runs the steps and logs what happens.
-    pub async fn run(cluster: &mut Cluster, scenario: &Scenario) -> anyhow::Result<()> {
+    pub async fn run(cluster: &mut ClassicCluster, scenario: &Scenario) -> anyhow::Result<()> {
         println!("\n=== Running Scenario: {} ===", scenario.name);
         println!("Description: {}", scenario.description);
         println!("Nodes: {}\n", scenario.node_count);
@@ -24,7 +24,7 @@ impl ScenarioRunner {
         Ok(())
     }
 
-    async fn execute_step(cluster: &mut Cluster, step: &ScenarioStep) -> anyhow::Result<()> {
+    async fn execute_step(cluster: &mut ClassicCluster, step: &ScenarioStep) -> anyhow::Result<()> {
         match step {
             ScenarioStep::Propose { command } => {
                 println!("  [PROPOSE] {}", command);
@@ -98,7 +98,7 @@ mod tests {
     async fn test_scenario_runner_basic() {
         let observer = Arc::new(ConsoleObserver);
         let ip = IpAddr::V4([127, 0, 0, 1].into());
-        let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
+        let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
         for i in 0..3 {
             cluster.nodes[i].start();

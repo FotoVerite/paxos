@@ -57,12 +57,12 @@ and reconfiguration support.
 ### Immediate implementation order
 
 1. Make `ClusterConfiguration` the canonical PMMC input path.
-- [ ] Add explicit bootstrap constructors for Classic configuration too.
+- [x] Add explicit bootstrap constructors for Classic configuration too.
 
 2. Introduce runtime registry.
-- [ ] Add `RuntimeRegistry` under `/Users/matthewbergman/learning/paxos/src/cluster/`.
-- [ ] Store live runtime handles, simulator handles, and lifecycle state by UUID.
-- [ ] Stop treating `Vec<Node>` as the only runtime source of truth.
+- [x] Add `RuntimeRegistry` under `/Users/matthewbergman/learning/paxos/src/cluster/`.
+- [x] Store live runtime handles, simulator handles, and lifecycle state by UUID.
+- [x] Stop treating `Vec<Node>` as the only runtime source of truth.
 
 3. Separate runtime lifecycle from transport registration.
 - [ ] Give each logical node a stable ingress/endpoint entry in the registry/fabric.
@@ -84,7 +84,7 @@ and reconfiguration support.
   - [ ] `crash_node`
   - [ ] `heal_node`
   - [ ] `propose`
-- [ ] Scenarios should stop manufacturing raw cluster node lists directly.
+- [x] Scenarios should stop manufacturing raw cluster node lists directly.
 
 ### Best-practice rules to keep in mind
 
@@ -108,9 +108,13 @@ and reconfiguration support.
   - [ ] `pmmc_staggered_leader_join`
 
 ### P1: Finish the architecture cleanup before deeper feature work
+- [x] Rename protocol-specific runtime owners clearly:
+  - [x] `Cluster` -> `ClassicCluster`
+  - [x] `ClusterRuntime` -> `PmmcCluster`
 - [ ] Rename the node-facing compatibility type `NetworkSimulator` to `NetworkHandle`.
 - [ ] Stop treating `network_simulator.rs` as a real abstraction; leave it as a compatibility shim or remove it entirely.
-- [ ] Do the same cleanup for Classic so cluster bootstrapping shape matches PMMC.
+- [x] Do the same cleanup for Classic so cluster bootstrapping shape matches PMMC.
+- [ ] Move scenario topology/config builders out of `ClusterManager` into reusable builders.
 
 ## Protocol / Correctness
 
@@ -165,6 +169,8 @@ and reconfiguration support.
 ### New persistence layout
 - [ ] Consider one more cleanup pass to make role code use semantic filenames only and never mention UUID-derived filenames.
 - [ ] Decide whether logs should move under `.paxos/ip/<ip>/logs/`.
+- [x] Add explicit cluster cleanup path for persisted state.
+- [x] Wire scenario stop/reset/start teardown through cluster cleanup before fallback purge.
 
 ### Persistence API cleanup
 - [ ] Remove unused generic `Persistence` wrapper if `ClusterPersistence` is sufficient.
@@ -183,7 +189,7 @@ and reconfiguration support.
 This is the next major section, but we should prepare the code now so it lands cleanly.
 
 ### Immediate groundwork
-- [ ] Thread `ClusterConfiguration` through Classic cluster construction by default instead of raw node-config vectors.
+- [x] Thread `ClusterConfiguration` through Classic cluster construction by default instead of raw node-config vectors.
 - [ ] Add explicit config id / epoch to active runtime state.
 - [ ] Decide where config awareness lives in message handling:
   - [ ] on every message
@@ -285,11 +291,13 @@ This is the next major section, but we should prepare the code now so it lands c
 - [ ] Remove `timeoutes.html` or fold it into the correct `timeouts.html` path if it is accidental duplication.
 - [ ] Audit stale warnings introduced by old PMMC experiments.
 - [ ] Trim compatibility shims once the new names and boundaries settle.
+- [ ] Remove unused `persistence` field from `PmmcCluster` or use it for rebuild/reconfiguration.
+- [ ] Remove or justify `ClusterConfiguration.status` if it remains unused.
+- [ ] Collapse remaining repeated PMMC full-node lifecycle logic after `NetworkHandle` rename settles.
 
 ## Suggested Next Order
 
-1. Add `Cluster::new_with_configuration(...)` for Classic.
-2. Introduce `RuntimeRegistry` for PMMC and move crash/heal/isolate through it.
-3. Add a stable endpoint/runtime split so rebuilds do not change logical node identity.
-4. Add `apply_configuration(...)` / reconciliation for PMMC.
-5. Then start actual reconfiguration strategy work and visuals.
+1. Rename the node-facing compatibility type `NetworkSimulator` to `NetworkHandle`.
+2. Add a stable endpoint/runtime split so rebuilds do not change logical node identity.
+3. Add `apply_configuration(...)` / reconciliation for PMMC.
+4. Then start actual reconfiguration strategy work and visuals.

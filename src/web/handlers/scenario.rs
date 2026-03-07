@@ -96,8 +96,13 @@ pub async fn propose_handler(
             }
             Err(e) => {
                 error!("Proposal failed: {}", e);
+                let status = if e.to_string().contains("not supported for PMMC") {
+                    axum::http::StatusCode::BAD_REQUEST
+                } else {
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR
+                };
                 (
-                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    status,
                     format!("Error: {}", e),
                 )
             }

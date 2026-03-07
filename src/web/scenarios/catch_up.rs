@@ -1,4 +1,4 @@
-use crate::cluster::cluster::Cluster;
+use crate::cluster::classic_cluster::ClassicCluster;
 use crate::common::persistence::Persistence;
 use crate::common::types::DecreeId;
 use crate::node::classic_paxos::acceptor::Acceptor;
@@ -18,7 +18,7 @@ impl CatchUpScenario {
 
         // Pre-populate ledger and acceptor state before cluster starts
         for node_id in 0..node_count {
-            let node_uuid = Cluster::node_uuid(ip, node_id);
+            let node_uuid = ClassicCluster::node_uuid(ip, node_id);
             let node_persistence = Persistence::cluster(ip).node(node_uuid);
             let ledger = if node_id == 0 {
                 catching_up_ledger.clone()
@@ -42,7 +42,7 @@ impl CatchUpScenario {
     }
 
     /// Propose to fill gaps in Node 0's ledger
-    pub async fn propose_gap_filler(cluster: &mut Cluster, node_id: usize) -> anyhow::Result<()> {
+    pub async fn propose_gap_filler(cluster: &mut ClassicCluster, node_id: usize) -> anyhow::Result<()> {
         // Get the node's ledger to find gaps
         let gap_decree_num = if let Some(node) = cluster.nodes.get(node_id) {
             node.get_next_gap().await

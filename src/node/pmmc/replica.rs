@@ -1,3 +1,4 @@
+use crate::cluster::cluster_configuration::ClusterConfiguration;
 use crate::cluster::network_fabric::NetworkFabric;
 use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
@@ -6,14 +7,18 @@ use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::node::pmmc::replica::replica_state::ReplicaState;
 use crate::node::pmmc::replica::replica_state::durable::ReplicaDurable;
 use crate::node::pvalue::PValue;
+use crate::paxos_command::PaxosCommand;
+use crate::rsm::entry::KVEntry;
 use crate::rsm::kv_store::KVStore;
 use anyhow::Result;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 mod replica_state;
+pub use replica_state::ReplicaAdmissionOutcome;
 
 pub struct Replica {
     uuid: Uuid,
@@ -22,22 +27,30 @@ pub struct Replica {
     observer: Arc<dyn PaxosObserver>,
     fabric: Arc<NetworkFabric>,
 }
+
+pub struct ReplicaData {
+    slot: usize,
+    store: HashMap<String, KVEntry>,
+}
+
 impl Replica {
     pub async fn new(
         uuid: Uuid,
         persistence: NodePersistence,
         observer: Arc<dyn PaxosObserver>,
         fabric: Arc<NetworkFabric>,
+        configuration: Arc<ClusterConfiguration>,
     ) -> Result<Self> {
         #[cfg(feature = "persistence")]
         let data: ReplicaDurable = persistence.load("replica.bin").await?;
 
         #[cfg(not(feature = "persistence"))]
         let data: ReplicaDurable = ReplicaDurable::default();
+
         let replica = Self {
             uuid,
-            store: Arc::new(KVStore::init(uuid, persistence).await?),
-            state: Arc::new(ReplicaState::init(data)),
+            store: Arc::new(KVStore::init(uuid, persistence, configuration.kv_store()).await?),
+            state: Arc::new(ReplicaState::init(data, configuration)),
             observer: Arc::clone(&observer),
             fabric,
         };
@@ -45,13 +58,43 @@ impl Replica {
         Ok(replica)
     }
 
+    pub async fn is_stopped(&self) -> bool {
+        self.state.is_stopped().await
+    }
+
+    pub async fn emit_replica_data(&self) -> ReplicaData {
+        let store = self.store.emit().await;
+        let slot = self.state.execution_slot().await;
+        ReplicaData { slot, store }
+    }
+
     pub async fn accepted(&self, pvalue: PValue) -> Message {
-        self.state.add_decision(pvalue.clone()).await;
+        match self.state.add_decision(pvalue.clone()).await {
+            Some(outcome) => match outcome {
+                ReplicaAdmissionOutcome::Admitted { slot, cmd } => {
+                    Self::send_proposal(
+                        self.uuid,
+                        Arc::clone(&self.fabric),
+                        slot,
+                        cmd,
+                        Arc::clone(&self.observer),
+                    )
+                    .await;
+                }
+
+                _ => {}
+            },
+            None => {}
+        };
         Message::ACK {
             from: self.uuid,
             to: pvalue.ballot().node_id,
             slot: pvalue.slot(),
         }
+    }
+
+    pub async fn max_inflight_exceeded(&self) -> bool {
+        self.state.max_inflight_exceeded().await
     }
 
     pub async fn handle_message(&self, msg: Message) -> Message {
@@ -76,37 +119,65 @@ impl Replica {
         tokio::spawn(async move {
             loop {
                 select! {
-                        Some(msg) = rx.recv() => {
-                            match msg {
-                                ClientMessage::PROPOSE { cmd } => {
-                                    // Add to local proposals store (handles dedup/caching)
-                                    let slot = match state.proposal_handler(cmd.clone()).await {
-                                        Some(slot) => slot,
-                                        None => continue,
-                                    };
-                                    let cmd_for_event = cmd.clone();
-                                    // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
-                                    // Passive leaders ignore it; only the active one runs a commander.
-                                    fabric.broadcast(uuid, Message::PROPOSE {
-                                        from: uuid,
-                                        slot,
-                                        cmd,
-                                    }).await;
-                                    observer.on_event(Event::PmmcPropose {
-                                        id: uuid,
-                                        slot,
-                                        cmd: cmd_for_event,
-                                        created_at: current_timestamp_millis(),
-                                    });
-                                },
-                                _ => {},
-                            }
-                        }
+                    Some(msg) = rx.recv() => {
+                        match msg {
+                            ClientMessage::PROPOSE { cmd } => {
+                                // Add to local proposals store (handles dedup/caching)
+                                 match state.proposal_handler(cmd.clone()).await {
+                                    replica_state::ReplicaAdmissionOutcome::Admitted { slot, cmd } =>  {
+                                        Self::send_proposal(
+                                            uuid,
+                                            Arc::clone(&fabric),
+                                            slot,
+                                            cmd,
+                                            Arc::clone(&observer)
+                                        ).await;
+                                    },
+                                    replica_state::ReplicaAdmissionOutcome::Queued => {},
+                                    replica_state::ReplicaAdmissionOutcome::Stopped => {},
+                                    replica_state::ReplicaAdmissionOutcome::CachedResponse { client_id, request_id, response } => {
+                                        if let Some(outcome ) = response {
+                                         state.send_client_response(client_id, ClientMessage::RESPONSE { request_id, response: outcome }).await
+                                        }
+                                    },
+                                                                 };
+                                // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
+                                // Passive leaders ignore it; only the active one runs a commander.
 
-                        else => break,
+                            },
+                            _ => {},
+                        }
                     }
+
+                    else => break,
+                }
             }
         });
+    }
+
+    async fn send_proposal(
+        uuid: Uuid,
+        fabric: Arc<NetworkFabric>,
+        slot: usize,
+        cmd: PaxosCommand,
+        observer: Arc<dyn PaxosObserver>,
+    ) {
+        fabric
+            .broadcast(
+                uuid,
+                Message::PROPOSE {
+                    from: uuid,
+                    slot,
+                    cmd: cmd.clone(),
+                },
+            )
+            .await;
+        observer.on_event(Event::PmmcPropose {
+            id: uuid,
+            slot,
+            cmd,
+            created_at: current_timestamp_millis(),
+        })
     }
 
     pub async fn spawn_applier(&self) {
@@ -155,20 +226,29 @@ impl Replica {
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
-    use std::sync::Arc;
+    use std::{net::IpAddr, sync::Arc};
 
     use tokio::{sync::mpsc, time::timeout};
     use uuid::Uuid;
 
     use crate::{
+        cluster::cluster_configuration::ClusterConfiguration,
         message::{ClientMessage, Message},
         monitor::{NoOpObserver, PaxosObserver},
-        node::{classic_paxos::ballot::Ballot, pvalue::PValue},
+        node::{classic_paxos::ballot::Ballot, config::PmmcNodeConfig, pvalue::PValue},
         paxos_command::PaxosCommand,
         rsm::kv_store::KVStore,
     };
 
-    use super::{Replica, ReplicaDurable, ReplicaState};
+    use super::{Replica, ReplicaAdmissionOutcome, ReplicaDurable, ReplicaState};
+
+    fn config_for_test() -> Arc<ClusterConfiguration> {
+        let ip = IpAddr::V4([127, 0, 0, 1].into());
+        Arc::new(
+            ClusterConfiguration::bootstrap_pmmc(ip, vec![PmmcNodeConfig::default()])
+                .expect("test config should bootstrap"),
+        )
+    }
 
     async fn new_replica() -> Replica {
         let uuid = Uuid::new_v4();
@@ -183,11 +263,15 @@ mod tests {
                     uuid,
                     crate::common::persistence::ClusterPersistence::for_test("pmmc_replica")
                         .node(uuid),
+                    None,
                 )
                 .await
                 .expect("store init should work"),
             ),
-            state: Arc::new(ReplicaState::init(ReplicaDurable::default())),
+            state: Arc::new(ReplicaState::init(
+                ReplicaDurable::default(),
+                config_for_test(),
+            )),
             observer: Arc::clone(&observer),
             fabric,
         }
@@ -208,9 +292,10 @@ mod tests {
                 .node(uuid),
             observer,
             fabric,
+            config_for_test(),
         )
-            .await
-            .expect("replica init should work");
+        .await
+        .expect("replica init should work");
 
         (replica, peer, peer_rx)
     }
@@ -306,7 +391,11 @@ mod tests {
         let local = client_cmd(40, 5);
         let decided = client_cmd(50, 6);
 
-        replica.state.add_proposal(local).await;
+        let outcome = replica.state.proposal_handler(local).await;
+        assert!(matches!(
+            outcome,
+            ReplicaAdmissionOutcome::Admitted { slot: 0, .. }
+        ));
         let _ = replica
             .handle_message(Message::ACCEPTED {
                 from: Uuid::new_v4(),
@@ -331,7 +420,11 @@ mod tests {
         let local = client_cmd(60, 10);
         let decided = client_cmd(70, 11);
 
-        replica.state.add_proposal(local.clone()).await;
+        let outcome = replica.state.proposal_handler(local.clone()).await;
+        assert!(matches!(
+            outcome,
+            ReplicaAdmissionOutcome::Admitted { slot: 0, .. }
+        ));
         let _ = replica
             .handle_message(Message::ACCEPTED {
                 from: Uuid::new_v4(),
@@ -385,7 +478,10 @@ mod tests {
             })
             .await;
 
-        let slot = replica.state.add_proposal(fresh).await;
+        let slot = match replica.state.proposal_handler(fresh).await {
+            ReplicaAdmissionOutcome::Admitted { slot, .. } => slot,
+            _ => panic!("fresh proposal should be admitted"),
+        };
         assert_eq!(
             slot, 1,
             "replica must not repropose slot 0 after learning it"
@@ -401,13 +497,13 @@ mod tests {
         ));
         let replica = Replica::new(
             uuid,
-            crate::common::persistence::ClusterPersistence::for_test("replica_client")
-                .node(uuid),
+            crate::common::persistence::ClusterPersistence::for_test("replica_client").node(uuid),
             observer,
             fabric,
+            config_for_test(),
         )
-            .await
-            .expect("replica init should work");
+        .await
+        .expect("replica init should work");
         let client_id = Uuid::new_v4();
         let cmd = PaxosCommand::PUT {
             key: "dup".to_string(),

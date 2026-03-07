@@ -121,14 +121,10 @@ impl CommanderState {
         return Message::NACK;
     }
 
+    #[cfg(test)]
     pub async fn proposals(&self) -> CommanderPendingProposals {
         let state = self.data.lock().await;
         state.proposals.clone()
-    }
-
-    pub async fn replicas(&self) -> HashSet<Uuid> {
-        let state = self.data.lock().await;
-        state.replicas.clone()
     }
 
     pub async fn tick_snapshot(&self) -> (CommanderPendingProposals, HashSet<Uuid>) {
@@ -178,15 +174,6 @@ impl CommanderState {
         state.deadline = Instant::now() + base + Duration::from_millis(jitter);
     }
 
-    pub async fn success(&self) {
-        let mut state = self.data.lock().await;
-        state.aimd_timeout.success();
-    }
-
-    pub async fn backoff(&self) {
-        let mut state = self.data.lock().await;
-        state.aimd_timeout.backoff();
-    }
 }
 
 #[cfg(test)]

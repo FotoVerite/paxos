@@ -3,7 +3,7 @@ use std::{cmp::Ordering, fmt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    node::classic_paxos::ballot::{self, Ballot},
+    node::classic_paxos::ballot::Ballot,
     paxos_command::PaxosCommand,
 };
 

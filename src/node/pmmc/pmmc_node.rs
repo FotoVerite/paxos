@@ -1,4 +1,4 @@
-use std::{future::pending, sync::Arc, time::Duration};
+use std::{collections::HashMap, future::pending, sync::Arc, time::Duration};
 
 use tokio::{
     select,
@@ -9,12 +9,11 @@ use tokio::{
 use uuid::Uuid;
 
 use crate::{
-    cluster::{network_fabric::NetworkFabric, network_simulator::NetworkSimulator},
+    cluster::{cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric, network_simulator::NetworkSimulator},
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
     monitor::PaxosObserver,
-    node::{config::Roles, peer_topology::PeerTopology, pmmc::node_state::NodeState},
-    paxos_command::PaxosCommand,
+    node::{config::Roles, pmmc::node_state::NodeState}, rsm::entry::KVEntry,
 };
 
 pub struct PmmcNode {
@@ -29,21 +28,16 @@ impl PmmcNode {
         fabric: Arc<NetworkFabric>,
         handle: Arc<NetworkSimulator>,
         persistence: NodePersistence,
-        quorum: usize,
         roles: Roles,
-        topology: PeerTopology,
+        configuration: Arc<ClusterConfiguration>,
     ) -> anyhow::Result<Self> {
         Ok(Self {
             uuid,
             state: Arc::new(
-                NodeState::init(uuid, quorum, fabric, handle, persistence, observer, roles, topology)
+                NodeState::init(uuid, fabric, handle, persistence, observer, roles, configuration)
                     .await?,
             ),
         })
-    }
-
-    pub async fn propose(&self, cmd: PaxosCommand) {
-        self.state.propose(cmd).await;
     }
 
     pub async fn connect_client(
@@ -55,6 +49,10 @@ impl PmmcNode {
 
     pub async fn is_leader(&self) -> bool {
         self.state.is_leader().await
+    }
+
+    pub async fn is_stopped(&self) -> bool  {
+        return self.state.is_stopped().await;
     }
 
     pub fn start(&self, mut rx: Receiver<Message>) -> JoinHandle<()> {
@@ -102,12 +100,11 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
+        cluster::cluster_configuration::ClusterConfiguration,
         cluster::network_simulator::NetworkSimulator,
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
-        node::{
-            classic_paxos::ballot::Ballot, peer_topology::PeerTopology,
-        },
+        node::{classic_paxos::ballot::Ballot, config::PmmcNodeConfig},
     };
 
     use super::PmmcNode;
@@ -120,8 +117,16 @@ mod tests {
         Uuid,
         Uuid,
     ) {
-        let node_id = Uuid::new_v4();
-        let peer_id = Uuid::new_v4();
+        let ip = std::net::IpAddr::V4([127, 0, 0, 1].into());
+        let configuration = Arc::new(
+            ClusterConfiguration::bootstrap_pmmc(
+                ip,
+                vec![PmmcNodeConfig::default(), PmmcNodeConfig::default()],
+            )
+            .expect("test config should bootstrap"),
+        );
+        let node_id = configuration.member(0).expect("node 0 should exist");
+        let peer_id = configuration.member(1).expect("node 1 should exist");
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let (inbox_tx, inbox_rx) = mpsc::channel(64);
         let (peer_tx, peer_rx) = mpsc::channel(64);
@@ -131,7 +136,6 @@ mod tests {
         ));
         fabric.register(peer_id, peer_tx).await;
         let handle = Arc::new(NetworkSimulator::from_fabric(node_id, Arc::clone(&fabric)));
-        let topology = PeerTopology::new(vec![peer_id], vec![], vec![node_id]);
 
         let node = PmmcNode::new(
             node_id,
@@ -139,9 +143,8 @@ mod tests {
             fabric,
             handle,
             crate::common::persistence::ClusterPersistence::for_test("pmmc_node").node(node_id),
-            2,
             crate::node::config::Roles::default(),
-            topology,
+            configuration,
         )
         .await
         .expect("node init should work");
@@ -204,7 +207,7 @@ mod tests {
             .send(Message::ADOPTED {
                 from: Uuid::new_v4(),
                 to: node_id,
-                ballot: Ballot::new(0, node_id),
+                ballot: Ballot::with_epoch(0, node_id, 1),
                 pvalues: vec![],
             })
             .await

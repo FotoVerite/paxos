@@ -5,7 +5,7 @@
 /// due to network failures.
 mod test_helpers;
 
-use paxos::{cluster::cluster::Cluster, paxos_command::PaxosCommand};
+use paxos::{cluster::classic_cluster::ClassicCluster, paxos_command::PaxosCommand};
 use std::net::IpAddr;
 use std::sync::Arc;
 use test_helpers::RecordingObserver;
@@ -20,7 +20,7 @@ async fn test_retry_fires_with_incomplete_quorum() {
 
     let observer = RecordingObserver::new().arc();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(
+    let mut cluster = ClassicCluster::new(
         0,
         ip,
         5,
@@ -172,7 +172,7 @@ async fn test_retry_timeout_cancels_old_proposal() {
 
     let observer = RecordingObserver::new().arc();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(
+    let mut cluster = ClassicCluster::new(
         0,
         ip,
         5,

@@ -9,11 +9,7 @@ use crate::{
     monitor::PaxosObserver,
     node::{
         classic_paxos::ballot::Ballot,
-        pmmc::{
-            leader::leader_state::{durable::LeaderDurable, volatile::LeaderVolatile},
-            proposal::ProposalsStore,
-        },
-        pvalue::PValue,
+        pmmc::leader::leader_state::{durable::LeaderDurable, volatile::LeaderVolatile},
     },
     paxos_command::PaxosCommand,
 };
@@ -27,37 +23,39 @@ pub struct LeaderData {
 
 pub struct LeaderState {
     data: Mutex<LeaderData>,
+    id: Uuid,
+    epoch: usize,
 }
 
 impl LeaderState {
-    pub fn init(id: Uuid, data: LeaderDurable) -> Self {
-        let durable = LeaderDurable::init(id, data);
+    pub fn init(data: LeaderDurable, id: Uuid, epoch: usize,) -> Self {
         let volatile = LeaderVolatile::default();
         return Self {
-            data: Mutex::new(LeaderData { durable, volatile }),
+            data: Mutex::new(LeaderData { durable: data, volatile }),
+            id,
+            epoch,
         };
     }
 
     pub async fn start_scout(
         &self,
-        uuid: Uuid,
         quorum: usize,
         observer: Arc<dyn PaxosObserver>,
     ) -> Ballot {
         let mut state = self.data.lock().await;
         //TODO bump ballot
         let highest_seen = state.volatile.highest_seen;
-        let ballot = state.durable.bump_ballot(highest_seen);
+        let ballot = state.durable.bump_ballot(self.id, self.epoch, highest_seen);
         state
             .volatile
-            .start_scout(uuid, ballot, quorum, observer)
+            .start_scout(self.id, ballot, quorum, observer)
             .await;
         ballot
     }
 
     pub async fn ballot(&self) -> Ballot {
         let state = self.data.lock().await;
-        state.durable.ballot()
+        state.durable.ballot(self.id, self.epoch)
     }
 
     pub async fn is_active(&self) -> bool {
@@ -67,7 +65,6 @@ impl LeaderState {
 
     pub async fn set_as_active(
         &self,
-        uuid: Uuid,
         quorum: usize,
         ballot: Ballot,
         replicas: Vec<Uuid>,
@@ -75,7 +72,7 @@ impl LeaderState {
         peers: Arc<NetworkSimulator>,
     ) -> bool {
         let mut state = self.data.lock().await;
-        if ballot != state.durable.ballot() {
+        if ballot != state.durable.ballot(self.id, self.epoch) {
             return false;
         }
         if state.volatile.highest_seen > ballot {
@@ -89,23 +86,8 @@ impl LeaderState {
         let proposals = state.durable.proposal();
         state
             .volatile
-            .start_commander(uuid, quorum, ballot, replicas, proposals, observer, peers);
+            .start_commander(self.id, quorum, ballot, replicas, proposals, observer, peers);
         true
-    }
-
-    pub async fn set_as_passive(&self) {
-        let mut state = self.data.lock().await;
-        state.durable.set_as_passive();
-    }
-
-    pub async fn is_stale_ballot(&self, ballot: Ballot) -> bool {
-        let state = self.data.lock().await;
-        state.durable.is_stale_ballot(ballot)
-    }
-
-    pub async fn pmax(&self, pvalues: Vec<PValue>) {
-        let mut state = self.data.lock().await;
-        state.durable.pmax(pvalues);
     }
 
     pub async fn add(&self, slot: usize, cmd: PaxosCommand) {
@@ -115,14 +97,9 @@ impl LeaderState {
         }
     }
 
-    pub async fn proposal(&self) -> ProposalsStore {
-        let data = self.data.lock().await;
-        data.durable.proposal()
-    }
-
     pub async fn heartbeat_handler(&self, ballot: Ballot) {
         let mut state = self.data.lock().await;
-        if state.durable.is_stale_ballot(ballot) {
+        if state.durable.is_stale_ballot(self.id, self.epoch, ballot) {
             return;
         }
         state.durable.set_as_passive();
@@ -139,7 +116,7 @@ impl LeaderState {
 
     pub async fn preempt(&self, ballot: Ballot) {
         let mut state = self.data.lock().await;
-        if state.durable.is_stale_ballot(ballot) {
+        if state.durable.is_stale_ballot(self.id, self.epoch, ballot) {
             return;
         }
         state.durable.set_as_passive();
@@ -148,6 +125,11 @@ impl LeaderState {
         state.volatile.drop_commander().await;
         state.volatile.aimd_backoff();
         state.volatile.reset_election_deadline();
+    }
+
+    pub async fn dump(&self) -> LeaderDurable {
+        let state = self.data.lock().await;
+        state.durable.dump().await
     }
 
     pub async fn handle_p1b(&self, msg: Message) -> Message {
@@ -165,15 +147,6 @@ impl LeaderState {
         state.volatile.ack(from, slot).await;
     }
 
-    pub async fn compact(&self, slots: &[usize]) {
-        let mut state = self.data.lock().await;
-        state.durable.compact(slots);
-    }
-
-    pub async fn dump(&self) -> LeaderDurable {
-        let state = self.data.lock().await;
-        state.durable.clone()
-    }
 }
 
 #[cfg(test)]
@@ -187,11 +160,18 @@ mod tests {
     use super::{LeaderData, LeaderState, durable::LeaderDurable, volatile::LeaderVolatile};
 
     fn mk_state(active: bool, ballot: Ballot) -> LeaderState {
+        let id = if ballot.node_id == Uuid::nil() {
+            Uuid::from_u128(1)
+        } else {
+            ballot.node_id
+        };
         LeaderState {
             data: tokio::sync::Mutex::new(LeaderData {
-                durable: LeaderDurable::for_test(active, ballot, BTreeMap::new()),
+                durable: LeaderDurable::for_test(active, ballot.number, BTreeMap::new()),
                 volatile: LeaderVolatile::default(),
             }),
+            id,
+            epoch: ballot.epoch,
         }
     }
 

@@ -12,25 +12,20 @@ use crate::{
 pub struct LeaderDurable {
     active: bool,
     proposals: ProposalsStore,
-    ballot_num: Ballot,
+    ballot_counter: usize,
 }
 
 impl Default for LeaderDurable {
     fn default() -> Self {
         Self {
             active: false,
-            ballot_num: Ballot::default(),
+            ballot_counter: 0,
             proposals: BTreeMap::new(),
         }
     }
 }
 
 impl LeaderDurable {
-    pub fn init(id: Uuid, mut data: LeaderDurable) -> Self {
-        data.ballot_num = data.ballot_num.init(id);
-        data
-    }
-
     pub fn is_active(&self) -> bool {
         self.active
     }
@@ -44,17 +39,19 @@ impl LeaderDurable {
         self.active = false;
     }
 
-    pub fn ballot(&self) -> Ballot {
-        self.ballot_num
+    pub fn ballot(&self, id: Uuid, epoch: usize) -> Ballot {
+        Ballot::with_epoch(self.ballot_counter, id, epoch)
     }
 
-    pub fn bump_ballot(&mut self, ballot: Ballot) -> Ballot {
-        self.ballot_num = self.ballot_num.bump(ballot);
-        self.ballot_num
+    pub fn bump_ballot(&mut self, id: Uuid, epoch: usize, ballot: Ballot) -> Ballot {
+        let current = self.ballot(id, epoch);
+        let next = current.bump(ballot);
+        self.ballot_counter = next.number;
+        next
     }
 
-    pub fn is_stale_ballot(&self, ballot: Ballot) -> bool {
-        self.ballot_num > ballot
+    pub fn is_stale_ballot(&self, id: Uuid, epoch: usize, ballot: Ballot) -> bool {
+        self.ballot(id, epoch) > ballot
     }
 
     pub fn pmax(&mut self, pvalues: Vec<PValue>) {
@@ -79,12 +76,6 @@ impl LeaderDurable {
         self.proposals.clone()
     }
 
-    pub fn compact(&mut self, slots: &[usize]) {
-        for s in slots {
-            self.proposals.remove(s);
-        }
-    }
-
     pub async fn dump(&self) -> LeaderDurable {
         self.clone()
     }
@@ -92,10 +83,10 @@ impl LeaderDurable {
 
 #[cfg(test)]
 impl LeaderDurable {
-    pub(crate) fn for_test(active: bool, ballot_num: Ballot, proposals: ProposalsStore) -> Self {
+    pub(crate) fn for_test(active: bool, ballot_counter: usize, proposals: ProposalsStore) -> Self {
         Self {
             active,
-            ballot_num,
+            ballot_counter,
             proposals,
         }
     }
@@ -121,16 +112,15 @@ mod tests {
 
     #[test]
     fn pmax_overwrites_same_slot_without_leader_ballot_gating() {
-        let leader_id = Uuid::new_v4();
         let a1 = Uuid::new_v4();
         let mut state = LeaderDurable {
             active: false,
             proposals: BTreeMap::new(),
-            ballot_num: Ballot::new(100, leader_id),
+            ballot_counter: 100,
         };
 
         state.add(3, cmd(10));
-        let adopted = PValue::new(3, Ballot::new(5, a1), cmd(20));
+        let adopted = PValue::new(3, Ballot::with_epoch(5, a1, 0), cmd(20));
         state.pmax(vec![adopted]);
 
         let proposals = state.proposal();

@@ -41,6 +41,7 @@ pub enum PaxosCommand {
         value: usize,
     },
     BLANK,
+    STOP,
 }
 
 impl PaxosCommand {
@@ -135,7 +136,7 @@ impl fmt::Display for PaxosCommand {
                 version,
                 value,
             } => write!(f, "ADD {} val{} v{}", key, value, version),
-
+            PaxosCommand::STOP => write!(f, "STOP"),
             PaxosCommand::BLANK => write!(f, "BLANK"),
         }
     }

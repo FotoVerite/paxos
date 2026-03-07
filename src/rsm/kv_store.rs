@@ -4,6 +4,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
+    cluster::cluster_configuration::ClusterConfiguration,
     common::persistence::NodePersistence,
     paxos_command::PaxosCommand,
     rsm::{
@@ -26,16 +27,29 @@ pub enum ReplyOutcome {
 }
 
 impl KVStore {
-    pub async fn init(_uuid: Uuid, persistence: NodePersistence) -> anyhow::Result<Self> {
-        let state = persistence.load("store.bin").await?;
+    pub async fn init(
+        _uuid: Uuid,
+        persistence: NodePersistence,
+        state: Option<HashMap<String, KVEntry>>,
+    ) -> anyhow::Result<Self> {
+        match state {
+            None => {
+                #[cfg(feature = "persistence")]
+                let state = persistence.load("store.bin").await?;
 
-        #[cfg(not(feature = "persistence"))]
-        let state = HashMap::new();
+                #[cfg(not(feature = "persistence"))]
+                let state = HashMap::new();
 
-        Ok(Self {
-            persistence,
-            data: Mutex::new(state),
-        })
+                Ok(Self {
+                    persistence,
+                    data: Mutex::new(state),
+                })
+            }
+            Some(state) => Ok(Self {
+                persistence,
+                data: Mutex::new(state),
+            }),
+        }
     }
 
     pub async fn save(&self) -> anyhow::Result<()> {
@@ -46,14 +60,15 @@ impl KVStore {
         Ok(())
     }
 
+    pub async fn emit(&self) -> HashMap<String, KVEntry> {
+        let data = self.data.lock().await;
+        data.clone()
+    }
+
     pub async fn apply(&self, cmd: PaxosCommand) -> KVResult<ReplyOutcome> {
         match cmd.operation() {
             PaxosCommand::GET { key } => self.get(key).await,
-            PaxosCommand::PUT {
-                key,
-                value,
-                ..
-            } => self.set(key, KVValue(*value)).await,
+            PaxosCommand::PUT { key, value, .. } => self.set(key, KVValue(*value)).await,
             PaxosCommand::ADD {
                 key,
                 version,

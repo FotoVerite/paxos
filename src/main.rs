@@ -1,7 +1,9 @@
 use paxos::{
-    cluster::{cluster::Cluster, cluster_runtime::ClusterRuntime},
+    cluster::{classic_cluster::ClassicCluster, pmmc_cluster::PmmcCluster},
     console_observer::ConsoleObserver,
+    message::ClientMessage,
     node::config::{PmmcNodeConfig, Roles},
+    paxos_command::PaxosCommand,
     scenario::ScenarioBuilder,
     scenario_loader::ScenarioLoader,
     scenario_runner::ScenarioRunner,
@@ -73,7 +75,7 @@ async fn run_json_scenario() -> anyhow::Result<()> {
 
         let node_count = scenario.node_count;
         let observer = Arc::new(ConsoleObserver);
-        let mut cluster = Cluster::new(0, ip, node_count, observer).await?;
+        let mut cluster = ClassicCluster::new(0, ip, node_count, observer).await?;
 
         for i in 0..node_count {
             cluster.nodes[i].start();
@@ -112,7 +114,7 @@ async fn run_builtin_scenario() -> anyhow::Result<()> {
 
     let node_count = 5;
     let observer = Arc::new(ConsoleObserver);
-    let mut cluster = Cluster::new(0, ip, node_count, observer).await?;
+    let mut cluster = ClassicCluster::new(0, ip, node_count, observer).await?;
 
     for i in 0..node_count {
         cluster.nodes[i].start();
@@ -169,22 +171,24 @@ async fn run_pmmc_builtin_scenario() -> anyhow::Result<()> {
     println!("Starting PMMC cluster with basic console scenario...\n");
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let observer = Arc::new(ConsoleObserver);
-    let cluster = ClusterRuntime::new(ip, 5, observer).await?;
+    let cluster = PmmcCluster::new(ip, 5, observer).await?;
 
     cluster.start_all().await;
     sleep(Duration::from_millis(250)).await;
 
     println!("--- PMMC Phase: single client proposal ---");
-    cluster
-        .propose_from(
-            0,
-            paxos::paxos_command::PaxosCommand::PUT {
-                key: "alpha".to_string(),
-                version: 1,
-                value: 1,
-            },
-        )
-        .await;
+    propose_via_pmmc_client(
+        &cluster,
+        0,
+        Uuid::from_u128(0xC0),
+        1,
+        PaxosCommand::PUT {
+            key: "alpha".to_string(),
+            version: 1,
+            value: 1,
+        },
+    )
+    .await?;
     sleep(Duration::from_secs(1)).await;
 
     println!("--- PMMC Phase: partition and recovery ---");
@@ -192,16 +196,18 @@ async fn run_pmmc_builtin_scenario() -> anyhow::Result<()> {
     cluster.partition(0, 1).await;
     cluster.partition(0, 2).await;
     sleep(Duration::from_millis(250)).await;
-    cluster
-        .propose_from(
-            0,
-            paxos::paxos_command::PaxosCommand::PUT {
-                key: "beta".to_string(),
-                version: 1,
-                value: 2,
-            },
-        )
-        .await;
+    propose_via_pmmc_client(
+        &cluster,
+        0,
+        Uuid::from_u128(0xC0),
+        2,
+        PaxosCommand::PUT {
+            key: "beta".to_string(),
+            version: 1,
+            value: 2,
+        },
+    )
+    .await?;
     sleep(Duration::from_millis(750)).await;
     cluster.heal_partition(0, 1).await;
     cluster.heal_partition(0, 2).await;
@@ -250,7 +256,7 @@ async fn run_pmmc_role_split_debug_scenario(alternate_replicas: bool) -> anyhow:
         });
     }
 
-    let cluster = ClusterRuntime::new_with_configs(ip, configs, observer).await?;
+    let cluster = PmmcCluster::new_with_configs(ip, configs, observer).await?;
     cluster.start_all().await;
     sleep(Duration::from_millis(350)).await;
 
@@ -268,22 +274,41 @@ async fn run_pmmc_role_split_debug_scenario(alternate_replicas: bool) -> anyhow:
         } else {
             2
         };
-        cluster
-            .propose_from(
-                replica,
-                paxos::paxos_command::PaxosCommand::PUT {
-                    key: "pmmc-role-split".to_string(),
-                    version: 1,
-                    value: i + 1,
-                }
-                .with_client(Uuid::from_u128(0xC0), i as u64 + 1),
-            )
-            .await;
+        propose_via_pmmc_client(
+            &cluster,
+            replica,
+            Uuid::from_u128(0xC0),
+            i as u64 + 1,
+            PaxosCommand::PUT {
+                key: "pmmc-role-split".to_string(),
+                version: 1,
+                value: i + 1,
+            },
+        )
+        .await?;
         sleep(Duration::from_millis(350)).await;
     }
 
     println!("--- Phase 2: observe for liveness (no new proposals, just protocol traffic) ---");
     sleep(Duration::from_secs(4)).await;
     println!("=== PMMC Role-Split Debug Scenario Complete ===");
+    Ok(())
+}
+
+async fn propose_via_pmmc_client(
+    cluster: &PmmcCluster,
+    replica_idx: usize,
+    client_id: Uuid,
+    request_id: u64,
+    cmd: PaxosCommand,
+) -> anyhow::Result<()> {
+    let (tx, _rx) = cluster
+        .connect_client_to(replica_idx, client_id)
+        .await
+        .ok_or_else(|| anyhow::anyhow!("failed to connect client to replica {}", replica_idx))?;
+    tx.send(ClientMessage::PROPOSE {
+        cmd: cmd.with_client(client_id, request_id),
+    })
+    .await?;
     Ok(())
 }

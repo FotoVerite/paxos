@@ -9,12 +9,11 @@ use tokio::{
 use uuid::Uuid;
 
 use crate::{
-    cluster::{network_fabric::NetworkFabric, network_simulator::NetworkSimulator, runtime_state::RuntimeState},
+    cluster::{cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric, network_simulator::NetworkSimulator, runtime_state::RuntimeState},
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
     monitor::PaxosObserver,
-    node::{config::Roles, peer_topology::PeerTopology, pmmc::pmmc_node::PmmcNode},
-    paxos_command::PaxosCommand,
+    node::{config::Roles, pmmc::pmmc_node::PmmcNode},
 };
 
 pub struct RuntimeMember {
@@ -26,16 +25,19 @@ pub struct RuntimeMember {
     task: Mutex<Option<JoinHandle<()>>>,
 }
 
+pub enum RuneTimeSignal {
+    Stopped 
+}
+
 impl RuntimeMember {
     pub async fn new(
         uuid: Uuid,
         roles: Roles,
-        quorum: usize,
+        configuration: Arc<ClusterConfiguration>,
         fabric: Arc<NetworkFabric>,
         persistence: NodePersistence,
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
-        topology: PeerTopology,
     ) -> anyhow::Result<Self> {
         let handle = Arc::new(NetworkSimulator::from_fabric(uuid, Arc::clone(&fabric)));
         Ok(RuntimeMember {
@@ -48,11 +50,10 @@ impl RuntimeMember {
                 fabric,
                 handle,
                 persistence,
-                quorum,
                 roles,
-                topology,
+                configuration,
             )
-                .await?,
+            .await?,
             rx: Mutex::new(Some(rx)),
             task: Mutex::new(None),
         })
@@ -78,6 +79,27 @@ impl RuntimeMember {
         *state = RuntimeState::Active;
     }
 
+    pub async fn stop(&self) {
+        let can_stop = {
+            let state = self.state.read().await;
+            *state == RuntimeState::Active
+        };
+        if !can_stop {
+            return;
+        }
+
+        // self.node.stop();
+        // let mut task = self.task.lock().await;
+        // if let Some(runtime) = task.take() {
+        //     runtime.stop();
+        //     runtime.abort();
+        //     let _ = runtime.task.await;
+        // }
+
+        let mut state = self.state.write().await;
+        *state = RuntimeState::Stopped;
+    }
+
     pub async fn state(&self) -> RuntimeState {
         self.state.read().await.clone()
     }
@@ -94,9 +116,6 @@ impl RuntimeMember {
         *state = next;
         true
     }
-    pub async fn propose(&self, cmd: PaxosCommand) {
-        self.node.propose(cmd).await
-    }
 
     pub async fn connect_client(
         &self,
@@ -104,4 +123,5 @@ impl RuntimeMember {
     ) -> Option<(Sender<ClientMessage>, Receiver<ClientMessage>)> {
         self.node.connect_client(client_id).await
     }
+
 }

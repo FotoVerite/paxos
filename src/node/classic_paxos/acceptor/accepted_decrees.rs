@@ -119,6 +119,7 @@ impl AcceptedDecrees {
         let mut state = HashMap::new();
 
         let high_ballot = Ballot {
+            epoch: 0,
             number: 1,
             node_id: Uuid::nil(),
         };

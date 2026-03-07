@@ -20,9 +20,7 @@ mod state;
 #[derive(Clone)]
 pub struct Commander {
     uuid: Uuid,
-    quorum: usize,
     ballot: Ballot,
-    observer: Arc<dyn PaxosObserver>,
     state: Arc<CommanderState>,
     peers: Arc<NetworkSimulator>,
 }
@@ -35,13 +33,11 @@ impl Commander {
         replicas: Vec<Uuid>,
         proposals: ProposalsStore,
         peers: Arc<NetworkSimulator>,
-        observer: Arc<dyn PaxosObserver>,
+        _observer: Arc<dyn PaxosObserver>,
     ) -> Self {
         let state = Arc::new(CommanderState::new(uuid, ballot, quorum, replicas, proposals));
         Self {
             uuid,
-            observer,
-            quorum,
             ballot,
             state,
             peers,

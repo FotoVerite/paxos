@@ -77,6 +77,20 @@ impl ClusterPersistence {
 
         Ok(removed)
     }
+
+    pub async fn purge_cluster_dir(&self) -> Result<()> {
+        if self.dir.exists() {
+            fs::remove_dir_all(&self.dir).await?;
+        }
+        Ok(())
+    }
+
+    pub fn purge_cluster_dir_blocking(&self) -> Result<()> {
+        if self.dir.exists() {
+            std::fs::remove_dir_all(&self.dir)?;
+        }
+        Ok(())
+    }
 }
 
 impl NodePersistence {

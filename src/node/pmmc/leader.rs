@@ -4,6 +4,7 @@ use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::{
+    cluster::cluster_configuration::ClusterConfiguration,
     cluster::network_simulator::NetworkSimulator,
     common::persistence::NodePersistence,
     message::Message,
@@ -33,8 +34,7 @@ impl Leader {
     pub async fn new(
         uuid: Uuid,
         persistence: NodePersistence,
-        quorum: usize,
-        replicas: Vec<Uuid>,
+        configuration: Arc<ClusterConfiguration>,
         peers: Arc<NetworkSimulator>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
@@ -44,13 +44,13 @@ impl Leader {
         #[cfg(not(feature = "persistence"))]
         let state: LeaderDurable = LeaderDurable::default();
 
-        let state = LeaderState::init(uuid, state);
+        let state = LeaderState::init(state, uuid, configuration.epoch());
         let leader = Self {
             uuid,
             persistence,
             peers,
-            quorum,
-            replicas,
+            quorum: configuration.quorum(),
+            replicas: configuration.replicas(),
             observer,
             state: Arc::new(state),
         };
@@ -60,7 +60,7 @@ impl Leader {
     pub async fn start_election(&self) {
         let ballot = self
             .state
-            .start_scout(self.uuid, self.quorum, Arc::clone(&self.observer))
+            .start_scout(self.quorum, Arc::clone(&self.observer))
             .await;
         self.peers
             .broadcast(Message::P1A {
@@ -75,7 +75,6 @@ impl Leader {
         let activated = self
             .state
             .set_as_active(
-                self.uuid,
                 self.quorum,
                 ballot,
                 self.replicas.clone(),
@@ -182,16 +181,17 @@ impl Leader {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, fs, sync::Arc};
+    use std::{collections::HashMap, fs, net::IpAddr, sync::Arc};
 
     use tokio::{sync::mpsc, time::{timeout, Duration}};
     use uuid::Uuid;
 
     use crate::{
+        cluster::cluster_configuration::ClusterConfiguration,
         cluster::network_simulator::NetworkSimulator,
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
-        node::{classic_paxos::ballot::Ballot, pvalue::PValue},
+        node::{classic_paxos::ballot::Ballot, config::PmmcNodeConfig, pvalue::PValue},
         paxos_command::PaxosCommand,
     };
 
@@ -199,6 +199,14 @@ mod tests {
 
     fn cleanup_leader_files(root: &crate::common::persistence::NodePersistence) {
         let _ = fs::remove_file(root.dir().join("leader.bin"));
+    }
+
+    fn config_for_test() -> Arc<ClusterConfiguration> {
+        let ip = IpAddr::V4([127, 0, 0, 1].into());
+        Arc::new(
+            ClusterConfiguration::bootstrap_pmmc(ip, vec![PmmcNodeConfig::default()])
+                .expect("test config should bootstrap"),
+        )
     }
 
     async fn mk_leader() -> Leader {
@@ -211,7 +219,7 @@ mod tests {
             HashMap::new(),
             Arc::clone(&observer),
         ).await);
-        let state = Arc::new(LeaderState::init(uuid, LeaderDurable::default()));
+        let state = Arc::new(LeaderState::init(LeaderDurable::default(), uuid, 0));
 
         Leader {
             uuid,
@@ -234,7 +242,7 @@ mod tests {
         let mut peers_map = HashMap::new();
         peers_map.insert(peer, tx);
         let peers = Arc::new(NetworkSimulator::new(uuid, peers_map, Arc::clone(&observer)).await);
-        let state = Arc::new(LeaderState::init(uuid, LeaderDurable::default()));
+        let state = Arc::new(LeaderState::init(LeaderDurable::default(), uuid, 0));
 
         (
             Leader {
@@ -332,8 +340,7 @@ mod tests {
         let leader = Leader::new(
             uuid,
             persistence.clone(),
-            2,
-            vec![],
+            config_for_test(),
             peers,
             Arc::clone(&observer),
         )
@@ -358,7 +365,13 @@ mod tests {
             HashMap::new(),
             Arc::clone(&observer),
         ).await);
-        let reloaded = Leader::new(uuid, persistence.clone(), 2, vec![], peers2, observer)
+        let reloaded = Leader::new(
+            uuid,
+            persistence.clone(),
+            config_for_test(),
+            peers2,
+            observer,
+        )
             .await
             .expect("leader reload should work");
 

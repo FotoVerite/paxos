@@ -1,7 +1,7 @@
 mod test_helpers;
 
 use paxos::{
-    cluster::cluster::Cluster,
+    cluster::classic_cluster::ClassicCluster,
     common::types::DecreeId,
     console_observer::ConsoleObserver,
     monitor::{Event, PaxosObserver},
@@ -258,7 +258,7 @@ async fn test_recording_observer_with_barrier() {
 async fn test_normal_operation_no_failures() {
     let observer = Arc::new(ConsoleObserver);
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -277,7 +277,7 @@ async fn test_normal_operation_no_failures() {
 async fn test_failures_disabled_by_default() {
     let observer = Arc::new(ConsoleObserver);
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -298,7 +298,7 @@ async fn test_failures_disabled_by_default() {
 async fn test_enable_failures_flag() {
     let observer = Arc::new(ConsoleObserver);
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
+    let cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
     // Failures should be disabled by default
     cluster.disable_failures().await;
@@ -310,7 +310,7 @@ async fn test_enable_failures_flag() {
 async fn test_partition_and_heal() {
     let observer = Arc::new(ConsoleObserver);
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -332,7 +332,7 @@ async fn test_partition_and_heal() {
 async fn test_multiple_partitions() {
     let observer = Arc::new(ConsoleObserver);
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 5, observer).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 5, observer).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -364,7 +364,7 @@ async fn test_multiple_partitions() {
 async fn test_add_delay() {
     let observer = Arc::new(ConsoleObserver);
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -383,7 +383,7 @@ async fn test_add_delay() {
 async fn test_add_packet_loss() {
     let observer = Arc::new(ConsoleObserver);
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -402,7 +402,7 @@ async fn test_add_packet_loss() {
 async fn test_partition_isolates_single_node() {
     let observer = Arc::new(ConsoleObserver);
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 5, observer).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 5, observer).await.unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -436,7 +436,7 @@ async fn test_partition_isolates_single_node() {
 async fn test_toggle_failures_on_off() {
     let observer = Arc::new(ConsoleObserver);
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(0, ip, 3, observer).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -470,7 +470,7 @@ async fn test_retry_mechanism_succeeds_under_normal_conditions() {
     // TODO: For more thorough retry testing under incomplete quorum, see partition_failure_tests.rs
     let observer = RecordingObserver::new().arc();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = Cluster::new(
+    let mut cluster = ClassicCluster::new(
         0,
         ip,
         3,

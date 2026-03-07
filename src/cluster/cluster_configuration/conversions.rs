@@ -1,8 +1,11 @@
+use std::collections::HashSet;
+
+use uuid::Uuid;
+
 use crate::cluster::cluster_configuration::{
     ClusterConfiguration, ConfigurationStatus, reconfig_errors::ReconfigError,
     reconfig_patch::ReconfigPatch,
 };
-
 
 impl TryFrom<(&ClusterConfiguration, ReconfigPatch)> for ClusterConfiguration {
     type Error = ReconfigError;
@@ -12,12 +15,20 @@ impl TryFrom<(&ClusterConfiguration, ReconfigPatch)> for ClusterConfiguration {
     ) -> Result<Self, Self::Error> {
         let mut new_config = Self {
             id: prev.next_id(),
+            epoch: prev.epoch,
             strategy: prev.strategy,
             status: ConfigurationStatus::PENDING,
             nodes: prev.nodes.clone(),
+            alpha_max_inflight: prev.alpha_max_inflight,
+            starting_slot: prev.starting_slot,
+            kv_store: None,
         };
         for (uuid, roles) in patch.add {
-            if new_config.nodes.iter().any(|(existing_uuid, _)| *existing_uuid == uuid) {
+            if new_config
+                .nodes
+                .iter()
+                .any(|(existing_uuid, _)| *existing_uuid == uuid)
+            {
                 return Err(ReconfigError::InvalidMembership(
                     "Node ID already in configuration",
                 ));
@@ -42,6 +53,9 @@ impl TryFrom<(&ClusterConfiguration, ReconfigPatch)> for ClusterConfiguration {
         if let Some(strategy) = patch.strategy {
             new_config.strategy = strategy
         }
+        if let Some(alpha) = patch.alpha_max_inflight {
+            new_config.alpha_max_inflight = alpha
+        }
         if !new_config.nodes.iter().any(|(_, roles)| roles.proposer) {
             return Err(ReconfigError::NoLeaders);
         }
@@ -51,13 +65,18 @@ impl TryFrom<(&ClusterConfiguration, ReconfigPatch)> for ClusterConfiguration {
         if !new_config.nodes.iter().any(|(_, roles)| roles.learner) {
             return Err(ReconfigError::NoLearners);
         }
+
+        let old : HashSet<Uuid> = prev.acceptors().iter().copied().collect();
+        let new = new_config.acceptors().iter().copied().collect();
+
+        if old != new {
+            new_config.epoch += 1;
+        }
         Ok(new_config)
     }
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
-
     use uuid::Uuid;
 
     use super::*;
@@ -86,9 +105,13 @@ mod tests {
 
         ClusterConfiguration {
             id: 7,
+            epoch: 1,
             status: ConfigurationStatus::ACTIVE,
             nodes,
             strategy: ConfigurationStrategy::JointConsensus,
+            alpha_max_inflight: 5,
+            starting_slot: 0,
+            kv_store: None
         }
     }
 
@@ -96,16 +119,10 @@ mod tests {
     fn add_node_extends_previous_configuration() {
         let prev = base_config();
         let new_uuid = Uuid::from_u128(3);
-        let mut add = HashMap::new();
-        add.insert(new_uuid, roles(true, false, false));
 
         let next = ClusterConfiguration::try_from((
             &prev,
-            ReconfigPatch {
-                strategy: None,
-                add,
-                remove: HashSet::new(),
-            },
+            ReconfigPatch::new().add_node(new_uuid, roles(true, false, false)),
         ))
         .expect("add should succeed");
 
@@ -118,18 +135,10 @@ mod tests {
     fn remove_existing_node_from_previous_configuration() {
         let prev = base_config();
         let remove_uuid = Uuid::from_u128(22);
-        let mut remove = HashSet::new();
-        remove.insert(remove_uuid);
 
-        let next = ClusterConfiguration::try_from((
-            &prev,
-            ReconfigPatch {
-                strategy: None,
-                add: HashMap::new(),
-                remove,
-            },
-        ))
-        .expect("remove should succeed");
+        let next =
+            ClusterConfiguration::try_from((&prev, ReconfigPatch::new().remove_node(remove_uuid)))
+                .expect("remove should succeed");
 
         assert!(!next.nodes.iter().any(|(uuid, _)| *uuid == remove_uuid));
         assert_eq!(next.nodes.len(), prev.nodes.len() - 1);
@@ -141,11 +150,7 @@ mod tests {
 
         let next = ClusterConfiguration::try_from((
             &prev,
-            ReconfigPatch {
-                strategy: Some(ConfigurationStrategy::BrickWall),
-                add: HashMap::new(),
-                remove: HashSet::new(),
-            },
+            ReconfigPatch::new().strategy(ConfigurationStrategy::BrickWall),
         ))
         .expect("strategy-only reconfig should succeed");
 
@@ -156,16 +161,10 @@ mod tests {
     fn duplicate_add_is_rejected() {
         let prev = base_config();
         let existing_uuid = Uuid::from_u128(1);
-        let mut add = HashMap::new();
-        add.insert(existing_uuid, roles(true, true, false));
 
         let result = ClusterConfiguration::try_from((
             &prev,
-            ReconfigPatch {
-                strategy: None,
-                add,
-                remove: HashSet::new(),
-            },
+            ReconfigPatch::new().add_node(existing_uuid, roles(true, true, false)),
         ));
 
         assert!(matches!(result, Err(ReconfigError::InvalidMembership(_))));
@@ -174,16 +173,10 @@ mod tests {
     #[test]
     fn removing_last_acceptor_is_rejected() {
         let prev = base_config();
-        let mut remove = HashSet::new();
-        remove.insert(Uuid::from_u128(1));
 
         let result = ClusterConfiguration::try_from((
             &prev,
-            ReconfigPatch {
-                strategy: None,
-                add: HashMap::new(),
-                remove,
-            },
+            ReconfigPatch::new().remove_node(Uuid::from_u128(1)),
         ));
 
         assert!(matches!(result, Err(ReconfigError::NoAcceptors)));
@@ -192,16 +185,10 @@ mod tests {
     #[test]
     fn removing_last_leader_is_rejected() {
         let prev = base_config();
-        let mut remove = HashSet::new();
-        remove.insert(Uuid::from_u128(11));
 
         let result = ClusterConfiguration::try_from((
             &prev,
-            ReconfigPatch {
-                strategy: None,
-                add: HashMap::new(),
-                remove,
-            },
+            ReconfigPatch::new().remove_node(Uuid::from_u128(11)),
         ));
 
         assert!(matches!(result, Err(ReconfigError::NoLeaders)));
@@ -210,17 +197,12 @@ mod tests {
     #[test]
     fn removing_last_learner_is_rejected() {
         let prev = base_config();
-        let mut remove = HashSet::new();
-        remove.insert(Uuid::from_u128(2));
-        remove.insert(Uuid::from_u128(22));
 
         let result = ClusterConfiguration::try_from((
             &prev,
-            ReconfigPatch {
-                strategy: None,
-                add: HashMap::new(),
-                remove,
-            },
+            ReconfigPatch::new()
+                .remove_node(Uuid::from_u128(2))
+                .remove_node(Uuid::from_u128(22)),
         ));
 
         assert!(matches!(result, Err(ReconfigError::NoLearners)));

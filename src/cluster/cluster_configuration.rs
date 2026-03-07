@@ -1,13 +1,15 @@
 mod conversions;
-mod reconfig_errors;
-mod reconfig_patch;
+pub mod reconfig_errors;
+pub mod reconfig_patch;
 
+use std::collections::HashMap;
 use std::net::IpAddr;
 
 use uuid::Uuid;
 
-use crate::node::config::{ClassicNodeConfig, PmmcNodeConfig, Roles};
 use crate::cluster::cluster_configuration::reconfig_errors::ReconfigError;
+use crate::node::config::{ClassicNodeConfig, PmmcNodeConfig, Roles};
+use crate::rsm::entry::KVEntry;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ConfigurationStatus {
@@ -17,7 +19,7 @@ pub enum ConfigurationStatus {
     FAILED,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum ConfigurationStrategy {
     JointConsensus,
     StopSign,
@@ -32,9 +34,49 @@ pub struct ClusterConfiguration {
     status: ConfigurationStatus,
     nodes: Vec<(Uuid, Roles)>,
     strategy: ConfigurationStrategy,
+    epoch: usize,
+    starting_slot: usize,
+    alpha_max_inflight: usize,
+    kv_store: Option<HashMap<String, KVEntry>>
 }
 
 impl ClusterConfiguration {
+    fn validate_roles(nodes: &[(Uuid, Roles)]) -> Result<(), ReconfigError> {
+        if !nodes.iter().any(|(_, roles)| roles.proposer) {
+            return Err(ReconfigError::NoLeaders);
+        }
+        if !nodes.iter().any(|(_, roles)| roles.acceptor) {
+            return Err(ReconfigError::NoAcceptors);
+        }
+        if !nodes.iter().any(|(_, roles)| roles.learner) {
+            return Err(ReconfigError::NoLearners);
+        }
+
+        Ok(())
+    }
+
+    fn bootstrap_with_roles(
+        nodes: Vec<(Uuid, Roles)>,
+        strategy: ConfigurationStrategy,
+        alpha_max_inflight: Option<usize>,
+    ) -> Result<Self, ReconfigError> {
+        Self::validate_roles(&nodes)?;
+        let alpha_max_inflight = match alpha_max_inflight {
+            Some(val) => val,
+            None => 0,
+        };
+        Ok(Self {
+            id: 0,
+            starting_slot: 0,
+            epoch: 1,
+            status: ConfigurationStatus::ACTIVE,
+            nodes,
+            strategy,
+            alpha_max_inflight,
+            kv_store: None
+        })
+    }
+
     pub fn bootstrap_classic(
         ip: IpAddr,
         configs: Vec<ClassicNodeConfig>,
@@ -44,25 +86,7 @@ impl ClusterConfiguration {
             .enumerate()
             .map(|(index, config)| (Self::classic_node_uuid(ip, index), config.roles))
             .collect();
-
-        let config = Self {
-            id: 0,
-            status: ConfigurationStatus::ACTIVE,
-            nodes,
-            strategy: ConfigurationStrategy::JointConsensus,
-        };
-
-        if !config.nodes.iter().any(|(_, roles)| roles.proposer) {
-            return Err(ReconfigError::NoLeaders);
-        }
-        if !config.nodes.iter().any(|(_, roles)| roles.acceptor) {
-            return Err(ReconfigError::NoAcceptors);
-        }
-        if !config.nodes.iter().any(|(_, roles)| roles.learner) {
-            return Err(ReconfigError::NoLearners);
-        }
-
-        Ok(config)
+        Self::bootstrap_with_roles(nodes, ConfigurationStrategy::JointConsensus, Some(5))
     }
 
     pub fn bootstrap_pmmc(ip: IpAddr, configs: Vec<PmmcNodeConfig>) -> Result<Self, ReconfigError> {
@@ -71,29 +95,31 @@ impl ClusterConfiguration {
             .enumerate()
             .map(|(index, config)| (Self::pmmc_node_uuid(ip, index), config.roles))
             .collect();
-
-        let config = Self {
-            id: 0,
-            status: ConfigurationStatus::ACTIVE,
-            nodes,
-            strategy: ConfigurationStrategy::JointConsensus,
-        };
-
-        if !config.nodes.iter().any(|(_, roles)| roles.proposer) {
-            return Err(ReconfigError::NoLeaders);
-        }
-        if !config.nodes.iter().any(|(_, roles)| roles.acceptor) {
-            return Err(ReconfigError::NoAcceptors);
-        }
-        if !config.nodes.iter().any(|(_, roles)| roles.learner) {
-            return Err(ReconfigError::NoLearners);
-        }
-
-        Ok(config)
+        Self::bootstrap_with_roles(nodes, ConfigurationStrategy::JointConsensus, Some(5))
     }
 
     fn next_id(&self) -> u64 {
         self.id.clone() + 1
+    }
+
+    pub fn starting_slot(&self) -> usize {
+        self.starting_slot
+    }
+
+    pub fn strategy(&self) -> ConfigurationStrategy {
+        self.strategy
+    }
+
+    pub fn epoch(&self) -> usize {
+        self.epoch
+    }
+
+    pub fn status(&self) -> ConfigurationStatus {
+        self.status
+    }
+
+    pub fn kv_store(&self) -> Option<HashMap<String, KVEntry>> {
+        self.kv_store.clone()
     }
 
     fn pmmc_node_uuid(ip: IpAddr, node_id: usize) -> Uuid {
@@ -116,6 +142,10 @@ impl ClusterConfiguration {
     }
     pub fn len(&self) -> usize {
         self.nodes.len()
+    }
+
+    pub fn alpha_max_inflight(&self) -> usize {
+        self.alpha_max_inflight
     }
 
     pub fn members(&self) -> Vec<(Uuid, Roles)> {
@@ -187,9 +217,13 @@ mod tests {
 
         ClusterConfiguration {
             id: 0,
+            epoch: 1,
             status: ConfigurationStatus::ACTIVE,
             nodes,
             strategy: ConfigurationStrategy::JointConsensus,
+            alpha_max_inflight: 0,
+            starting_slot: 0,
+            kv_store: None,
         }
     }
 

@@ -8,27 +8,26 @@ use crate::cluster::cluster_configuration::ClusterConfiguration;
 use crate::cluster::runtime_member::RuntimeMember;
 use crate::cluster::runtime_registry::RuntimeRegistry;
 use crate::common::persistence::ClusterPersistence;
-use crate::node::peer_topology::PeerTopology;
 use crate::{
     cluster::{network_fabric::NetworkFabric, network_simulator::NetworkFailure},
     common::persistence::Persistence,
     message::ClientMessage,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::config::PmmcNodeConfig,
-    paxos_command::PaxosCommand,
 };
 
-pub struct ClusterRuntime {
-    configuration: ClusterConfiguration,
+pub struct PmmcCluster {
+    configuration: Arc<ClusterConfiguration>,
     total_number: usize,
     quorum_size: usize,
     observer: Arc<dyn PaxosObserver>,
     pub runtime_registry: RuntimeRegistry,
     persistence: Arc<ClusterPersistence>,
     fabric: Arc<NetworkFabric>,
+    cleanup_on_drop: bool,
 }
 
-impl ClusterRuntime {
+impl PmmcCluster {
     pub async fn new(
         ip: IpAddr,
         total_number: usize,
@@ -56,16 +55,15 @@ impl ClusterRuntime {
         let node_configs = configuration.node_configs();
         let total_number = node_configs.len();
         let quorum = configuration.quorum();
-        let topology = PeerTopology::from(&configuration);
         let fabric = Arc::new(NetworkFabric::new(Arc::clone(&observer)));
+        let configuration = Arc::new(configuration);
 
         let runtime_registry = RuntimeRegistry::init(
             node_configs,
-            quorum,
             Arc::clone(&fabric),
+            Arc::clone(&configuration),
             Arc::clone(&persistence),
             Arc::clone(&observer),
-            topology,
         )
         .await?;
         Ok(Self {
@@ -76,6 +74,7 @@ impl ClusterRuntime {
             observer: Arc::clone(&observer),
             fabric,
             persistence: Arc::clone(&persistence),
+            cleanup_on_drop: false,
         })
     }
 
@@ -124,12 +123,6 @@ impl ClusterRuntime {
         ) {
             self.fabric.clear_failure(node1, node2).await;
             self.fabric.clear_failure(node2, node1).await;
-        }
-    }
-
-    pub async fn propose_from(&self, node: usize, cmd: PaxosCommand) {
-        if let Some(uuid) = self.configuration.member(node) {
-            self.runtime_registry.propose_from(uuid, cmd).await;
         }
     }
 
@@ -185,6 +178,15 @@ impl ClusterRuntime {
         Some(to_heal)
     }
 
+    pub fn set_cleanup_on_drop(&mut self, enabled: bool) {
+        self.cleanup_on_drop = enabled;
+    }
+
+    pub async fn cleanup(&self) -> anyhow::Result<()> {
+        self.persistence.purge_cluster_dir().await?;
+        Ok(())
+    }
+
     pub fn node_uuid(ip: IpAddr, node_id: usize) -> Uuid {
         let namespace = Uuid::NAMESPACE_DNS;
         let name = format!("{}:pmmc:{}", ip, node_id);
@@ -193,5 +195,17 @@ impl ClusterRuntime {
 }
 
 #[cfg(test)]
-#[path = "cluster_runtime_tests.rs"]
+#[path = "pmmc_cluster_tests.rs"]
 mod tests;
+
+impl Drop for PmmcCluster {
+    fn drop(&mut self) {
+        if !self.cleanup_on_drop {
+            return;
+        }
+
+        if let Err(err) = self.persistence.purge_cluster_dir_blocking() {
+            tracing::warn!("failed to purge PMMC cluster persistence on drop: {}", err);
+        }
+    }
+}

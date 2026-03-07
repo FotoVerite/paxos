@@ -1,7 +1,7 @@
-use std::{cmp::max, future::pending, sync::Arc, time::Duration};
+use std::{cmp::max, sync::Arc, time::Duration};
 
 use rand::Rng;
-use tokio::{task::JoinHandle, time::{Instant, Interval}};
+use tokio::{task::JoinHandle, time::Instant};
 use uuid::Uuid;
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
     node::{
         classic_paxos::ballot::Ballot,
         pmmc::{
-            leader::{commander::Commander, leader_state::LeaderDurable, scout::Scout},
+            leader::{commander::Commander, scout::Scout},
             proposal::ProposalsStore,
         },
         pvalue::PValue,
@@ -21,11 +21,9 @@ use crate::{
 };
 
 pub struct LeaderVolatile {
-    active: bool,
     pub highest_seen: Ballot,
     election_deadline: Instant,
     election_aimd: AimdTimeout,
-    heartbeat: Option<Interval>,
     scout: Option<Scout>,
     commander: Option<CommanderRuntime>,
 }
@@ -38,11 +36,9 @@ struct CommanderRuntime {
 impl Default for LeaderVolatile {
     fn default() -> Self {
         Self {
-            active: false,
             highest_seen: Ballot::default(),
             election_deadline: Instant::now() + Duration::from_millis(100),
             election_aimd: AimdTimeout::default(),
-            heartbeat: None,
             scout: None,
             commander: None,
         }
@@ -50,13 +46,6 @@ impl Default for LeaderVolatile {
 }
 
 impl LeaderVolatile {
-    pub fn init(data: LeaderDurable) -> Self {
-        let mut state = Self::default();
-        state.highest_seen = data.ballot();
-        state.reset_election_deadline();
-        state
-    }
-
     pub fn reset_election_deadline(&mut self) {
         let base = self.election_aimd.interval();
         let jitter = rand::rng().random_range(0..=((base.as_millis() as u64 / 5).max(1)));
@@ -124,24 +113,8 @@ impl LeaderVolatile {
         self.election_aimd.backoff();
     }
 
-    pub fn aimd_success(&mut self) {
-        self.election_aimd.success();
-    }
-
-    pub fn heartbeat_interval(&self) -> Option<&Interval> {
-        self.heartbeat.as_ref()
-    }
-
     pub fn election_deadline(&self) -> Instant {
         self.election_deadline
-    }
-
-    pub async fn wait_heartbeat_tick(&mut self) {
-        if let Some(hb) = self.heartbeat.as_mut() {
-            hb.tick().await;
-        } else {
-            pending::<()>().await;
-        }
     }
 
     pub async fn add_to_commander(&mut self, slot: usize, cmd: PaxosCommand) {

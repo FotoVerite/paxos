@@ -10,4 +10,6 @@ pub enum ReconfigError {
     NoAcceptors,
     #[error("configuration must include at least one learner")]
     NoLearners,
+    #[error("configuration strategy needs alpha assignment")]
+    NoAlpha,
 }

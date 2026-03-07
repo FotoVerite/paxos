@@ -11,7 +11,7 @@ use tokio::sync::{Mutex, Notify};
 use uuid::Uuid;
 
 use paxos::{
-    cluster::cluster::Cluster,
+    cluster::classic_cluster::ClassicCluster,
     common::persistence::ClusterPersistence,
     common::types::DecreeId,
     message::Message,
@@ -348,9 +348,9 @@ impl PaxosObserver for RecordingObserver {
 pub async fn create_cluster(
     node_count: usize,
     observer: Arc<RecordingObserver>,
-) -> anyhow::Result<Cluster> {
+) -> anyhow::Result<ClassicCluster> {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    Cluster::new(0, ip, node_count, observer).await
+    ClassicCluster::new(0, ip, node_count, observer).await
 }
 
 // ============================================================================

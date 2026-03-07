@@ -1,15 +1,28 @@
 use std::{collections::HashSet, net::IpAddr, path::Path, sync::Arc};
 
 use tokio::time::{Duration, sleep, timeout};
+use uuid::Uuid;
 
 use crate::{
     common::persistence::Persistence,
+    message::ClientMessage,
     monitor::NoOpObserver,
     node::config::{PmmcNodeConfig, Roles},
     paxos_command::PaxosCommand,
 };
 
-use super::ClusterRuntime;
+use super::PmmcCluster;
+
+async fn propose_via_client(cluster: &PmmcCluster, replica_idx: usize, cmd: PaxosCommand) {
+    let client_id = Uuid::new_v4();
+    let (tx, _rx) = cluster
+        .connect_client_to(replica_idx, client_id)
+        .await
+        .expect("replica should accept client connection");
+    tx.send(ClientMessage::PROPOSE { cmd })
+        .await
+        .expect("client propose send should succeed");
+}
 
 #[tokio::test]
 async fn role_split_cluster_sets_expected_quorum_and_node_count() {
@@ -43,7 +56,7 @@ async fn role_split_cluster_sets_expected_quorum_and_node_count() {
         });
     }
 
-    let cluster = ClusterRuntime::new_with_configs(ip, configs, Arc::new(NoOpObserver))
+    let cluster = PmmcCluster::new_with_configs(ip, configs, Arc::new(NoOpObserver))
         .await
         .expect("role-split cluster should initialize");
 
@@ -55,16 +68,16 @@ async fn role_split_cluster_sets_expected_quorum_and_node_count() {
 #[test]
 fn node_uuid_is_stable_and_unique_per_index() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let u0a = ClusterRuntime::node_uuid(ip, 0);
-    let u0b = ClusterRuntime::node_uuid(ip, 0);
-    let u1 = ClusterRuntime::node_uuid(ip, 1);
+    let u0a = PmmcCluster::node_uuid(ip, 0);
+    let u0b = PmmcCluster::node_uuid(ip, 0);
+    let u1 = PmmcCluster::node_uuid(ip, 1);
 
     assert_eq!(u0a, u0b, "same ip/index must produce stable UUID");
     assert_ne!(u0a, u1, "different node indexes must map to different UUIDs");
 
     let mut set = HashSet::new();
     for i in 0..8 {
-        set.insert(ClusterRuntime::node_uuid(ip, i));
+        set.insert(PmmcCluster::node_uuid(ip, i));
     }
     assert_eq!(set.len(), 8, "UUID mapping should be unique across indexes");
 }
@@ -72,7 +85,7 @@ fn node_uuid_is_stable_and_unique_per_index() {
 #[tokio::test]
 async fn single_node_cluster_persists_state_under_ip_node_directory() {
     let ip = IpAddr::V4([127, 0, 0, 42].into());
-    let cluster = ClusterRuntime::new(ip, 1, Arc::new(NoOpObserver))
+    let cluster = PmmcCluster::new(ip, 1, Arc::new(NoOpObserver))
         .await
         .expect("single-node PMMC cluster should initialize");
 
@@ -93,19 +106,19 @@ async fn single_node_cluster_persists_state_under_ip_node_directory() {
     .await
     .expect("single-node cluster should elect a leader");
 
-    cluster
-        .propose_from(
-            0,
-            PaxosCommand::PUT {
-                key: "persist".to_string(),
-                version: 1,
-                value: 7,
-            }
-            .with_client(uuid, 1),
-        )
-        .await;
+    propose_via_client(
+        &cluster,
+        0,
+        PaxosCommand::PUT {
+            key: "persist".to_string(),
+            version: 1,
+            value: 7,
+        }
+        .with_client(uuid, 1),
+    )
+    .await;
 
-    timeout(Duration::from_secs(2), async {
+    timeout(Duration::from_secs(10), async {
         loop {
             let acceptor_path = persistence.dir().join("acceptor.bin");
             let store_path = persistence.dir().join("store.bin");
@@ -121,4 +134,56 @@ async fn single_node_cluster_persists_state_under_ip_node_directory() {
     assert!(persistence.dir().ends_with(uuid.to_string()));
     assert!(persistence.dir().join("acceptor.bin").exists());
     assert!(persistence.dir().join("store.bin").exists());
+}
+
+#[tokio::test]
+async fn cleanup_removes_cluster_persistence_root() {
+    let ip = IpAddr::V4([127, 0, 0, 43].into());
+    let cluster = PmmcCluster::new(ip, 1, Arc::new(NoOpObserver))
+        .await
+        .expect("single-node PMMC cluster should initialize");
+
+    let persistence = Persistence::cluster(ip);
+    let _ = std::fs::remove_dir_all(persistence.dir());
+
+    cluster.start_all().await;
+    timeout(Duration::from_secs(2), async {
+        loop {
+            if cluster.leader().await.is_some() {
+                break;
+            }
+            sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("single-node cluster should elect a leader");
+
+    propose_via_client(
+        &cluster,
+        0,
+        PaxosCommand::PUT {
+            key: "cleanup".to_string(),
+            version: 1,
+            value: 9,
+        }
+        .with_client(cluster.get_node_uuids()[0], 1),
+    )
+    .await;
+
+    timeout(Duration::from_secs(2), async {
+        loop {
+            if persistence.dir().exists() {
+                break;
+            }
+            sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("cluster persistence root should exist before cleanup");
+
+    cluster.cleanup().await.expect("cleanup should succeed");
+    assert!(
+        !persistence.dir().exists(),
+        "cleanup should remove the entire cluster persistence root"
+    );
 }

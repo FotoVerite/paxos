@@ -1,5 +1,3 @@
-mod types;
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,7 +25,6 @@ pub struct Clerk {
 struct InflightRequest {
     tx: oneshot::Sender<Result<ReplyOutcome, ClerkResponseError>>,
     key: Option<String>,
-    cmd: PaxosCommand,
     token: CancellationToken,
 }
 
@@ -64,7 +61,6 @@ impl Clerk {
             inflight.insert(rid, InflightRequest { 
                 tx, 
                 key: key.clone(), 
-                cmd: cmd.clone(),
                 token: token.clone(),
             });
         }
@@ -80,7 +76,7 @@ impl Clerk {
         }).await;
 
         // Spawn retry loop
-        self.spawn_retry(self.client_id, rid, cmd, token);
+        self.spawn_retry(self.client_id, cmd, token);
 
         match rx.await {
             Ok(result) => result,
@@ -88,7 +84,7 @@ impl Clerk {
         }
     }
 
-    fn spawn_retry(&self, from: Uuid, rid: u64, cmd: PaxosCommand, token: CancellationToken) {
+    fn spawn_retry(&self, from: Uuid, cmd: PaxosCommand, token: CancellationToken) {
         let peers = Arc::clone(&self.peers);
         let mut dur = Duration::from_millis(500);
         tokio::spawn(async move {

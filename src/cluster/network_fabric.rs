@@ -14,7 +14,7 @@ pub enum NetworkFailure {
     None,
     Delay(Duration),
     PacketLoss { drop_rate: f32 },
-    Partition 
+    Partition,
 }
 
 pub struct NetworkFabric {
@@ -63,7 +63,10 @@ impl NetworkFabric {
     }
 
     pub async fn clear_failures_from(&self, from: Uuid) {
-        self.failures.lock().await.retain(|(src, _), _| *src != from);
+        self.failures
+            .lock()
+            .await
+            .retain(|(src, _), _| *src != from);
     }
 
     async fn should_fail(&self, from: Uuid, to: Uuid) -> bool {

@@ -6,9 +6,9 @@ use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::cluster::{
-    cluster::Cluster,
+    classic_cluster::ClassicCluster,
     cluster_configuration::ClusterConfiguration,
-    cluster_runtime::ClusterRuntime,
+    pmmc_cluster::PmmcCluster,
 };
 use crate::common::persistence::Persistence;
 use crate::decree_generator::DecreeGenerator;
@@ -32,8 +32,8 @@ pub struct ClusterManager {
 
 #[derive(Clone)]
 enum ActiveCluster {
-    Classic(Arc<Mutex<Cluster>>),
-    Pmmc(Arc<Mutex<ClusterRuntime>>),
+    Classic(Arc<Mutex<ClassicCluster>>),
+    Pmmc(Arc<Mutex<PmmcCluster>>),
 }
 
 struct ScenarioObserver {
@@ -71,8 +71,8 @@ impl ClusterManager {
         ip: IpAddr,
         configuration: ClusterConfiguration,
         observer: Arc<dyn crate::monitor::PaxosObserver>,
-    ) -> anyhow::Result<Cluster> {
-        Cluster::new_with_configuration(id, ip, configuration, observer).await
+    ) -> anyhow::Result<ClassicCluster> {
+        ClassicCluster::new_with_configuration(id, ip, configuration, observer).await
     }
 
     fn pmmc_configuration_for_scenario(
@@ -123,8 +123,8 @@ impl ClusterManager {
         ip: IpAddr,
         configuration: ClusterConfiguration,
         observer: Arc<dyn crate::monitor::PaxosObserver>,
-    ) -> anyhow::Result<ClusterRuntime> {
-        ClusterRuntime::new_with_configuration(ip, configuration, observer).await
+    ) -> anyhow::Result<PmmcCluster> {
+        PmmcCluster::new_with_configuration(ip, configuration, observer).await
     }
 
     fn classic_configuration_for_scenario(
@@ -150,12 +150,17 @@ impl ClusterManager {
         node_count: usize,
         scenario_type: ScenarioType,
     ) -> anyhow::Result<broadcast::Sender<()>> {
-        self.clear_active_cluster().await;
+        self.signal_stop().await;
+        let cleaned = self.cleanup_active_cluster().await?;
 
-        if let Ok(removed) = self.purge_persisted_state_for_ip(ip).await {
-            if removed > 0 {
-                info!(removed_state_files = removed, "Purged persisted state before scenario start");
+        if !cleaned {
+            if let Ok(removed) = self.purge_persisted_state_for_ip(ip).await {
+                if removed > 0 {
+                    info!(removed_state_files = removed, "Purged persisted state before scenario start");
+                }
             }
+        } else {
+            info!("Cleaned active cluster persistence before scenario start");
         }
 
         self.observer.clear().await;
@@ -179,9 +184,25 @@ impl ClusterManager {
         *current = Some(cluster);
     }
 
-    async fn clear_active_cluster(&self) {
-        let mut current = self.cluster.lock().await;
-        *current = None;
+    async fn cleanup_active_cluster(&self) -> anyhow::Result<bool> {
+        let active = {
+            let mut current = self.cluster.lock().await;
+            current.take()
+        };
+
+        match active {
+            Some(ActiveCluster::Classic(cluster_arc)) => {
+                let cluster = cluster_arc.lock().await;
+                cluster.cleanup().await?;
+                Ok(true)
+            }
+            Some(ActiveCluster::Pmmc(cluster_arc)) => {
+                let cluster = cluster_arc.lock().await;
+                cluster.cleanup().await?;
+                Ok(true)
+            }
+            None => Ok(false),
+        }
     }
 
     async fn replace_stop_channel(&self) -> broadcast::Sender<()> {
@@ -277,7 +298,7 @@ impl ClusterManager {
     }
 
     async fn run_classic_iteration(
-        cluster_for_runner: &Arc<Mutex<Cluster>>,
+        cluster_for_runner: &Arc<Mutex<ClassicCluster>>,
         scenario_type: ScenarioType,
         proposal_count: usize,
         decree_gen: &mut DecreeGenerator,
@@ -462,10 +483,11 @@ impl ClusterManager {
                 cluster.propose(decree).await;
                 Ok(())
             }
-            Some(ActiveCluster::Pmmc(cluster_arc)) => {
-                let cluster = cluster_arc.lock().await;
-                cluster.propose_from(0, decree).await;
-                Ok(())
+            Some(ActiveCluster::Pmmc(_)) => {
+                warn!("Rejecting direct proposal: PMMC uses internal client request flow");
+                Err(anyhow::anyhow!(
+                    "Direct /api/propose is not supported for PMMC; use scenario client flow"
+                ))
             }
             None => {
                 warn!("Rejecting proposal because no active cluster exists");
@@ -477,19 +499,23 @@ impl ClusterManager {
     #[instrument(name = "cluster_manager.stop_scenario", skip(self))]
     pub async fn stop_scenario(&self) -> anyhow::Result<()> {
         self.signal_stop().await;
-        self.clear_active_cluster().await;
+        let _ = self.cleanup_active_cluster().await?;
         info!("Scenario stopped");
         Ok(())
     }
 
     #[instrument(name = "cluster_manager.reset", skip(self), fields(client_ip = %ip))]
     pub async fn reset(&self, ip: IpAddr) -> anyhow::Result<()> {
-        self.clear_active_cluster().await;
         self.signal_stop().await;
+        let cleaned = self.cleanup_active_cluster().await?;
 
-        // Remove all persisted node versions (including stale UUIDs/corrupt/tmp variants).
-        let removed = self.purge_persisted_state_for_ip(ip).await?;
-        info!(removed_state_files = removed, "Deleted persisted state files");
+        if !cleaned {
+            // Remove all persisted node versions (including stale UUIDs/corrupt/tmp variants).
+            let removed = self.purge_persisted_state_for_ip(ip).await?;
+            info!(removed_state_files = removed, "Deleted persisted state files");
+        } else {
+            info!("Deleted persisted state through active cluster cleanup");
+        }
 
         // Clear the observer state
         self.observer.clear().await;
@@ -499,8 +525,10 @@ impl ClusterManager {
     }
 
     async fn purge_persisted_state_for_ip(&self, ip: IpAddr) -> anyhow::Result<usize> {
-        let removed = Persistence::cluster(ip).purge_known_state_files().await?;
-        info!(client_ip = %ip, removed_state_files = removed, "Purged cluster persistence root");
+        let persistence = Persistence::cluster(ip);
+        let removed = usize::from(persistence.dir().exists());
+        persistence.purge_cluster_dir().await?;
+        info!(client_ip = %ip, removed_state_roots = removed, "Purged cluster persistence root");
         Ok(removed)
     }
 }

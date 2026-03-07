@@ -7,34 +7,37 @@ use tokio::sync::{
 };
 use uuid::Uuid;
 
+use crate::cluster::{
+    cluster_configuration::ClusterConfiguration, configuration_handler::ConfigurationHandler,
+    runtime_state::RuntimeState,
+};
 use crate::{
     cluster::{
-        network_fabric::NetworkFabric,
-        network_simulator::NetworkFailure,
+        network_fabric::NetworkFabric, network_simulator::NetworkFailure,
         runtime_member::RuntimeMember,
     },
     common::persistence::ClusterPersistence,
     message::ClientMessage,
     monitor::PaxosObserver,
-    node::{config::PmmcNodeConfig, peer_topology::PeerTopology},
-    paxos_command::PaxosCommand,
+    node::config::{PmmcNodeConfig, Roles},
 };
-use crate::cluster::runtime_state::RuntimeState;
 
 pub struct RuntimeRegistry {
     members: RwLock<HashMap<Uuid, Arc<RuntimeMember>>>,
     member_ids: Vec<Uuid>,
     fabric: Arc<NetworkFabric>,
+    handler: Arc<ConfigurationHandler>,
 }
+
+const CONFIG_HANDLER_ID: Uuid = Uuid::from_u128(0xC5);
 
 impl RuntimeRegistry {
     pub async fn init(
         members: Vec<(Uuid, PmmcNodeConfig)>,
-        quorum: usize,
         fabric: Arc<NetworkFabric>,
+        configuration: Arc<ClusterConfiguration>,
         persistence: Arc<ClusterPersistence>,
         observer: Arc<dyn PaxosObserver>,
-        topology: PeerTopology,
     ) -> anyhow::Result<Self> {
         let mut runtime_members = HashMap::new();
         let mut member_ids = Vec::new();
@@ -48,23 +51,23 @@ impl RuntimeRegistry {
             let member = RuntimeMember::new(
                 uuid,
                 roles.roles,
-                quorum,
+                Arc::clone(&configuration),
                 fabric_arc,
                 persistence.node(uuid),
                 rx,
                 Arc::clone(&observer),
-                topology.clone(),
             )
             .await?;
 
             runtime_members.insert(uuid, Arc::new(member));
             member_ids.push(uuid);
         }
-
+        let handler = ConfigurationHandler::new(CONFIG_HANDLER_ID, Arc::clone(&fabric));
         Ok(Self {
             members: RwLock::new(runtime_members),
             member_ids,
             fabric,
+            handler,
         })
     }
 
@@ -77,6 +80,51 @@ impl RuntimeRegistry {
             member.start().await;
         }
     }
+
+    pub async fn spawn_member(
+        &self,
+        uuid: Uuid,
+        roles: Roles,
+        configuration: Arc<ClusterConfiguration>,
+        persistence: Arc<ClusterPersistence>,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> anyhow::Result<()> {
+        let (tx, rx) = mpsc::channel(1024);
+        let fabric_arc = Arc::clone(&self.fabric);
+
+        fabric_arc.register(uuid, tx).await;
+
+        let member = RuntimeMember::new(
+            uuid,
+            roles,
+            Arc::clone(&configuration),
+            fabric_arc,
+            persistence.node(uuid),
+            rx,
+            Arc::clone(&observer),
+        )
+        .await?;
+        let arc_member = Arc::new(member);
+        let mut members = self.members.write().await;
+        members.insert(uuid, Arc::clone(&arc_member));
+        drop(members);
+        arc_member.start().await;
+        return Ok(());
+    }
+
+    pub async fn activate_member(&self, uuid: Uuid) {
+        if let Some(member) = self.get(uuid).await {
+            member.start().await;
+        }
+    }
+
+    pub async fn stop_member(&self, uuid: Uuid) {
+        if let Some(member) = self.get(uuid).await {
+            member.stop().await;
+        }
+    }
+
+    pub async fn update_roles(_uuid: Uuid, _role: Roles) {}
 
     pub async fn get(&self, uuid: Uuid) -> Option<Arc<RuntimeMember>> {
         let members = self.members.read().await;
@@ -178,12 +226,6 @@ impl RuntimeRegistry {
                 .await;
         }
         true
-    }
-
-    pub async fn propose_from(&self, uuid: Uuid, cmd: PaxosCommand) {
-        if let Some(m) = self.get(uuid).await {
-            m.propose(cmd).await;
-        }
     }
 
     pub async fn connect_client_to(
