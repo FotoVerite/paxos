@@ -1,23 +1,28 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use async_trait::async_trait;
 use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::time::{sleep, timeout};
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use uuid::Uuid;
+pub mod endpoint;
 pub mod types;
 
 use crate::cluster::configuration_handler::types::{
-    ConfigurationCommand, ConfigurationHandlerError, ConfigurationHandlerMessage,
-    ConfigurationReplyOutcome,
+    ConfigurationCommand, ConfigurationHandlerError, ConfigurationHandlerMessage, ConfigurationOperationId,
+    ConfigurationOperationStatus, ConfigurationReplyOutcome,
 };
 use crate::common::message_hub::{HubInbound, MessageHub};
+use endpoint::ConfigurationEndpoint;
 
 pub struct ConfigurationHandler {
     _client_id: Uuid,
     request_id: Mutex<u64>,
     inflight: Mutex<HashMap<u64, InflightRequest>>,
+    pending: Mutex<HashMap<u64, PendingOperation>>,
+    status: Mutex<HashMap<u64, ConfigurationOperationStatus>>,
     hub: Arc<MessageHub<ConfigurationHandlerMessage, ConfigurationHandlerInbound>>,
     hub_rx: Mutex<Option<mpsc::Receiver<ConfigurationHandlerInbound>>>,
 }
@@ -25,6 +30,10 @@ pub struct ConfigurationHandler {
 struct InflightRequest {
     tx: oneshot::Sender<Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>,
     token: CancellationToken,
+}
+
+struct PendingOperation {
+    rx: oneshot::Receiver<Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>,
 }
 
 #[derive(Debug, Clone)]
@@ -50,6 +59,8 @@ impl ConfigurationHandler {
             _client_id: client_id,
             request_id: Mutex::new(0),
             inflight: Mutex::new(HashMap::new()),
+            pending: Mutex::new(HashMap::new()),
+            status: Mutex::new(HashMap::new()),
             hub: Arc::new(MessageHub::new(hub_tx)),
             hub_rx: Mutex::new(Some(hub_rx)),
         })
@@ -72,6 +83,15 @@ impl ConfigurationHandler {
         to: Uuid,
         cmd: ConfigurationCommand,
     ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        let operation_id = self.submit(to, cmd).await?;
+        self.await_outcome(operation_id, Duration::from_secs(12)).await
+    }
+
+    async fn submit_internal(
+        &self,
+        to: Uuid,
+        cmd: ConfigurationCommand,
+    ) -> Result<ConfigurationOperationId, ConfigurationHandlerError> {
         if !self.hub.clients().await.contains(&to) {
             return Err(ConfigurationHandlerError::EndpointUnavailable { endpoint: to });
         }
@@ -94,6 +114,11 @@ impl ConfigurationHandler {
                 },
             );
         }
+        self.pending.lock().await.insert(rid, PendingOperation { rx });
+        self.status
+            .lock()
+            .await
+            .insert(rid, ConfigurationOperationStatus::Submitted);
 
         // Initial request dispatch
         self.hub
@@ -108,18 +133,7 @@ impl ConfigurationHandler {
 
         // Spawn retry loop
         self.spawn_retry(rid, to, cmd, token);
-
-        // Bound request lifetime so stale inflight requests do not hang forever.
-        match timeout(Duration::from_secs(12), rx).await {
-            Ok(Ok(result)) => result,
-            Ok(Err(_)) => Err(ConfigurationHandlerError::ResponseChannelClosed),
-            Err(_) => {
-                if let Some(req) = self.inflight.lock().await.remove(&rid) {
-                    req.token.cancel();
-                }
-                Err(ConfigurationHandlerError::Timeout)
-            }
-        }
+        Ok(rid)
     }
 
     fn spawn_retry(
@@ -155,6 +169,73 @@ impl ConfigurationHandler {
         });
     }
 
+    async fn await_outcome_internal(
+        &self,
+        operation_id: ConfigurationOperationId,
+        timeout_duration: Duration,
+    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        let pending = self.pending.lock().await.remove(&operation_id);
+        let Some(PendingOperation { rx }) = pending else {
+            return match self.status_internal(operation_id).await {
+                Ok(ConfigurationOperationStatus::Completed(outcome)) => Ok(outcome),
+                Ok(ConfigurationOperationStatus::Failed(err)) => Err(err),
+                Ok(ConfigurationOperationStatus::Submitted) => {
+                    Err(ConfigurationHandlerError::UnknownOperationId { operation_id })
+                }
+                Err(err) => Err(err),
+            };
+        };
+
+        match timeout(timeout_duration, rx).await {
+            Ok(Ok(Ok(outcome))) => {
+                self.status
+                    .lock()
+                    .await
+                    .insert(operation_id, ConfigurationOperationStatus::Completed(outcome.clone()));
+                Ok(outcome)
+            }
+            Ok(Ok(Err(err))) => {
+                self.status
+                    .lock()
+                    .await
+                    .insert(operation_id, ConfigurationOperationStatus::Failed(err.clone()));
+                Err(err)
+            }
+            Ok(Err(_)) => {
+                let err = ConfigurationHandlerError::ResponseChannelClosed;
+                self.status
+                    .lock()
+                    .await
+                    .insert(operation_id, ConfigurationOperationStatus::Failed(err.clone()));
+                Err(err)
+            }
+            Err(_) => {
+                if let Some(req) = self.inflight.lock().await.remove(&operation_id) {
+                    req.token.cancel();
+                }
+                let err = ConfigurationHandlerError::Timeout;
+                self.status
+                    .lock()
+                    .await
+                    .insert(operation_id, ConfigurationOperationStatus::Failed(err.clone()));
+                Err(err)
+            }
+        }
+    }
+
+    async fn status_internal(
+        &self,
+        operation_id: ConfigurationOperationId,
+    ) -> Result<ConfigurationOperationStatus, ConfigurationHandlerError> {
+        if let Some(status) = self.status.lock().await.get(&operation_id).cloned() {
+            return Ok(status);
+        }
+        if self.inflight.lock().await.contains_key(&operation_id) {
+            return Ok(ConfigurationOperationStatus::Submitted);
+        }
+        Err(ConfigurationHandlerError::UnknownOperationId { operation_id })
+    }
+
     pub async fn handle_response(
         &self,
         rid: u64,
@@ -164,6 +245,11 @@ impl ConfigurationHandler {
         if let Some(req) = inflight.remove(&rid) {
             // Cancel retry loop
             req.token.cancel();
+            let status = match &outcome {
+                Ok(reply) => ConfigurationOperationStatus::Completed(reply.clone()),
+                Err(err) => ConfigurationOperationStatus::Failed(err.clone()),
+            };
+            self.status.lock().await.insert(rid, status);
             let _ = req.tx.send(outcome);
             return Ok(());
         }
@@ -202,5 +288,99 @@ impl ConfigurationHandler {
                 }
             }
         });
+    }
+}
+
+#[async_trait]
+impl ConfigurationEndpoint for ConfigurationHandler {
+    async fn submit(
+        &self,
+        endpoint: Uuid,
+        cmd: ConfigurationCommand,
+    ) -> Result<ConfigurationOperationId, ConfigurationHandlerError> {
+        self.submit_internal(endpoint, cmd).await
+    }
+
+    async fn await_outcome(
+        &self,
+        operation_id: ConfigurationOperationId,
+        timeout: Duration,
+    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        self.await_outcome_internal(operation_id, timeout).await
+    }
+
+    async fn status(
+        &self,
+        operation_id: ConfigurationOperationId,
+    ) -> Result<ConfigurationOperationStatus, ConfigurationHandlerError> {
+        self.status_internal(operation_id).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use tokio::sync::mpsc;
+    use uuid::Uuid;
+
+    use crate::cluster::configuration_handler::endpoint::ConfigurationEndpoint;
+    use crate::cluster::configuration_handler::types::{
+        ConfigurationCommand, ConfigurationHandlerError, ConfigurationHandlerMessage,
+        ConfigurationOperationStatus, ConfigurationReplyOutcome,
+    };
+
+    use super::ConfigurationHandler;
+
+    #[tokio::test]
+    async fn submit_tracks_status_and_awaits_completion() {
+        let handler = ConfigurationHandler::new(Uuid::from_u128(0xC5));
+        let endpoint = Uuid::new_v4();
+        let (endpoint_tx, mut endpoint_rx) = mpsc::channel::<ConfigurationHandlerMessage>(8);
+        handler.register_endpoint(endpoint, endpoint_tx).await;
+
+        let op = handler
+            .submit(endpoint, ConfigurationCommand::Emit)
+            .await
+            .expect("submit should succeed");
+
+        let first_msg = endpoint_rx.recv().await.expect("endpoint should receive request");
+        assert!(matches!(
+            first_msg,
+            ConfigurationHandlerMessage::Reconfigure {
+                request_id,
+                cmd: ConfigurationCommand::Emit
+            } if request_id == op
+        ));
+
+        let status = handler.status(op).await.expect("status should exist");
+        assert_eq!(status, ConfigurationOperationStatus::Submitted);
+
+        handler
+            .handle_response(op, Ok(ConfigurationReplyOutcome::Ok))
+            .await
+            .expect("response should be correlated");
+
+        let outcome = handler
+            .await_outcome(op, Duration::from_millis(50))
+            .await
+            .expect("outcome should complete");
+        assert_eq!(outcome, ConfigurationReplyOutcome::Ok);
+
+        let final_status = handler.status(op).await.expect("status should stay visible");
+        assert_eq!(
+            final_status,
+            ConfigurationOperationStatus::Completed(ConfigurationReplyOutcome::Ok)
+        );
+    }
+
+    #[tokio::test]
+    async fn unknown_operation_status_returns_error() {
+        let handler = ConfigurationHandler::new(Uuid::from_u128(0xC5));
+        let err = handler.status(99).await.expect_err("missing op should error");
+        assert!(matches!(
+            err,
+            ConfigurationHandlerError::UnknownOperationId { operation_id } if operation_id == 99
+        ));
     }
 }

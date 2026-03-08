@@ -1,13 +1,22 @@
 use crate::node::config::Roles;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub type ConfigurationOperationId = u64;
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ConfigurationReplyOutcome {
     Ok, // commands with no payload
     Err(ConfigurationHandlerError),
     Stopped,
     Active,
     Data,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ConfigurationOperationStatus {
+    Submitted,
+    Completed(ConfigurationReplyOutcome),
+    Failed(ConfigurationHandlerError),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, thiserror::Error, PartialEq, Eq)]
@@ -20,6 +29,8 @@ pub enum ConfigurationHandlerError {
     ResponseChannelClosed,
     #[error("configuration response for unknown request id {request_id}")]
     UnknownRequestId { request_id: u64 },
+    #[error("configuration operation id {operation_id} is unknown")]
+    UnknownOperationId { operation_id: ConfigurationOperationId },
     #[error("configuration endpoint {endpoint} is unavailable")]
     EndpointUnavailable { endpoint: Uuid },
     #[error("request sent to a non-leader")]

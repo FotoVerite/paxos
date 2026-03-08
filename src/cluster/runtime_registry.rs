@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::sync::{
     RwLock,
@@ -8,7 +9,15 @@ use tokio::sync::{
 use uuid::Uuid;
 
 use crate::cluster::{
-    cluster_configuration::ClusterConfiguration, configuration_handler::ConfigurationHandler,
+    cluster_configuration::ClusterConfiguration,
+    configuration_handler::{
+        ConfigurationHandler,
+        endpoint::ConfigurationEndpoint,
+        types::{
+            ConfigurationCommand, ConfigurationHandlerError, ConfigurationHandlerMessage,
+            ConfigurationOperationId, ConfigurationOperationStatus, ConfigurationReplyOutcome,
+        },
+    },
     runtime_state::RuntimeState,
 };
 use crate::{
@@ -72,6 +81,7 @@ impl RuntimeRegistry {
     }
 
     pub async fn start(&self) {
+        self.handler.clone().start().await;
         let members: Vec<_> = {
             let members = self.members.read().await;
             members.values().cloned().collect()
@@ -79,6 +89,29 @@ impl RuntimeRegistry {
         for member in members {
             member.start().await;
         }
+    }
+
+    pub async fn submit_configuration_op(
+        &self,
+        endpoint: Uuid,
+        cmd: ConfigurationCommand,
+    ) -> Result<ConfigurationOperationId, ConfigurationHandlerError> {
+        self.handler.submit(endpoint, cmd).await
+    }
+
+    pub async fn await_configuration_op(
+        &self,
+        operation_id: ConfigurationOperationId,
+        timeout: Duration,
+    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        self.handler.await_outcome(operation_id, timeout).await
+    }
+
+    pub async fn configuration_op_status(
+        &self,
+        operation_id: ConfigurationOperationId,
+    ) -> Result<ConfigurationOperationStatus, ConfigurationHandlerError> {
+        self.handler.status(operation_id).await
     }
 
     pub async fn spawn_member(
@@ -226,6 +259,18 @@ impl RuntimeRegistry {
                 .await;
         }
         true
+    }
+
+    pub async fn register_configuration_endpoint(
+        &self,
+        endpoint: Uuid,
+        sender: Sender<ConfigurationHandlerMessage>,
+    ) -> Sender<ConfigurationHandlerMessage> {
+        self.handler.register_endpoint(endpoint, sender).await
+    }
+
+    pub async fn unregister_configuration_endpoint(&self, endpoint: Uuid) {
+        self.handler.unregister_endpoint(endpoint).await;
     }
 
     pub async fn connect_client_to(
