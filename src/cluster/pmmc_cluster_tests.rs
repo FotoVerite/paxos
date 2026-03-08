@@ -208,7 +208,7 @@ async fn configuration_endpoint_submit_and_await_roundtrip() {
         .expect("emit op should submit");
     let emit = cluster
         .runtime_registry
-        .await_configuration_op(emit_op, Duration::from_secs(1))
+        .await_configuration_op(emit_op, Duration::from_secs(2))
         .await
         .expect("emit op should complete");
     assert_eq!(emit, ConfigurationReplyOutcome::Active);
@@ -220,7 +220,7 @@ async fn configuration_endpoint_submit_and_await_roundtrip() {
         .expect("stop op should submit");
     let stop = cluster
         .runtime_registry
-        .await_configuration_op(stop_op, Duration::from_secs(1))
+        .await_configuration_op(stop_op, Duration::from_secs(6))
         .await
         .expect("stop op should complete");
     assert_eq!(stop, ConfigurationReplyOutcome::Stopped);

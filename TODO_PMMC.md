@@ -188,6 +188,40 @@ and reconfiguration support.
 
 This is the next major section, but we should prepare the code now so it lands cleanly.
 
+### Reconfiguration Remaining (working + tested)
+- [ ] Finalize control-plane boundary:
+  - [ ] Keep `RuntimeMember` as thin delegation only.
+  - [ ] Keep `PmmcNode`/`NodeState` as the execution boundary for config commands.
+  - [ ] Ensure endpoint loops in `RuntimeRegistry` only do request/response plumbing.
+- [ ] Complete node-level configuration handlers:
+  - [ ] `Emit` returns a real checkpoint export payload (not just enum status).
+  - [ ] `Stop` semantics are explicit (`runtime-stop` vs `paxos-stop`) and consistent across member/node.
+  - [ ] `Add` / `Remove` route through node-state membership path (no placeholder reject path).
+- [ ] Introduce checkpoint export/import path for reconfiguration:
+  - [ ] Define typed checkpoint manifest + payload schema.
+  - [ ] Export RSM + dedup metadata for orchestrator use.
+  - [ ] Import checkpoint into new config and set `starting_slot`/epoch correctly.
+  - [ ] Verify full acceptor replacement still boots and serves from imported state.
+- [ ] Wire configuration apply (after boundaries are stable):
+  - [ ] Build node-state membership command handler that constructs patch input.
+  - [ ] Call reconciler/apply path from node-state membership handler.
+  - [ ] Activate/deactivate runtimes through registry lifecycle transitions.
+- [ ] Add config/epoch safety checks:
+  - [ ] Reject stale config operations.
+  - [ ] Tie operation status to config id/epoch for observability.
+  - [ ] Ensure transition state is visible in endpoint status responses.
+- [ ] Expand endpoint operation contract:
+  - [ ] `submit` returns op-id.
+  - [ ] `status` shows `Submitted/Completed/Failed` with structured reason.
+  - [ ] add `AlreadyAwaitingOperation` behavior tests for concurrent waiters.
+- [ ] Reconfiguration tests (must pass before visualizer work):
+  - [ ] unit: node admin struct (`stop`, `emit`, membership dispatch).
+  - [ ] unit: runtime member delegation and lifecycle transitions.
+  - [ ] unit: runtime registry endpoint loops and endpoint registration/unregistration.
+  - [ ] integration: stop roundtrip endpoint -> member -> node -> response.
+  - [ ] integration: add/remove transition applies expected runtime membership diff.
+  - [ ] integration: checkpoint export/import recovers service with replaced acceptors.
+
 ### Immediate groundwork
 - [x] Thread `ClusterConfiguration` through Classic cluster construction by default instead of raw node-config vectors.
 - [ ] Add explicit config id / epoch to active runtime state.

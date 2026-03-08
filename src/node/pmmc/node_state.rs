@@ -6,9 +6,12 @@ use tokio::sync::{Mutex, mpsc};
 use tokio::time::Instant;
 use uuid::Uuid;
 
+mod admin;
+
 use crate::{
     cluster::{
         cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
+        configuration_handler::types::{ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome},
         network_simulator::NetworkSimulator,
     },
     common::persistence::NodePersistence,
@@ -25,9 +28,10 @@ use crate::{
         },
     },
 };
+use admin::NodeAdmin;
 
 #[derive(Default)]
-struct NodeClientSink {
+pub(super) struct NodeClientSink {
     clients: Mutex<HashMap<Uuid, mpsc::Sender<ClientMessage>>>,
 }
 
@@ -53,6 +57,7 @@ impl ClientReplySink for NodeClientSink {
 
 pub struct NodeState {
     uuid: Uuid,
+    admin: NodeAdmin,
     acceptor: Option<Acceptor>,
     fabric: Arc<NetworkFabric>,
     leader: Option<Leader>,
@@ -123,8 +128,10 @@ impl NodeState {
         });
 
         let router = MessageRouter::new(LearningStrategy::default(), topology);
+        let admin = NodeAdmin::new(uuid, replica.clone(), Arc::clone(&client_sink));
         Ok(Self {
             uuid,
+            admin,
             acceptor,
             leader,
             replica,
@@ -192,6 +199,34 @@ impl NodeState {
             sink.remove_client(client_id).await;
         });
         Some((client_tx, resp_rx))
+    }
+
+    pub async fn handle_configuration_command(
+        &self,
+        cmd: ConfigurationCommand,
+    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        match cmd {
+            ConfigurationCommand::Add { .. } | ConfigurationCommand::Remove { .. } => {
+                self.handle_membership_command(cmd).await
+            }
+            _ => self.admin.handle_configuration_command(cmd).await,
+        }
+    }
+
+    async fn handle_membership_command(
+        &self,
+        cmd: ConfigurationCommand,
+    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        match cmd {
+            ConfigurationCommand::Add { .. } | ConfigurationCommand::Remove { .. } => {
+                Err(ConfigurationHandlerError::Rejected {
+                    reason: "membership updates not yet wired; route through node state reconciler path".to_string(),
+                })
+            }
+            _ => Err(ConfigurationHandlerError::InvalidRequest {
+                reason: "expected membership command".to_string(),
+            }),
+        }
     }
 
     pub async fn handle_message(&self, msg: Message) {

@@ -10,7 +10,11 @@ use uuid::Uuid;
 
 use crate::{
     cluster::{
-        cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
+        cluster_configuration::ClusterConfiguration,
+        configuration_handler::types::{
+            ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
+        },
+        network_fabric::NetworkFabric,
         network_simulator::NetworkSimulator,
     },
     common::persistence::NodePersistence,
@@ -64,6 +68,13 @@ impl PmmcNode {
 
     pub async fn is_stopped(&self) -> bool {
         self.state.is_stopped().await
+    }
+
+    pub async fn handle_configuration_command(
+        &self,
+        cmd: ConfigurationCommand,
+    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        self.state.handle_configuration_command(cmd).await
     }
 
     pub fn start(&self, mut rx: Receiver<Message>) -> JoinHandle<()> {

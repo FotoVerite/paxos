@@ -97,12 +97,12 @@ impl RuntimeMember {
         }
 
         // self.node.stop();
-        // let mut task = self.task.lock().await;
-        // if let Some(runtime) = task.take() {
-        //     runtime.stop();
-        //     runtime.abort();
-        //     let _ = runtime.task.await;
-        // }
+        let mut task = self.task.lock().await;
+        if let Some(runtime) = task.take() {
+            runtime.abort();
+            let _ = runtime.await;
+        }
+        drop(task);
 
         let mut state = self.state.write().await;
         *state = RuntimeState::Stopped;
@@ -136,38 +136,11 @@ impl RuntimeMember {
         &self,
         cmd: ConfigurationCommand,
     ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
-        match cmd {
-            ConfigurationCommand::Stop => {
-                let state = self.state().await;
-                match state {
-                    RuntimeState::Active => {
-                        self.stop().await;
-                        Ok(ConfigurationReplyOutcome::Stopped)
-                    }
-                    RuntimeState::Stopped => Ok(ConfigurationReplyOutcome::Stopped),
-                    RuntimeState::Crashed => Err(ConfigurationHandlerError::Conflict {
-                        reason: "node is crashed".to_string(),
-                    }),
-                    _ => Err(ConfigurationHandlerError::Conflict {
-                        reason: "node is not active".to_string(),
-                    }),
-                }
-            }
-            ConfigurationCommand::Emit => {
-                let state = self.state().await;
-                let outcome = match state {
-                    RuntimeState::Active => ConfigurationReplyOutcome::Active,
-                    RuntimeState::Stopped => ConfigurationReplyOutcome::Stopped,
-                    _ => ConfigurationReplyOutcome::Data,
-                };
-                Ok(outcome)
-            }
-            ConfigurationCommand::Add { .. } | ConfigurationCommand::Remove { .. } => {
-                Err(ConfigurationHandlerError::Rejected {
-                    reason: "membership updates are not implemented on member endpoint".to_string(),
-                })
-            }
+        if matches!(cmd, ConfigurationCommand::Stop) {
+            self.stop().await;
+            return Ok(ConfigurationReplyOutcome::Stopped);
         }
+        self.node.handle_configuration_command(cmd).await
     }
 
 }
