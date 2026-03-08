@@ -31,6 +31,8 @@ pub enum ConfigurationHandlerError {
     UnknownRequestId { request_id: u64 },
     #[error("configuration operation id {operation_id} is unknown")]
     UnknownOperationId { operation_id: ConfigurationOperationId },
+    #[error("configuration operation id {operation_id} is already being awaited")]
+    AlreadyAwaitingOperation { operation_id: ConfigurationOperationId },
     #[error("configuration endpoint {endpoint} is unavailable")]
     EndpointUnavailable { endpoint: Uuid },
     #[error("request sent to a non-leader")]

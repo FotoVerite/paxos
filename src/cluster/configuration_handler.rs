@@ -8,32 +8,30 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use uuid::Uuid;
 pub mod endpoint;
+mod operation_record;
 pub mod types;
 
 use crate::cluster::configuration_handler::types::{
-    ConfigurationCommand, ConfigurationHandlerError, ConfigurationHandlerMessage, ConfigurationOperationId,
-    ConfigurationOperationStatus, ConfigurationReplyOutcome,
+    ConfigurationCommand, ConfigurationHandlerError, ConfigurationHandlerMessage,
+    ConfigurationOperationId, ConfigurationOperationStatus, ConfigurationReplyOutcome,
 };
 use crate::common::message_hub::{HubInbound, MessageHub};
 use endpoint::ConfigurationEndpoint;
+use operation_record::OperationRecord;
+
+type OperationResult = Result<ConfigurationReplyOutcome, ConfigurationHandlerError>;
+
+enum OperationWaiter {
+    Receiver(oneshot::Receiver<OperationResult>),
+    Terminal(OperationResult),
+}
 
 pub struct ConfigurationHandler {
     _client_id: Uuid,
     request_id: Mutex<u64>,
-    inflight: Mutex<HashMap<u64, InflightRequest>>,
-    pending: Mutex<HashMap<u64, PendingOperation>>,
-    status: Mutex<HashMap<u64, ConfigurationOperationStatus>>,
+    operations: Mutex<HashMap<u64, OperationRecord>>,
     hub: Arc<MessageHub<ConfigurationHandlerMessage, ConfigurationHandlerInbound>>,
     hub_rx: Mutex<Option<mpsc::Receiver<ConfigurationHandlerInbound>>>,
-}
-
-struct InflightRequest {
-    tx: oneshot::Sender<Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>,
-    token: CancellationToken,
-}
-
-struct PendingOperation {
-    rx: oneshot::Receiver<Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,9 +56,7 @@ impl ConfigurationHandler {
         Arc::new(Self {
             _client_id: client_id,
             request_id: Mutex::new(0),
-            inflight: Mutex::new(HashMap::new()),
-            pending: Mutex::new(HashMap::new()),
-            status: Mutex::new(HashMap::new()),
+            operations: Mutex::new(HashMap::new()),
             hub: Arc::new(MessageHub::new(hub_tx)),
             hub_rx: Mutex::new(Some(hub_rx)),
         })
@@ -102,23 +98,11 @@ impl ConfigurationHandler {
             *id
         };
 
-        let (tx, rx) = oneshot::channel();
         let token = CancellationToken::new();
-        {
-            let mut inflight = self.inflight.lock().await;
-            inflight.insert(
-                rid,
-                InflightRequest {
-                    tx,
-                    token: token.clone(),
-                },
-            );
-        }
-        self.pending.lock().await.insert(rid, PendingOperation { rx });
-        self.status
-            .lock()
-            .await
-            .insert(rid, ConfigurationOperationStatus::Submitted);
+        self.operations.lock().await.insert(
+            rid,
+            OperationRecord::submitted_with_retry_token(token.clone()),
+        );
 
         // Initial request dispatch
         self.hub
@@ -174,52 +158,69 @@ impl ConfigurationHandler {
         operation_id: ConfigurationOperationId,
         timeout_duration: Duration,
     ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
-        let pending = self.pending.lock().await.remove(&operation_id);
-        let Some(PendingOperation { rx }) = pending else {
-            return match self.status_internal(operation_id).await {
-                Ok(ConfigurationOperationStatus::Completed(outcome)) => Ok(outcome),
-                Ok(ConfigurationOperationStatus::Failed(err)) => Err(err),
-                Ok(ConfigurationOperationStatus::Submitted) => {
-                    Err(ConfigurationHandlerError::UnknownOperationId { operation_id })
-                }
-                Err(err) => Err(err),
-            };
+        match self.take_waiter(operation_id).await? {
+            OperationWaiter::Terminal(result) => result,
+            OperationWaiter::Receiver(rx) => {
+                let result = Self::wait_for_result(timeout_duration, rx).await;
+                self.record_terminal_result(operation_id, &result).await;
+                result
+            }
+        }
+    }
+
+    async fn take_waiter(
+        &self,
+        operation_id: ConfigurationOperationId,
+    ) -> Result<OperationWaiter, ConfigurationHandlerError> {
+        let mut operations = self.operations.lock().await;
+        let Some(operation) = operations.get_mut(&operation_id) else {
+            return Err(ConfigurationHandlerError::UnknownOperationId { operation_id });
         };
 
+        if let Some(rx) = operation.take_receiver() {
+            return Ok(OperationWaiter::Receiver(rx));
+        }
+
+        match operation.status() {
+            ConfigurationOperationStatus::Completed(outcome) => {
+                Ok(OperationWaiter::Terminal(Ok(outcome)))
+            }
+            ConfigurationOperationStatus::Failed(err) => Ok(OperationWaiter::Terminal(Err(err))),
+            ConfigurationOperationStatus::Submitted => Err(
+                ConfigurationHandlerError::AlreadyAwaitingOperation { operation_id },
+            ),
+        }
+    }
+
+    async fn wait_for_result(
+        timeout_duration: Duration,
+        rx: oneshot::Receiver<OperationResult>,
+    ) -> OperationResult {
         match timeout(timeout_duration, rx).await {
-            Ok(Ok(Ok(outcome))) => {
-                self.status
-                    .lock()
-                    .await
-                    .insert(operation_id, ConfigurationOperationStatus::Completed(outcome.clone()));
-                Ok(outcome)
+            Ok(Ok(result)) => result,
+            Ok(Err(_)) => Err(ConfigurationHandlerError::ResponseChannelClosed),
+            Err(_) => Err(ConfigurationHandlerError::Timeout),
+        }
+    }
+
+    async fn record_terminal_result(
+        &self,
+        operation_id: ConfigurationOperationId,
+        result: &OperationResult,
+    ) {
+        let mut operations = self.operations.lock().await;
+        if let Some(operation) = operations.get_mut(&operation_id) {
+            if matches!(result, Err(ConfigurationHandlerError::Timeout)) {
+                operation.cancel_retry();
             }
-            Ok(Ok(Err(err))) => {
-                self.status
-                    .lock()
-                    .await
-                    .insert(operation_id, ConfigurationOperationStatus::Failed(err.clone()));
-                Err(err)
-            }
-            Ok(Err(_)) => {
-                let err = ConfigurationHandlerError::ResponseChannelClosed;
-                self.status
-                    .lock()
-                    .await
-                    .insert(operation_id, ConfigurationOperationStatus::Failed(err.clone()));
-                Err(err)
-            }
-            Err(_) => {
-                if let Some(req) = self.inflight.lock().await.remove(&operation_id) {
-                    req.token.cancel();
-                }
-                let err = ConfigurationHandlerError::Timeout;
-                self.status
-                    .lock()
-                    .await
-                    .insert(operation_id, ConfigurationOperationStatus::Failed(err.clone()));
-                Err(err)
-            }
+            operation.set_status(Self::status_from_result(result));
+        }
+    }
+
+    fn status_from_result(result: &OperationResult) -> ConfigurationOperationStatus {
+        match result {
+            Ok(outcome) => ConfigurationOperationStatus::Completed(outcome.clone()),
+            Err(err) => ConfigurationOperationStatus::Failed(err.clone()),
         }
     }
 
@@ -227,13 +228,12 @@ impl ConfigurationHandler {
         &self,
         operation_id: ConfigurationOperationId,
     ) -> Result<ConfigurationOperationStatus, ConfigurationHandlerError> {
-        if let Some(status) = self.status.lock().await.get(&operation_id).cloned() {
-            return Ok(status);
-        }
-        if self.inflight.lock().await.contains_key(&operation_id) {
-            return Ok(ConfigurationOperationStatus::Submitted);
-        }
-        Err(ConfigurationHandlerError::UnknownOperationId { operation_id })
+        self.operations
+            .lock()
+            .await
+            .get(&operation_id)
+            .map(|operation| operation.status())
+            .ok_or(ConfigurationHandlerError::UnknownOperationId { operation_id })
     }
 
     pub async fn handle_response(
@@ -241,19 +241,18 @@ impl ConfigurationHandler {
         rid: u64,
         outcome: Result<ConfigurationReplyOutcome, ConfigurationHandlerError>,
     ) -> Result<(), ConfigurationHandlerError> {
-        let mut inflight = self.inflight.lock().await;
-        if let Some(req) = inflight.remove(&rid) {
-            // Cancel retry loop
-            req.token.cancel();
-            let status = match &outcome {
-                Ok(reply) => ConfigurationOperationStatus::Completed(reply.clone()),
-                Err(err) => ConfigurationOperationStatus::Failed(err.clone()),
-            };
-            self.status.lock().await.insert(rid, status);
-            let _ = req.tx.send(outcome);
-            return Ok(());
+        let mut operations = self.operations.lock().await;
+        let Some(operation) = operations.get_mut(&rid) else {
+            return Err(ConfigurationHandlerError::UnknownRequestId { request_id: rid });
+        };
+
+        operation.cancel_retry();
+        operation.set_status(Self::status_from_result(&outcome));
+
+        if let Some(tx) = operation.take_sender() {
+            let _ = tx.send(outcome);
         }
-        Err(ConfigurationHandlerError::UnknownRequestId { request_id: rid })
+        Ok(())
     }
 
     pub async fn start(self: Arc<Self>) {
@@ -382,5 +381,30 @@ mod tests {
             err,
             ConfigurationHandlerError::UnknownOperationId { operation_id } if operation_id == 99
         ));
+    }
+
+    #[tokio::test]
+    async fn second_await_on_submitted_operation_returns_already_awaiting() {
+        let handler = ConfigurationHandler::new(Uuid::from_u128(0xC5));
+        let endpoint = Uuid::new_v4();
+        let (endpoint_tx, _endpoint_rx) = mpsc::channel::<ConfigurationHandlerMessage>(8);
+        handler.register_endpoint(endpoint, endpoint_tx).await;
+
+        let op = handler
+            .submit(endpoint, ConfigurationCommand::Emit)
+            .await
+            .expect("submit should succeed");
+
+        let first_handler = std::sync::Arc::clone(&handler);
+        let first = tokio::spawn(async move {
+            first_handler.await_outcome(op, Duration::from_millis(10)).await
+        });
+        tokio::task::yield_now().await;
+        let second = handler.await_outcome(op, Duration::from_millis(10)).await;
+        assert!(matches!(
+            second,
+            Err(ConfigurationHandlerError::AlreadyAwaitingOperation { operation_id }) if operation_id == op
+        ));
+        let _ = first.await;
     }
 }
