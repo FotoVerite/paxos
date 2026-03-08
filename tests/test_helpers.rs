@@ -608,6 +608,8 @@ pub fn assert_message_type(msg: &Message, expected: &str) {
         Message::P2A { .. } => "P2A",
         Message::P2B { .. } => "P2B",
         Message::ACCEPTED { .. } => "ACCEPTED",
+        Message::RECONFIGURE { .. } => "RECONFIGURE",
+        Message::CATCHUP_REQUEST { .. } => "CATCHUP_REQUEST",
     };
     assert_eq!(actual, expected, "Expected {}, got {}", expected, actual);
 }
@@ -634,7 +636,11 @@ pub fn assert_ballot_number(msg: &Message, expected_number: usize, expected_id: 
         | Message::P1B { .. }
         | Message::P2A { .. }
         | Message::P2B { .. }
-        | Message::ACCEPTED { .. } => panic!("Cannot extract ballot from this message variant"),
+        | Message::ACCEPTED { .. }
+        | Message::RECONFIGURE { .. }
+        | Message::CATCHUP_REQUEST { .. } => {
+            panic!("Cannot extract ballot from this message variant")
+        }
     }
 }
 

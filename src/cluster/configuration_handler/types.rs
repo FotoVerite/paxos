@@ -20,6 +20,8 @@ pub enum ConfigurationHandlerError {
     ResponseChannelClosed,
     #[error("configuration response for unknown request id {request_id}")]
     UnknownRequestId { request_id: u64 },
+    #[error("configuration endpoint {endpoint} is unavailable")]
+    EndpointUnavailable { endpoint: Uuid },
     #[error("request sent to a non-leader")]
     NotLeader { leader_hint: Option<Uuid> },
     #[error("configuration request rejected: {reason}")]
@@ -32,17 +34,18 @@ pub enum ConfigurationHandlerError {
     Internal { reason: String },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ConfigurationCommand {
-    Stop { key: String },
-    Add { key: String, roles: Roles },
-    Remove { key: String, roles: Roles },
-    Emit { key: String },
+    Stop,
+    Add { roles: Roles },
+    Remove { roles: Roles },
+    Emit,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ConfigurationHandlerMessage {
     Reconfigure {
+        request_id: u64,
         cmd: ConfigurationCommand,
     },
     RESPONSE {

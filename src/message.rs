@@ -10,7 +10,7 @@ use crate::{
     rsm::kv_store::ReplyOutcome,
 };
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub enum Message {
     Prepare {
         from: Uuid,
@@ -70,9 +70,6 @@ pub enum Message {
         pvalues: Vec<PValue>,
     },
     RECONFIGURE {
-        from: Uuid,
-        to: Uuid,
-        request_id: u64,
         cmd: ConfigurationCommand,
     },
     HEARTBEAT {

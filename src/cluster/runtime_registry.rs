@@ -62,7 +62,7 @@ impl RuntimeRegistry {
             runtime_members.insert(uuid, Arc::new(member));
             member_ids.push(uuid);
         }
-        let handler = ConfigurationHandler::new(CONFIG_HANDLER_ID, Arc::clone(&fabric));
+        let handler = ConfigurationHandler::new(CONFIG_HANDLER_ID);
         Ok(Self {
             members: RwLock::new(runtime_members),
             member_ids,

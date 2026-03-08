@@ -1,4 +1,4 @@
-use std::{collections::HashMap, future::pending, sync::Arc, time::Duration};
+use std::{future::pending, sync::Arc, time::Duration};
 
 use tokio::{
     select,
@@ -9,11 +9,14 @@ use tokio::{
 use uuid::Uuid;
 
 use crate::{
-    cluster::{cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric, network_simulator::NetworkSimulator},
+    cluster::{
+        cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
+        network_simulator::NetworkSimulator,
+    },
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
     monitor::PaxosObserver,
-    node::{config::Roles, pmmc::node_state::NodeState}, rsm::entry::KVEntry,
+    node::{config::Roles, pmmc::node_state::NodeState},
 };
 
 pub struct PmmcNode {
@@ -34,8 +37,16 @@ impl PmmcNode {
         Ok(Self {
             uuid,
             state: Arc::new(
-                NodeState::init(uuid, fabric, handle, persistence, observer, roles, configuration)
-                    .await?,
+                NodeState::init(
+                    uuid,
+                    fabric,
+                    handle,
+                    persistence,
+                    observer,
+                    roles,
+                    configuration,
+                )
+                .await?,
             ),
         })
     }
@@ -51,8 +62,8 @@ impl PmmcNode {
         self.state.is_leader().await
     }
 
-    pub async fn is_stopped(&self) -> bool  {
-        return self.state.is_stopped().await;
+    pub async fn is_stopped(&self) -> bool {
+        self.state.is_stopped().await
     }
 
     pub fn start(&self, mut rx: Receiver<Message>) -> JoinHandle<()> {
@@ -62,7 +73,7 @@ impl PmmcNode {
             Duration::from_millis(150),
         );
         hb.set_missed_tick_behavior(MissedTickBehavior::Skip);
-        return tokio::spawn(async move {
+        tokio::spawn(async move {
             loop {
                 select! {
                     Some(msg) = rx.recv() => {
@@ -71,21 +82,21 @@ impl PmmcNode {
 
                     _ = async {
                         match state.election_deadline().await {
-                                Some(deadline) => sleep_until(deadline).await,
-                                None => pending::<()>().await,
-                            }
-                        } => {
-                            state.start_election().await;
+                            Some(deadline) => sleep_until(deadline).await,
+                            None => pending::<()>().await,
+                        }
+                    } => {
+                        state.start_election().await;
                     }
 
                     _ = hb.tick() => {
-                            state.send_heartbeat().await;
+                        state.send_heartbeat().await;
                     }
 
                     else => break,
                 }
             }
-        });
+        })
     }
 }
 

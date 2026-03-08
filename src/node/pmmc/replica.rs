@@ -1,3 +1,10 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use anyhow::Result;
+use async_trait::async_trait;
+use uuid::Uuid;
+
 use crate::cluster::cluster_configuration::ClusterConfiguration;
 use crate::cluster::network_fabric::NetworkFabric;
 use crate::common::persistence::NodePersistence;
@@ -7,16 +14,10 @@ use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::node::pmmc::replica::replica_state::ReplicaState;
 use crate::node::pmmc::replica::replica_state::durable::ReplicaDurable;
 use crate::node::pvalue::PValue;
-use crate::paxos_command::PaxosCommand;
+use crate::paxos_command::{ClientId, PaxosCommand};
 use crate::rsm::entry::KVEntry;
 use crate::rsm::kv_store::KVStore;
-use anyhow::Result;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::select;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::Sender;
-use uuid::Uuid;
+
 mod replica_state;
 pub use replica_state::ReplicaAdmissionOutcome;
 
@@ -26,11 +27,17 @@ pub struct Replica {
     pub state: Arc<ReplicaState>,
     observer: Arc<dyn PaxosObserver>,
     fabric: Arc<NetworkFabric>,
+    client_sink: Arc<dyn ClientReplySink>,
 }
 
 pub struct ReplicaData {
     slot: usize,
     store: HashMap<String, KVEntry>,
+}
+
+#[async_trait]
+pub trait ClientReplySink: Send + Sync {
+    async fn send(&self, client_id: ClientId, message: ClientMessage);
 }
 
 impl Replica {
@@ -40,6 +47,7 @@ impl Replica {
         observer: Arc<dyn PaxosObserver>,
         fabric: Arc<NetworkFabric>,
         configuration: Arc<ClusterConfiguration>,
+        client_sink: Arc<dyn ClientReplySink>,
     ) -> Result<Self> {
         #[cfg(feature = "persistence")]
         let data: ReplicaDurable = persistence.load("replica.bin").await?;
@@ -47,10 +55,13 @@ impl Replica {
         #[cfg(not(feature = "persistence"))]
         let data: ReplicaDurable = ReplicaDurable::default();
 
+        let kv_snapshot = configuration.kv_store();
+        let state = Arc::new(ReplicaState::init(data, configuration));
         let replica = Self {
             uuid,
-            store: Arc::new(KVStore::init(uuid, persistence, configuration.kv_store()).await?),
-            state: Arc::new(ReplicaState::init(data, configuration)),
+            store: Arc::new(KVStore::init(uuid, persistence, kv_snapshot).await?),
+            client_sink,
+            state,
             observer: Arc::clone(&observer),
             fabric,
         };
@@ -68,24 +79,53 @@ impl Replica {
         ReplicaData { slot, store }
     }
 
-    pub async fn accepted(&self, pvalue: PValue) -> Message {
-        match self.state.add_decision(pvalue.clone()).await {
-            Some(outcome) => match outcome {
-                ReplicaAdmissionOutcome::Admitted { slot, cmd } => {
-                    Self::send_proposal(
-                        self.uuid,
-                        Arc::clone(&self.fabric),
-                        slot,
-                        cmd,
-                        Arc::clone(&self.observer),
-                    )
-                    .await;
+    pub async fn propose_from_client(&self, cmd: PaxosCommand) {
+        match self.state.proposal_handler(cmd).await {
+            ReplicaAdmissionOutcome::Admitted { slot, cmd } => {
+                Self::send_proposal(
+                    self.uuid,
+                    Arc::clone(&self.fabric),
+                    slot,
+                    cmd,
+                    Arc::clone(&self.observer),
+                )
+                .await;
+            }
+            ReplicaAdmissionOutcome::Queued => {}
+            ReplicaAdmissionOutcome::Stopped => {}
+            ReplicaAdmissionOutcome::CachedResponse {
+                client_id,
+                request_id,
+                response,
+            } => {
+                if let Some(outcome) = response {
+                    self.client_sink
+                        .send(
+                            client_id,
+                            ClientMessage::RESPONSE {
+                                request_id,
+                                response: outcome,
+                            },
+                        )
+                        .await;
                 }
+            }
+        }
+    }
 
-                _ => {}
-            },
-            None => {}
-        };
+    pub async fn accepted(&self, pvalue: PValue) -> Message {
+        if let Some(outcome) = self.state.add_decision(pvalue.clone()).await {
+            if let ReplicaAdmissionOutcome::Admitted { slot, cmd } = outcome {
+                Self::send_proposal(
+                    self.uuid,
+                    Arc::clone(&self.fabric),
+                    slot,
+                    cmd,
+                    Arc::clone(&self.observer),
+                )
+                .await;
+            }
+        }
         Message::ACK {
             from: self.uuid,
             to: pvalue.ballot().node_id,
@@ -102,57 +142,6 @@ impl Replica {
             Message::ACCEPTED { pvalue, .. } => self.accepted(pvalue).await,
             _ => Message::NACK,
         }
-    }
-
-    pub async fn spawn_client_handler(
-        &self,
-        client_id: Uuid,
-        mut rx: mpsc::Receiver<ClientMessage>,
-        tx: Sender<ClientMessage>,
-    ) {
-        let state = Arc::clone(&self.state);
-        let fabric = Arc::clone(&self.fabric);
-        let uuid = self.uuid;
-        let observer = Arc::clone(&self.observer);
-
-        state.add_client(client_id, tx).await;
-        tokio::spawn(async move {
-            loop {
-                select! {
-                    Some(msg) = rx.recv() => {
-                        match msg {
-                            ClientMessage::PROPOSE { cmd } => {
-                                // Add to local proposals store (handles dedup/caching)
-                                 match state.proposal_handler(cmd.clone()).await {
-                                    replica_state::ReplicaAdmissionOutcome::Admitted { slot, cmd } =>  {
-                                        Self::send_proposal(
-                                            uuid,
-                                            Arc::clone(&fabric),
-                                            slot,
-                                            cmd,
-                                            Arc::clone(&observer)
-                                        ).await;
-                                    },
-                                    replica_state::ReplicaAdmissionOutcome::Queued => {},
-                                    replica_state::ReplicaAdmissionOutcome::Stopped => {},
-                                    replica_state::ReplicaAdmissionOutcome::CachedResponse { client_id, request_id, response } => {
-                                        if let Some(outcome ) = response {
-                                         state.send_client_response(client_id, ClientMessage::RESPONSE { request_id, response: outcome }).await
-                                        }
-                                    },
-                                                                 };
-                                // Per PMMC §3: broadcast propose(s, c) to ALL leaders.
-                                // Passive leaders ignore it; only the active one runs a commander.
-
-                            },
-                            _ => {},
-                        }
-                    }
-
-                    else => break,
-                }
-            }
-        });
     }
 
     async fn send_proposal(
@@ -184,6 +173,7 @@ impl Replica {
         let state = Arc::clone(&self.state);
         let store = Arc::clone(&self.store);
         let observer = Arc::clone(&self.observer);
+        let client_sink = Arc::clone(&self.client_sink);
         let node_id = self.uuid;
         tokio::spawn(async move {
             loop {
@@ -192,27 +182,24 @@ impl Replica {
                     progressed = true;
                     let slot = state.execution_slot().await;
                     let response = store.apply(cmd.operation().clone()).await;
-                    match response {
-                        Ok(response) => {
-                            state.update_cache(&cmd, response.clone()).await;
-                            state.increment_execution_slot().await;
-                            observer.on_event(Event::LearnedValue {
-                                id: node_id,
-                                decree_num: DecreeId(slot),
-                                value: cmd.clone(),
-                                created_at: current_timestamp_millis(),
-                            });
-                            state
-                                .send_client_response(
-                                    cmd.client_id(),
-                                    ClientMessage::RESPONSE {
-                                        request_id: cmd.request_id(),
-                                        response,
-                                    },
-                                )
-                                .await;
-                        }
-                        _ => {}
+                    if let Ok(response) = response {
+                        state.update_cache(&cmd, response.clone()).await;
+                        state.increment_execution_slot().await;
+                        observer.on_event(Event::LearnedValue {
+                            id: node_id,
+                            decree_num: DecreeId(slot),
+                            value: cmd.clone(),
+                            created_at: current_timestamp_millis(),
+                        });
+                        client_sink
+                            .send(
+                                cmd.client_id(),
+                                ClientMessage::RESPONSE {
+                                    request_id: cmd.request_id(),
+                                    response,
+                                },
+                            )
+                            .await;
                     }
                 }
                 if !progressed {
@@ -225,10 +212,13 @@ impl Replica {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::time::Duration;
     use std::{net::IpAddr, sync::Arc};
 
-    use tokio::{sync::mpsc, time::timeout};
+    use async_trait::async_trait;
+    use tokio::sync::{Mutex, mpsc};
+    use tokio::time::timeout;
     use uuid::Uuid;
 
     use crate::{
@@ -240,7 +230,33 @@ mod tests {
         rsm::kv_store::KVStore,
     };
 
-    use super::{Replica, ReplicaAdmissionOutcome, ReplicaDurable, ReplicaState};
+    use super::{ClientReplySink, Replica, ReplicaAdmissionOutcome, ReplicaDurable, ReplicaState};
+
+    struct TestClientSink {
+        clients: Mutex<HashMap<Uuid, mpsc::Sender<ClientMessage>>>,
+    }
+
+    impl TestClientSink {
+        fn new() -> Self {
+            Self {
+                clients: Mutex::new(HashMap::new()),
+            }
+        }
+
+        async fn register(&self, client_id: Uuid, tx: mpsc::Sender<ClientMessage>) {
+            self.clients.lock().await.insert(client_id, tx);
+        }
+    }
+
+    #[async_trait]
+    impl ClientReplySink for TestClientSink {
+        async fn send(&self, client_id: Uuid, message: ClientMessage) {
+            let tx = self.clients.lock().await.get(&client_id).cloned();
+            if let Some(tx) = tx {
+                let _ = tx.send(message).await;
+            }
+        }
+    }
 
     fn config_for_test() -> Arc<ClusterConfiguration> {
         let ip = IpAddr::V4([127, 0, 0, 1].into());
@@ -250,34 +266,43 @@ mod tests {
         )
     }
 
-    async fn new_replica() -> Replica {
+    async fn new_replica() -> (Replica, Arc<TestClientSink>) {
         let uuid = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
             Arc::clone(&observer),
         ));
-        Replica {
-            uuid,
-            store: Arc::new(
-                KVStore::init(
-                    uuid,
-                    crate::common::persistence::ClusterPersistence::for_test("pmmc_replica")
-                        .node(uuid),
-                    None,
-                )
-                .await
-                .expect("store init should work"),
-            ),
-            state: Arc::new(ReplicaState::init(
-                ReplicaDurable::default(),
-                config_for_test(),
-            )),
-            observer: Arc::clone(&observer),
-            fabric,
-        }
+        let state = Arc::new(ReplicaState::init(
+            ReplicaDurable::default(),
+            config_for_test(),
+        ));
+        let sink = Arc::new(TestClientSink::new());
+        let sink_trait: Arc<dyn ClientReplySink> = sink.clone();
+
+        (
+            Replica {
+                uuid,
+                store: Arc::new(
+                    KVStore::init(
+                        uuid,
+                        crate::common::persistence::ClusterPersistence::for_test("pmmc_replica")
+                            .node(uuid),
+                        None,
+                    )
+                    .await
+                    .expect("store init should work"),
+                ),
+                state: Arc::clone(&state),
+                observer: Arc::clone(&observer),
+                fabric,
+                client_sink: sink_trait,
+            },
+            sink,
+        )
     }
 
-    async fn new_replica_with_peer() -> (Replica, Uuid, mpsc::Receiver<Message>) {
+    async fn new_replica_with_peer() -> (Replica, Arc<TestClientSink>, Uuid, mpsc::Receiver<Message>)
+    {
         let uuid = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let peer = Uuid::new_v4();
@@ -286,6 +311,8 @@ mod tests {
             Arc::clone(&observer),
         ));
         fabric.register(peer, peer_tx).await;
+        let sink = Arc::new(TestClientSink::new());
+        let sink_trait: Arc<dyn ClientReplySink> = sink.clone();
         let replica = Replica::new(
             uuid,
             crate::common::persistence::ClusterPersistence::for_test("replica_with_peer")
@@ -293,11 +320,12 @@ mod tests {
             observer,
             fabric,
             config_for_test(),
+            sink_trait,
         )
         .await
         .expect("replica init should work");
 
-        (replica, peer, peer_rx)
+        (replica, sink, peer, peer_rx)
     }
 
     fn client_cmd(value: usize, request_id: u64) -> PaxosCommand {
@@ -311,7 +339,7 @@ mod tests {
 
     #[tokio::test]
     async fn accepted_records_decision_and_replies_with_ack() {
-        let replica = new_replica().await;
+        let (replica, _sink) = new_replica().await;
         let leader = Uuid::new_v4();
         let ballot = Ballot::new(3, leader);
         let cmd = client_cmd(10, 1);
@@ -333,7 +361,7 @@ mod tests {
 
     #[tokio::test]
     async fn decisions_are_only_executable_in_slot_order() {
-        let replica = new_replica().await;
+        let (replica, _sink) = new_replica().await;
         let leader = Uuid::new_v4();
         let ballot = Ballot::new(5, leader);
         let cmd = client_cmd(20, 2);
@@ -354,7 +382,7 @@ mod tests {
 
     #[tokio::test]
     async fn stale_decisions_for_executed_slots_are_ignored() {
-        let replica = new_replica().await;
+        let (replica, _sink) = new_replica().await;
         let leader = Uuid::new_v4();
         let ballot = Ballot::new(7, leader);
         let first = client_cmd(30, 3);
@@ -385,7 +413,7 @@ mod tests {
 
     #[tokio::test]
     async fn decided_slot_removes_conflicting_local_proposal() {
-        let replica = new_replica().await;
+        let (replica, _sink) = new_replica().await;
         let leader = Uuid::new_v4();
         let ballot = Ballot::new(9, leader);
         let local = client_cmd(40, 5);
@@ -414,7 +442,7 @@ mod tests {
 
     #[tokio::test]
     async fn conflicting_decision_requeues_local_proposal_to_new_slot() {
-        let replica = new_replica().await;
+        let (replica, _sink) = new_replica().await;
         let leader = Uuid::new_v4();
         let ballot = Ballot::new(12, leader);
         let local = client_cmd(60, 10);
@@ -438,7 +466,7 @@ mod tests {
 
     #[tokio::test]
     async fn gap_fill_executes_in_order_once_missing_slot_arrives() {
-        let replica = new_replica().await;
+        let (replica, _sink) = new_replica().await;
         let leader = Uuid::new_v4();
         let ballot = Ballot::new(13, leader);
         let cmd0 = client_cmd(80, 12);
@@ -465,7 +493,7 @@ mod tests {
 
     #[tokio::test]
     async fn learned_decision_advances_proposal_slot_for_failover_replicas() {
-        let replica = new_replica().await;
+        let (replica, _sink) = new_replica().await;
         let leader = Uuid::new_v4();
         let ballot = Ballot::new(14, leader);
         let learned = client_cmd(82, 14);
@@ -495,12 +523,15 @@ mod tests {
         let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
             Arc::clone(&observer),
         ));
+        let sink = Arc::new(TestClientSink::new());
+        let sink_trait: Arc<dyn ClientReplySink> = sink.clone();
         let replica = Replica::new(
             uuid,
             crate::common::persistence::ClusterPersistence::for_test("replica_client").node(uuid),
             observer,
             fabric,
             config_for_test(),
+            sink_trait,
         )
         .await
         .expect("replica init should work");
@@ -512,16 +543,10 @@ mod tests {
         }
         .with_client(client_id, 99);
 
-        let (client_tx, client_rx) = mpsc::channel(8);
         let (resp_tx, mut resp_rx) = mpsc::channel(8);
-        replica
-            .spawn_client_handler(client_id, client_rx, resp_tx)
-            .await;
+        sink.register(client_id, resp_tx).await;
 
-        client_tx
-            .send(ClientMessage::PROPOSE { cmd: cmd.clone() })
-            .await
-            .expect("client send should work");
+        replica.propose_from_client(cmd.clone()).await;
 
         let leader = Uuid::new_v4();
         let _ = replica
@@ -537,10 +562,7 @@ mod tests {
             .expect("channel should stay open");
         assert!(matches!(first, ClientMessage::RESPONSE { .. }));
 
-        client_tx
-            .send(ClientMessage::PROPOSE { cmd: cmd.clone() })
-            .await
-            .expect("duplicate send should work");
+        replica.propose_from_client(cmd.clone()).await;
 
         let second = timeout(Duration::from_millis(400), resp_rx.recv())
             .await
@@ -551,7 +573,7 @@ mod tests {
 
     #[tokio::test]
     async fn duplicate_inflight_request_does_not_rebroadcast_propose() {
-        let (replica, _leader, mut leader_rx) = new_replica_with_peer().await;
+        let (replica, _sink, _leader, mut leader_rx) = new_replica_with_peer().await;
         let client_id = Uuid::new_v4();
         let cmd = PaxosCommand::PUT {
             key: "dup-inflight".to_string(),
@@ -560,16 +582,7 @@ mod tests {
         }
         .with_client(client_id, 111);
 
-        let (client_tx, client_rx) = mpsc::channel(8);
-        let (resp_tx, _resp_rx) = mpsc::channel(8);
-        replica
-            .spawn_client_handler(client_id, client_rx, resp_tx)
-            .await;
-
-        client_tx
-            .send(ClientMessage::PROPOSE { cmd: cmd.clone() })
-            .await
-            .expect("first propose should send");
+        replica.propose_from_client(cmd.clone()).await;
 
         let first = timeout(Duration::from_millis(300), leader_rx.recv())
             .await
@@ -580,10 +593,7 @@ mod tests {
             "first broadcast proposal should reserve slot 0"
         );
 
-        client_tx
-            .send(ClientMessage::PROPOSE { cmd })
-            .await
-            .expect("duplicate propose should send");
+        replica.propose_from_client(cmd).await;
 
         let second = timeout(Duration::from_millis(200), leader_rx.recv()).await;
         assert!(
@@ -594,7 +604,7 @@ mod tests {
 
     #[tokio::test]
     async fn duplicate_cached_request_does_not_rebroadcast_propose() {
-        let (replica, leader, mut leader_rx) = new_replica_with_peer().await;
+        let (replica, sink, leader, mut leader_rx) = new_replica_with_peer().await;
         let client_id = Uuid::new_v4();
         let cmd = PaxosCommand::PUT {
             key: "dup-cached".to_string(),
@@ -603,16 +613,10 @@ mod tests {
         }
         .with_client(client_id, 222);
 
-        let (client_tx, client_rx) = mpsc::channel(8);
         let (resp_tx, mut resp_rx) = mpsc::channel(8);
-        replica
-            .spawn_client_handler(client_id, client_rx, resp_tx)
-            .await;
+        sink.register(client_id, resp_tx).await;
 
-        client_tx
-            .send(ClientMessage::PROPOSE { cmd: cmd.clone() })
-            .await
-            .expect("first propose should send");
+        replica.propose_from_client(cmd.clone()).await;
 
         let first = timeout(Duration::from_millis(300), leader_rx.recv())
             .await
@@ -635,10 +639,7 @@ mod tests {
             .expect("first response should arrive")
             .expect("response channel should stay open");
 
-        client_tx
-            .send(ClientMessage::PROPOSE { cmd })
-            .await
-            .expect("duplicate propose should send");
+        replica.propose_from_client(cmd).await;
 
         let _cached = timeout(Duration::from_millis(400), resp_rx.recv())
             .await
@@ -654,7 +655,7 @@ mod tests {
 
     #[tokio::test]
     async fn unhandled_message_returns_nack() {
-        let replica = new_replica().await;
+        let (replica, _sink) = new_replica().await;
         let reply = replica
             .handle_message(Message::P1A {
                 from: Uuid::new_v4(),

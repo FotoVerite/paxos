@@ -52,7 +52,7 @@ impl<T: Send + 'static, I: From<HubInbound<T>> + Send + 'static> MessageHub<T, I
         }
     }
 
-    pub fn spawn_listener(&self, from: Uuid, mut rx: mpsc::Receiver<T>) -> JoinHandle<()> {
+    fn spawn_listener(&self, from: Uuid, mut rx: mpsc::Receiver<T>) -> JoinHandle<()> {
         let inbox = self.inbox.clone();
         tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {

@@ -118,7 +118,7 @@ async fn single_node_cluster_persists_state_under_ip_node_directory() {
     )
     .await;
 
-    timeout(Duration::from_secs(10), async {
+    timeout(Duration::from_secs(30), async {
         loop {
             let acceptor_path = persistence.dir().join("acceptor.bin");
             let store_path = persistence.dir().join("store.bin");

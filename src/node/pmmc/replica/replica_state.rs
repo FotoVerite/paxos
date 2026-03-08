@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use tokio::sync::{Mutex, Notify, mpsc::Sender};
+use tokio::sync::{Mutex, Notify};
 use uuid::Uuid;
 
 use crate::{
     cluster::cluster_configuration::ClusterConfiguration,
-    message::ClientMessage,
     node::{
         pmmc::{
             proposal::ProposalsStore,
@@ -16,7 +15,7 @@ use crate::{
         },
         pvalue::PValue,
     },
-    paxos_command::{ClientId, PaxosCommand},
+    paxos_command::PaxosCommand,
     rsm::kv_store::ReplyOutcome,
 };
 
@@ -88,17 +87,6 @@ impl ReplicaState {
     pub async fn max_inflight_exceeded(&self) -> bool {
         let state = self.data.lock().await;
         state.durable.max_inflight_exceeded()
-    }
-
-    pub async fn send_client_response(&self, client_id: ClientId, response: ClientMessage) {
-        let tx = {
-            let state = self.data.lock().await;
-            state.volatile.sender(client_id)
-        };
-
-        if let Some(tx) = tx {
-            let _ = tx.send(response).await;
-        }
     }
 
     pub async fn is_stopped(&self) -> bool {
@@ -192,10 +180,5 @@ impl ReplicaState {
     pub async fn dump(&self) -> ReplicaDurable {
         let state = self.data.lock().await;
         state.durable.clone()
-    }
-
-    pub async fn add_client(&self, client_id: Uuid, tx: Sender<ClientMessage>) {
-        let mut state = self.data.lock().await;
-        state.volatile.add_client(client_id, tx);
     }
 }

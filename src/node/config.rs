@@ -17,7 +17,7 @@ impl Default for LearningStrategy {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Roles {
     pub proposer: bool,
     pub acceptor: bool,

@@ -12,14 +12,14 @@ use crate::cluster::configuration_handler::types::{
     ConfigurationCommand, ConfigurationHandlerError, ConfigurationHandlerMessage,
     ConfigurationReplyOutcome,
 };
-use crate::cluster::network_fabric::NetworkFabric;
-use crate::message::Message;
+use crate::common::message_hub::{HubInbound, MessageHub};
 
 pub struct ConfigurationHandler {
-    client_id: Uuid,
+    _client_id: Uuid,
     request_id: Mutex<u64>,
-    fabric: Arc<NetworkFabric>,
     inflight: Mutex<HashMap<u64, InflightRequest>>,
+    hub: Arc<MessageHub<ConfigurationHandlerMessage, ConfigurationHandlerInbound>>,
+    hub_rx: Mutex<Option<mpsc::Receiver<ConfigurationHandlerInbound>>>,
 }
 
 struct InflightRequest {
@@ -27,14 +27,44 @@ struct InflightRequest {
     token: CancellationToken,
 }
 
+#[derive(Debug, Clone)]
+enum ConfigurationHandlerInbound {
+    Endpoint {
+        _from: Uuid,
+        msg: ConfigurationHandlerMessage,
+    },
+}
+
+impl From<HubInbound<ConfigurationHandlerMessage>> for ConfigurationHandlerInbound {
+    fn from(value: HubInbound<ConfigurationHandlerMessage>) -> Self {
+        match value {
+            HubInbound::Client { from, msg } => Self::Endpoint { _from: from, msg },
+        }
+    }
+}
+
 impl ConfigurationHandler {
-    pub fn new(client_id: Uuid, fabric: Arc<NetworkFabric>) -> Arc<Self> {
+    pub fn new(client_id: Uuid) -> Arc<Self> {
+        let (hub_tx, hub_rx) = mpsc::channel(1024);
         Arc::new(Self {
-            client_id,
+            _client_id: client_id,
             request_id: Mutex::new(0),
-            fabric,
             inflight: Mutex::new(HashMap::new()),
+            hub: Arc::new(MessageHub::new(hub_tx)),
+            hub_rx: Mutex::new(Some(hub_rx)),
         })
+    }
+
+    pub async fn register_endpoint(
+        &self,
+        endpoint_id: Uuid,
+        sender: mpsc::Sender<ConfigurationHandlerMessage>,
+    ) -> mpsc::Sender<ConfigurationHandlerMessage> {
+        self.hub.register(endpoint_id, sender).await
+    }
+
+    pub async fn unregister_endpoint(&self, endpoint_id: Uuid) {
+        self.hub.unregister(endpoint_id).await;
     }
 
     pub async fn request(
@@ -42,6 +72,10 @@ impl ConfigurationHandler {
         to: Uuid,
         cmd: ConfigurationCommand,
     ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        if !self.hub.clients().await.contains(&to) {
+            return Err(ConfigurationHandlerError::EndpointUnavailable { endpoint: to });
+        }
+
         let rid = {
             let mut id = self.request_id.lock().await;
             *id += 1;
@@ -61,14 +95,11 @@ impl ConfigurationHandler {
             );
         }
 
-        // Initial broadcast
-        self.fabric
+        // Initial request dispatch
+        self.hub
             .send(
-                self.client_id,
                 to,
-                Message::RECONFIGURE {
-                    from: self.client_id,
-                    to,
+                ConfigurationHandlerMessage::Reconfigure {
                     request_id: rid,
                     cmd: cmd.clone(),
                 },
@@ -76,7 +107,7 @@ impl ConfigurationHandler {
             .await;
 
         // Spawn retry loop
-        self.spawn_retry(rid, self.client_id, to, cmd, token);
+        self.spawn_retry(rid, to, cmd, token);
 
         // Bound request lifetime so stale inflight requests do not hang forever.
         match timeout(Duration::from_secs(12), rx).await {
@@ -94,12 +125,11 @@ impl ConfigurationHandler {
     fn spawn_retry(
         &self,
         rid: u64,
-        from: Uuid,
         to: Uuid,
         cmd: ConfigurationCommand,
         token: CancellationToken,
     ) {
-        let fabric = Arc::clone(&self.fabric);
+        let hub = Arc::clone(&self.hub);
         let mut dur = Duration::from_millis(500);
         tokio::spawn(async move {
             loop {
@@ -110,16 +140,14 @@ impl ConfigurationHandler {
                             token.cancel();
                             break;
                         }
-                        fabric.send(
-                            from,
+                        hub.send(
                             to,
-                            Message::RECONFIGURE {
-                                from,
-                                to,
+                            ConfigurationHandlerMessage::Reconfigure {
                                 request_id: rid,
                                 cmd: cmd.clone(),
                             },
-                        ).await;
+                        )
+                        .await;
                     }
                     _ = token.cancelled() => break,
                 }
@@ -142,19 +170,35 @@ impl ConfigurationHandler {
         Err(ConfigurationHandlerError::UnknownRequestId { request_id: rid })
     }
 
-    pub async fn start(self: Arc<Self>, mut rx: mpsc::Receiver<ConfigurationHandlerMessage>) {
+    pub async fn start(self: Arc<Self>) {
+        let hub_rx = {
+            let mut hub_rx = self.hub_rx.lock().await;
+            hub_rx
+                .take()
+                .expect("configuration handler hub loop already started")
+        };
+
         tokio::spawn(async move {
-            while let Some(msg) = rx.recv().await {
+            let mut hub_rx = hub_rx;
+            while let Some(msg) = hub_rx.recv().await {
                 match msg {
-                    ConfigurationHandlerMessage::RESPONSE {
-                        request_id,
-                        response,
+                    ConfigurationHandlerInbound::Endpoint {
+                        msg:
+                            ConfigurationHandlerMessage::RESPONSE {
+                                request_id,
+                                response,
+                            },
+                        ..
                     } => {
                         if let Err(err) = self.handle_response(request_id, Ok(response)).await {
-                            debug!(request_id, error = ?err, "received configuration response for unknown request");
+                            debug!(
+                                request_id,
+                                error = ?err,
+                                "received configuration response for unknown request"
+                            );
                         }
                     }
-                    _ => {}
+                    _ => continue,
                 }
             }
         });

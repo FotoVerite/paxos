@@ -1,6 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use tokio::sync::mpsc;
+use async_trait::async_trait;
+use tokio::sync::{Mutex, mpsc};
 use tokio::time::Instant;
 use uuid::Uuid;
 
@@ -16,17 +18,46 @@ use crate::{
         config::{LearningStrategy, Roles},
         message_router::{MessageRouter, RoutingDecision},
         peer_topology::PeerTopology,
-        pmmc::{acceptor::Acceptor, leader::Leader, replica::Replica},
+        pmmc::{
+            acceptor::Acceptor,
+            leader::Leader,
+            replica::{ClientReplySink, Replica},
+        },
     },
-    rsm::entry::KVEntry,
 };
+
+#[derive(Default)]
+struct NodeClientSink {
+    clients: Mutex<HashMap<Uuid, mpsc::Sender<ClientMessage>>>,
+}
+
+impl NodeClientSink {
+    async fn add_client(&self, client_id: Uuid, tx: mpsc::Sender<ClientMessage>) {
+        self.clients.lock().await.insert(client_id, tx);
+    }
+
+    async fn remove_client(&self, client_id: Uuid) {
+        self.clients.lock().await.remove(&client_id);
+    }
+}
+
+#[async_trait]
+impl ClientReplySink for NodeClientSink {
+    async fn send(&self, client_id: Uuid, message: ClientMessage) {
+        let tx = self.clients.lock().await.get(&client_id).cloned();
+        if let Some(tx) = tx {
+            let _ = tx.send(message).await;
+        }
+    }
+}
 
 pub struct NodeState {
     uuid: Uuid,
     acceptor: Option<Acceptor>,
     fabric: Arc<NetworkFabric>,
     leader: Option<Leader>,
-    replica: Option<Replica>,
+    replica: Option<Arc<Replica>>,
+    client_sink: Arc<NodeClientSink>,
     router: MessageRouter,
     observer: Arc<dyn PaxosObserver>,
 }
@@ -41,6 +72,7 @@ impl NodeState {
         roles: Roles,
         configuration: Arc<ClusterConfiguration>,
     ) -> anyhow::Result<Self> {
+        let client_sink = Arc::new(NodeClientSink::default());
         let mut roles_str = Vec::new();
         let topology = PeerTopology::from(&*configuration);
         let leader = if roles.proposer {
@@ -68,17 +100,18 @@ impl NodeState {
 
         let replica = if roles.learner {
             roles_str.push("Replica".to_string());
-
-            Some(
+            let reply_sink: Arc<dyn ClientReplySink> = client_sink.clone();
+            Some(Arc::new(
                 Replica::new(
                     uuid,
                     persistence.clone(),
                     Arc::clone(&observer),
                     Arc::clone(&fabric),
                     Arc::clone(&configuration),
+                    reply_sink,
                 )
                 .await?,
-            )
+            ))
         } else {
             None
         };
@@ -89,20 +122,17 @@ impl NodeState {
             learning_strategy: "NONE".to_string(),
         });
 
-        // Create message router
-        use crate::node::message_router::MessageRouter;
         let router = MessageRouter::new(LearningStrategy::default(), topology);
-
-        let state = Self {
+        Ok(Self {
             uuid,
             acceptor,
             leader,
             replica,
+            client_sink,
             fabric,
             router,
             observer,
-        };
-        Ok(state)
+        })
     }
 
     pub async fn is_leader(&self) -> bool {
@@ -147,12 +177,20 @@ impl NodeState {
         &self,
         client_id: Uuid,
     ) -> Option<(mpsc::Sender<ClientMessage>, mpsc::Receiver<ClientMessage>)> {
-        let replica = self.replica.as_ref()?;
+        let replica = Arc::clone(self.replica.as_ref()?);
         let (client_tx, client_rx) = mpsc::channel(64);
         let (resp_tx, resp_rx) = mpsc::channel(64);
-        replica
-            .spawn_client_handler(client_id, client_rx, resp_tx)
-            .await;
+        self.client_sink.add_client(client_id, resp_tx).await;
+        let sink = Arc::clone(&self.client_sink);
+        tokio::spawn(async move {
+            let mut rx = client_rx;
+            while let Some(msg) = rx.recv().await {
+                if let ClientMessage::PROPOSE { cmd } = msg {
+                    replica.propose_from_client(cmd).await;
+                }
+            }
+            sink.remove_client(client_id).await;
+        });
         Some((client_tx, resp_rx))
     }
 
@@ -357,13 +395,14 @@ mod tests {
             })
             .await;
 
-        let msg = timeout(Duration::from_millis(120), peer_rx.recv())
+        let out = timeout(Duration::from_millis(500), peer_rx.recv())
             .await
-            .expect("accepted should trigger replica ack path")
-            .expect("peer should receive ack");
-        assert!(
-            matches!(msg, Message::ACK { .. }),
-            "ACCEPTED should be handled by replica path and return ACK"
-        );
+            .expect("ack should arrive")
+            .expect("peer channel should stay open");
+
+        assert!(matches!(
+            out,
+            Message::ACK { from, to, slot } if from == node_id && to == peer_id && slot == 0
+        ));
     }
 }
