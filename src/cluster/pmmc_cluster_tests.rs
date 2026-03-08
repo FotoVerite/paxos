@@ -4,6 +4,9 @@ use tokio::time::{Duration, sleep, timeout};
 use uuid::Uuid;
 
 use crate::{
+    cluster::configuration_handler::types::{
+        ConfigurationCommand, ConfigurationOperationStatus, ConfigurationReplyOutcome,
+    },
     common::persistence::Persistence,
     message::ClientMessage,
     monitor::NoOpObserver,
@@ -185,5 +188,50 @@ async fn cleanup_removes_cluster_persistence_root() {
     assert!(
         !persistence.dir().exists(),
         "cleanup should remove the entire cluster persistence root"
+    );
+}
+
+#[tokio::test]
+async fn configuration_endpoint_submit_and_await_roundtrip() {
+    let ip = IpAddr::V4([127, 0, 0, 44].into());
+    let cluster = PmmcCluster::new(ip, 1, Arc::new(NoOpObserver))
+        .await
+        .expect("single-node PMMC cluster should initialize");
+    cluster.start_all().await;
+
+    let node = cluster.get_node_uuids()[0];
+
+    let emit_op = cluster
+        .runtime_registry
+        .submit_configuration_op(node, ConfigurationCommand::Emit)
+        .await
+        .expect("emit op should submit");
+    let emit = cluster
+        .runtime_registry
+        .await_configuration_op(emit_op, Duration::from_secs(1))
+        .await
+        .expect("emit op should complete");
+    assert_eq!(emit, ConfigurationReplyOutcome::Active);
+
+    let stop_op = cluster
+        .runtime_registry
+        .submit_configuration_op(node, ConfigurationCommand::Stop)
+        .await
+        .expect("stop op should submit");
+    let stop = cluster
+        .runtime_registry
+        .await_configuration_op(stop_op, Duration::from_secs(1))
+        .await
+        .expect("stop op should complete");
+    assert_eq!(stop, ConfigurationReplyOutcome::Stopped);
+
+    let status = cluster
+        .runtime_registry
+        .configuration_op_status(stop_op)
+        .await
+        .expect("status should exist");
+    assert_eq!(
+        status,
+        ConfigurationOperationStatus::Completed(ConfigurationReplyOutcome::Stopped)
     );
 }

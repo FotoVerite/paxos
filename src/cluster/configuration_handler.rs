@@ -275,7 +275,11 @@ impl ConfigurationHandler {
                             },
                         ..
                     } => {
-                        if let Err(err) = self.handle_response(request_id, Ok(response)).await {
+                        let outcome = match response {
+                            ConfigurationReplyOutcome::Err(err) => Err(err),
+                            success => Ok(success),
+                        };
+                        if let Err(err) = self.handle_response(request_id, outcome).await {
                             debug!(
                                 request_id,
                                 error = ?err,

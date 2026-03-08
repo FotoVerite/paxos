@@ -41,6 +41,36 @@ pub struct RuntimeRegistry {
 const CONFIG_HANDLER_ID: Uuid = Uuid::from_u128(0xC5);
 
 impl RuntimeRegistry {
+    fn spawn_configuration_endpoint_loop(
+        member: Arc<RuntimeMember>,
+        mut endpoint_rx: Receiver<ConfigurationHandlerMessage>,
+        endpoint_tx: Sender<ConfigurationHandlerMessage>,
+    ) {
+        tokio::spawn(async move {
+            while let Some(msg) = endpoint_rx.recv().await {
+                let ConfigurationHandlerMessage::Reconfigure { request_id, cmd } = msg else {
+                    continue;
+                };
+
+                let response = match member.handle_configuration_command(cmd).await {
+                    Ok(outcome) => outcome,
+                    Err(err) => ConfigurationReplyOutcome::Err(err),
+                };
+
+                if endpoint_tx
+                    .send(ConfigurationHandlerMessage::RESPONSE {
+                        request_id,
+                        response,
+                    })
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
+    }
+
     pub async fn init(
         members: Vec<(Uuid, PmmcNodeConfig)>,
         fabric: Arc<NetworkFabric>,
@@ -48,6 +78,7 @@ impl RuntimeRegistry {
         persistence: Arc<ClusterPersistence>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
+        let handler = ConfigurationHandler::new(CONFIG_HANDLER_ID);
         let mut runtime_members = HashMap::new();
         let mut member_ids = Vec::new();
 
@@ -68,10 +99,18 @@ impl RuntimeRegistry {
             )
             .await?;
 
-            runtime_members.insert(uuid, Arc::new(member));
+            let member = Arc::new(member);
+            let (endpoint_tx, endpoint_rx) = mpsc::channel(256);
+            let response_tx = handler.register_endpoint(uuid, endpoint_tx).await;
+            Self::spawn_configuration_endpoint_loop(
+                Arc::clone(&member),
+                endpoint_rx,
+                response_tx,
+            );
+
+            runtime_members.insert(uuid, member);
             member_ids.push(uuid);
         }
-        let handler = ConfigurationHandler::new(CONFIG_HANDLER_ID);
         Ok(Self {
             members: RwLock::new(runtime_members),
             member_ids,
@@ -138,6 +177,9 @@ impl RuntimeRegistry {
         )
         .await?;
         let arc_member = Arc::new(member);
+        let (endpoint_tx, endpoint_rx) = mpsc::channel(256);
+        let response_tx = self.handler.register_endpoint(uuid, endpoint_tx).await;
+        Self::spawn_configuration_endpoint_loop(Arc::clone(&arc_member), endpoint_rx, response_tx);
         let mut members = self.members.write().await;
         members.insert(uuid, Arc::clone(&arc_member));
         drop(members);
