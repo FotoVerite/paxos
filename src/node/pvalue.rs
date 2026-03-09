@@ -2,10 +2,7 @@ use std::{cmp::Ordering, fmt};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    node::classic_paxos::ballot::Ballot,
-    paxos_command::PaxosCommand,
-};
+use crate::{node::classic_paxos::ballot::Ballot, paxos_command::PaxosCommand};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PValue {

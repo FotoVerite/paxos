@@ -1,4 +1,3 @@
-use core::panic;
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
 use crate::{
@@ -65,7 +64,12 @@ impl ReplicaDurable {
     pub fn reconfiguration_strategy_in_effect(&self) -> ReconfigurationStrategyInEffect {
         if let Some(slot) = self.stop_slot {
             return match self.strategy {
-                ConfigurationStrategy::JointConsensus => panic!("Misconfiguration"),
+                // Control-plane STOP can be issued before strategy-specific
+                // reconfiguration paths are wired. Treat it as an immediate stop
+                // instead of panicking the replica task.
+                ConfigurationStrategy::JointConsensus => {
+                    ReconfigurationStrategyInEffect::StopSign { slot, delayed: 0 }
+                }
                 ConfigurationStrategy::StopSign => {
                     ReconfigurationStrategyInEffect::StopSign { slot, delayed: 0 }
                 }
@@ -161,6 +165,13 @@ impl ReplicaDurable {
         }
     }
 
+    pub fn pending_slot_for(&self, cmd: &PaxosCommand) -> Option<usize> {
+        let target_identity = cmd.client_identity()?;
+        self.proposals.iter().find_map(|(slot, proposal)| {
+            (proposal.client_identity() == Some(target_identity)).then_some(*slot)
+        })
+    }
+
     pub fn add_to_cache(&mut self, cmd: &PaxosCommand) {
         if let Some(identity) = cmd.client_identity() {
             self.cache.insert(identity, None);
@@ -179,7 +190,8 @@ impl ReplicaDurable {
             if response.is_none() {
                 continue;
             }
-            dedup.entry(*client_id)
+            dedup
+                .entry(*client_id)
                 .and_modify(|current| *current = (*current).max(*request_id))
                 .or_insert(*request_id);
         }

@@ -63,9 +63,7 @@ impl ScenarioType {
             Self::PmmcLeaderCrash => "pmmc_leader_crash",
             Self::PmmcReplicaCrashFailover => "pmmc_replica_crash_failover",
             Self::PmmcLeaderPartitionHeal => "pmmc_leader_partition_heal",
-            Self::PmmcAcceptorMajorityLossThenRecover => {
-                "pmmc_acceptor_majority_loss_then_recover"
-            }
+            Self::PmmcAcceptorMajorityLossThenRecover => "pmmc_acceptor_majority_loss_then_recover",
             Self::PmmcStaggeredLeaderJoin => "pmmc_staggered_leader_join",
         }
     }

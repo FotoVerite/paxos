@@ -101,10 +101,7 @@ pub async fn propose_handler(
                 } else {
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR
                 };
-                (
-                    status,
-                    format!("Error: {}", e),
-                )
+                (status, format!("Error: {}", e))
             }
         }
     }

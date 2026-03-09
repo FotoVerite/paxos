@@ -18,7 +18,10 @@ pub struct PmmcScenarioSpec {
 impl PmmcScenarioSpec {
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.clients.is_empty() {
-            anyhow::bail!("PMMC scenario '{}' must define at least one client", self.name);
+            anyhow::bail!(
+                "PMMC scenario '{}' must define at least one client",
+                self.name
+            );
         }
 
         if self.completion.target_successes() == 0 {
@@ -90,15 +93,28 @@ pub enum PmmcTrigger {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PmmcAction {
-    CrashNode { node_index: usize },
+    CrashNode {
+        node_index: usize,
+    },
     CrashCurrentLeader,
-    IsolateNode { node_index: usize },
+    IsolateNode {
+        node_index: usize,
+    },
     IsolateCurrentLeader,
-    HealNode { node_index: usize },
+    HealNode {
+        node_index: usize,
+    },
     HealCurrentLeader,
-    MoveClient { client_id: String, replica_index: usize },
-    SleepMs { millis: u64 },
-    EmitNote { note: String },
+    MoveClient {
+        client_id: String,
+        replica_index: usize,
+    },
+    SleepMs {
+        millis: u64,
+    },
+    EmitNote {
+        note: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

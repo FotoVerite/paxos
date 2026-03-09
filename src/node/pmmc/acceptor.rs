@@ -118,8 +118,8 @@ mod tests {
             crate::common::persistence::ClusterPersistence::for_test("pmmc_acceptor").node(uuid),
             Arc::new(NoOpObserver),
         )
-            .await
-            .expect("acceptor should initialize")
+        .await
+        .expect("acceptor should initialize")
     }
 
     fn cmd(value: usize) -> PaxosCommand {
@@ -224,7 +224,10 @@ mod tests {
         } = check
         {
             assert_eq!(ballot, b7);
-            assert!(pvalues.contains(&v7), "value at current ballot should be accepted");
+            assert!(
+                pvalues.contains(&v7),
+                "value at current ballot should be accepted"
+            );
             assert!(
                 !pvalues.contains(&v8),
                 "paper rule: higher ballot p2a must not be accepted before adoption"
@@ -270,7 +273,10 @@ mod tests {
             })
             .await;
 
-        if let Message::P1B { pvalues, ballot, .. } = reply {
+        if let Message::P1B {
+            pvalues, ballot, ..
+        } = reply
+        {
             assert_eq!(ballot, b4);
             assert_eq!(pvalues.len(), 2);
             assert!(pvalues.contains(&v1));

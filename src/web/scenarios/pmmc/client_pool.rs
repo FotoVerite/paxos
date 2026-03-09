@@ -60,11 +60,7 @@ impl ClientSession {
         self.rx.as_mut()
     }
 
-    pub fn attach(
-        &mut self,
-        tx: mpsc::Sender<ClientMessage>,
-        rx: mpsc::Receiver<ClientMessage>,
-    ) {
+    pub fn attach(&mut self, tx: mpsc::Sender<ClientMessage>, rx: mpsc::Receiver<ClientMessage>) {
         self.tx = Some(tx);
         self.rx = Some(rx);
     }
@@ -98,7 +94,11 @@ impl ClientPool {
     }
 
     pub fn move_client(&mut self, client_id: &str, replica_index: usize) -> bool {
-        if let Some(session) = self.sessions.iter_mut().find(|session| session.id == client_id) {
+        if let Some(session) = self
+            .sessions
+            .iter_mut()
+            .find(|session| session.id == client_id)
+        {
             session.replica_index = replica_index;
             session.detach();
             true

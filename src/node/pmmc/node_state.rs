@@ -10,8 +10,11 @@ mod admin;
 
 use crate::{
     cluster::{
-        cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
-        configuration_handler::types::{ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome},
+        cluster_configuration::ClusterConfiguration,
+        configuration_handler::types::{
+            ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
+        },
+        network_fabric::NetworkFabric,
         network_handle::NetworkHandle,
     },
     common::persistence::NodePersistence,
@@ -220,7 +223,9 @@ impl NodeState {
         match cmd {
             ConfigurationCommand::Add { .. } | ConfigurationCommand::Remove { .. } => {
                 Err(ConfigurationHandlerError::Rejected {
-                    reason: "membership updates not yet wired; route through node state reconciler path".to_string(),
+                    reason:
+                        "membership updates not yet wired; route through node state reconciler path"
+                            .to_string(),
                 })
             }
             _ => Err(ConfigurationHandlerError::InvalidRequest {

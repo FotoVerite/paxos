@@ -300,7 +300,10 @@ impl Drop for ClassicCluster {
         }
 
         if let Err(err) = self.persistence.purge_cluster_dir_blocking() {
-            tracing::warn!("failed to purge Classic cluster persistence on drop: {}", err);
+            tracing::warn!(
+                "failed to purge Classic cluster persistence on drop: {}",
+                err
+            );
         }
     }
 }
@@ -353,9 +356,10 @@ mod tests {
         let configuration =
             ClusterConfiguration::bootstrap_classic(ip, configs).expect("config should build");
 
-        let cluster = ClassicCluster::new_with_configuration(0, ip, configuration, Arc::new(NoOpObserver))
-            .await
-            .expect("classic cluster should build from configuration");
+        let cluster =
+            ClassicCluster::new_with_configuration(0, ip, configuration, Arc::new(NoOpObserver))
+                .await
+                .expect("classic cluster should build from configuration");
 
         assert_eq!(cluster.num_nodes(), 3);
         assert_eq!(cluster.quorum_size(), 2);

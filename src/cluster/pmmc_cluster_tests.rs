@@ -76,7 +76,10 @@ fn node_uuid_is_stable_and_unique_per_index() {
     let u1 = PmmcCluster::node_uuid(ip, 1);
 
     assert_eq!(u0a, u0b, "same ip/index must produce stable UUID");
-    assert_ne!(u0a, u1, "different node indexes must map to different UUIDs");
+    assert_ne!(
+        u0a, u1,
+        "different node indexes must map to different UUIDs"
+    );
 
     let mut set = HashSet::new();
     for i in 0..8 {

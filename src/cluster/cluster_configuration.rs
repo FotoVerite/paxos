@@ -37,7 +37,7 @@ pub struct ClusterConfiguration {
     epoch: usize,
     starting_slot: usize,
     alpha_max_inflight: usize,
-    kv_store: Option<HashMap<String, KVEntry>>
+    kv_store: Option<HashMap<String, KVEntry>>,
 }
 
 impl ClusterConfiguration {
@@ -73,7 +73,7 @@ impl ClusterConfiguration {
             nodes,
             strategy,
             alpha_max_inflight,
-            kv_store: None
+            kv_store: None,
         })
     }
 

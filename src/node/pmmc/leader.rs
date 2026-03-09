@@ -11,7 +11,7 @@ use crate::{
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
         classic_paxos::ballot::Ballot,
-        pmmc::leader::leader_state::{durable::LeaderDurable, LeaderState},
+        pmmc::leader::leader_state::{LeaderState, durable::LeaderDurable},
     },
     paxos_command::PaxosCommand,
 };
@@ -183,7 +183,10 @@ impl Leader {
 mod tests {
     use std::{collections::HashMap, fs, net::IpAddr, sync::Arc};
 
-    use tokio::{sync::mpsc, time::{timeout, Duration}};
+    use tokio::{
+        sync::mpsc,
+        time::{Duration, timeout},
+    };
     use uuid::Uuid;
 
     use crate::{
@@ -214,11 +217,7 @@ mod tests {
         let persistence =
             crate::common::persistence::ClusterPersistence::for_test("pmmc_leader").node(uuid);
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let peers = Arc::new(NetworkHandle::new(
-            uuid,
-            HashMap::new(),
-            Arc::clone(&observer),
-        ).await);
+        let peers = Arc::new(NetworkHandle::new(uuid, HashMap::new(), Arc::clone(&observer)).await);
         let state = Arc::new(LeaderState::init(LeaderDurable::default(), uuid, 0));
 
         Leader {
@@ -332,11 +331,7 @@ mod tests {
         cleanup_leader_files(&persistence);
 
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let peers = Arc::new(NetworkHandle::new(
-            uuid,
-            HashMap::new(),
-            Arc::clone(&observer),
-        ).await);
+        let peers = Arc::new(NetworkHandle::new(uuid, HashMap::new(), Arc::clone(&observer)).await);
         let leader = Leader::new(
             uuid,
             persistence.clone(),
@@ -344,8 +339,8 @@ mod tests {
             peers,
             Arc::clone(&observer),
         )
-            .await
-            .expect("leader init should work");
+        .await
+        .expect("leader init should work");
         let ballot = leader.state.ballot().await;
 
         let _ = leader
@@ -360,11 +355,8 @@ mod tests {
         leader.save().await.expect("save should work");
         drop(leader);
 
-        let peers2 = Arc::new(NetworkHandle::new(
-            uuid,
-            HashMap::new(),
-            Arc::clone(&observer),
-        ).await);
+        let peers2 =
+            Arc::new(NetworkHandle::new(uuid, HashMap::new(), Arc::clone(&observer)).await);
         let reloaded = Leader::new(
             uuid,
             persistence.clone(),
@@ -372,8 +364,8 @@ mod tests {
             peers2,
             observer,
         )
-            .await
-            .expect("leader reload should work");
+        .await
+        .expect("leader reload should work");
 
         assert!(
             reloaded.is_leader().await,
@@ -490,10 +482,7 @@ mod tests {
                 pvalue: PValue::new(slot, ballot, command.clone()),
             })
             .await;
-        assert!(matches!(
-            first,
-            Message::NACK
-        ));
+        assert!(matches!(first, Message::NACK));
 
         let second = leader
             .handle_message(Message::P2B {

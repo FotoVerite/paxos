@@ -42,7 +42,10 @@ impl CatchUpScenario {
     }
 
     /// Propose to fill gaps in Node 0's ledger
-    pub async fn propose_gap_filler(cluster: &mut ClassicCluster, node_id: usize) -> anyhow::Result<()> {
+    pub async fn propose_gap_filler(
+        cluster: &mut ClassicCluster,
+        node_id: usize,
+    ) -> anyhow::Result<()> {
         // Get the node's ledger to find gaps
         let gap_decree_num = if let Some(node) = cluster.nodes.get(node_id) {
             node.get_next_gap().await

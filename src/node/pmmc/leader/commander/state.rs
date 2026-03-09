@@ -5,7 +5,10 @@ use std::{
 };
 
 use rand::Rng;
-use tokio::{sync::{Mutex, Notify}, time::Instant};
+use tokio::{
+    sync::{Mutex, Notify},
+    time::Instant,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -173,7 +176,6 @@ impl CommanderState {
         let jitter = rand::rng().random_range(0..=((base.as_millis() as u64 / 5).max(1)));
         state.deadline = Instant::now() + base + Duration::from_millis(jitter);
     }
-
 }
 
 #[cfg(test)]

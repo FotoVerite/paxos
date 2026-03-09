@@ -50,7 +50,10 @@ impl PaxosObserver for ConsoleObserver {
 
         fn node_list(ids: &[Uuid]) -> String {
             let mut state = labels().lock().expect("label map lock poisoned");
-            let labels: Vec<String> = ids.iter().map(|id| format!("N{}", state.label(*id))).collect();
+            let labels: Vec<String> = ids
+                .iter()
+                .map(|id| format!("N{}", state.label(*id)))
+                .collect();
             format!("[{}]", labels.join(", "))
         }
 
@@ -291,7 +294,9 @@ impl PaxosObserver for ConsoleObserver {
             Event::NodeCrashed { id, .. } => {
                 println!(
                     "{}",
-                    format!("[CRASH] Node {} crashed", node_label(id)).red().bold()
+                    format!("[CRASH] Node {} crashed", node_label(id))
+                        .red()
+                        .bold()
                 );
             }
             Event::BallotAdopted { id, ballot } => {
@@ -386,8 +391,8 @@ impl PaxosObserver for ConsoleObserver {
                         node_label(to),
                         ballot
                     )
-                        .green()
-                        .bold()
+                    .green()
+                    .bold()
                 );
             }
             Event::PmmcPreempted {
@@ -407,12 +412,7 @@ impl PaxosObserver for ConsoleObserver {
             Event::PmmcHeartbeat { from, ballot, .. } => {
                 println!(
                     "{}",
-                    format!(
-                        "[PMMC][L] {} heartbeat ballot {}",
-                        node_label(from),
-                        ballot
-                    )
-                    .purple()
+                    format!("[PMMC][L] {} heartbeat ballot {}", node_label(from), ballot).purple()
                 );
             }
             Event::PmmcAck { from, to, slot, .. } => {

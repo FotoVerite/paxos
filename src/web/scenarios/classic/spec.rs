@@ -59,11 +59,13 @@ impl ClassicScenarioSpec {
             .map(|topology| topology.groups.iter().map(|group| group.count).sum())
     }
 
-    pub fn node_configs(&self, learning_strategy: LearningStrategy) -> Option<Vec<ClassicNodeConfig>> {
+    pub fn node_configs(
+        &self,
+        learning_strategy: LearningStrategy,
+    ) -> Option<Vec<ClassicNodeConfig>> {
         self.topology.as_ref().map(|topology| {
-            let mut configs = Vec::with_capacity(
-                topology.groups.iter().map(|group| group.count).sum(),
-            );
+            let mut configs =
+                Vec::with_capacity(topology.groups.iter().map(|group| group.count).sum());
             for group in &topology.groups {
                 for _ in 0..group.count {
                     configs.push(ClassicNodeConfig {

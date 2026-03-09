@@ -35,7 +35,9 @@ impl Commander {
         peers: Arc<NetworkHandle>,
         _observer: Arc<dyn PaxosObserver>,
     ) -> Self {
-        let state = Arc::new(CommanderState::new(uuid, ballot, quorum, replicas, proposals));
+        let state = Arc::new(CommanderState::new(
+            uuid, ballot, quorum, replicas, proposals,
+        ));
         Self {
             uuid,
             ballot,
@@ -44,7 +46,7 @@ impl Commander {
         }
     }
 
-    pub async fn add_pending(&self, slot: usize, cmd: PaxosCommand){
+    pub async fn add_pending(&self, slot: usize, cmd: PaxosCommand) {
         self.state.add_pending(slot, cmd).await
     }
 
@@ -68,7 +70,7 @@ impl Commander {
         }
         Message::NACK
     }
-    
+
     pub async fn handle_message(&mut self, msg: Message) -> Message {
         match msg {
             Message::P2B {

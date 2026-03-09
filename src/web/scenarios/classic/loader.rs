@@ -16,7 +16,10 @@ impl ClassicScenarioLoader {
 
     pub async fn load_for(scenario_type: ScenarioType) -> anyhow::Result<ClassicScenarioSpec> {
         let path = Self::path_for(scenario_type).ok_or_else(|| {
-            anyhow::anyhow!("scenario '{}' is not a generic classic scenario", scenario_type.as_str())
+            anyhow::anyhow!(
+                "scenario '{}' is not a generic classic scenario",
+                scenario_type.as_str()
+            )
         })?;
         Self::load(path).await
     }
@@ -52,7 +55,9 @@ mod tests {
         ];
 
         for scenario_type in scenarios {
-            let spec = ClassicScenarioLoader::load_for(scenario_type).await.unwrap();
+            let spec = ClassicScenarioLoader::load_for(scenario_type)
+                .await
+                .unwrap();
             assert_eq!(spec.name, scenario_type.as_str());
             assert!(!spec.proposals.is_empty());
             assert!(spec.proposal_interval > 0);

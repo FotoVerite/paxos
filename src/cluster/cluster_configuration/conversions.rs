@@ -66,7 +66,7 @@ impl TryFrom<(&ClusterConfiguration, ReconfigPatch)> for ClusterConfiguration {
             return Err(ReconfigError::NoLearners);
         }
 
-        let old : HashSet<Uuid> = prev.acceptors().iter().copied().collect();
+        let old: HashSet<Uuid> = prev.acceptors().iter().copied().collect();
         let new = new_config.acceptors().iter().copied().collect();
 
         if old != new {
@@ -111,7 +111,7 @@ mod tests {
             strategy: ConfigurationStrategy::JointConsensus,
             alpha_max_inflight: 5,
             starting_slot: 0,
-            kv_store: None
+            kv_store: None,
         }
     }
 

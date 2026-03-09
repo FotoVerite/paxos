@@ -42,7 +42,11 @@ impl DecreeNotes {
 impl DecreeNote {
     pub fn new(node_id: Uuid) -> Self {
         Self {
-            last_tried: Ballot { number: 0, node_id, epoch: 0 },
+            last_tried: Ballot {
+                number: 0,
+                node_id,
+                epoch: 0,
+            },
         }
     }
 

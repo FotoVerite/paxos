@@ -66,7 +66,12 @@ async fn apply_action(
 ) -> anyhow::Result<()> {
     match action {
         PmmcAction::CrashNode { node_index } => {
-            if let Some(uuid) = cluster_for_runner.lock().await.crash_node(*node_index).await {
+            if let Some(uuid) = cluster_for_runner
+                .lock()
+                .await
+                .crash_node(*node_index)
+                .await
+            {
                 info!(node_index, %uuid, "PMMC action: crashed node");
             }
         }

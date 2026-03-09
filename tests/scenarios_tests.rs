@@ -23,7 +23,9 @@ async fn test_consensus_without_failures() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 3, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 3, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -51,7 +53,9 @@ async fn test_consensus_with_partition_recovery() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -101,7 +105,9 @@ async fn test_consensus_survives_packet_loss() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -130,7 +136,9 @@ async fn test_consensus_with_high_latency() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 3, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 3, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..3 {
         cluster.nodes[i].start();
@@ -155,7 +163,9 @@ async fn test_quorum_still_achievable_with_partition() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
@@ -191,7 +201,9 @@ async fn test_repeated_partition_heal_cycles() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -356,7 +368,9 @@ async fn test_seven_node_consensus_sustained() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
@@ -394,7 +408,9 @@ async fn test_nine_node_consensus() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 9, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 9, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..9 {
         cluster.nodes[i].start();
@@ -431,7 +447,9 @@ async fn test_minority_partition_seven_nodes() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
@@ -510,7 +528,9 @@ async fn test_extended_partition_five_nodes() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -583,7 +603,9 @@ async fn test_rolling_failures_seven_nodes() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
@@ -637,7 +659,9 @@ async fn test_multiple_overlapping_partitions() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
@@ -716,7 +740,9 @@ async fn test_high_latency_seven_nodes() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
@@ -759,7 +785,9 @@ async fn test_asymmetric_latency() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();
@@ -796,7 +824,9 @@ async fn test_transient_packet_loss() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 7, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..7 {
         cluster.nodes[i].start();
@@ -830,7 +860,9 @@ async fn test_recovery_from_extended_offline() {
     let observer = Arc::new(RecordingObserver::new());
     let barrier = observer.barrier.clone();
     let ip = IpAddr::V4([127, 0, 0, 1].into());
-    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone()).await.unwrap();
+    let mut cluster = ClassicCluster::new(0, ip, 5, observer.clone())
+        .await
+        .unwrap();
 
     for i in 0..5 {
         cluster.nodes[i].start();

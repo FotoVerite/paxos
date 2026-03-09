@@ -140,8 +140,12 @@ mod tests {
         let p1a_decision = router.pmmc_route_response(&p1a);
         let propose_decision = router.pmmc_route_response(&propose);
 
-        assert!(matches!(p1a_decision, RoutingDecision::SendToMany(nodes) if nodes == vec![Uuid::from_u128(0xA1), Uuid::from_u128(0xA2)]));
-        assert!(matches!(propose_decision, RoutingDecision::SendToMany(nodes) if nodes == vec![Uuid::from_u128(0xC1), Uuid::from_u128(0xC2)]));
+        assert!(
+            matches!(p1a_decision, RoutingDecision::SendToMany(nodes) if nodes == vec![Uuid::from_u128(0xA1), Uuid::from_u128(0xA2)])
+        );
+        assert!(
+            matches!(propose_decision, RoutingDecision::SendToMany(nodes) if nodes == vec![Uuid::from_u128(0xC1), Uuid::from_u128(0xC2)])
+        );
     }
 
     #[test]

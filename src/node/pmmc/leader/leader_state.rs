@@ -28,20 +28,19 @@ pub struct LeaderState {
 }
 
 impl LeaderState {
-    pub fn init(data: LeaderDurable, id: Uuid, epoch: usize,) -> Self {
+    pub fn init(data: LeaderDurable, id: Uuid, epoch: usize) -> Self {
         let volatile = LeaderVolatile::default();
         return Self {
-            data: Mutex::new(LeaderData { durable: data, volatile }),
+            data: Mutex::new(LeaderData {
+                durable: data,
+                volatile,
+            }),
             id,
             epoch,
         };
     }
 
-    pub async fn start_scout(
-        &self,
-        quorum: usize,
-        observer: Arc<dyn PaxosObserver>,
-    ) -> Ballot {
+    pub async fn start_scout(&self, quorum: usize, observer: Arc<dyn PaxosObserver>) -> Ballot {
         let mut state = self.data.lock().await;
         //TODO bump ballot
         let highest_seen = state.volatile.highest_seen;
@@ -84,9 +83,9 @@ impl LeaderState {
         let pvalues = state.volatile.scout_pvalues();
         state.durable.set_as_active(pvalues);
         let proposals = state.durable.proposal();
-        state
-            .volatile
-            .start_commander(self.id, quorum, ballot, replicas, proposals, observer, peers);
+        state.volatile.start_commander(
+            self.id, quorum, ballot, replicas, proposals, observer, peers,
+        );
         true
     }
 
@@ -146,7 +145,6 @@ impl LeaderState {
         let mut state = self.data.lock().await;
         state.volatile.ack(from, slot).await;
     }
-
 }
 
 #[cfg(test)]

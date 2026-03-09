@@ -130,7 +130,10 @@ impl PmmcScenarioExecution {
                 Ok(AwaitOutcome::Timeout) => {
                     self.state.timeout_count += 1;
 
-                    if let Err(err) = self.run_actions(PmmcTriggerKind::AfterTimeouts, "timeout").await {
+                    if let Err(err) = self
+                        .run_actions(PmmcTriggerKind::AfterTimeouts, "timeout")
+                        .await
+                    {
                         warn!(
                             %self.context.scenario_run_id,
                             error = %err,
@@ -311,7 +314,9 @@ impl PmmcScenarioExecution {
     ) -> Result<(), CompletionReason> {
         match client_message {
             ClientMessage::RESPONSE { request_id, .. } => {
-                self.pool.session_mut(request.session_index).record_success();
+                self.pool
+                    .session_mut(request.session_index)
+                    .record_success();
                 self.state.success_count += 1;
 
                 info!(

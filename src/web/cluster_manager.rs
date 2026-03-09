@@ -6,17 +6,16 @@ use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::cluster::{
-    classic_cluster::ClassicCluster,
-    cluster_configuration::ClusterConfiguration,
+    classic_cluster::ClassicCluster, cluster_configuration::ClusterConfiguration,
     pmmc_cluster::PmmcCluster,
 };
 use crate::common::persistence::Persistence;
+use crate::console_observer::ConsoleObserver;
 use crate::decree_generator::DecreeGenerator;
 use crate::message::Message;
 use crate::monitor::PaxosObserver;
 use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
 use crate::paxos_command::PaxosCommand;
-use crate::console_observer::ConsoleObserver;
 use crate::web::scenarios::{
     CatchUpScenario, ClassicScenarioExecution, ClassicScenarioLoader, ScenarioType,
     pmmc::{PmmcScenarioExecution, PmmcScenarioLoader},
@@ -156,7 +155,10 @@ impl ClusterManager {
         if !cleaned {
             if let Ok(removed) = self.purge_persisted_state_for_ip(ip).await {
                 if removed > 0 {
-                    info!(removed_state_files = removed, "Purged persisted state before scenario start");
+                    info!(
+                        removed_state_files = removed,
+                        "Purged persisted state before scenario start"
+                    );
                 }
             }
         } else {
@@ -326,7 +328,6 @@ impl ClusterManager {
             }
             return;
         }
-
     }
 
     async fn spawn_scenario_runner(
@@ -512,7 +513,10 @@ impl ClusterManager {
         if !cleaned {
             // Remove all persisted node versions (including stale UUIDs/corrupt/tmp variants).
             let removed = self.purge_persisted_state_for_ip(ip).await?;
-            info!(removed_state_files = removed, "Deleted persisted state files");
+            info!(
+                removed_state_files = removed,
+                "Deleted persisted state files"
+            );
         } else {
             info!("Deleted persisted state through active cluster cleanup");
         }

@@ -1,4 +1,8 @@
-use std::{collections::{BTreeMap, HashMap}, sync::Arc, time::Duration};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+    time::Duration,
+};
 
 use tokio::{sync::mpsc, time::sleep};
 use uuid::Uuid;
@@ -311,8 +315,14 @@ async fn run_rebroadcasts_accepted_to_only_unacked_replicas_once_decided() {
         .filter(|m| matches!(m, Message::ACCEPTED { .. }))
         .count();
 
-    assert_eq!(r1_accepted, 0, "already-acked replica should not get accepted rebroadcast");
-    assert!(r2_accepted >= 1, "unacked replica should receive accepted rebroadcast");
+    assert_eq!(
+        r1_accepted, 0,
+        "already-acked replica should not get accepted rebroadcast"
+    );
+    assert!(
+        r2_accepted >= 1,
+        "unacked replica should receive accepted rebroadcast"
+    );
 }
 
 #[tokio::test]
@@ -399,6 +409,12 @@ async fn role_split_replica_acks_compaction_stops_accepted_rebroadcasts() {
         .filter(|m| matches!(m, Message::ACCEPTED { .. }))
         .count();
 
-    assert_eq!(r1_accepted, 0, "compacted slot must not be rebroadcast to replica r1");
-    assert_eq!(r2_accepted, 0, "compacted slot must not be rebroadcast to replica r2");
+    assert_eq!(
+        r1_accepted, 0,
+        "compacted slot must not be rebroadcast to replica r1"
+    );
+    assert_eq!(
+        r2_accepted, 0,
+        "compacted slot must not be rebroadcast to replica r2"
+    );
 }

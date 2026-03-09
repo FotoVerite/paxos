@@ -15,8 +15,12 @@ impl PmmcScenarioLoader {
     }
 
     pub async fn load_for(scenario_type: ScenarioType) -> anyhow::Result<PmmcScenarioSpec> {
-        let path = Self::path_for(scenario_type)
-            .ok_or_else(|| anyhow::anyhow!("scenario '{}' is not a PMMC scenario", scenario_type.as_str()))?;
+        let path = Self::path_for(scenario_type).ok_or_else(|| {
+            anyhow::anyhow!(
+                "scenario '{}' is not a PMMC scenario",
+                scenario_type.as_str()
+            )
+        })?;
         Self::load(path).await
     }
 

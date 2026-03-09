@@ -4,13 +4,12 @@ use uuid::Uuid;
 
 use crate::{cluster::cluster_configuration::ConfigurationStrategy, node::config::Roles};
 
-
 #[derive(Debug, Clone, Default)]
 pub struct ReconfigPatch {
     pub alpha_max_inflight: Option<usize>,
     pub strategy: Option<ConfigurationStrategy>,
     pub add: HashMap<Uuid, Roles>,
-    pub remove:  HashSet<Uuid>,
+    pub remove: HashSet<Uuid>,
 }
 
 impl ReconfigPatch {

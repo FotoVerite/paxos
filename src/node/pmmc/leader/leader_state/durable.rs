@@ -3,9 +3,8 @@ use std::collections::{BTreeMap, btree_map::Entry};
 use uuid::Uuid;
 
 use crate::{
-    node::{
-        classic_paxos::ballot::Ballot, pmmc::proposal::ProposalsStore, pvalue::PValue
-    }, paxos_command::PaxosCommand,
+    node::{classic_paxos::ballot::Ballot, pmmc::proposal::ProposalsStore, pvalue::PValue},
+    paxos_command::PaxosCommand,
 };
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -68,11 +67,11 @@ impl LeaderDurable {
                 v.insert(cmd);
                 true
             }
-            Entry::Occupied(_) => {false}
+            Entry::Occupied(_) => false,
         }
     }
 
-    pub  fn proposal(&self) -> ProposalsStore {
+    pub fn proposal(&self) -> ProposalsStore {
         self.proposals.clone()
     }
 
@@ -98,7 +97,10 @@ mod tests {
 
     use uuid::Uuid;
 
-    use crate::{node::{classic_paxos::ballot::Ballot, pvalue::PValue}, paxos_command::PaxosCommand};
+    use crate::{
+        node::{classic_paxos::ballot::Ballot, pvalue::PValue},
+        paxos_command::PaxosCommand,
+    };
 
     use super::LeaderDurable;
 

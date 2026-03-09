@@ -52,7 +52,8 @@ impl RsmCheckpoint {
 
     fn compute_checksum(state: &CheckpointState) -> String {
         let canonical = CanonicalCheckpointState::from(state);
-        let encoded = serde_json::to_vec(&canonical).expect("checkpoint state serialization failed");
+        let encoded =
+            serde_json::to_vec(&canonical).expect("checkpoint state serialization failed");
         let digest = Sha256::digest(encoded);
         to_hex(&digest)
     }
@@ -203,7 +204,8 @@ mod tests {
         let mut dedup = HashMap::new();
         dedup.insert(client_id, 42);
 
-        let manifest = CheckpointManifest::new(snapshot_id, source_node, 3, 9, 17, 1_742_123_456_789);
+        let manifest =
+            CheckpointManifest::new(snapshot_id, source_node, 3, 9, 17, 1_742_123_456_789);
         let state = CheckpointState::new(RsmCheckpointState::new(kv), dedup);
         let checkpoint = RsmCheckpoint::new(manifest, state);
         let encoded = serde_json::to_string(&checkpoint).unwrap();
@@ -218,7 +220,11 @@ mod tests {
         assert!(!decoded.manifest().checksum().is_empty());
         assert_eq!(decoded.manifest().checksum().len(), 64);
 
-        let entry = decoded.state().kv_store().get("alpha").expect("alpha key missing");
+        let entry = decoded
+            .state()
+            .kv_store()
+            .get("alpha")
+            .expect("alpha key missing");
         assert_eq!(entry.value, KVValue(7));
         assert_eq!(entry.version, KVVersion(2));
         assert_eq!(

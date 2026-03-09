@@ -4,8 +4,8 @@ use rand::Rng;
 use tokio::sync::Mutex;
 
 use crate::cluster::classic_cluster::ClassicCluster;
-use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::decree_generator::DecreeGenerator;
+use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::paxos_command::PaxosCommand;
 
 use super::spec::{ClassicAction, ClassicProposerSelector, ClassicScenarioSpec, ClassicTrigger};
@@ -32,15 +32,18 @@ impl ClassicScenarioExecution {
         let plans = spec.proposals.clone();
         let proposals = {
             let cluster = cluster.lock().await;
-            plans.into_iter()
+            plans
+                .into_iter()
                 .filter_map(|plan| {
-                    Self::resolve_proposer_uuid(&cluster, &plan.selector, leader_for_runner).map(|proposer_uuid| {
-                        let cmd = PaxosCommand::EnactDecree {
-                            author: plan.author,
-                            law: decree_gen.next(),
-                        };
-                        (proposer_uuid, cmd)
-                    })
+                    Self::resolve_proposer_uuid(&cluster, &plan.selector, leader_for_runner).map(
+                        |proposer_uuid| {
+                            let cmd = PaxosCommand::EnactDecree {
+                                author: plan.author,
+                                law: decree_gen.next(),
+                            };
+                            (proposer_uuid, cmd)
+                        },
+                    )
                 })
                 .collect::<Vec<_>>()
         };
@@ -143,9 +146,14 @@ impl ClassicScenarioExecution {
         match selector {
             ClassicProposerSelector::RandomAny => {
                 let mut rng = rand::rng();
-                cluster.nodes.get(rng.random_range(0..cluster.nodes.len())).map(|node| node.uuid)
+                cluster
+                    .nodes
+                    .get(rng.random_range(0..cluster.nodes.len()))
+                    .map(|node| node.uuid)
             }
-            ClassicProposerSelector::FixedIndex { index } => cluster.nodes.get(*index).map(|node| node.uuid),
+            ClassicProposerSelector::FixedIndex { index } => {
+                cluster.nodes.get(*index).map(|node| node.uuid)
+            }
             ClassicProposerSelector::RandomFromIndices { indices } => {
                 if indices.is_empty() {
                     return None;
@@ -154,7 +162,9 @@ impl ClassicScenarioExecution {
                 let pick = indices[rng.random_range(0..indices.len())];
                 cluster.nodes.get(pick).map(|node| node.uuid)
             }
-            ClassicProposerSelector::Leader => cluster.nodes.get(leader_for_runner).map(|node| node.uuid),
+            ClassicProposerSelector::Leader => {
+                cluster.nodes.get(leader_for_runner).map(|node| node.uuid)
+            }
         }
     }
 }
