@@ -12,7 +12,7 @@ use crate::{
     cluster::{
         cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
         configuration_handler::types::{ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome},
-        network_simulator::NetworkSimulator,
+        network_handle::NetworkHandle,
     },
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
@@ -71,7 +71,7 @@ impl NodeState {
     pub async fn init(
         uuid: Uuid,
         fabric: Arc<NetworkFabric>,
-        handle: Arc<NetworkSimulator>,
+        handle: Arc<NetworkHandle>,
         persistence: NodePersistence,
         observer: Arc<dyn PaxosObserver>,
         roles: Roles,
@@ -371,7 +371,7 @@ mod tests {
     use crate::{
         cluster::{
             cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
-            network_simulator::NetworkSimulator,
+            network_handle::NetworkHandle,
         },
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
@@ -409,7 +409,7 @@ mod tests {
         let (peer_tx, mut peer_rx) = mpsc::channel(32);
         let fabric = Arc::new(NetworkFabric::new(Arc::clone(&observer)));
         fabric.register(peer_id, peer_tx).await;
-        let handle = Arc::new(NetworkSimulator::from_fabric(node_id, Arc::clone(&fabric)));
+        let handle = Arc::new(NetworkHandle::from_fabric(node_id, Arc::clone(&fabric)));
 
         let state = NodeState::init(
             node_id,

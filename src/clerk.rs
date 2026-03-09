@@ -7,7 +7,7 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_simulator::NetworkSimulator,
+    cluster::network_handle::NetworkHandle,
     common::message_hub::{HubInbound, MessageHub},
     message::{ClientMessage, Message},
     paxos_command::PaxosCommand,
@@ -31,7 +31,7 @@ impl From<HubInbound<ClientMessage>> for ClerkInbound {
 pub struct Clerk {
     client_id: Uuid,
     request_id: Mutex<u64>,
-    peers: Arc<NetworkSimulator>,
+    peers: Arc<NetworkHandle>,
     inflight: Mutex<HashMap<u64, InflightRequest>>,
     kv_cache: Mutex<HashMap<String, KVVersion>>,
     hub: Arc<MessageHub<ClientMessage, ClerkInbound>>,
@@ -45,7 +45,7 @@ struct InflightRequest {
 }
 
 impl Clerk {
-    pub fn new(client_id: Uuid, peers: Arc<NetworkSimulator>) -> Arc<Self> {
+    pub fn new(client_id: Uuid, peers: Arc<NetworkHandle>) -> Arc<Self> {
         let (hub_tx, hub_rx) = mpsc::channel(1024);
         Arc::new(Self {
             client_id,

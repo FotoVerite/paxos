@@ -4,7 +4,7 @@ use tokio::{sync::Mutex, time::Instant};
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_simulator::NetworkSimulator,
+    cluster::network_handle::NetworkHandle,
     message::Message,
     monitor::PaxosObserver,
     node::{
@@ -69,7 +69,7 @@ impl LeaderState {
         ballot: Ballot,
         replicas: Vec<Uuid>,
         observer: Arc<dyn PaxosObserver>,
-        peers: Arc<NetworkSimulator>,
+        peers: Arc<NetworkHandle>,
     ) -> bool {
         let mut state = self.data.lock().await;
         if ballot != state.durable.ballot(self.id, self.epoch) {

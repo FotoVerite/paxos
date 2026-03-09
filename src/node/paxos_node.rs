@@ -4,7 +4,7 @@ use uuid::Uuid;
 use tokio::{sync::mpsc::Receiver, time::sleep};
 
 use crate::{
-    cluster::network_simulator::NetworkSimulator,
+    cluster::network_handle::NetworkHandle,
     common::persistence::NodePersistence,
     common::types::DecreeId,
     message::Message,
@@ -29,7 +29,7 @@ impl PaxosNode {
         uuid: Uuid,
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
-        peers: Arc<NetworkSimulator>,
+        peers: Arc<NetworkHandle>,
         persistence: NodePersistence,
         quorum: usize,
         config: ClassicNodeConfig,

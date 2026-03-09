@@ -5,7 +5,7 @@ use tokio::{select, time};
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_simulator::NetworkSimulator,
+    cluster::network_handle::NetworkHandle,
     message::Message,
     monitor::PaxosObserver,
     node::{
@@ -22,7 +22,7 @@ pub struct Commander {
     uuid: Uuid,
     ballot: Ballot,
     state: Arc<CommanderState>,
-    peers: Arc<NetworkSimulator>,
+    peers: Arc<NetworkHandle>,
 }
 
 impl Commander {
@@ -32,7 +32,7 @@ impl Commander {
         ballot: Ballot,
         replicas: Vec<Uuid>,
         proposals: ProposalsStore,
-        peers: Arc<NetworkSimulator>,
+        peers: Arc<NetworkHandle>,
         _observer: Arc<dyn PaxosObserver>,
     ) -> Self {
         let state = Arc::new(CommanderState::new(uuid, ballot, quorum, replicas, proposals));

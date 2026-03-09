@@ -2,7 +2,7 @@ pub mod classic_cluster;
 pub mod cluster_configuration;
 pub mod pmmc_cluster;
 pub mod network_fabric;
-pub mod network_simulator;
+pub mod network_handle;
 pub mod runtime_member;
 pub mod runtime_registry;
 pub mod runtime_state;

@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     cluster::cluster_configuration::ClusterConfiguration,
-    cluster::network_simulator::NetworkSimulator,
+    cluster::network_handle::NetworkHandle,
     common::persistence::NodePersistence,
     message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
@@ -25,7 +25,7 @@ pub struct Leader {
     persistence: NodePersistence,
     quorum: usize,
     replicas: Vec<Uuid>,
-    peers: Arc<NetworkSimulator>,
+    peers: Arc<NetworkHandle>,
     state: Arc<LeaderState>,
     observer: Arc<dyn PaxosObserver>,
 }
@@ -35,7 +35,7 @@ impl Leader {
         uuid: Uuid,
         persistence: NodePersistence,
         configuration: Arc<ClusterConfiguration>,
-        peers: Arc<NetworkSimulator>,
+        peers: Arc<NetworkHandle>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
         #[cfg(feature = "persistence")]
@@ -188,7 +188,7 @@ mod tests {
 
     use crate::{
         cluster::cluster_configuration::ClusterConfiguration,
-        cluster::network_simulator::NetworkSimulator,
+        cluster::network_handle::NetworkHandle,
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
         node::{classic_paxos::ballot::Ballot, config::PmmcNodeConfig, pvalue::PValue},
@@ -214,7 +214,7 @@ mod tests {
         let persistence =
             crate::common::persistence::ClusterPersistence::for_test("pmmc_leader").node(uuid);
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let peers = Arc::new(NetworkSimulator::new(
+        let peers = Arc::new(NetworkHandle::new(
             uuid,
             HashMap::new(),
             Arc::clone(&observer),
@@ -241,7 +241,7 @@ mod tests {
         let (tx, rx) = mpsc::channel(8);
         let mut peers_map = HashMap::new();
         peers_map.insert(peer, tx);
-        let peers = Arc::new(NetworkSimulator::new(uuid, peers_map, Arc::clone(&observer)).await);
+        let peers = Arc::new(NetworkHandle::new(uuid, peers_map, Arc::clone(&observer)).await);
         let state = Arc::new(LeaderState::init(LeaderDurable::default(), uuid, 0));
 
         (
@@ -332,7 +332,7 @@ mod tests {
         cleanup_leader_files(&persistence);
 
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let peers = Arc::new(NetworkSimulator::new(
+        let peers = Arc::new(NetworkHandle::new(
             uuid,
             HashMap::new(),
             Arc::clone(&observer),
@@ -360,7 +360,7 @@ mod tests {
         leader.save().await.expect("save should work");
         drop(leader);
 
-        let peers2 = Arc::new(NetworkSimulator::new(
+        let peers2 = Arc::new(NetworkHandle::new(
             uuid,
             HashMap::new(),
             Arc::clone(&observer),

@@ -15,7 +15,7 @@ use crate::{
             ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
         },
         network_fabric::NetworkFabric,
-        network_simulator::NetworkSimulator,
+        network_handle::NetworkHandle,
     },
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
@@ -33,7 +33,7 @@ impl PmmcNode {
         uuid: Uuid,
         observer: Arc<dyn PaxosObserver>,
         fabric: Arc<NetworkFabric>,
-        handle: Arc<NetworkSimulator>,
+        handle: Arc<NetworkHandle>,
         persistence: NodePersistence,
         roles: Roles,
         configuration: Arc<ClusterConfiguration>,
@@ -123,7 +123,7 @@ mod tests {
 
     use crate::{
         cluster::cluster_configuration::ClusterConfiguration,
-        cluster::network_simulator::NetworkSimulator,
+        cluster::network_handle::NetworkHandle,
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
         node::{classic_paxos::ballot::Ballot, config::PmmcNodeConfig},
@@ -157,7 +157,7 @@ mod tests {
             Arc::clone(&observer),
         ));
         fabric.register(peer_id, peer_tx).await;
-        let handle = Arc::new(NetworkSimulator::from_fabric(node_id, Arc::clone(&fabric)));
+        let handle = Arc::new(NetworkHandle::from_fabric(node_id, Arc::clone(&fabric)));
 
         let node = PmmcNode::new(
             node_id,

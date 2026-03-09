@@ -9,7 +9,7 @@ use crate::{
     cluster::{
         cluster_configuration::ClusterConfiguration,
         network_fabric::NetworkFabric,
-        network_simulator::{NetworkFailure, NetworkSimulator},
+        network_handle::{NetworkFailure, NetworkHandle},
     },
     common::persistence::{ClusterPersistence, Persistence},
     common::types::DecreeId,
@@ -43,7 +43,7 @@ pub struct ClassicCluster {
     total_number: usize,
     pub nodes: Vec<PaxosNode>,
     _observer: Arc<dyn PaxosObserver>,
-    simulators: HashMap<Uuid, Arc<NetworkSimulator>>,
+    simulators: HashMap<Uuid, Arc<NetworkHandle>>,
     node_indices: HashMap<Uuid, usize>,
     quorum_size: usize,
     persistence: Arc<ClusterPersistence>,
@@ -112,7 +112,7 @@ impl ClassicCluster {
         let mut node_indices = HashMap::new();
 
         for (i, (rx, config)) in receivers.into_iter().zip(configs.into_iter()).enumerate() {
-            let simulator = Arc::new(NetworkSimulator::from_fabric(
+            let simulator = Arc::new(NetworkHandle::from_fabric(
                 node_uuids[i],
                 Arc::clone(&fabric),
             ));
@@ -156,7 +156,7 @@ impl ClassicCluster {
         return self.quorum_size;
     }
 
-    pub fn get_simulator<N: NodeRef>(&self, node: N) -> Option<&Arc<NetworkSimulator>> {
+    pub fn get_simulator<N: NodeRef>(&self, node: N) -> Option<&Arc<NetworkHandle>> {
         let node_uuid = node.resolve_uuid(self)?;
         self.simulators.get(&node_uuid)
     }

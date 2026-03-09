@@ -3,7 +3,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_simulator::NetworkSimulator,
+    cluster::network_handle::NetworkHandle,
     common::persistence::NodePersistence,
     common::types::DecreeId,
     message::Message,
@@ -26,7 +26,7 @@ pub struct PaxosState {
     acceptor: Option<Acceptor>,
     learner: Option<Learner>,
     ledger: Ledger,
-    peers: Arc<NetworkSimulator>,
+    peers: Arc<NetworkHandle>,
     inflight_proposals: Arc<InflightProposals>,
     router: MessageRouter,
     observer: Arc<dyn PaxosObserver>,
@@ -36,7 +36,7 @@ impl PaxosState {
     pub async fn init(
         uuid: Uuid,
         quorum: usize,
-        peers: Arc<NetworkSimulator>,
+        peers: Arc<NetworkHandle>,
         persistence: NodePersistence,
         inflight_proposals: Arc<InflightProposals>,
         observer: Arc<dyn PaxosObserver>,

@@ -22,7 +22,7 @@ use crate::cluster::{
 };
 use crate::{
     cluster::{
-        network_fabric::NetworkFabric, network_simulator::NetworkFailure,
+        network_fabric::NetworkFabric, network_handle::NetworkFailure,
         runtime_member::RuntimeMember,
     },
     common::persistence::ClusterPersistence,

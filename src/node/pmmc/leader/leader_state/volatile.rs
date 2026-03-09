@@ -5,7 +5,7 @@ use tokio::{task::JoinHandle, time::Instant};
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_simulator::NetworkSimulator,
+    cluster::network_handle::NetworkHandle,
     common::aimd_timeout::AimdTimeout,
     message::Message,
     monitor::PaxosObserver,
@@ -72,7 +72,7 @@ impl LeaderVolatile {
         replicas: Vec<Uuid>,
         proposals: ProposalsStore,
         observer: Arc<dyn PaxosObserver>,
-        peers: Arc<NetworkSimulator>,
+        peers: Arc<NetworkHandle>,
     ) {
         if let Some(runtime) = self.commander.take() {
             runtime.commander.stop();

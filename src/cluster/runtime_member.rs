@@ -15,7 +15,7 @@ use crate::{
             ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
         },
         network_fabric::NetworkFabric,
-        network_simulator::NetworkSimulator,
+        network_handle::NetworkHandle,
         runtime_state::RuntimeState,
     },
     common::persistence::NodePersistence,
@@ -47,7 +47,7 @@ impl RuntimeMember {
         rx: Receiver<Message>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
-        let handle = Arc::new(NetworkSimulator::from_fabric(uuid, Arc::clone(&fabric)));
+        let handle = Arc::new(NetworkHandle::from_fabric(uuid, Arc::clone(&fabric)));
         Ok(RuntimeMember {
             uuid,
             roles: roles.clone(),

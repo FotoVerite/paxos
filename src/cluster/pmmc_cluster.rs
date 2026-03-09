@@ -9,7 +9,7 @@ use crate::cluster::runtime_member::RuntimeMember;
 use crate::cluster::runtime_registry::RuntimeRegistry;
 use crate::common::persistence::ClusterPersistence;
 use crate::{
-    cluster::{network_fabric::NetworkFabric, network_simulator::NetworkFailure},
+    cluster::{network_fabric::NetworkFabric, network_handle::NetworkFailure},
     common::persistence::Persistence,
     message::ClientMessage,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
