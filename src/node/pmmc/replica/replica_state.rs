@@ -36,12 +36,12 @@ pub enum ReplicaAdmissionOutcome {
     },
 }
 
-pub struct ReplicaData {
+pub struct ReplicaStateData {
     durable: ReplicaDurable,
     volatile: ReplicaVolatile,
 }
 
-impl Default for ReplicaData {
+impl Default for ReplicaStateData {
     fn default() -> Self {
         Self {
             durable: ReplicaDurable::default(),
@@ -51,7 +51,7 @@ impl Default for ReplicaData {
 }
 
 pub struct ReplicaState {
-    data: Mutex<ReplicaData>,
+    data: Mutex<ReplicaStateData>,
     decision_notify: Notify,
 }
 
@@ -61,7 +61,7 @@ impl ReplicaState {
         data.set_starting_slots(configuration.starting_slot());
         data.set_strategy(configuration.strategy());
         return Self {
-            data: Mutex::new(ReplicaData {
+            data: Mutex::new(ReplicaStateData {
                 durable: data,
                 volatile: ReplicaVolatile::default(),
             }),
@@ -175,6 +175,11 @@ impl ReplicaState {
     pub async fn update_cache(&self, cmd: &PaxosCommand, response: ReplyOutcome) {
         let mut state = self.data.lock().await;
         state.durable.update_cache(cmd, response);
+    }
+
+    pub async fn client_dedup_watermark(&self) -> std::collections::HashMap<Uuid, u64> {
+        let state = self.data.lock().await;
+        state.durable.client_dedup_watermark()
     }
 
     pub async fn dump(&self) -> ReplicaDurable {

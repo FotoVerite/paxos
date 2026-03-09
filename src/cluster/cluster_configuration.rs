@@ -110,6 +110,10 @@ impl ClusterConfiguration {
         self.strategy
     }
 
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
     pub fn epoch(&self) -> usize {
         self.epoch
     }

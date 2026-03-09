@@ -173,7 +173,46 @@ impl ReplicaDurable {
         }
     }
 
+    pub fn client_dedup_watermark(&self) -> HashMap<ClientId, RequestId> {
+        let mut dedup: HashMap<ClientId, RequestId> = HashMap::new();
+        for ((client_id, request_id), response) in &self.cache {
+            if response.is_none() {
+                continue;
+            }
+            dedup.entry(*client_id)
+                .and_modify(|current| *current = (*current).max(*request_id))
+                .or_insert(*request_id);
+        }
+        dedup
+    }
+
     pub async fn dump(&self) -> ReplicaDurable {
         self.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use uuid::Uuid;
+
+    use crate::{paxos_command::PaxosCommand, rsm::kv_store::ReplyOutcome};
+
+    use super::ReplicaDurable;
+
+    #[test]
+    fn dedup_watermark_ignores_pending_cache_entries() {
+        let mut durable = ReplicaDurable::default();
+        let client_id = Uuid::new_v4();
+        let req1 = PaxosCommand::NOOP.with_client(client_id, 1);
+        let req2 = PaxosCommand::NOOP.with_client(client_id, 2);
+
+        durable.add_to_cache(&req1);
+        assert!(durable.client_dedup_watermark().is_empty());
+
+        durable.update_cache(&req1, ReplyOutcome::Ok);
+        assert_eq!(durable.client_dedup_watermark().get(&client_id), Some(&1));
+
+        durable.add_to_cache(&req2);
+        assert_eq!(durable.client_dedup_watermark().get(&client_id), Some(&1));
     }
 }

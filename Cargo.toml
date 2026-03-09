@@ -24,6 +24,7 @@ tracing-appender = "0.2"
 uuid = { version = "1.19.0", features = ["v4", "v5", "std", "serde"] }
 derive_more = { version = "2.1.1", features = ["full"] }
 thiserror = "2.0.18"
+sha2 = "0.10"
 
 [features]
 default = ["persistence"]

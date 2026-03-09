@@ -4,10 +4,10 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    cluster::cluster_configuration::ClusterConfiguration,
     common::persistence::NodePersistence,
     paxos_command::PaxosCommand,
     rsm::{
+        checkpoint::RsmCheckpointState,
         entry::KVEntry,
         types::{ClerkResponseError, KVResult, KVValue, KVVersion},
     },
@@ -63,6 +63,10 @@ impl KVStore {
     pub async fn emit(&self) -> HashMap<String, KVEntry> {
         let data = self.data.lock().await;
         data.clone()
+    }
+
+    pub(crate) async fn emit_checkpoint_state(&self) -> RsmCheckpointState {
+        RsmCheckpointState::new(self.emit().await)
     }
 
     pub async fn apply(&self, cmd: PaxosCommand) -> KVResult<ReplyOutcome> {

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -15,7 +14,7 @@ use crate::node::pmmc::replica::replica_state::ReplicaState;
 use crate::node::pmmc::replica::replica_state::durable::ReplicaDurable;
 use crate::node::pvalue::PValue;
 use crate::paxos_command::{ClientId, PaxosCommand};
-use crate::rsm::entry::KVEntry;
+use crate::rsm::checkpoint::{CheckpointManifest, CheckpointState, RsmCheckpoint};
 use crate::rsm::kv_store::KVStore;
 
 mod replica_state;
@@ -25,14 +24,10 @@ pub struct Replica {
     uuid: Uuid,
     store: Arc<KVStore>,
     pub state: Arc<ReplicaState>,
+    configuration: Arc<ClusterConfiguration>,
     observer: Arc<dyn PaxosObserver>,
     fabric: Arc<NetworkFabric>,
     client_sink: Arc<dyn ClientReplySink>,
-}
-
-pub struct ReplicaData {
-    slot: usize,
-    store: HashMap<String, KVEntry>,
 }
 
 #[async_trait]
@@ -56,12 +51,13 @@ impl Replica {
         let data: ReplicaDurable = ReplicaDurable::default();
 
         let kv_snapshot = configuration.kv_store();
-        let state = Arc::new(ReplicaState::init(data, configuration));
+        let state = Arc::new(ReplicaState::init(data, Arc::clone(&configuration)));
         let replica = Self {
             uuid,
             store: Arc::new(KVStore::init(uuid, persistence, kv_snapshot).await?),
             client_sink,
             state,
+            configuration,
             observer: Arc::clone(&observer),
             fabric,
         };
@@ -73,10 +69,21 @@ impl Replica {
         self.state.is_stopped().await
     }
 
-    pub async fn emit_replica_data(&self) -> ReplicaData {
-        let store = self.store.emit().await;
-        let slot = self.state.execution_slot().await;
-        ReplicaData { slot, store }
+    pub(crate) async fn emit_checkpoint(&self) -> RsmCheckpoint {
+        let next_execution_slot = self.state.execution_slot().await;
+        let last_applied_slot = next_execution_slot.saturating_sub(1);
+        let rsm_state = self.store.emit_checkpoint_state().await;
+        let client_dedup_watermark = self.state.client_dedup_watermark().await;
+        let manifest = CheckpointManifest::new(
+            Uuid::new_v4(),
+            self.uuid,
+            self.configuration.id(),
+            self.configuration.epoch() as u64,
+            last_applied_slot,
+            current_timestamp_millis(),
+        );
+        let state = CheckpointState::new(rsm_state, client_dedup_watermark);
+        RsmCheckpoint::new(manifest, state)
     }
 
     pub async fn propose_from_client(&self, cmd: PaxosCommand) {
@@ -269,12 +276,13 @@ mod tests {
     async fn new_replica() -> (Replica, Arc<TestClientSink>) {
         let uuid = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        let configuration = config_for_test();
         let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
             Arc::clone(&observer),
         ));
         let state = Arc::new(ReplicaState::init(
             ReplicaDurable::default(),
-            config_for_test(),
+            Arc::clone(&configuration),
         ));
         let sink = Arc::new(TestClientSink::new());
         let sink_trait: Arc<dyn ClientReplySink> = sink.clone();
@@ -293,6 +301,7 @@ mod tests {
                     .expect("store init should work"),
                 ),
                 state: Arc::clone(&state),
+                configuration,
                 observer: Arc::clone(&observer),
                 fabric,
                 client_sink: sink_trait,
