@@ -11,21 +11,22 @@ use uuid::Uuid;
 use crate::{
     cluster::{
         cluster_configuration::ClusterConfiguration,
-        configuration_handler::types::{
-            ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
-        },
-        network_fabric::NetworkFabric,
+        configuration_handler::types::ConfigurationHandlerMessage, network_fabric::NetworkFabric,
         network_handle::NetworkHandle,
     },
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
     monitor::PaxosObserver,
-    node::{config::Roles, pmmc::node_state::NodeState},
+    node::{
+        config::Roles,
+        pmmc::{admin::NodeAdmin, node_state::NodeState},
+    },
 };
 
 pub struct PmmcNode {
     pub uuid: Uuid,
     state: Arc<NodeState>,
+    admin: Arc<NodeAdmin>,
 }
 
 impl PmmcNode {
@@ -38,20 +39,22 @@ impl PmmcNode {
         roles: Roles,
         configuration: Arc<ClusterConfiguration>,
     ) -> anyhow::Result<Self> {
+        let state = Arc::new(
+            NodeState::init(
+                uuid,
+                fabric,
+                handle,
+                persistence,
+                observer,
+                roles,
+                configuration,
+            )
+            .await?,
+        );
         Ok(Self {
             uuid,
-            state: Arc::new(
-                NodeState::init(
-                    uuid,
-                    fabric,
-                    handle,
-                    persistence,
-                    observer,
-                    roles,
-                    configuration,
-                )
-                .await?,
-            ),
+            admin: Arc::new(NodeAdmin::new(uuid, Arc::clone(&state))),
+            state,
         })
     }
 
@@ -70,11 +73,20 @@ impl PmmcNode {
         self.state.is_stopped().await
     }
 
-    pub async fn handle_configuration_command(
+    pub async fn attach_admin_transport(
         &self,
-        cmd: ConfigurationCommand,
-    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
-        self.state.handle_configuration_command(cmd).await
+        endpoint_rx: mpsc::Receiver<ConfigurationHandlerMessage>,
+        endpoint_tx: mpsc::Sender<ConfigurationHandlerMessage>,
+    ) {
+        self.admin.attach_transport(endpoint_rx, endpoint_tx).await;
+    }
+
+    pub async fn start_admin(&self) {
+        Arc::clone(&self.admin).start().await;
+    }
+
+    pub async fn stop_admin(&self) {
+        self.admin.stop().await;
     }
 
     pub fn start(&self, mut rx: Receiver<Message>) -> JoinHandle<()> {

@@ -11,12 +11,8 @@ use uuid::Uuid;
 use crate::{
     cluster::{
         cluster_configuration::ClusterConfiguration,
-        configuration_handler::types::{
-            ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
-        },
-        network_fabric::NetworkFabric,
-        network_handle::NetworkHandle,
-        runtime_state::RuntimeState,
+        configuration_handler::types::ConfigurationHandlerMessage, network_fabric::NetworkFabric,
+        network_handle::NetworkHandle, runtime_state::RuntimeState,
     },
     common::persistence::NodePersistence,
     message::{ClientMessage, Message},
@@ -25,8 +21,8 @@ use crate::{
 };
 
 pub struct RuntimeMember {
-    pub uuid: Uuid,
-    pub roles: Roles,
+    uuid: Uuid,
+    roles: Roles,
     state: RwLock<RuntimeState>,
     pub node: PmmcNode,
     rx: Mutex<Option<Receiver<Message>>>,
@@ -34,7 +30,7 @@ pub struct RuntimeMember {
 }
 
 pub enum RuneTimeSignal {
-    Stopped 
+    Stopped,
 }
 
 impl RuntimeMember {
@@ -68,10 +64,7 @@ impl RuntimeMember {
     }
 
     pub async fn start(&self) {
-        let should_start = {
-            let state = self.state.read().await;
-            *state == RuntimeState::Starting
-        };
+        let should_start = self.state().await == RuntimeState::Starting;
         if !should_start {
             return;
         }
@@ -79,44 +72,52 @@ impl RuntimeMember {
         let mut rx = self.rx.lock().await;
         let inbox = rx.take().expect("runtime already started");
         let handler = self.node.start(inbox);
+        self.node.start_admin().await;
         let mut task = self.task.lock().await;
         *task = Some(handler);
         drop(task);
 
-        let mut state = self.state.write().await;
-        *state = RuntimeState::Active;
+        self.set_state(RuntimeState::Active).await;
     }
 
     pub async fn stop(&self) {
-        let can_stop = {
-            let state = self.state.read().await;
-            *state == RuntimeState::Active
-        };
+        let can_stop = self.state().await == RuntimeState::Active;
         if !can_stop {
             return;
         }
 
-        // self.node.stop();
+        self.abort_process().await;
+        self.set_state(RuntimeState::Stopped).await;
+    }
+
+    pub async fn abort_process(&self) {
         let mut task = self.task.lock().await;
         if let Some(runtime) = task.take() {
             runtime.abort();
             let _ = runtime.await;
         }
         drop(task);
+        self.node.stop_admin().await;
+    }
 
-        let mut state = self.state.write().await;
-        *state = RuntimeState::Stopped;
+    pub fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+
+    pub fn roles(&self) -> &Roles {
+        &self.roles
     }
 
     pub async fn state(&self) -> RuntimeState {
         self.state.read().await.clone()
     }
 
-    pub async fn transition_state(
-        &self,
-        expected: RuntimeState,
-        next: RuntimeState,
-    ) -> bool {
+    pub async fn set_state(&self, next: RuntimeState) {
+        let mut state = self.state.write().await;
+        *state = next;
+    }
+
+    pub async fn transition_state(&self, expected: RuntimeState, next: RuntimeState) -> bool {
         let mut state = self.state.write().await;
         if *state != expected {
             return false;
@@ -132,15 +133,13 @@ impl RuntimeMember {
         self.node.connect_client(client_id).await
     }
 
-    pub async fn handle_configuration_command(
+    pub async fn attach_configuration_transport(
         &self,
-        cmd: ConfigurationCommand,
-    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
-        if matches!(cmd, ConfigurationCommand::Stop) {
-            self.stop().await;
-            return Ok(ConfigurationReplyOutcome::Stopped);
-        }
-        self.node.handle_configuration_command(cmd).await
+        endpoint_rx: Receiver<ConfigurationHandlerMessage>,
+        endpoint_tx: Sender<ConfigurationHandlerMessage>,
+    ) {
+        self.node
+            .attach_admin_transport(endpoint_rx, endpoint_tx)
+            .await;
     }
-
 }

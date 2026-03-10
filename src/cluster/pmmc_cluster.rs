@@ -146,7 +146,7 @@ impl PmmcCluster {
         self.configuration
             .member_uuids()
             .iter()
-            .position(|uuid| *uuid == leader.uuid)
+            .position(|uuid| *uuid == leader.uuid())
     }
 
     pub async fn crash_node(&self, node: usize) -> Option<Uuid> {

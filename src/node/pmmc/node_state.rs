@@ -6,15 +6,9 @@ use tokio::sync::{Mutex, mpsc};
 use tokio::time::Instant;
 use uuid::Uuid;
 
-mod admin;
-
 use crate::{
     cluster::{
-        cluster_configuration::ClusterConfiguration,
-        configuration_handler::types::{
-            ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
-        },
-        network_fabric::NetworkFabric,
+        cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
         network_handle::NetworkHandle,
     },
     common::persistence::NodePersistence,
@@ -31,7 +25,6 @@ use crate::{
         },
     },
 };
-use admin::NodeAdmin;
 
 #[derive(Default)]
 pub(super) struct NodeClientSink {
@@ -60,7 +53,6 @@ impl ClientReplySink for NodeClientSink {
 
 pub struct NodeState {
     uuid: Uuid,
-    admin: NodeAdmin,
     acceptor: Option<Acceptor>,
     fabric: Arc<NetworkFabric>,
     leader: Option<Leader>,
@@ -131,10 +123,8 @@ impl NodeState {
         });
 
         let router = MessageRouter::new(LearningStrategy::default(), topology);
-        let admin = NodeAdmin::new(uuid, replica.clone(), Arc::clone(&client_sink));
         Ok(Self {
             uuid,
-            admin,
             acceptor,
             leader,
             replica,
@@ -183,6 +173,24 @@ impl NodeState {
         }
     }
 
+    pub(super) fn replica_handle(&self) -> Option<Arc<Replica>> {
+        self.replica.as_ref().map(Arc::clone)
+    }
+
+    pub(super) async fn register_internal_client(
+        &self,
+        client_id: Uuid,
+        capacity: usize,
+    ) -> mpsc::Receiver<ClientMessage> {
+        let (resp_tx, resp_rx) = mpsc::channel(capacity);
+        self.client_sink.add_client(client_id, resp_tx).await;
+        resp_rx
+    }
+
+    pub(super) async fn unregister_internal_client(&self, client_id: Uuid) {
+        self.client_sink.remove_client(client_id).await;
+    }
+
     pub async fn connect_client(
         &self,
         client_id: Uuid,
@@ -202,36 +210,6 @@ impl NodeState {
             sink.remove_client(client_id).await;
         });
         Some((client_tx, resp_rx))
-    }
-
-    pub async fn handle_configuration_command(
-        &self,
-        cmd: ConfigurationCommand,
-    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
-        match cmd {
-            ConfigurationCommand::Add { .. } | ConfigurationCommand::Remove { .. } => {
-                self.handle_membership_command(cmd).await
-            }
-            _ => self.admin.handle_configuration_command(cmd).await,
-        }
-    }
-
-    async fn handle_membership_command(
-        &self,
-        cmd: ConfigurationCommand,
-    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
-        match cmd {
-            ConfigurationCommand::Add { .. } | ConfigurationCommand::Remove { .. } => {
-                Err(ConfigurationHandlerError::Rejected {
-                    reason:
-                        "membership updates not yet wired; route through node state reconciler path"
-                            .to_string(),
-                })
-            }
-            _ => Err(ConfigurationHandlerError::InvalidRequest {
-                reason: "expected membership command".to_string(),
-            }),
-        }
     }
 
     pub async fn handle_message(&self, msg: Message) {

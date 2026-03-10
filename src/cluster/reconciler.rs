@@ -24,10 +24,6 @@ impl TryFrom<(&ClusterConfiguration, ReconfigPatch)> for ClusterReconciler {
         (prev, patch): (&ClusterConfiguration, ReconfigPatch),
     ) -> Result<Self, Self::Error> {
         let next_config = ClusterConfiguration::try_from((prev, patch))?;
-        // let to_remove = patch.remove.clone();
-        // let to_add = patch.add.clone();
-        Ok(ClusterReconciler {
-            next_config: next_config,
-        })
+        Ok(ClusterReconciler { next_config })
     }
 }

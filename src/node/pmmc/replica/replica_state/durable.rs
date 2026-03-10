@@ -165,13 +165,6 @@ impl ReplicaDurable {
         }
     }
 
-    pub fn pending_slot_for(&self, cmd: &PaxosCommand) -> Option<usize> {
-        let target_identity = cmd.client_identity()?;
-        self.proposals.iter().find_map(|(slot, proposal)| {
-            (proposal.client_identity() == Some(target_identity)).then_some(*slot)
-        })
-    }
-
     pub fn add_to_cache(&mut self, cmd: &PaxosCommand) {
         if let Some(identity) = cmd.client_identity() {
             self.cache.insert(identity, None);

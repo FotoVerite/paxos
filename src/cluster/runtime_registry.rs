@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::{
-    RwLock,
+    Mutex, RwLock,
     mpsc::{self, Receiver, Sender},
 };
 use uuid::Uuid;
@@ -26,14 +26,15 @@ use crate::{
         runtime_member::RuntimeMember,
     },
     common::persistence::ClusterPersistence,
-    message::ClientMessage,
+    message::{ClientMessage, Message},
     monitor::PaxosObserver,
     node::config::{PmmcNodeConfig, Roles},
 };
 
 pub struct RuntimeRegistry {
-    members: RwLock<HashMap<Uuid, Arc<RuntimeMember>>>,
+    members: Arc<RwLock<HashMap<Uuid, Arc<RuntimeMember>>>>,
     member_ids: Vec<Uuid>,
+    inboxes: RwLock<HashMap<Uuid, Arc<Mutex<Option<Receiver<Message>>>>>>,
     fabric: Arc<NetworkFabric>,
     handler: Arc<ConfigurationHandler>,
 }
@@ -41,34 +42,50 @@ pub struct RuntimeRegistry {
 const CONFIG_HANDLER_ID: Uuid = Uuid::from_u128(0xC5);
 
 impl RuntimeRegistry {
-    fn spawn_configuration_endpoint_loop(
-        member: Arc<RuntimeMember>,
-        mut endpoint_rx: Receiver<ConfigurationHandlerMessage>,
-        endpoint_tx: Sender<ConfigurationHandlerMessage>,
-    ) {
-        tokio::spawn(async move {
-            while let Some(msg) = endpoint_rx.recv().await {
-                let ConfigurationHandlerMessage::Reconfigure { request_id, cmd } = msg else {
-                    continue;
-                };
+    async fn bind_member_endpoint(&self, id: Uuid, member: Arc<RuntimeMember>) {
+        let (endpoint_tx, endpoint_rx) = mpsc::channel(256);
+        let response_tx = self.handler.register_endpoint(id, endpoint_tx).await;
+        member
+            .attach_configuration_transport(endpoint_rx, response_tx)
+            .await;
+    }
 
-                let response = match member.handle_configuration_command(cmd).await {
-                    Ok(outcome) => outcome,
-                    Err(err) => ConfigurationReplyOutcome::Err(err),
-                };
+    async fn take_provisioned_inbox(&self, id: Uuid) -> anyhow::Result<Receiver<Message>> {
+        let inbox = {
+            let inboxes = self.inboxes.read().await;
+            inboxes.get(&id).cloned()
+        };
+        let Some(inbox) = inbox else {
+            anyhow::bail!("runtime endpoint not provisioned for node {id}");
+        };
 
-                if endpoint_tx
-                    .send(ConfigurationHandlerMessage::RESPONSE {
-                        request_id,
-                        response,
-                    })
-                    .await
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        });
+        let mut rx = inbox.lock().await;
+        let Some(inbox_rx) = rx.take() else {
+            anyhow::bail!("runtime inbox already consumed for node {id}");
+        };
+
+        Ok(inbox_rx)
+    }
+
+    async fn build_member(
+        &self,
+        id: Uuid,
+        roles: Roles,
+        configuration: Arc<ClusterConfiguration>,
+        persistence: Arc<ClusterPersistence>,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> anyhow::Result<RuntimeMember> {
+        let rx = self.take_provisioned_inbox(id).await?;
+        RuntimeMember::new(
+            id,
+            roles,
+            Arc::clone(&configuration),
+            Arc::clone(&self.fabric),
+            persistence.node(id),
+            rx,
+            observer,
+        )
+        .await
     }
 
     pub async fn init(
@@ -78,45 +95,91 @@ impl RuntimeRegistry {
         persistence: Arc<ClusterPersistence>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
-        let handler = ConfigurationHandler::new(CONFIG_HANDLER_ID);
-        let mut runtime_members = HashMap::new();
-        let mut member_ids = Vec::new();
+        let member_ids = members.iter().map(|(id, _)| *id).collect();
+        let registry = Self {
+            members: Arc::new(RwLock::new(HashMap::new())),
+            member_ids,
+            inboxes: RwLock::new(HashMap::new()),
+            fabric,
+            handler: ConfigurationHandler::new(CONFIG_HANDLER_ID),
+        };
 
-        for (uuid, roles) in members {
-            let (tx, rx) = mpsc::channel(1024);
-            let fabric_arc = Arc::clone(&fabric);
+        for (uuid, node_config) in members {
+            registry.provision_endpoint(uuid).await;
+            let member = Arc::new(
+                registry
+                    .build_member(
+                        uuid,
+                        node_config.roles,
+                        Arc::clone(&configuration),
+                        Arc::clone(&persistence),
+                        Arc::clone(&observer),
+                    )
+                    .await?,
+            );
+            registry
+                .bind_member_endpoint(uuid, Arc::clone(&member))
+                .await;
+            let mut runtime_members = registry.members.write().await;
+            runtime_members.insert(uuid, member);
+        }
 
-            fabric_arc.register(uuid, tx).await;
+        Ok(registry)
+    }
 
-            let member = RuntimeMember::new(
-                uuid,
-                roles.roles,
+    pub async fn provision_endpoint(&self, id: Uuid) {
+        let (tx, rx) = mpsc::channel(1024);
+        self.fabric.register(id, tx).await;
+
+        let inbox = {
+            let mut inboxes = self.inboxes.write().await;
+            inboxes
+                .entry(id)
+                .or_insert_with(|| Arc::new(Mutex::new(None)))
+                .clone()
+        };
+        let mut inbox_rx = inbox.lock().await;
+        *inbox_rx = Some(rx);
+    }
+
+    pub async fn spawn_process(
+        &self,
+        id: Uuid,
+        roles: Roles,
+        configuration: Arc<ClusterConfiguration>,
+        persistence: Arc<ClusterPersistence>,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> anyhow::Result<()> {
+        self.provision_endpoint(id).await;
+
+        let member = self
+            .build_member(
+                id,
+                roles,
                 Arc::clone(&configuration),
-                fabric_arc,
-                persistence.node(uuid),
-                rx,
-                Arc::clone(&observer),
+                Arc::clone(&persistence),
+                observer,
             )
             .await?;
+        let member = Arc::new(member);
 
-            let member = Arc::new(member);
-            let (endpoint_tx, endpoint_rx) = mpsc::channel(256);
-            let response_tx = handler.register_endpoint(uuid, endpoint_tx).await;
-            Self::spawn_configuration_endpoint_loop(
-                Arc::clone(&member),
-                endpoint_rx,
-                response_tx,
-            );
-
-            runtime_members.insert(uuid, member);
-            member_ids.push(uuid);
+        {
+            let mut members = self.members.write().await;
+            members.insert(id, Arc::clone(&member));
         }
-        Ok(Self {
-            members: RwLock::new(runtime_members),
-            member_ids,
-            fabric,
-            handler,
-        })
+        self.bind_member_endpoint(id, Arc::clone(&member)).await;
+        member.start().await;
+        Ok(())
+    }
+
+    pub async fn stop_process(&self, id: Uuid) {
+        if let Some(member) = self.get(id).await {
+            member.stop().await;
+        }
+    }
+
+    pub async fn retire_endpoint(&self, id: Uuid) {
+        self.handler.unregister_endpoint(id).await;
     }
 
     pub async fn start(&self) {
@@ -161,30 +224,8 @@ impl RuntimeRegistry {
         persistence: Arc<ClusterPersistence>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<()> {
-        let (tx, rx) = mpsc::channel(1024);
-        let fabric_arc = Arc::clone(&self.fabric);
-
-        fabric_arc.register(uuid, tx).await;
-
-        let member = RuntimeMember::new(
-            uuid,
-            roles,
-            Arc::clone(&configuration),
-            fabric_arc,
-            persistence.node(uuid),
-            rx,
-            Arc::clone(&observer),
-        )
-        .await?;
-        let arc_member = Arc::new(member);
-        let (endpoint_tx, endpoint_rx) = mpsc::channel(256);
-        let response_tx = self.handler.register_endpoint(uuid, endpoint_tx).await;
-        Self::spawn_configuration_endpoint_loop(Arc::clone(&arc_member), endpoint_rx, response_tx);
-        let mut members = self.members.write().await;
-        members.insert(uuid, Arc::clone(&arc_member));
-        drop(members);
-        arc_member.start().await;
-        return Ok(());
+        self.spawn_process(uuid, roles, configuration, persistence, observer)
+            .await
     }
 
     pub async fn activate_member(&self, uuid: Uuid) {
@@ -194,16 +235,14 @@ impl RuntimeRegistry {
     }
 
     pub async fn stop_member(&self, uuid: Uuid) {
-        if let Some(member) = self.get(uuid).await {
-            member.stop().await;
-        }
+        self.stop_process(uuid).await;
     }
 
     pub async fn update_roles(_uuid: Uuid, _role: Roles) {}
 
     pub async fn get(&self, uuid: Uuid) -> Option<Arc<RuntimeMember>> {
         let members = self.members.read().await;
-        members.get(&uuid).map(|m| Arc::clone(m))
+        members.get(&uuid).map(Arc::clone)
     }
 
     pub async fn current_leader(&self) -> Option<Arc<RuntimeMember>> {

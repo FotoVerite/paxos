@@ -1,7 +1,7 @@
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use async_trait::async_trait;
 use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::time::{sleep, timeout};
 use tokio_util::sync::CancellationToken;
@@ -80,7 +80,8 @@ impl ConfigurationHandler {
         cmd: ConfigurationCommand,
     ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
         let operation_id = self.submit(to, cmd).await?;
-        self.await_outcome(operation_id, Duration::from_secs(12)).await
+        self.await_outcome(operation_id, Duration::from_secs(12))
+            .await
     }
 
     async fn submit_internal(
@@ -120,13 +121,7 @@ impl ConfigurationHandler {
         Ok(rid)
     }
 
-    fn spawn_retry(
-        &self,
-        rid: u64,
-        to: Uuid,
-        cmd: ConfigurationCommand,
-        token: CancellationToken,
-    ) {
+    fn spawn_retry(&self, rid: u64, to: Uuid, cmd: ConfigurationCommand, token: CancellationToken) {
         let hub = Arc::clone(&self.hub);
         let mut dur = Duration::from_millis(500);
         tokio::spawn(async move {
@@ -186,9 +181,9 @@ impl ConfigurationHandler {
                 Ok(OperationWaiter::Terminal(Ok(outcome)))
             }
             ConfigurationOperationStatus::Failed(err) => Ok(OperationWaiter::Terminal(Err(err))),
-            ConfigurationOperationStatus::Submitted => Err(
-                ConfigurationHandlerError::AlreadyAwaitingOperation { operation_id },
-            ),
+            ConfigurationOperationStatus::Submitted => {
+                Err(ConfigurationHandlerError::AlreadyAwaitingOperation { operation_id })
+            }
         }
     }
 
@@ -347,7 +342,10 @@ mod tests {
             .await
             .expect("submit should succeed");
 
-        let first_msg = endpoint_rx.recv().await.expect("endpoint should receive request");
+        let first_msg = endpoint_rx
+            .recv()
+            .await
+            .expect("endpoint should receive request");
         assert!(matches!(
             first_msg,
             ConfigurationHandlerMessage::Reconfigure {
@@ -370,7 +368,10 @@ mod tests {
             .expect("outcome should complete");
         assert_eq!(outcome, ConfigurationReplyOutcome::Ok);
 
-        let final_status = handler.status(op).await.expect("status should stay visible");
+        let final_status = handler
+            .status(op)
+            .await
+            .expect("status should stay visible");
         assert_eq!(
             final_status,
             ConfigurationOperationStatus::Completed(ConfigurationReplyOutcome::Ok)
@@ -380,7 +381,10 @@ mod tests {
     #[tokio::test]
     async fn unknown_operation_status_returns_error() {
         let handler = ConfigurationHandler::new(Uuid::from_u128(0xC5));
-        let err = handler.status(99).await.expect_err("missing op should error");
+        let err = handler
+            .status(99)
+            .await
+            .expect_err("missing op should error");
         assert!(matches!(
             err,
             ConfigurationHandlerError::UnknownOperationId { operation_id } if operation_id == 99
@@ -401,7 +405,9 @@ mod tests {
 
         let first_handler = std::sync::Arc::clone(&handler);
         let first = tokio::spawn(async move {
-            first_handler.await_outcome(op, Duration::from_millis(10)).await
+            first_handler
+                .await_outcome(op, Duration::from_millis(10))
+                .await
         });
         tokio::task::yield_now().await;
         let second = handler.await_outcome(op, Duration::from_millis(10)).await;

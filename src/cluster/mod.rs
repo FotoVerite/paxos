@@ -5,7 +5,6 @@ pub mod network_fabric;
 pub mod network_handle;
 pub mod pmmc_cluster;
 pub mod reconciler;
-pub mod runtime_entry;
 pub mod runtime_member;
 pub mod runtime_registry;
 pub mod runtime_state;

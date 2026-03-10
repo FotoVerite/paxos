@@ -1,4 +1,5 @@
 pub mod acceptor;
+pub mod admin;
 pub mod leader;
 pub mod node_state;
 pub mod pmmc_node;
