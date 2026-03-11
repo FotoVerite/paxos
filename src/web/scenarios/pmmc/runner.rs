@@ -94,6 +94,19 @@ impl PmmcScenarioExecution {
             return;
         }
 
+        {
+            let ready_timeout = Duration::from_millis(timings.initial_settle_ms.max(2_000));
+            let cluster = self.cluster.lock().await;
+            if let Err(err) = cluster.wait_ready(ready_timeout).await {
+                warn!(
+                    %self.context.scenario_run_id,
+                    error = %err,
+                    "PMMC cluster did not reach ready state before scenario loop"
+                );
+                return;
+            }
+        }
+
         if timings.initial_settle_ms > 0 {
             sleep(Duration::from_millis(timings.initial_settle_ms)).await;
         }
@@ -235,6 +248,7 @@ impl PmmcScenarioExecution {
         }
 
         let cluster = cluster_for_runner.lock().await;
+        let _ = cluster.wait_ready(Duration::from_secs(2)).await;
         match cluster
             .connect_client_to(session.replica_index, session.uuid)
             .await

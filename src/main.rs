@@ -1,7 +1,6 @@
 use paxos::{
     cluster::{classic_cluster::ClassicCluster, pmmc_cluster::PmmcCluster},
     console_observer::ConsoleObserver,
-    message::ClientMessage,
     node::config::{PmmcNodeConfig, Roles},
     paxos_command::PaxosCommand,
     scenario::ScenarioBuilder,
@@ -173,8 +172,7 @@ async fn run_pmmc_builtin_scenario() -> anyhow::Result<()> {
     let observer = Arc::new(ConsoleObserver);
     let cluster = PmmcCluster::new(ip, 5, observer).await?;
 
-    cluster.start_all().await;
-    sleep(Duration::from_millis(250)).await;
+    cluster.start_all_ready(Duration::from_secs(5)).await?;
 
     println!("--- PMMC Phase: single client proposal ---");
     propose_via_pmmc_client(
@@ -257,8 +255,7 @@ async fn run_pmmc_role_split_debug_scenario(alternate_replicas: bool) -> anyhow:
     }
 
     let cluster = PmmcCluster::new_with_configs(ip, configs, observer).await?;
-    cluster.start_all().await;
-    sleep(Duration::from_millis(350)).await;
+    cluster.start_all_ready(Duration::from_secs(5)).await?;
 
     println!(
         "--- Phase 1: replica proposals ({}) ---",
@@ -302,13 +299,14 @@ async fn propose_via_pmmc_client(
     request_id: u64,
     cmd: PaxosCommand,
 ) -> anyhow::Result<()> {
-    let (tx, _rx) = cluster
-        .connect_client_to(replica_idx, client_id)
-        .await
-        .ok_or_else(|| anyhow::anyhow!("failed to connect client to replica {}", replica_idx))?;
-    tx.send(ClientMessage::PROPOSE {
-        cmd: cmd.with_client(client_id, request_id),
-    })
-    .await?;
+    let _ = cluster
+        .request_replica(
+            replica_idx,
+            client_id,
+            request_id,
+            cmd,
+            Duration::from_secs(8),
+        )
+        .await?;
     Ok(())
 }

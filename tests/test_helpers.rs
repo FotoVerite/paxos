@@ -23,6 +23,62 @@ use paxos::{
     paxos_command::PaxosCommand,
 };
 
+/// Start every node in a classic cluster and yield to let receiver tasks poll.
+/// This centralizes startup settling so tests do not duplicate timing sleeps.
+pub async fn start_classic_cluster_ready(cluster: &mut ClassicCluster) {
+    for node in &mut cluster.nodes {
+        node.start();
+    }
+    for _ in 0..16 {
+        tokio::task::yield_now().await;
+    }
+}
+
+/// Build edge pairs where every node in left is paired with every node in right.
+pub fn bipartite_edges(
+    left: std::ops::Range<usize>,
+    right: std::ops::Range<usize>,
+) -> Vec<(usize, usize)> {
+    let mut edges = Vec::new();
+    for a in left {
+        for b in right.clone() {
+            edges.push((a, b));
+        }
+    }
+    edges
+}
+
+/// Build edge pairs from a center node to each node in others.
+pub fn star_edges(center: usize, others: std::ops::Range<usize>) -> Vec<(usize, usize)> {
+    others.map(|n| (center, n)).collect()
+}
+
+/// Apply partition failures for each (from, to) pair.
+pub async fn apply_partitions(cluster: &ClassicCluster, edges: &[(usize, usize)]) {
+    for &(from, to) in edges {
+        cluster.partition(from, to).await;
+    }
+}
+
+/// Heal partition failures for each (from, to) pair.
+pub async fn heal_partitions(cluster: &ClassicCluster, edges: &[(usize, usize)]) {
+    for &(from, to) in edges {
+        cluster.heal_partition(from, to).await;
+    }
+}
+
+/// Propose a command and wait until the target decree is learned.
+pub async fn propose_and_wait(
+    cluster: &mut ClassicCluster,
+    barrier: &EventBarrier,
+    cmd: PaxosCommand,
+    decree_num: usize,
+    timeout: Duration,
+) -> Result<PaxosCommand, String> {
+    cluster.propose(cmd).await;
+    barrier.wait_for_learned(decree_num, timeout).await
+}
+
 /// Helper to create a Ledger for tests with fresh state
 /// Always creates empty state, never loads from disk
 pub fn create_ledger() -> Ledger {

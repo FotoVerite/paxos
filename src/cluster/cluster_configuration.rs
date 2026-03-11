@@ -102,7 +102,6 @@ impl ClusterConfiguration {
         self.id.clone() + 1
     }
 
-
     fn next_epoch(&self) -> usize {
         self.epoch.clone() + 1
     }
@@ -134,7 +133,7 @@ impl ClusterConfiguration {
     pub fn kv_store(&self) -> Option<HashMap<String, KVEntry>> {
         match &self.checkpoint {
             None => None,
-            Some(checkpoint) => Some(checkpoint.state().kv_store().clone())
+            Some(checkpoint) => Some(checkpoint.state().kv_store().clone()),
         }
     }
 
@@ -219,7 +218,9 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::rsm::checkpoint::{CheckpointManifest, CheckpointState, RsmCheckpoint, RsmCheckpointState};
+    use crate::rsm::checkpoint::{
+        CheckpointManifest, CheckpointState, RsmCheckpoint, RsmCheckpointState,
+    };
 
     fn roles(proposer: bool, acceptor: bool, learner: bool) -> Roles {
         Roles {

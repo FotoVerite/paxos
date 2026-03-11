@@ -4,20 +4,25 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::time::timeout;
+use tokio::time::{Instant, sleep, timeout};
 use uuid::Uuid;
 
 use crate::cluster::cluster_configuration::ClusterConfiguration;
 use crate::cluster::cluster_configuration::reconciler::ClusterReconciler;
 use crate::cluster::cluster_configuration::reconfig_patch::ReconfigPatch;
+use crate::cluster::configuration_handler::types::{
+    ConfigurationCommand, ConfigurationReplyOutcome,
+};
 use crate::cluster::runtime_member::RuntimeMember;
 use crate::cluster::runtime_registry::RuntimeRegistry;
 use crate::common::persistence::ClusterPersistence;
 use crate::{
     cluster::network_fabric::NetworkFabric, common::persistence::Persistence,
     message::ClientMessage, monitor::PaxosObserver, node::config::PmmcNodeConfig,
+    paxos_command::PaxosCommand, rsm::kv_store::ReplyOutcome,
 };
 
+pub mod fixtures;
 mod utility_ops;
 
 pub struct PmmcCluster {
@@ -118,6 +123,84 @@ impl PmmcCluster {
         self.runtime_registry.start().await;
     }
 
+    pub async fn start_all_ready(&self, timeout: Duration) -> anyhow::Result<usize> {
+        self.start_all().await;
+        self.wait_ready(timeout).await
+    }
+
+    pub async fn update_configuration_ready(
+        &mut self,
+        patch: ReconfigPatch,
+        timeout_duration: Duration,
+    ) -> anyhow::Result<usize> {
+        timeout(timeout_duration, self.update_configuration(patch))
+            .await
+            .map_err(|_| {
+                anyhow!(
+                    "update_configuration timed out after {:?}",
+                    timeout_duration
+                )
+            })??;
+        self.wait_ready(timeout_duration).await
+    }
+
+    pub async fn wait_ready(&self, timeout: Duration) -> anyhow::Result<usize> {
+        let deadline = Instant::now() + timeout;
+        let mut last_statuses: Vec<String> = Vec::new();
+        let mut last_leader: Option<usize> = None;
+
+        loop {
+            let now = Instant::now();
+            if now >= deadline {
+                return Err(anyhow!(
+                    "PMMC cluster did not become ready within {:?}; leader={:?}; statuses=[{}]",
+                    timeout,
+                    last_leader,
+                    last_statuses.join(", ")
+                ));
+            }
+
+            let per_node_timeout = (deadline - now).min(Duration::from_millis(400));
+            let mut all_active = true;
+            let mut statuses = Vec::new();
+
+            for node_id in self.get_node_uuids() {
+                match self
+                    .runtime_registry
+                    .configuration_operation(
+                        node_id,
+                        ConfigurationCommand::Status,
+                        per_node_timeout,
+                    )
+                    .await
+                {
+                    Ok(ConfigurationReplyOutcome::Active) => {
+                        statuses.push(format!("{node_id}=Active"));
+                    }
+                    Ok(other) => {
+                        all_active = false;
+                        statuses.push(format!("{node_id}={other:?}"));
+                    }
+                    Err(err) => {
+                        all_active = false;
+                        statuses.push(format!("{node_id}=Err({err})"));
+                    }
+                }
+            }
+
+            let leader_index = self.leader_index().await;
+            if all_active {
+                if let Some(idx) = leader_index {
+                    return Ok(idx);
+                }
+            }
+
+            last_statuses = statuses;
+            last_leader = leader_index;
+            sleep(Duration::from_millis(25)).await;
+        }
+    }
+
     pub fn num_nodes(&self) -> usize {
         self.total_number
     }
@@ -139,6 +222,101 @@ impl PmmcCluster {
         self.runtime_registry
             .connect_client_to(uuid, client_id)
             .await
+    }
+
+    pub async fn request_replica(
+        &self,
+        replica_idx: usize,
+        client_id: Uuid,
+        request_id: u64,
+        cmd: PaxosCommand,
+        timeout_duration: Duration,
+    ) -> anyhow::Result<ReplyOutcome> {
+        let Some((tx, mut rx)) = self.connect_client_to(replica_idx, client_id).await else {
+            return Err(anyhow!(
+                "failed to attach client {} to replica {}",
+                client_id,
+                replica_idx
+            ));
+        };
+
+        tx.send(ClientMessage::PROPOSE {
+            cmd: cmd.with_client(client_id, request_id),
+        })
+        .await
+        .map_err(|_| anyhow!("failed to send proposal to replica {replica_idx}"))?;
+
+        match timeout(timeout_duration, rx.recv()).await {
+            Ok(Some(ClientMessage::RESPONSE { response, .. })) => Ok(response),
+            Ok(Some(other)) => Err(anyhow!(
+                "unexpected client message from replica {}: {:?}",
+                replica_idx,
+                other
+            )),
+            Ok(None) => Err(anyhow!(
+                "response channel closed while waiting on replica {}",
+                replica_idx
+            )),
+            Err(_) => Err(anyhow!(
+                "timed out waiting for replica {} response after {:?}",
+                replica_idx,
+                timeout_duration
+            )),
+        }
+    }
+
+    pub async fn request_any_replica(
+        &self,
+        request_id: u64,
+        cmd: PaxosCommand,
+        timeout_duration: Duration,
+    ) -> anyhow::Result<ReplyOutcome> {
+        if self.num_nodes() == 0 {
+            return Err(anyhow!("request_any_replica called with empty cluster"));
+        }
+
+        let deadline = Instant::now() + timeout_duration;
+        let mut last_errors: Vec<String> = Vec::new();
+
+        loop {
+            let now = Instant::now();
+            if now >= deadline {
+                return Err(anyhow!(
+                    "client request timed out after {:?}; last_errors=[{}]",
+                    timeout_duration,
+                    last_errors.join(", ")
+                ));
+            }
+
+            let mut round_errors = Vec::new();
+            for replica_idx in 0..self.num_nodes() {
+                let now = Instant::now();
+                if now >= deadline {
+                    break;
+                }
+
+                let attempt_timeout = (deadline - now).min(Duration::from_secs(2));
+                let client_id = Uuid::new_v4();
+                match self
+                    .request_replica(
+                        replica_idx,
+                        client_id,
+                        request_id,
+                        cmd.clone(),
+                        attempt_timeout,
+                    )
+                    .await
+                {
+                    Ok(reply) => return Ok(reply),
+                    Err(err) => {
+                        round_errors.push(format!("replica {replica_idx}: {err}"));
+                    }
+                }
+            }
+
+            last_errors = round_errors;
+            sleep(Duration::from_millis(75)).await;
+        }
     }
 
     pub async fn leader(&self) -> Option<Arc<RuntimeMember>> {

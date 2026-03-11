@@ -1,6 +1,6 @@
-use std::{collections::HashMap, mem};
 use std::sync::Arc;
 use std::time::Duration;
+use std::{collections::HashMap, mem};
 
 use tokio::sync::{
     Mutex, RwLock,
@@ -172,7 +172,6 @@ impl RuntimeRegistry {
         member.start().await;
         Ok(())
     }
-
 
     pub async fn stop_process(&self, id: Uuid) {
         if let Some(member) = self.get(id).await {

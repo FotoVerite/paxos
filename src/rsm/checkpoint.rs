@@ -239,14 +239,8 @@ mod tests {
         let mut dedup = HashMap::new();
         dedup.insert(client_id, 42);
 
-        let manifest = CheckpointManifest::new(
-            snapshot_id,
-            source_node,
-            3,
-            9,
-            Some(17),
-            1_742_123_456_789,
-        );
+        let manifest =
+            CheckpointManifest::new(snapshot_id, source_node, 3, 9, Some(17), 1_742_123_456_789);
         let state = CheckpointState::new(RsmCheckpointState::new(kv), dedup);
         let checkpoint = RsmCheckpoint::new(manifest, state);
         let encoded = serde_json::to_string(&checkpoint).unwrap();

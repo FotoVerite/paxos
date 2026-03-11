@@ -9,7 +9,10 @@ use paxos::{
 };
 use std::net::IpAddr;
 use std::sync::Arc;
-use test_helpers::{EventBarrier, NodeBuilder, QuorumCalc, RecordingObserver, ScenarioBuilder};
+use test_helpers::{
+    EventBarrier, NodeBuilder, QuorumCalc, RecordingObserver, ScenarioBuilder, apply_partitions,
+    heal_partitions, star_edges, start_classic_cluster_ready,
+};
 use tokio::time::{Duration, sleep};
 use uuid::Uuid;
 
@@ -260,11 +263,7 @@ async fn test_normal_operation_no_failures() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
-    for i in 0..3 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
 
     // Don't enable failures - should work normally
     let cmd = PaxosCommand::NOOP;
@@ -279,11 +278,7 @@ async fn test_failures_disabled_by_default() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
-    for i in 0..3 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
 
     // Create partition without enabling failures - should have no effect
     cluster.partition(0, 1).await;
@@ -312,11 +307,7 @@ async fn test_partition_and_heal() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
-    for i in 0..3 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Create partition between node 0 and node 1
@@ -334,28 +325,22 @@ async fn test_multiple_partitions() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let mut cluster = ClassicCluster::new(0, ip, 5, observer).await.unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Create multiple partitions
-    cluster.partition(0, 1).await;
-    cluster.partition(0, 2).await;
-    cluster.partition(0, 3).await;
+    let edges = star_edges(0, 1..4);
+    apply_partitions(&cluster, &edges).await;
 
     sleep(Duration::from_millis(100)).await;
 
     // Heal some
-    cluster.heal_partition(0, 1).await;
-    cluster.heal_partition(0, 2).await;
+    heal_partitions(&cluster, &edges[..2]).await;
 
     sleep(Duration::from_millis(100)).await;
 
     // Heal rest
-    cluster.heal_partition(0, 3).await;
+    heal_partitions(&cluster, &edges[2..]).await;
 
     sleep(Duration::from_millis(100)).await;
 }
@@ -366,11 +351,7 @@ async fn test_add_delay() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
-    for i in 0..3 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Add 100ms delay from node 0 to node 1
@@ -385,11 +366,7 @@ async fn test_add_packet_loss() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
-    for i in 0..3 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Add 50% packet loss from node 0 to node 1
@@ -404,17 +381,12 @@ async fn test_partition_isolates_single_node() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let mut cluster = ClassicCluster::new(0, ip, 5, observer).await.unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Isolate node 0 from all others
-    for i in 1..5 {
-        cluster.partition(0, i).await;
-    }
+    let edges = star_edges(0, 1..5);
+    apply_partitions(&cluster, &edges).await;
 
     sleep(Duration::from_millis(100)).await;
 
@@ -425,9 +397,7 @@ async fn test_partition_isolates_single_node() {
     sleep(Duration::from_millis(500)).await;
 
     // Heal all partitions
-    for i in 1..5 {
-        cluster.heal_partition(0, i).await;
-    }
+    heal_partitions(&cluster, &edges).await;
 
     sleep(Duration::from_millis(100)).await;
 }
@@ -438,11 +408,7 @@ async fn test_toggle_failures_on_off() {
     let ip = IpAddr::V4([127, 0, 0, 1].into());
     let mut cluster = ClassicCluster::new(0, ip, 3, observer).await.unwrap();
 
-    for i in 0..3 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
 
     // Set up a partition
     cluster.partition(0, 1).await;
@@ -479,11 +445,7 @@ async fn test_retry_mechanism_succeeds_under_normal_conditions() {
     .await
     .unwrap();
 
-    for i in 0..3 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     observer.clear().await;
 
     // Propose a value - should succeed normally

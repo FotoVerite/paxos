@@ -8,7 +8,7 @@ mod test_helpers;
 use paxos::{cluster::classic_cluster::ClassicCluster, paxos_command::PaxosCommand};
 use std::net::IpAddr;
 use std::sync::Arc;
-use test_helpers::RecordingObserver;
+use test_helpers::{RecordingObserver, start_classic_cluster_ready};
 use tokio::time::{Duration, sleep};
 
 #[tokio::test]
@@ -29,11 +29,7 @@ async fn test_retry_fires_with_incomplete_quorum() {
     .await
     .unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
     observer.clear().await;
 
@@ -181,11 +177,7 @@ async fn test_retry_timeout_cancels_old_proposal() {
     .await
     .unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
     observer.clear().await;
 

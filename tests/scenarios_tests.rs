@@ -11,7 +11,10 @@ mod test_helpers;
 use paxos::{cluster::classic_cluster::ClassicCluster, paxos_command::PaxosCommand};
 use std::net::IpAddr;
 use std::sync::Arc;
-use test_helpers::{RecordingObserver, ScenarioBuilder};
+use test_helpers::{
+    RecordingObserver, ScenarioBuilder, apply_partitions, bipartite_edges, heal_partitions,
+    propose_and_wait, star_edges, start_classic_cluster_ready,
+};
 use tokio::time::Duration;
 
 // ============================================================================
@@ -27,11 +30,7 @@ async fn test_consensus_without_failures() {
         .await
         .unwrap();
 
-    for i in 0..3 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
 
     // Propose multiple decrees
     for i in 0..3 {
@@ -39,10 +38,7 @@ async fn test_consensus_without_failures() {
             author: "Socrates".to_string(),
             law: "Test Law".to_string(),
         };
-        cluster.propose(cmd.clone()).await;
-
-        // Wait for decree to be learned instead of arbitrary sleep
-        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
+        let _ = propose_and_wait(&mut cluster, &barrier, cmd, i, Duration::from_secs(5)).await;
     }
 
     observer.wait_for_events().await;
@@ -57,11 +53,7 @@ async fn test_consensus_with_partition_recovery() {
         .await
         .unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Phase 1: Normal operation
@@ -69,33 +61,27 @@ async fn test_consensus_with_partition_recovery() {
         name: "Plato".to_string(),
         term_length_years: 5,
     };
-    cluster.propose(cmd1).await;
-    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+    let _ = propose_and_wait(&mut cluster, &barrier, cmd1, 0, Duration::from_secs(5)).await;
 
     // Phase 2: Create partition (isolate node 0)
-    for i in 1..5 {
-        cluster.partition(0, i).await;
-    }
+    let partition_edges = star_edges(0, 1..5);
+    apply_partitions(&cluster, &partition_edges).await;
 
     let cmd2 = PaxosCommand::BuildAcropolis {
         stones_required: 1000,
         architect: "Ictinus".to_string(),
     };
-    cluster.propose(cmd2).await;
-    let _ = barrier.wait_for_learned(1, Duration::from_secs(5)).await;
+    let _ = propose_and_wait(&mut cluster, &barrier, cmd2, 1, Duration::from_secs(5)).await;
 
     // Phase 3: Heal partition
-    for i in 1..5 {
-        cluster.heal_partition(0, i).await;
-    }
+    heal_partitions(&cluster, &partition_edges).await;
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Phase 4: Resume normal operation
     let cmd3 = PaxosCommand::Ostracize {
         citizen: "Meletus".to_string(),
     };
-    cluster.propose(cmd3).await;
-    let _ = barrier.wait_for_learned(2, Duration::from_secs(5)).await;
+    let _ = propose_and_wait(&mut cluster, &barrier, cmd3, 2, Duration::from_secs(5)).await;
 
     observer.wait_for_events().await;
 }
@@ -109,11 +95,7 @@ async fn test_consensus_survives_packet_loss() {
         .await
         .unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Add 30% packet loss between node 0 and node 1
@@ -124,8 +106,7 @@ async fn test_consensus_survives_packet_loss() {
             author: format!("Philosopher {}", i),
             law: format!("Law {}", i),
         };
-        cluster.propose(cmd).await;
-        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
+        let _ = propose_and_wait(&mut cluster, &barrier, cmd, i, Duration::from_secs(5)).await;
     }
 
     observer.wait_for_events().await;
@@ -140,20 +121,21 @@ async fn test_consensus_with_high_latency() {
         .await
         .unwrap();
 
-    for i in 0..3 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Add 200ms latency to all messages from node 0
     cluster.add_delay(0, 1, Duration::from_millis(200)).await;
     cluster.add_delay(0, 2, Duration::from_millis(200)).await;
 
-    let cmd = PaxosCommand::NOOP;
-    cluster.propose(cmd).await;
-    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::NOOP,
+        0,
+        Duration::from_secs(5),
+    )
+    .await;
 
     observer.wait_for_events().await;
 }
@@ -167,30 +149,28 @@ async fn test_quorum_still_achievable_with_partition() {
         .await
         .unwrap();
 
-    for i in 0..7 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Partition node 0 from nodes 1,2,3 (but 4,5,6 remain connected)
-    for i in 1..4 {
-        cluster.partition(0, i).await;
-    }
+    let partition_edges = star_edges(0, 1..4);
+    apply_partitions(&cluster, &partition_edges).await;
 
     // A 7-node cluster needs quorum of 4
     // Even without nodes 0,1,2,3, we have nodes 4,5,6 + one of the isolated nodes
     // This should still allow consensus
 
-    let cmd = PaxosCommand::NOOP;
-    cluster.propose(cmd).await;
-    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::NOOP,
+        0,
+        Duration::from_secs(5),
+    )
+    .await;
 
     // Heal the partition
-    for i in 1..4 {
-        cluster.heal_partition(0, i).await;
-    }
+    heal_partitions(&cluster, &partition_edges).await;
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     observer.wait_for_events().await;
@@ -205,41 +185,44 @@ async fn test_repeated_partition_heal_cycles() {
         .await
         .unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     let mut decree_num = 0;
+    let cycle_edges = [(0, 2), (1, 3)];
     for cycle in 0..3 {
         // Create partition
-        cluster.partition(0, 2).await;
-        cluster.partition(1, 3).await;
+        apply_partitions(&cluster, &cycle_edges).await;
 
         let cmd = PaxosCommand::EnactDecree {
             author: format!("Cycle {}", cycle),
             law: "Partition Law".to_string(),
         };
-        cluster.propose(cmd).await;
-        let _ = barrier
-            .wait_for_learned(decree_num, Duration::from_secs(5))
-            .await;
+        let _ = propose_and_wait(
+            &mut cluster,
+            &barrier,
+            cmd,
+            decree_num,
+            Duration::from_secs(5),
+        )
+        .await;
         decree_num += 1;
 
         // Heal partition
-        cluster.heal_partition(0, 2).await;
-        cluster.heal_partition(1, 3).await;
+        heal_partitions(&cluster, &cycle_edges).await;
 
         let cmd = PaxosCommand::EnactDecree {
             author: format!("Recovery {}", cycle),
             law: "Recovery Law".to_string(),
         };
-        cluster.propose(cmd).await;
-        let _ = barrier
-            .wait_for_learned(decree_num, Duration::from_secs(5))
-            .await;
+        let _ = propose_and_wait(
+            &mut cluster,
+            &barrier,
+            cmd,
+            decree_num,
+            Duration::from_secs(5),
+        )
+        .await;
         decree_num += 1;
     }
 
@@ -372,11 +355,7 @@ async fn test_seven_node_consensus_sustained() {
         .await
         .unwrap();
 
-    for i in 0..7 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // High message volume: 10 consecutive proposals
@@ -385,9 +364,7 @@ async fn test_seven_node_consensus_sustained() {
             author: format!("Philosopher {}", i % 7),
             law: format!("Law number {}", i),
         };
-        cluster.propose(cmd).await;
-        // Updated to use usize for wait_for_learned as helper expects it
-        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
+        let _ = propose_and_wait(&mut cluster, &barrier, cmd, i, Duration::from_secs(5)).await;
     }
 
     observer.wait_for_events().await;
@@ -412,11 +389,7 @@ async fn test_nine_node_consensus() {
         .await
         .unwrap();
 
-    for i in 0..9 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Propose with 9-node cluster (quorum = 5)
@@ -425,8 +398,7 @@ async fn test_nine_node_consensus() {
             name: format!("Archon {}", i),
             term_length_years: 10,
         };
-        cluster.propose(cmd).await;
-        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
+        let _ = propose_and_wait(&mut cluster, &barrier, cmd, i, Duration::from_secs(5)).await;
     }
 
     observer.wait_for_events().await;
@@ -451,21 +423,21 @@ async fn test_minority_partition_seven_nodes() {
         .await
         .unwrap();
 
-    for i in 0..7 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Normal operation first
-    cluster
-        .propose(PaxosCommand::EnactDecree {
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::EnactDecree {
             author: "Leader".to_string(),
             law: "Initial law".to_string(),
-        })
-        .await;
-    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+        },
+        0,
+        Duration::from_secs(5),
+    )
+    .await;
 
     let initial_learned = observer.count_decrees_learned().await;
     assert!(
@@ -474,11 +446,8 @@ async fn test_minority_partition_seven_nodes() {
     );
 
     // Create partition: nodes 0,1,2 (3 nodes) vs 3,4,5,6 (4 nodes)
-    for i in 0..3 {
-        for j in 3..7 {
-            cluster.partition(i, j).await;
-        }
-    }
+    let split_edges = bipartite_edges(0..3, 3..7);
+    apply_partitions(&cluster, &split_edges).await;
     tokio::time::sleep(Duration::from_millis(200)).await;
 
     // Try to propose from minority partition
@@ -492,21 +461,21 @@ async fn test_minority_partition_seven_nodes() {
     let during_partition = observer.count_decrees_learned().await;
 
     // Heal the partition
-    for i in 0..3 {
-        for j in 3..7 {
-            cluster.heal_partition(i, j).await;
-        }
-    }
+    heal_partitions(&cluster, &split_edges).await;
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Now majority should be able to reach consensus again
-    cluster
-        .propose(PaxosCommand::BuildAcropolis {
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::BuildAcropolis {
             stones_required: 2000,
             architect: "AfterRecovery".to_string(),
-        })
-        .await;
-    let _ = barrier.wait_for_learned(2, Duration::from_secs(5)).await;
+        },
+        2,
+        Duration::from_secs(5),
+    )
+    .await;
 
     observer.wait_for_events().await;
 
@@ -532,58 +501,60 @@ async fn test_extended_partition_five_nodes() {
         .await
         .unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Normal operation
-    cluster
-        .propose(PaxosCommand::EnactDecree {
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::EnactDecree {
             author: "Initial".to_string(),
             law: "Setup".to_string(),
-        })
-        .await;
-    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+        },
+        0,
+        Duration::from_secs(5),
+    )
+    .await;
 
     // Extended partition: node 0 isolated for 2 seconds
-    cluster.partition(0, 1).await;
-    cluster.partition(0, 2).await;
-    cluster.partition(0, 3).await;
-    cluster.partition(0, 4).await;
+    let isolate_zero = star_edges(0, 1..5);
+    apply_partitions(&cluster, &isolate_zero).await;
 
     // Simulate activity during partition: majority proceeds
     for i in 0..3 {
-        cluster
-            .propose(PaxosCommand::AppointArchon {
+        let _ = propose_and_wait(
+            &mut cluster,
+            &barrier,
+            PaxosCommand::AppointArchon {
                 name: format!("During Partition {}", i),
                 term_length_years: 5,
-            })
-            .await;
-        let _ = barrier
-            .wait_for_learned(i + 1, Duration::from_secs(5))
-            .await;
+            },
+            i + 1,
+            Duration::from_secs(5),
+        )
+        .await;
     }
 
     // Let partition run longer (2 seconds total)
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Heal partition - minority node should catch up
-    for i in 1..5 {
-        cluster.heal_partition(0, i).await;
-    }
+    heal_partitions(&cluster, &isolate_zero).await;
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Verify system is responsive after healing
-    cluster
-        .propose(PaxosCommand::BuildAcropolis {
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::BuildAcropolis {
             stones_required: 3000,
             architect: "PostHealing".to_string(),
-        })
-        .await;
-    let _ = barrier.wait_for_learned(4, Duration::from_secs(5)).await;
+        },
+        4,
+        Duration::from_secs(5),
+    )
+    .await;
 
     observer.wait_for_events().await;
 
@@ -607,44 +578,37 @@ async fn test_rolling_failures_seven_nodes() {
         .await
         .unwrap();
 
-    for i in 0..7 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Simulate rolling failures: isolate one node at a time
     let mut decree_num = 0;
     for failed_node in 0..7 {
         // Isolate node from rest
-        for other in 0..7 {
-            if other != failed_node {
-                cluster.partition(failed_node, other).await;
-            }
-        }
+        let isolate_edges: Vec<_> = (0..7)
+            .filter(|other| *other != failed_node)
+            .map(|other| (failed_node, other))
+            .collect();
+        apply_partitions(&cluster, &isolate_edges).await;
 
         tokio::time::sleep(Duration::from_millis(300)).await;
 
         // Propose during this partial failure
-        cluster
-            .propose(PaxosCommand::EnactDecree {
+        let _ = propose_and_wait(
+            &mut cluster,
+            &barrier,
+            PaxosCommand::EnactDecree {
                 author: format!("Failed node {}", failed_node),
                 law: "During failure".to_string(),
-            })
-            .await;
-
-        let _ = barrier
-            .wait_for_learned(decree_num, Duration::from_secs(5))
-            .await;
+            },
+            decree_num,
+            Duration::from_secs(5),
+        )
+        .await;
         decree_num += 1;
 
         // Recover the node
-        for other in 0..7 {
-            if other != failed_node {
-                cluster.heal_partition(failed_node, other).await;
-            }
-        }
+        heal_partitions(&cluster, &isolate_edges).await;
 
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
@@ -663,72 +627,65 @@ async fn test_multiple_overlapping_partitions() {
         .await
         .unwrap();
 
-    for i in 0..7 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Create initial partition: 0,1 split from 2,3,4,5,6
-    for i in 0..2 {
-        for j in 2..7 {
-            cluster.partition(i, j).await;
-        }
-    }
+    let initial_split = bipartite_edges(0..2, 2..7);
+    apply_partitions(&cluster, &initial_split).await;
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     // Propose in majority side
-    cluster
-        .propose(PaxosCommand::Ostracize {
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::Ostracize {
             citizen: "Minority".to_string(),
-        })
-        .await;
-    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+        },
+        0,
+        Duration::from_secs(5),
+    )
+    .await;
 
     // Add another partition: further split the majority
     // Now we have: [0,1] | [2,3] [4,5,6]
-    cluster.partition(2, 4).await;
-    cluster.partition(2, 5).await;
-    cluster.partition(2, 6).await;
-    cluster.partition(3, 4).await;
-    cluster.partition(3, 5).await;
-    cluster.partition(3, 6).await;
+    let secondary_split = bipartite_edges(2..4, 4..7);
+    apply_partitions(&cluster, &secondary_split).await;
 
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     // Propose: [4,5,6] is largest connected partition with quorum
-    cluster
-        .propose(PaxosCommand::AppointArchon {
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::AppointArchon {
             name: "From Majority".to_string(),
             term_length_years: 7,
-        })
-        .await;
-    let _ = barrier.wait_for_learned(1, Duration::from_secs(5)).await;
+        },
+        1,
+        Duration::from_secs(5),
+    )
+    .await;
 
     // Gradually heal in reverse order
-    for i in 0..2 {
-        for j in 2..7 {
-            cluster.heal_partition(i, j).await;
-        }
-    }
+    heal_partitions(&cluster, &initial_split).await;
     tokio::time::sleep(Duration::from_millis(300)).await;
 
-    for i in 2..4 {
-        for j in 4..7 {
-            cluster.heal_partition(i, j).await;
-        }
-    }
+    heal_partitions(&cluster, &secondary_split).await;
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     // Verify full recovery
-    cluster
-        .propose(PaxosCommand::BuildAcropolis {
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::BuildAcropolis {
             stones_required: 5000,
             architect: "FullRecovery".to_string(),
-        })
-        .await;
-    let _ = barrier.wait_for_learned(2, Duration::from_secs(5)).await;
+        },
+        2,
+        Duration::from_secs(5),
+    )
+    .await;
 
     observer.wait_for_events().await;
 }
@@ -744,11 +701,7 @@ async fn test_high_latency_seven_nodes() {
         .await
         .unwrap();
 
-    for i in 0..7 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Add 300ms latency between all nodes
@@ -766,13 +719,17 @@ async fn test_high_latency_seven_nodes() {
 
     // Despite latency, consensus should still happen
     for i in 0..5 {
-        cluster
-            .propose(PaxosCommand::EnactDecree {
+        let _ = propose_and_wait(
+            &mut cluster,
+            &barrier,
+            PaxosCommand::EnactDecree {
                 author: format!("Slow Network {}", i),
                 law: "During high latency".to_string(),
-            })
-            .await;
-        let _ = barrier.wait_for_learned(i, Duration::from_secs(10)).await; // Longer timeout for latency
+            },
+            i,
+            Duration::from_secs(10),
+        )
+        .await;
     }
 
     observer.wait_for_events().await;
@@ -789,11 +746,7 @@ async fn test_asymmetric_latency() {
         .await
         .unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Add one-way latency: 0 -> 1,2 have 500ms delay
@@ -805,13 +758,17 @@ async fn test_asymmetric_latency() {
 
     // Propose multiple times
     for i in 0..4 {
-        cluster
-            .propose(PaxosCommand::AppointArchon {
+        let _ = propose_and_wait(
+            &mut cluster,
+            &barrier,
+            PaxosCommand::AppointArchon {
                 name: format!("Archon {}", i),
                 term_length_years: 5,
-            })
-            .await;
-        let _ = barrier.wait_for_learned(i, Duration::from_secs(8)).await;
+            },
+            i,
+            Duration::from_secs(8),
+        )
+        .await;
     }
 
     observer.wait_for_events().await;
@@ -828,11 +785,7 @@ async fn test_transient_packet_loss() {
         .await
         .unwrap();
 
-    for i in 0..7 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Add 30% packet loss from node 0 to others
@@ -842,12 +795,16 @@ async fn test_transient_packet_loss() {
 
     // High message volume despite packet loss
     for i in 0..8 {
-        cluster
-            .propose(PaxosCommand::Ostracize {
+        let _ = propose_and_wait(
+            &mut cluster,
+            &barrier,
+            PaxosCommand::Ostracize {
                 citizen: format!("Candidate {}", i),
-            })
-            .await;
-        let _ = barrier.wait_for_learned(i, Duration::from_secs(5)).await;
+            },
+            i,
+            Duration::from_secs(5),
+        )
+        .await;
     }
 
     observer.wait_for_events().await;
@@ -864,39 +821,40 @@ async fn test_recovery_from_extended_offline() {
         .await
         .unwrap();
 
-    for i in 0..5 {
-        cluster.nodes[i].start();
-    }
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    start_classic_cluster_ready(&mut cluster).await;
     cluster.enable_failures().await;
 
     // Propose before isolation
-    cluster
-        .propose(PaxosCommand::EnactDecree {
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::EnactDecree {
             author: "Initial".to_string(),
             law: "Before isolation".to_string(),
-        })
-        .await;
-    let _ = barrier.wait_for_learned(0, Duration::from_secs(5)).await;
+        },
+        0,
+        Duration::from_secs(5),
+    )
+    .await;
 
     // Isolate node 0 for extended period
-    for i in 1..5 {
-        cluster.partition(0, i).await;
-    }
+    let isolate_zero = star_edges(0, 1..5);
+    apply_partitions(&cluster, &isolate_zero).await;
 
     // Continue proposals in majority while node 0 is isolated
     let mut decree_num = 1;
     for cycle in 0..4 {
-        cluster
-            .propose(PaxosCommand::BuildAcropolis {
+        let _ = propose_and_wait(
+            &mut cluster,
+            &barrier,
+            PaxosCommand::BuildAcropolis {
                 stones_required: 1000 + cycle * 100,
                 architect: "During Isolation".to_string(),
-            })
-            .await;
-        let _ = barrier
-            .wait_for_learned(decree_num, Duration::from_secs(5))
-            .await;
+            },
+            decree_num,
+            Duration::from_secs(5),
+        )
+        .await;
         decree_num += 1;
     }
 
@@ -904,19 +862,21 @@ async fn test_recovery_from_extended_offline() {
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Heal partition - node 0 should catch up with all committed entries
-    for i in 1..5 {
-        cluster.heal_partition(0, i).await;
-    }
+    heal_partitions(&cluster, &isolate_zero).await;
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Verify system still works
-    cluster
-        .propose(PaxosCommand::AppointArchon {
+    let _ = propose_and_wait(
+        &mut cluster,
+        &barrier,
+        PaxosCommand::AppointArchon {
             name: "After Recovery".to_string(),
             term_length_years: 8,
-        })
-        .await;
-    let _ = barrier.wait_for_learned(5, Duration::from_secs(5)).await;
+        },
+        5,
+        Duration::from_secs(5),
+    )
+    .await;
 
     observer.wait_for_events().await;
 }

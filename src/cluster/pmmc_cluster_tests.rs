@@ -1,7 +1,6 @@
-use std::{collections::HashSet, net::IpAddr, path::Path, sync::Arc};
+use std::{collections::HashSet, net::IpAddr, path::Path};
 
 use tokio::time::{Duration, sleep, timeout};
-use uuid::Uuid;
 
 use crate::{
     cluster::cluster_configuration::reconfig_patch::ReconfigPatch,
@@ -9,76 +8,16 @@ use crate::{
         ConfigurationCommand, ConfigurationOperationStatus, ConfigurationReplyOutcome,
     },
     common::persistence::Persistence,
-    message::ClientMessage,
-    monitor::NoOpObserver,
-    rsm::kv_store::ReplyOutcome,
     node::config::{PmmcNodeConfig, Roles},
     paxos_command::PaxosCommand,
+    rsm::kv_store::ReplyOutcome,
 };
 
 use super::PmmcCluster;
-
-async fn propose_via_client(cluster: &PmmcCluster, replica_idx: usize, cmd: PaxosCommand) {
-    let client_id = Uuid::new_v4();
-    let (tx, _rx) = cluster
-        .connect_client_to(replica_idx, client_id)
-        .await
-        .expect("replica should accept client connection");
-    tx.send(ClientMessage::PROPOSE { cmd })
-        .await
-        .expect("client propose send should succeed");
-}
-
-async fn wait_for_leader_index(cluster: &PmmcCluster, wait: Duration) -> usize {
-    timeout(wait, async {
-        loop {
-            if let Some(idx) = cluster.leader_index().await {
-                break idx;
-            }
-            sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .expect("cluster should elect a leader")
-}
-
-async fn request_via_cluster(cluster: &PmmcCluster, request_id: u64, cmd: PaxosCommand) -> ReplyOutcome {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
-    loop {
-        if tokio::time::Instant::now() >= deadline {
-            panic!("client response timed out across all replicas");
-        }
-
-        for replica_idx in 0..cluster.num_nodes() {
-            let client_id = Uuid::new_v4();
-            let Some((tx, mut rx)) = cluster.connect_client_to(replica_idx, client_id).await else {
-                continue;
-            };
-
-            if tx
-                .send(ClientMessage::PROPOSE {
-                    cmd: cmd.clone().with_client(client_id, request_id),
-                })
-                .await
-                .is_err()
-            {
-                continue;
-            }
-
-            if let Ok(Some(ClientMessage::RESPONSE { response, .. })) =
-                timeout(Duration::from_secs(2), rx.recv()).await
-            {
-                return response;
-            }
-        }
-
-        sleep(Duration::from_millis(200)).await;
-    }
-}
+use super::fixtures::PmmcTestCluster;
 
 #[tokio::test]
 async fn role_split_cluster_sets_expected_quorum_and_node_count() {
-    let ip = IpAddr::V4([127, 0, 0, 1].into());
     let mut configs = Vec::new();
     for _ in 0..2 {
         configs.push(PmmcNodeConfig {
@@ -108,9 +47,10 @@ async fn role_split_cluster_sets_expected_quorum_and_node_count() {
         });
     }
 
-    let cluster = PmmcCluster::new_with_configs(ip, configs, Arc::new(NoOpObserver))
+    let fixture = PmmcTestCluster::with_configs(configs)
         .await
         .expect("role-split cluster should initialize");
+    let cluster = fixture.cluster();
 
     assert_eq!(cluster.num_nodes(), 7);
     assert_eq!(cluster.quorum_size(), 2, "3 acceptors => quorum 2");
@@ -139,39 +79,29 @@ fn node_uuid_is_stable_and_unique_per_index() {
 
 #[tokio::test]
 async fn single_node_cluster_persists_state_under_ip_node_directory() {
-    let ip = IpAddr::V4([127, 0, 0, 42].into());
-    let cluster = PmmcCluster::new(ip, 1, Arc::new(NoOpObserver))
+    let mut fixture = PmmcTestCluster::new(1)
         .await
         .expect("single-node PMMC cluster should initialize");
-
-    let uuid = cluster.get_node_uuids()[0];
-    let persistence = Persistence::cluster(ip).node(uuid);
+    let uuid = fixture.cluster().get_node_uuids()[0];
+    let persistence = Persistence::cluster(fixture.ip()).node(uuid);
     let _ = std::fs::remove_dir_all(persistence.dir());
 
-    cluster.start_all().await;
-
-    timeout(Duration::from_secs(2), async {
-        loop {
-            if cluster.leader().await.is_some() {
-                break;
-            }
-            sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .expect("single-node cluster should elect a leader");
-
-    propose_via_client(
-        &cluster,
-        0,
-        PaxosCommand::PUT {
-            key: "persist".to_string(),
-            version: 1,
-            value: 7,
-        }
-        .with_client(uuid, 1),
-    )
-    .await;
+    fixture
+        .start_ready(Duration::from_secs(5))
+        .await
+        .expect("single-node cluster should elect a leader");
+    let _ = fixture
+        .request_any_replica(
+            1,
+            PaxosCommand::PUT {
+                key: "persist".to_string(),
+                version: 1,
+                value: 7,
+            },
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("single-node write should succeed");
 
     timeout(Duration::from_secs(30), async {
         loop {
@@ -193,37 +123,29 @@ async fn single_node_cluster_persists_state_under_ip_node_directory() {
 
 #[tokio::test]
 async fn cleanup_removes_cluster_persistence_root() {
-    let ip = IpAddr::V4([127, 0, 0, 43].into());
-    let cluster = PmmcCluster::new(ip, 1, Arc::new(NoOpObserver))
+    let mut fixture = PmmcTestCluster::new(1)
         .await
         .expect("single-node PMMC cluster should initialize");
-
-    let persistence = Persistence::cluster(ip);
+    let persistence = Persistence::cluster(fixture.ip());
     let _ = std::fs::remove_dir_all(persistence.dir());
 
-    cluster.start_all().await;
-    timeout(Duration::from_secs(2), async {
-        loop {
-            if cluster.leader().await.is_some() {
-                break;
-            }
-            sleep(Duration::from_millis(25)).await;
-        }
-    })
-    .await
-    .expect("single-node cluster should elect a leader");
+    fixture
+        .start_ready(Duration::from_secs(5))
+        .await
+        .expect("single-node cluster should elect a leader");
 
-    propose_via_client(
-        &cluster,
-        0,
-        PaxosCommand::PUT {
-            key: "cleanup".to_string(),
-            version: 1,
-            value: 9,
-        }
-        .with_client(cluster.get_node_uuids()[0], 1),
-    )
-    .await;
+    let _ = fixture
+        .request_any_replica(
+            1,
+            PaxosCommand::PUT {
+                key: "cleanup".to_string(),
+                version: 1,
+                value: 9,
+            },
+            Duration::from_secs(8),
+        )
+        .await
+        .expect("cleanup write should succeed");
 
     timeout(Duration::from_secs(2), async {
         loop {
@@ -236,7 +158,11 @@ async fn cleanup_removes_cluster_persistence_root() {
     .await
     .expect("cluster persistence root should exist before cleanup");
 
-    cluster.cleanup().await.expect("cleanup should succeed");
+    fixture
+        .cluster()
+        .cleanup()
+        .await
+        .expect("cleanup should succeed");
     assert!(
         !persistence.dir().exists(),
         "cleanup should remove the entire cluster persistence root"
@@ -245,11 +171,14 @@ async fn cleanup_removes_cluster_persistence_root() {
 
 #[tokio::test]
 async fn configuration_endpoint_submit_and_await_roundtrip() {
-    let ip = IpAddr::V4([127, 0, 0, 44].into());
-    let cluster = PmmcCluster::new(ip, 1, Arc::new(NoOpObserver))
+    let mut fixture = PmmcTestCluster::new(1)
         .await
         .expect("single-node PMMC cluster should initialize");
-    cluster.start_all().await;
+    fixture
+        .start_ready(Duration::from_secs(5))
+        .await
+        .expect("single-node cluster should become ready");
+    let cluster = fixture.cluster();
 
     let node = cluster.get_node_uuids()[0];
 
@@ -290,37 +219,41 @@ async fn configuration_endpoint_submit_and_await_roundtrip() {
 
 #[tokio::test]
 async fn reconfig_remove_leader_add_replica_preserves_state_and_progresses_after_restart() {
-    let ip = IpAddr::V4([127, 0, 0, 45].into());
-    Persistence::cluster(ip)
-        .purge_cluster_dir()
-        .await
-        .expect("reconfig test should start from a clean persistence directory");
-    let mut cluster = PmmcCluster::new(ip, 3, Arc::new(NoOpObserver))
+    let mut fixture = PmmcTestCluster::new(3)
         .await
         .expect("three-node PMMC cluster should initialize");
-    cluster.start_all().await;
+    fixture
+        .start_ready(Duration::from_secs(8))
+        .await
+        .expect("cluster should become ready");
+    let cluster = fixture.cluster();
 
-    let initial_leader_idx = wait_for_leader_index(&cluster, Duration::from_secs(8)).await;
+    let initial_leader_idx = cluster
+        .leader_index()
+        .await
+        .expect("leader should exist after readiness barrier");
     let initial_members = cluster.get_node_uuids();
     let removed_leader_uuid = initial_members[initial_leader_idx];
 
-    let write_before = request_via_cluster(
-        &cluster,
-        1,
-        PaxosCommand::PUT {
-            key: "reconfig_restart_key".to_string(),
-            version: 1,
-            value: 11,
-        },
-    )
-    .await;
+    let write_before = fixture
+        .request_any_replica(
+            1,
+            PaxosCommand::PUT {
+                key: "reconfig_restart_key".to_string(),
+                version: 1,
+                value: 11,
+            },
+            Duration::from_secs(20),
+        )
+        .await
+        .expect("write before reconfiguration should succeed");
     assert!(
         matches!(write_before, ReplyOutcome::WriteOk { .. }),
         "expected write before reconfiguration to succeed, got: {:?}",
         write_before
     );
 
-    let new_replica_uuid = PmmcCluster::node_uuid(ip, 99);
+    let new_replica_uuid = PmmcCluster::node_uuid(fixture.ip(), 99);
     let patch = ReconfigPatch::new()
         .add_node(
             new_replica_uuid,
@@ -332,11 +265,11 @@ async fn reconfig_remove_leader_add_replica_preserves_state_and_progresses_after
         )
         .remove_node(removed_leader_uuid);
 
-    cluster
-        .update_configuration(patch)
+    fixture
+        .reconfigure_and_ready(patch, Duration::from_secs(30))
         .await
         .expect("reconfiguration should stop and restart cluster");
-    wait_for_leader_index(&cluster, Duration::from_secs(8)).await;
+    let cluster = fixture.cluster();
 
     let members_after = cluster.get_node_uuids();
     assert_eq!(members_after.len(), 3);
@@ -349,43 +282,49 @@ async fn reconfig_remove_leader_add_replica_preserves_state_and_progresses_after
         "removed leader UUID should not be present after reconfiguration"
     );
 
-    let read_after_restart = request_via_cluster(
-        &cluster,
-        2,
-        PaxosCommand::GET {
-            key: "reconfig_restart_key".to_string(),
-        },
-    )
-    .await;
+    let read_after_restart = fixture
+        .request_any_replica(
+            2,
+            PaxosCommand::GET {
+                key: "reconfig_restart_key".to_string(),
+            },
+            Duration::from_secs(20),
+        )
+        .await
+        .expect("read after restart should return a response");
     match read_after_restart {
         ReplyOutcome::GetOk { value, .. } => assert_eq!(value.0, 11),
         other => panic!("expected GetOk after restart, got: {:?}", other),
     }
 
-    let write_after_restart = request_via_cluster(
-        &cluster,
-        3,
-        PaxosCommand::PUT {
-            key: "reconfig_restart_key".to_string(),
-            version: 1,
-            value: 42,
-        },
-    )
-    .await;
+    let write_after_restart = fixture
+        .request_any_replica(
+            3,
+            PaxosCommand::PUT {
+                key: "reconfig_restart_key".to_string(),
+                version: 1,
+                value: 42,
+            },
+            Duration::from_secs(20),
+        )
+        .await
+        .expect("write after restart should return a response");
     assert!(
         matches!(write_after_restart, ReplyOutcome::WriteOk { .. }),
         "expected write after restart to succeed, got: {:?}",
         write_after_restart
     );
 
-    let read_after_write = request_via_cluster(
-        &cluster,
-        4,
-        PaxosCommand::GET {
-            key: "reconfig_restart_key".to_string(),
-        },
-    )
-    .await;
+    let read_after_write = fixture
+        .request_any_replica(
+            4,
+            PaxosCommand::GET {
+                key: "reconfig_restart_key".to_string(),
+            },
+            Duration::from_secs(20),
+        )
+        .await
+        .expect("read after write should return a response");
     match read_after_write {
         ReplyOutcome::GetOk { value, .. } => assert_eq!(value.0, 42),
         other => panic!("expected final GetOk with updated value, got: {:?}", other),
@@ -394,27 +333,26 @@ async fn reconfig_remove_leader_add_replica_preserves_state_and_progresses_after
 
 #[tokio::test]
 async fn update_configuration_lifecycle_finishes_within_30s_and_preserves_state() {
-    let ip = IpAddr::V4([127, 0, 0, 46].into());
-    Persistence::cluster(ip)
-        .purge_cluster_dir()
-        .await
-        .expect("lifecycle test should start from a clean persistence directory");
-    let mut cluster = PmmcCluster::new(ip, 3, Arc::new(NoOpObserver))
+    let mut fixture = PmmcTestCluster::new(3)
         .await
         .expect("three-node PMMC cluster should initialize");
-    cluster.start_all().await;
-    wait_for_leader_index(&cluster, Duration::from_secs(5)).await;
+    fixture
+        .start_ready(Duration::from_secs(8))
+        .await
+        .expect("cluster should become ready");
 
-    let write_before = request_via_cluster(
-        &cluster,
-        1,
-        PaxosCommand::PUT {
-            key: "lifecycle_key".to_string(),
-            version: 1,
-            value: 17,
-        },
-    )
-    .await;
+    let write_before = fixture
+        .request_any_replica(
+            1,
+            PaxosCommand::PUT {
+                key: "lifecycle_key".to_string(),
+                version: 1,
+                value: 17,
+            },
+            Duration::from_secs(20),
+        )
+        .await
+        .expect("initial write should succeed");
     assert!(
         matches!(write_before, ReplyOutcome::WriteOk { .. }),
         "expected initial write to succeed, got: {:?}",
@@ -422,31 +360,43 @@ async fn update_configuration_lifecycle_finishes_within_30s_and_preserves_state(
     );
 
     let patch = ReconfigPatch::new().alpha_max_inflight(9);
-    timeout(Duration::from_secs(30), cluster.update_configuration(patch))
-        .await
-        .expect("update_configuration timed out after 30 seconds")
-        .expect("update_configuration should succeed");
+    timeout(
+        Duration::from_secs(30),
+        fixture.reconfigure_and_ready(patch, Duration::from_secs(30)),
+    )
+    .await
+    .expect("update_configuration timed out after 30 seconds")
+    .expect("update_configuration should succeed");
 
-    wait_for_leader_index(&cluster, Duration::from_secs(5)).await;
+    let cluster = fixture.cluster();
 
     let status_node = cluster.get_node_uuids()[0];
     let status = cluster
         .runtime_registry
-        .configuration_operation(status_node, ConfigurationCommand::Status, Duration::from_secs(2))
+        .configuration_operation(
+            status_node,
+            ConfigurationCommand::Status,
+            Duration::from_secs(2),
+        )
         .await
         .expect("status should be queryable after update_configuration");
     assert_eq!(status, ConfigurationReplyOutcome::Active);
 
-    let read_after = request_via_cluster(
-        &cluster,
-        2,
-        PaxosCommand::GET {
-            key: "lifecycle_key".to_string(),
-        },
-    )
-    .await;
+    let read_after = fixture
+        .request_any_replica(
+            2,
+            PaxosCommand::GET {
+                key: "lifecycle_key".to_string(),
+            },
+            Duration::from_secs(20),
+        )
+        .await
+        .expect("read after lifecycle update should succeed");
     match read_after {
         ReplyOutcome::GetOk { value, .. } => assert_eq!(value.0, 17),
-        other => panic!("expected persisted value after lifecycle restart, got: {:?}", other),
+        other => panic!(
+            "expected persisted value after lifecycle restart, got: {:?}",
+            other
+        ),
     }
 }

@@ -26,10 +26,13 @@ async fn wait_for_stop_response_ignores_non_matching_messages() {
             .await;
     });
 
-    let outcome =
-        NodeAdmin::wait_for_stop_response(&mut rx, Instant::now() + Duration::from_secs(1), request_id)
-            .await
-            .expect("matching stop response should be accepted");
+    let outcome = NodeAdmin::wait_for_stop_response(
+        &mut rx,
+        Instant::now() + Duration::from_secs(1),
+        request_id,
+    )
+    .await
+    .expect("matching stop response should be accepted");
 
     assert_eq!(outcome, ConfigurationReplyOutcome::Stopped);
 }

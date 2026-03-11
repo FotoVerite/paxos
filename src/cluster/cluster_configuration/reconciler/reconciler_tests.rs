@@ -9,15 +9,24 @@ use uuid::Uuid;
 
 use super::*;
 use crate::cluster::cluster_configuration::{ConfigurationStatus, ConfigurationStrategy};
-use crate::rsm::checkpoint::{CheckpointManifest, CheckpointState, RsmCheckpoint, RsmCheckpointState};
+use crate::rsm::checkpoint::{
+    CheckpointManifest, CheckpointState, RsmCheckpoint, RsmCheckpointState,
+};
 
 #[derive(Clone)]
 struct MockOps {
-    stop_results: Arc<Mutex<HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>>>,
-    status_batches:
-        Arc<Mutex<VecDeque<HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>>>>,
-    checkpoint_batches:
-        Arc<Mutex<VecDeque<HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>>>>,
+    stop_results:
+        Arc<Mutex<HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>>>,
+    status_batches: Arc<
+        Mutex<
+            VecDeque<HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>>,
+        >,
+    >,
+    checkpoint_batches: Arc<
+        Mutex<
+            VecDeque<HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>>,
+        >,
+    >,
     stop_calls: Arc<Mutex<Vec<Uuid>>>,
     status_default: ConfigurationReplyOutcome,
 }
@@ -167,7 +176,12 @@ fn base_configuration(replica_ids: [Uuid; 2]) -> Arc<ClusterConfiguration> {
     })
 }
 
-fn checkpoint(source_node: Uuid, config_id: u64, epoch: u64, last_applied_slot: usize) -> RsmCheckpoint {
+fn checkpoint(
+    source_node: Uuid,
+    config_id: u64,
+    epoch: u64,
+    last_applied_slot: usize,
+) -> RsmCheckpoint {
     let manifest = CheckpointManifest::new(
         Uuid::new_v4(),
         source_node,
@@ -244,18 +258,20 @@ async fn wait_until_replicas_stopped_succeeds_after_active_then_stopped() {
     let reconciler = ClusterReconciler::try_from((Arc::clone(&prev), ReconfigPatch::new()))
         .expect("reconciler should build");
 
-    let first_status: HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>> = [
-        (r0, Ok(ConfigurationReplyOutcome::Active)),
-        (r1, Ok(ConfigurationReplyOutcome::Stopped)),
-    ]
-    .into_iter()
-    .collect();
-    let second_status: HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>> = [
-        (r0, Ok(ConfigurationReplyOutcome::Stopped)),
-        (r1, Ok(ConfigurationReplyOutcome::Stopped)),
-    ]
-    .into_iter()
-    .collect();
+    let first_status: HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>> =
+        [
+            (r0, Ok(ConfigurationReplyOutcome::Active)),
+            (r1, Ok(ConfigurationReplyOutcome::Stopped)),
+        ]
+        .into_iter()
+        .collect();
+    let second_status: HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>> =
+        [
+            (r0, Ok(ConfigurationReplyOutcome::Stopped)),
+            (r1, Ok(ConfigurationReplyOutcome::Stopped)),
+        ]
+        .into_iter()
+        .collect();
 
     let mock = MockOps::default()
         .with_status_batch(first_status)
@@ -304,7 +320,10 @@ async fn get_checkpoint_selects_highest_checkpoint() {
     let higher = checkpoint(r1, 7, 1, 22);
     let batch: HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>> = [
         (r0, Ok(ConfigurationReplyOutcome::Checkpoint(lower.clone()))),
-        (r1, Ok(ConfigurationReplyOutcome::Checkpoint(higher.clone()))),
+        (
+            r1,
+            Ok(ConfigurationReplyOutcome::Checkpoint(higher.clone())),
+        ),
     ]
     .into_iter()
     .collect();

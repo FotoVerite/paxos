@@ -2,9 +2,7 @@ use std::collections::HashSet;
 
 use uuid::Uuid;
 
-use crate::cluster::cluster_configuration::{
-    ConfigurationStrategy, reconfig_patch::ReconfigPatch,
-};
+use crate::cluster::cluster_configuration::{ConfigurationStrategy, reconfig_patch::ReconfigPatch};
 use crate::node::config::Roles;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

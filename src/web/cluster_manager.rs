@@ -247,8 +247,10 @@ impl ClusterManager {
                 .set_cluster_info(node_count, cluster.quorum_size(), cluster.get_node_uuids())
                 .await;
             cluster.enable_failures().await;
-            cluster.start_all().await;
-            sleep(Duration::from_millis(100)).await;
+            cluster
+                .start_all_ready(Duration::from_secs(8))
+                .await
+                .map_err(|err| anyhow::anyhow!("PMMC cluster failed readiness barrier: {err}"))?;
 
             let cluster_arc = Arc::new(Mutex::new(cluster));
             self.store_active_cluster(ActiveCluster::Pmmc(cluster_arc.clone()))
