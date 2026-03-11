@@ -338,7 +338,7 @@ mod tests {
         handler.register_endpoint(endpoint, endpoint_tx).await;
 
         let op = handler
-            .submit(endpoint, ConfigurationCommand::Emit)
+            .submit(endpoint, ConfigurationCommand::Status)
             .await
             .expect("submit should succeed");
 
@@ -350,7 +350,7 @@ mod tests {
             first_msg,
             ConfigurationHandlerMessage::Reconfigure {
                 request_id,
-                cmd: ConfigurationCommand::Emit
+                cmd: ConfigurationCommand::Status
             } if request_id == op
         ));
 
@@ -399,7 +399,7 @@ mod tests {
         handler.register_endpoint(endpoint, endpoint_tx).await;
 
         let op = handler
-            .submit(endpoint, ConfigurationCommand::Emit)
+            .submit(endpoint, ConfigurationCommand::Status)
             .await
             .expect("submit should succeed");
 

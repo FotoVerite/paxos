@@ -71,7 +71,7 @@ impl Replica {
 
     pub(crate) async fn emit_checkpoint(&self) -> RsmCheckpoint {
         let next_execution_slot = self.state.execution_slot().await;
-        let last_applied_slot = next_execution_slot.saturating_sub(1);
+        let last_applied_slot = next_execution_slot.checked_sub(1);
         let rsm_state = self.store.emit_checkpoint_state().await;
         let client_dedup_watermark = self.state.client_dedup_watermark().await;
         let manifest = CheckpointManifest::new(

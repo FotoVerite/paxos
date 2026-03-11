@@ -1,6 +1,6 @@
 use crate::rsm::types::{ClerkResponseError, KVResult, KVValue, KVVersion};
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KVEntry {
     pub value: KVValue,
     pub version: KVVersion,

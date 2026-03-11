@@ -1,4 +1,4 @@
-use crate::node::config::Roles;
+use crate::{node::config::Roles, rsm::checkpoint::RsmCheckpoint};
 use uuid::Uuid;
 
 pub type ConfigurationOperationId = u64;
@@ -10,6 +10,7 @@ pub enum ConfigurationReplyOutcome {
     Stopped,
     Active,
     Data,
+    Checkpoint(RsmCheckpoint),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -49,6 +50,9 @@ pub enum ConfigurationHandlerError {
     Conflict { reason: String },
     #[error("internal configuration handler error: {reason}")]
     Internal { reason: String },
+
+    #[error("no viable checkpoint produced")]
+    NoCheckpoint,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -56,7 +60,8 @@ pub enum ConfigurationCommand {
     Stop,
     Add { roles: Roles },
     Remove { roles: Roles },
-    Emit,
+    Status,
+    Checkpoint,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -1,17 +1,19 @@
 mod conversions;
-pub mod reconfig_errors;
+pub mod reconciler;
 pub mod reconfig_patch;
+mod types;
 
 use std::collections::HashMap;
 use std::net::IpAddr;
 
 use uuid::Uuid;
 
-use crate::cluster::cluster_configuration::reconfig_errors::ReconfigError;
+use crate::cluster::cluster_configuration::types::ReconfigError;
 use crate::node::config::{ClassicNodeConfig, PmmcNodeConfig, Roles};
+use crate::rsm::checkpoint::RsmCheckpoint;
 use crate::rsm::entry::KVEntry;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ConfigurationStatus {
     PENDING,
     ACTIVE,
@@ -19,7 +21,7 @@ pub enum ConfigurationStatus {
     FAILED,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ConfigurationStrategy {
     JointConsensus,
     StopSign,
@@ -28,16 +30,15 @@ pub enum ConfigurationStrategy {
     BrickWall,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ClusterConfiguration {
     id: u64,
     status: ConfigurationStatus,
     nodes: Vec<(Uuid, Roles)>,
     strategy: ConfigurationStrategy,
     epoch: usize,
-    starting_slot: usize,
     alpha_max_inflight: usize,
-    kv_store: Option<HashMap<String, KVEntry>>,
+    checkpoint: Option<RsmCheckpoint>,
 }
 
 impl ClusterConfiguration {
@@ -67,13 +68,12 @@ impl ClusterConfiguration {
         };
         Ok(Self {
             id: 0,
-            starting_slot: 0,
             epoch: 1,
             status: ConfigurationStatus::ACTIVE,
             nodes,
             strategy,
             alpha_max_inflight,
-            kv_store: None,
+            checkpoint: None,
         })
     }
 
@@ -102,10 +102,10 @@ impl ClusterConfiguration {
         self.id.clone() + 1
     }
 
-    pub fn starting_slot(&self) -> usize {
-        self.starting_slot
-    }
 
+    fn next_epoch(&self) -> usize {
+        self.epoch.clone() + 1
+    }
     pub fn strategy(&self) -> ConfigurationStrategy {
         self.strategy
     }
@@ -122,8 +122,27 @@ impl ClusterConfiguration {
         self.status
     }
 
+    pub fn starting_slot(&self) -> usize {
+        match &self.checkpoint {
+            None => 0,
+            Some(checkpoint) => checkpoint
+                .manifest()
+                .last_applied_slot()
+                .map_or(0, |slot| slot + 1),
+        }
+    }
     pub fn kv_store(&self) -> Option<HashMap<String, KVEntry>> {
-        self.kv_store.clone()
+        match &self.checkpoint {
+            None => None,
+            Some(checkpoint) => Some(checkpoint.state().kv_store().clone())
+        }
+    }
+
+    pub fn add_checkpoint(&mut self, checkpoint: RsmCheckpoint) {
+        if self.status != ConfigurationStatus::PENDING {
+            return;
+        }
+        self.checkpoint = Some(checkpoint)
     }
 
     fn pmmc_node_uuid(ip: IpAddr, node_id: usize) -> Uuid {
@@ -195,9 +214,12 @@ impl ClusterConfiguration {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use uuid::Uuid;
 
     use super::*;
+    use crate::rsm::checkpoint::{CheckpointManifest, CheckpointState, RsmCheckpoint, RsmCheckpointState};
 
     fn roles(proposer: bool, acceptor: bool, learner: bool) -> Roles {
         Roles {
@@ -226,8 +248,7 @@ mod tests {
             nodes,
             strategy: ConfigurationStrategy::JointConsensus,
             alpha_max_inflight: 0,
-            starting_slot: 0,
-            kv_store: None,
+            checkpoint: None,
         }
     }
 
@@ -316,5 +337,43 @@ mod tests {
         assert_eq!(members[1].0, ClusterConfiguration::classic_node_uuid(ip, 1));
         assert_eq!(members[2].0, ClusterConfiguration::classic_node_uuid(ip, 2));
         assert_eq!(cfg.quorum(), 2);
+    }
+
+    #[test]
+    fn starting_slot_is_zero_when_checkpoint_has_no_applied_slots() {
+        let mut cfg = config();
+        let checkpoint = RsmCheckpoint::new(
+            CheckpointManifest::new(
+                Uuid::new_v4(),
+                Uuid::new_v4(),
+                1,
+                1,
+                None,
+                1_742_123_456_789,
+            ),
+            CheckpointState::new(RsmCheckpointState::new(HashMap::new()), HashMap::new()),
+        );
+        cfg.checkpoint = Some(checkpoint);
+
+        assert_eq!(cfg.starting_slot(), 0);
+    }
+
+    #[test]
+    fn starting_slot_advances_from_last_applied_slot() {
+        let mut cfg = config();
+        let checkpoint = RsmCheckpoint::new(
+            CheckpointManifest::new(
+                Uuid::new_v4(),
+                Uuid::new_v4(),
+                1,
+                1,
+                Some(17),
+                1_742_123_456_789,
+            ),
+            CheckpointState::new(RsmCheckpointState::new(HashMap::new()), HashMap::new()),
+        );
+        cfg.checkpoint = Some(checkpoint);
+
+        assert_eq!(cfg.starting_slot(), 18);
     }
 }

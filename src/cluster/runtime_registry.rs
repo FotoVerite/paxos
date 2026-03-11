@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -6,6 +6,7 @@ use tokio::sync::{
     Mutex, RwLock,
     mpsc::{self, Receiver, Sender},
 };
+use tokio::task::JoinSet;
 use uuid::Uuid;
 
 use crate::cluster::{
@@ -172,6 +173,7 @@ impl RuntimeRegistry {
         Ok(())
     }
 
+
     pub async fn stop_process(&self, id: Uuid) {
         if let Some(member) = self.get(id).await {
             member.stop().await;
@@ -209,6 +211,66 @@ impl RuntimeRegistry {
         self.handler.await_outcome(operation_id, timeout).await
     }
 
+    pub async fn configuration_operation(
+        &self,
+        endpoint: Uuid,
+        cmd: ConfigurationCommand,
+        timeout: Duration,
+    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        let operation_id = self.submit_configuration_op(endpoint, cmd).await?;
+        self.await_configuration_op(operation_id, timeout).await
+    }
+
+    pub async fn configuration_operation_batch<I, F>(
+        &self,
+        endpoints: I,
+        mut cmd_for: F,
+        timeout: Duration,
+    ) -> HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>
+    where
+        I: IntoIterator<Item = Uuid>,
+        F: FnMut(Uuid) -> ConfigurationCommand,
+    {
+        let mut results: HashMap<
+            Uuid,
+            Result<ConfigurationReplyOutcome, ConfigurationHandlerError>,
+        > = HashMap::new();
+        let mut pending: Vec<(Uuid, ConfigurationOperationId)> = Vec::new();
+
+        for endpoint in endpoints {
+            let cmd = cmd_for(endpoint);
+            match self.submit_configuration_op(endpoint, cmd).await {
+                Ok(operation_id) => pending.push((endpoint, operation_id)),
+                Err(err) => {
+                    results.insert(endpoint, Err(err));
+                }
+            }
+        }
+
+        let mut set = JoinSet::new();
+        for (endpoint, operation_id) in pending {
+            results.insert(
+                endpoint,
+                Err(ConfigurationHandlerError::Internal {
+                    reason: "configuration batch await task did not complete".to_string(),
+                }),
+            );
+            let handler = Arc::clone(&self.handler);
+            set.spawn(async move {
+                let outcome = handler.await_outcome(operation_id, timeout).await;
+                (endpoint, outcome)
+            });
+        }
+
+        while let Some(joined) = set.join_next().await {
+            if let Ok((endpoint, outcome)) = joined {
+                results.insert(endpoint, outcome);
+            }
+        }
+
+        results
+    }
+
     pub async fn configuration_op_status(
         &self,
         operation_id: ConfigurationOperationId,
@@ -232,6 +294,16 @@ impl RuntimeRegistry {
         if let Some(member) = self.get(uuid).await {
             member.start().await;
         }
+    }
+
+    pub async fn reset(&mut self) {
+        for member in self.member_ids.iter() {
+            self.stop_member(*member).await;
+            self.unregister_configuration_endpoint(*member).await;
+            self.fabric.unregister(*member).await;
+        }
+        *self.members.write().await = HashMap::new();
+        self.member_ids.clear();
     }
 
     pub async fn stop_member(&self, uuid: Uuid) {

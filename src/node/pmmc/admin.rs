@@ -17,7 +17,6 @@ use crate::{
 };
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(5);
-const STOP_RETRY_POLL: Duration = Duration::from_millis(400);
 
 pub struct NodeAdmin {
     client_id: Uuid,
@@ -30,7 +29,7 @@ struct AdminRuntimeState {
     endpoint_rx: Option<mpsc::Receiver<ConfigurationHandlerMessage>>,
     endpoint_tx: Option<mpsc::Sender<ConfigurationHandlerMessage>>,
     task: Option<JoinHandle<()>>,
-    stop_responses: Option<mpsc::Receiver<ClientMessage>>,
+    internal_client_responses: Option<mpsc::Receiver<ClientMessage>>,
 }
 
 impl NodeAdmin {
@@ -46,7 +45,7 @@ impl NodeAdmin {
                 endpoint_rx: None,
                 endpoint_tx: None,
                 task: None,
-                stop_responses: None,
+                internal_client_responses: None,
             }),
         }
     }
@@ -90,7 +89,7 @@ impl NodeAdmin {
         let (running, had_client) = {
             let mut runtime = self.runtime.lock().await;
             let running = runtime.task.take();
-            let had_client = runtime.stop_responses.take().is_some();
+            let had_client = runtime.internal_client_responses.take().is_some();
             (running, had_client)
         };
 
@@ -110,7 +109,8 @@ impl NodeAdmin {
     ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
         match cmd {
             ConfigurationCommand::Stop => self.submit_stop().await,
-            ConfigurationCommand::Emit => self.emit_status().await,
+            ConfigurationCommand::Status => self.emit_status().await,
+            ConfigurationCommand::Checkpoint => self.emit_checkpoint().await,
             ConfigurationCommand::Add { .. } | ConfigurationCommand::Remove { .. } => {
                 Err(ConfigurationHandlerError::InvalidRequest {
                     reason: "membership commands are handled by node state".to_string(),
@@ -152,22 +152,12 @@ impl NodeAdmin {
     }
 
     async fn ensure_internal_client_registered(&self) {
-        let needs_registration = {
-            let runtime = self.runtime.lock().await;
-            runtime.stop_responses.is_none()
-        };
-
-        if !needs_registration {
-            return;
-        }
-
-        let response_rx = self.state.register_internal_client(self.client_id, 8).await;
         let mut runtime = self.runtime.lock().await;
-        if runtime.stop_responses.is_none() {
-            runtime.stop_responses = Some(response_rx);
-        } else {
-            drop(runtime);
-            self.state.unregister_internal_client(self.client_id).await;
+        if runtime.internal_client_responses.is_none() {
+            // Keep the lock through registration so we never race two registrations
+            // for the same admin client id and accidentally unregister the winner.
+            let response_rx = self.state.register_internal_client(self.client_id, 8).await;
+            runtime.internal_client_responses = Some(response_rx);
         }
     }
 
@@ -179,25 +169,44 @@ impl NodeAdmin {
         }
     }
 
+    async fn emit_checkpoint(
+        &self,
+    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        let replica = self.require_replica()?;
+        self.ensure_internal_client_registered().await;
+
+        if self.state.is_stopped().await {
+            Ok(ConfigurationReplyOutcome::Checkpoint(
+                replica.emit_checkpoint().await,
+            ))
+        } else {
+            Ok(ConfigurationReplyOutcome::Ok)
+        }
+    }
+
     async fn submit_stop(&self) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
         let replica = self.require_replica()?;
         self.ensure_internal_client_registered().await;
 
         let mut resp_rx = {
             let mut runtime = self.runtime.lock().await;
-            runtime
-                .stop_responses
-                .take()
-                .ok_or_else(|| ConfigurationHandlerError::Internal {
+            runtime.internal_client_responses.take().ok_or_else(|| {
+                ConfigurationHandlerError::Internal {
                     reason: "admin stop response receiver not registered".to_string(),
-                })?
+                }
+            })?
         };
 
-        let result = self.propose_stop_until_ack(&replica, &mut resp_rx).await;
+        let request_id = self.next_request_id();
+        let command = PaxosCommand::STOP.with_client(self.client_id, request_id);
+        replica.propose_from_client(command).await;
+        let result =
+            Self::wait_for_stop_response(&mut resp_rx, Instant::now() + STOP_TIMEOUT, request_id)
+                .await;
 
         let mut runtime = self.runtime.lock().await;
-        if runtime.stop_responses.is_none() {
-            runtime.stop_responses = Some(resp_rx);
+        if runtime.internal_client_responses.is_none() {
+            runtime.internal_client_responses = Some(resp_rx);
         }
         result
     }
@@ -210,46 +219,32 @@ impl NodeAdmin {
             })
     }
 
-    async fn propose_stop_until_ack(
-        &self,
-        replica: &Replica,
-        resp_rx: &mut mpsc::Receiver<ClientMessage>,
-    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
-        let deadline = Instant::now() + STOP_TIMEOUT;
-        loop {
-            let request_id = self.next_request_id();
-            let command = PaxosCommand::STOP.with_client(self.client_id, request_id);
-            replica.propose_from_client(command).await;
-            if let Some(outcome) = self
-                .wait_for_stop_response(resp_rx, deadline, request_id)
-                .await?
-            {
-                return Ok(outcome);
-            }
-        }
-    }
-
     async fn wait_for_stop_response(
-        &self,
         resp_rx: &mut mpsc::Receiver<ClientMessage>,
         deadline: Instant,
         request_id: u64,
-    ) -> Result<Option<ConfigurationReplyOutcome>, ConfigurationHandlerError> {
-        let now = Instant::now();
-        if now >= deadline {
-            return Err(ConfigurationHandlerError::Timeout);
-        }
+    ) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
+        loop {
+            let now = Instant::now();
+            if now >= deadline {
+                return Err(ConfigurationHandlerError::Timeout);
+            }
 
-        let poll = (deadline - now).min(STOP_RETRY_POLL);
-        match timeout(poll, resp_rx.recv()).await {
-            Ok(Some(ClientMessage::RESPONSE {
-                request_id: response_id,
-                ..
-            })) if response_id == request_id => Ok(Some(ConfigurationReplyOutcome::Stopped)),
-            Ok(Some(ClientMessage::RESPONSE { .. })) => Ok(None),
-            Ok(Some(_)) => Ok(None),
-            Ok(None) => Err(ConfigurationHandlerError::ResponseChannelClosed),
-            Err(_) => Ok(None),
+            match timeout(deadline - now, resp_rx.recv()).await {
+                Ok(Some(ClientMessage::RESPONSE {
+                    request_id: response_id,
+                    ..
+                })) if response_id == request_id => {
+                    return Ok(ConfigurationReplyOutcome::Stopped);
+                }
+                Ok(Some(ClientMessage::RESPONSE { .. })) => {}
+                Ok(Some(_)) => {}
+                Ok(None) => return Err(ConfigurationHandlerError::ResponseChannelClosed),
+                Err(_) => return Err(ConfigurationHandlerError::Timeout),
+            }
         }
     }
 }
+
+#[cfg(test)]
+mod admin_tests;

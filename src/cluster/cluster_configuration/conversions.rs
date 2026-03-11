@@ -1,27 +1,25 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use uuid::Uuid;
 
 use crate::cluster::cluster_configuration::{
-    ClusterConfiguration, ConfigurationStatus, reconfig_errors::ReconfigError,
-    reconfig_patch::ReconfigPatch,
+    ClusterConfiguration, ConfigurationStatus, reconfig_patch::ReconfigPatch, types::ReconfigError,
 };
 
-impl TryFrom<(&ClusterConfiguration, ReconfigPatch)> for ClusterConfiguration {
+impl TryFrom<(Arc<ClusterConfiguration>, ReconfigPatch)> for ClusterConfiguration {
     type Error = ReconfigError;
 
     fn try_from(
-        (prev, patch): (&ClusterConfiguration, ReconfigPatch),
+        (prev, patch): (Arc<ClusterConfiguration>, ReconfigPatch),
     ) -> Result<Self, Self::Error> {
         let mut new_config = Self {
             id: prev.next_id(),
-            epoch: prev.epoch,
+            epoch: prev.next_epoch(),
             strategy: prev.strategy,
             status: ConfigurationStatus::PENDING,
             nodes: prev.nodes.clone(),
             alpha_max_inflight: prev.alpha_max_inflight,
-            starting_slot: prev.starting_slot,
-            kv_store: None,
+            checkpoint: None,
         };
         for (uuid, roles) in patch.add {
             if new_config
@@ -110,18 +108,17 @@ mod tests {
             nodes,
             strategy: ConfigurationStrategy::JointConsensus,
             alpha_max_inflight: 5,
-            starting_slot: 0,
-            kv_store: None,
+            checkpoint: None,
         }
     }
 
     #[test]
     fn add_node_extends_previous_configuration() {
-        let prev = base_config();
+        let prev = Arc::new(base_config());
         let new_uuid = Uuid::from_u128(3);
 
         let next = ClusterConfiguration::try_from((
-            &prev,
+            Arc::clone(&prev),
             ReconfigPatch::new().add_node(new_uuid, roles(true, false, false)),
         ))
         .expect("add should succeed");
@@ -133,12 +130,14 @@ mod tests {
 
     #[test]
     fn remove_existing_node_from_previous_configuration() {
-        let prev = base_config();
+        let prev = Arc::new(base_config());
         let remove_uuid = Uuid::from_u128(22);
 
-        let next =
-            ClusterConfiguration::try_from((&prev, ReconfigPatch::new().remove_node(remove_uuid)))
-                .expect("remove should succeed");
+        let next = ClusterConfiguration::try_from((
+            Arc::clone(&prev),
+            ReconfigPatch::new().remove_node(remove_uuid),
+        ))
+        .expect("remove should succeed");
 
         assert!(!next.nodes.iter().any(|(uuid, _)| *uuid == remove_uuid));
         assert_eq!(next.nodes.len(), prev.nodes.len() - 1);
@@ -146,10 +145,10 @@ mod tests {
 
     #[test]
     fn patch_can_override_strategy() {
-        let prev = base_config();
+        let prev = Arc::new(base_config());
 
         let next = ClusterConfiguration::try_from((
-            &prev,
+            Arc::clone(&prev),
             ReconfigPatch::new().strategy(ConfigurationStrategy::BrickWall),
         ))
         .expect("strategy-only reconfig should succeed");
@@ -159,11 +158,11 @@ mod tests {
 
     #[test]
     fn duplicate_add_is_rejected() {
-        let prev = base_config();
+        let prev = Arc::new(base_config());
         let existing_uuid = Uuid::from_u128(1);
 
         let result = ClusterConfiguration::try_from((
-            &prev,
+            Arc::clone(&prev),
             ReconfigPatch::new().add_node(existing_uuid, roles(true, true, false)),
         ));
 
@@ -172,10 +171,10 @@ mod tests {
 
     #[test]
     fn removing_last_acceptor_is_rejected() {
-        let prev = base_config();
+        let prev = Arc::new(base_config());
 
         let result = ClusterConfiguration::try_from((
-            &prev,
+            Arc::clone(&prev),
             ReconfigPatch::new().remove_node(Uuid::from_u128(1)),
         ));
 
@@ -184,10 +183,10 @@ mod tests {
 
     #[test]
     fn removing_last_leader_is_rejected() {
-        let prev = base_config();
+        let prev = Arc::new(base_config());
 
         let result = ClusterConfiguration::try_from((
-            &prev,
+            Arc::clone(&prev),
             ReconfigPatch::new().remove_node(Uuid::from_u128(11)),
         ));
 
@@ -196,10 +195,10 @@ mod tests {
 
     #[test]
     fn removing_last_learner_is_rejected() {
-        let prev = base_config();
+        let prev = Arc::new(base_config());
 
         let result = ClusterConfiguration::try_from((
-            &prev,
+            Arc::clone(&prev),
             ReconfigPatch::new()
                 .remove_node(Uuid::from_u128(2))
                 .remove_node(Uuid::from_u128(22)),

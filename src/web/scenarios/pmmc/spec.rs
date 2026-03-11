@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::reconfiguration::PmmcReconfigurationSpec;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PmmcScenarioSpec {
     pub name: String,
@@ -11,6 +13,8 @@ pub struct PmmcScenarioSpec {
     pub completion: PmmcCompletion,
     #[serde(default)]
     pub actions: Vec<PmmcActionRule>,
+    #[serde(default)]
+    pub reconfiguration: Option<PmmcReconfigurationSpec>,
     #[serde(default)]
     pub timings: PmmcTimingSpec,
 }
@@ -201,6 +205,7 @@ mod tests {
             },
             completion: PmmcCompletion::SuccessCount { count: 5 },
             actions: Vec::new(),
+            reconfiguration: None,
             timings: PmmcTimingSpec::default(),
         };
 
