@@ -5,13 +5,14 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::cluster::cluster_configuration::ClusterConfiguration;
-use crate::cluster::network_fabric::NetworkFabric;
 use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
-use crate::message::{ClientMessage, Message};
+use crate::message::ClientMessage;
 use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
+use crate::node::pmmc::message::PmmcMessage;
 use crate::node::pmmc::replica::replica_state::ReplicaState;
 use crate::node::pmmc::replica::replica_state::durable::ReplicaDurable;
+use crate::node::pmmc::transport::PmmcFabric;
 use crate::node::pvalue::PValue;
 use crate::paxos_command::{ClientId, PaxosCommand};
 use crate::rsm::checkpoint::{CheckpointManifest, CheckpointState, RsmCheckpoint};
@@ -26,7 +27,7 @@ pub struct Replica {
     pub state: Arc<ReplicaState>,
     configuration: Arc<ClusterConfiguration>,
     observer: Arc<dyn PaxosObserver>,
-    fabric: Arc<NetworkFabric>,
+    fabric: Arc<PmmcFabric>,
     client_sink: Arc<dyn ClientReplySink>,
 }
 
@@ -40,7 +41,7 @@ impl Replica {
         uuid: Uuid,
         persistence: NodePersistence,
         observer: Arc<dyn PaxosObserver>,
-        fabric: Arc<NetworkFabric>,
+        fabric: Arc<PmmcFabric>,
         configuration: Arc<ClusterConfiguration>,
         client_sink: Arc<dyn ClientReplySink>,
     ) -> Result<Self> {
@@ -120,7 +121,7 @@ impl Replica {
         }
     }
 
-    pub async fn accepted(&self, pvalue: PValue) -> Message {
+    pub async fn accepted(&self, pvalue: PValue) -> PmmcMessage {
         if let Some(outcome) = self.state.add_decision(pvalue.clone()).await {
             if let ReplicaAdmissionOutcome::Admitted { slot, cmd } = outcome {
                 Self::send_proposal(
@@ -133,7 +134,7 @@ impl Replica {
                 .await;
             }
         }
-        Message::ACK {
+        PmmcMessage::ACK {
             from: self.uuid,
             to: pvalue.ballot().node_id,
             slot: pvalue.slot(),
@@ -144,16 +145,16 @@ impl Replica {
         self.state.max_inflight_exceeded().await
     }
 
-    pub async fn handle_message(&self, msg: Message) -> Message {
+    pub async fn handle_message(&self, msg: PmmcMessage) -> Option<PmmcMessage> {
         match msg {
-            Message::ACCEPTED { pvalue, .. } => self.accepted(pvalue).await,
-            _ => Message::NACK,
+            PmmcMessage::ACCEPTED { pvalue, .. } => Some(self.accepted(pvalue).await),
+            _ => None,
         }
     }
 
     async fn send_proposal(
         uuid: Uuid,
-        fabric: Arc<NetworkFabric>,
+        fabric: Arc<PmmcFabric>,
         slot: usize,
         cmd: PaxosCommand,
         observer: Arc<dyn PaxosObserver>,
@@ -161,7 +162,7 @@ impl Replica {
         fabric
             .broadcast(
                 uuid,
-                Message::PROPOSE {
+                PmmcMessage::PROPOSE {
                     from: uuid,
                     slot,
                     cmd: cmd.clone(),
@@ -230,9 +231,13 @@ mod tests {
 
     use crate::{
         cluster::cluster_configuration::ClusterConfiguration,
-        message::{ClientMessage, Message},
+        common::ballot::Ballot,
+        message::ClientMessage,
         monitor::{NoOpObserver, PaxosObserver},
-        node::{classic_paxos::ballot::Ballot, config::PmmcNodeConfig, pvalue::PValue},
+        node::{
+            config::PmmcNodeConfig, pmmc::message::PmmcMessage, pmmc::transport::new_pmmc_fabric,
+            pvalue::PValue,
+        },
         paxos_command::PaxosCommand,
         rsm::kv_store::KVStore,
     };
@@ -277,9 +282,7 @@ mod tests {
         let uuid = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let configuration = config_for_test();
-        let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
-            Arc::clone(&observer),
-        ));
+        let fabric = Arc::new(new_pmmc_fabric(Arc::clone(&observer)));
         let state = Arc::new(ReplicaState::init(
             ReplicaDurable::default(),
             Arc::clone(&configuration),
@@ -310,15 +313,17 @@ mod tests {
         )
     }
 
-    async fn new_replica_with_peer() -> (Replica, Arc<TestClientSink>, Uuid, mpsc::Receiver<Message>)
-    {
+    async fn new_replica_with_peer() -> (
+        Replica,
+        Arc<TestClientSink>,
+        Uuid,
+        mpsc::Receiver<PmmcMessage>,
+    ) {
         let uuid = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let peer = Uuid::new_v4();
         let (peer_tx, peer_rx) = mpsc::channel(16);
-        let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
-            Arc::clone(&observer),
-        ));
+        let fabric = Arc::new(new_pmmc_fabric(Arc::clone(&observer)));
         fabric.register(peer, peer_tx).await;
         let sink = Arc::new(TestClientSink::new());
         let sink_trait: Arc<dyn ClientReplySink> = sink.clone();
@@ -355,7 +360,7 @@ mod tests {
         let pvalue = PValue::new(0, ballot, cmd.clone());
 
         let reply = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: Uuid::new_v4(),
                 pvalue,
             })
@@ -363,7 +368,7 @@ mod tests {
 
         assert!(matches!(
             reply,
-            Message::ACK { from, to, slot } if from == replica.uuid && to == leader && slot == 0
+            Some(PmmcMessage::ACK { from, to, slot }) if from == replica.uuid && to == leader && slot == 0
         ));
         assert_eq!(replica.state.next_decision().await, Some(cmd));
     }
@@ -376,7 +381,7 @@ mod tests {
         let cmd = client_cmd(20, 2);
 
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: Uuid::new_v4(),
                 pvalue: PValue::new(1, ballot, cmd),
             })
@@ -398,7 +403,7 @@ mod tests {
         let late = client_cmd(99, 4);
 
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: Uuid::new_v4(),
                 pvalue: PValue::new(0, ballot, first.clone()),
             })
@@ -407,7 +412,7 @@ mod tests {
         replica.state.increment_execution_slot().await;
 
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: Uuid::new_v4(),
                 pvalue: PValue::new(0, ballot, late),
             })
@@ -434,7 +439,7 @@ mod tests {
             ReplicaAdmissionOutcome::Admitted { slot: 0, .. }
         ));
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: Uuid::new_v4(),
                 pvalue: PValue::new(0, ballot, decided.clone()),
             })
@@ -463,7 +468,7 @@ mod tests {
             ReplicaAdmissionOutcome::Admitted { slot: 0, .. }
         ));
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: Uuid::new_v4(),
                 pvalue: PValue::new(0, ballot, decided),
             })
@@ -482,7 +487,7 @@ mod tests {
         let cmd1 = client_cmd(81, 13);
 
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: Uuid::new_v4(),
                 pvalue: PValue::new(1, ballot, cmd1.clone()),
             })
@@ -490,7 +495,7 @@ mod tests {
         assert_eq!(replica.state.next_decision().await, None);
 
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: Uuid::new_v4(),
                 pvalue: PValue::new(0, ballot, cmd0.clone()),
             })
@@ -509,7 +514,7 @@ mod tests {
         let fresh = client_cmd(83, 15);
 
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: Uuid::new_v4(),
                 pvalue: PValue::new(0, ballot, learned),
             })
@@ -529,9 +534,7 @@ mod tests {
     async fn duplicate_client_request_returns_cached_response_after_first_execution() {
         let uuid = Uuid::new_v4();
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
-            Arc::clone(&observer),
-        ));
+        let fabric = Arc::new(new_pmmc_fabric(Arc::clone(&observer)));
         let sink = Arc::new(TestClientSink::new());
         let sink_trait: Arc<dyn ClientReplySink> = sink.clone();
         let replica = Replica::new(
@@ -559,7 +562,7 @@ mod tests {
 
         let leader = Uuid::new_v4();
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: leader,
                 pvalue: PValue::new(0, Ballot::new(1, leader), cmd.clone()),
             })
@@ -598,7 +601,7 @@ mod tests {
             .expect("first propose should be broadcast")
             .expect("leader channel should stay open");
         assert!(
-            matches!(first, Message::PROPOSE { slot, .. } if slot == 0),
+            matches!(first, PmmcMessage::PROPOSE { slot, .. } if slot == 0),
             "first broadcast proposal should reserve slot 0"
         );
 
@@ -632,12 +635,12 @@ mod tests {
             .expect("first propose should be broadcast")
             .expect("leader channel should stay open");
         assert!(
-            matches!(first, Message::PROPOSE { slot, .. } if slot == 0),
+            matches!(first, PmmcMessage::PROPOSE { slot, .. } if slot == 0),
             "first broadcast proposal should reserve slot 0"
         );
 
         let _ = replica
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: leader,
                 pvalue: PValue::new(0, Ballot::new(1, leader), cmd.clone()),
             })
@@ -663,15 +666,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unhandled_message_returns_nack() {
+    async fn unhandled_message_returns_none() {
         let (replica, _sink) = new_replica().await;
         let reply = replica
-            .handle_message(Message::P1A {
+            .handle_message(PmmcMessage::P1A {
                 from: Uuid::new_v4(),
                 ballot: Ballot::new(1, Uuid::new_v4()),
                 start_index: 0,
             })
             .await;
-        assert!(matches!(reply, Message::NACK));
+        assert!(reply.is_none());
     }
 }

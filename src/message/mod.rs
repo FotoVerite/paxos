@@ -1,13 +1,13 @@
+pub mod trace;
+pub use trace::MessageTrace;
+
 use std::collections::HashSet;
 
 use uuid::Uuid;
 
 use crate::{
-    cluster::configuration_handler::types::ConfigurationCommand,
-    common::types::DecreeId,
-    node::{classic_paxos::ballot::Ballot, pvalue::PValue},
-    paxos_command::PaxosCommand,
-    rsm::kv_store::ReplyOutcome,
+    common::ballot::Ballot, common::types::DecreeId, node::pvalue::PValue,
+    paxos_command::PaxosCommand, rsm::kv_store::ReplyOutcome,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
@@ -69,9 +69,6 @@ pub enum Message {
         ballot: Ballot,
         pvalues: Vec<PValue>,
     },
-    RECONFIGURE {
-        cmd: ConfigurationCommand,
-    },
     HEARTBEAT {
         from: Uuid,
         ballot: Ballot,
@@ -107,12 +104,43 @@ pub enum Message {
         ballot: Ballot,
         pvalue: PValue,
     },
-    CATCHUP_REQUEST {
-        from: Uuid,
-        to: Uuid,
-        from_slot: usize,
-        epoch: usize,
-    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub enum MessageProtocol {
+    Classic,
+    Pmmc,
+    System,
+}
+
+impl Message {
+    pub fn protocol(&self) -> MessageProtocol {
+        match self {
+            Message::Prepare { .. }
+            | Message::Promise { .. }
+            | Message::Accept { .. }
+            | Message::Accepted { .. }
+            | Message::Success { .. }
+            | Message::PrepareBatch { .. } => MessageProtocol::Classic,
+
+            Message::ACK { .. }
+            | Message::ACCEPTED { .. }
+            | Message::ADOPTED { .. }
+            | Message::HEARTBEAT { .. }
+            | Message::PROPOSE { .. }
+            | Message::PREEMPT { .. }
+            | Message::P1A { .. }
+            | Message::P1B { .. }
+            | Message::P2A { .. }
+            | Message::P2B { .. } => MessageProtocol::Pmmc,
+
+            Message::NACK => MessageProtocol::System,
+        }
+    }
+
+    pub fn should_broadcast_to_visualizer(&self) -> bool {
+        !matches!(self, Message::NACK)
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

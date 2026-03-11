@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_handle::NetworkFailure,
+    common::network_fabric::NetworkFailure,
     monitor::{Event, current_timestamp_millis},
 };
 

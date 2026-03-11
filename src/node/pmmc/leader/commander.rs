@@ -5,12 +5,13 @@ use tokio::{select, time};
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_handle::NetworkHandle,
-    message::Message,
+    common::ballot::Ballot,
     monitor::PaxosObserver,
     node::{
-        classic_paxos::ballot::Ballot,
-        pmmc::{leader::commander::state::CommanderState, proposal::ProposalsStore},
+        pmmc::{
+            leader::commander::state::CommanderState, message::PmmcMessage,
+            proposal::ProposalsStore, transport::PmmcHandle,
+        },
         pvalue::PValue,
     },
     paxos_command::PaxosCommand,
@@ -22,7 +23,7 @@ pub struct Commander {
     uuid: Uuid,
     ballot: Ballot,
     state: Arc<CommanderState>,
-    peers: Arc<NetworkHandle>,
+    peers: Arc<PmmcHandle>,
 }
 
 impl Commander {
@@ -32,7 +33,7 @@ impl Commander {
         ballot: Ballot,
         replicas: Vec<Uuid>,
         proposals: ProposalsStore,
-        peers: Arc<NetworkHandle>,
+        peers: Arc<PmmcHandle>,
         _observer: Arc<dyn PaxosObserver>,
     ) -> Self {
         let state = Arc::new(CommanderState::new(
@@ -57,29 +58,29 @@ impl Commander {
     pub fn stop(&self) {
         self.state.stop();
     }
-    async fn p2b(&mut self, acceptor: Uuid, pvalue: PValue, ballot: Ballot) -> Message {
+    async fn p2b(&mut self, acceptor: Uuid, pvalue: PValue, ballot: Ballot) -> Option<PmmcMessage> {
         if self.ballot < ballot {
-            return Message::PREEMPT {
+            return Some(PmmcMessage::PREEMPT {
                 from: self.uuid,
                 to: self.uuid,
                 ballot,
-            };
+            });
         }
         if self.ballot == ballot {
             return self.state.process(acceptor, pvalue).await;
         }
-        Message::NACK
+        None
     }
 
-    pub async fn handle_message(&mut self, msg: Message) -> Message {
+    pub async fn handle_message(&mut self, msg: PmmcMessage) -> Option<PmmcMessage> {
         match msg {
-            Message::P2B {
+            PmmcMessage::P2B {
                 from,
                 ballot,
                 pvalue,
                 ..
             } => self.p2b(from, pvalue, ballot).await,
-            _ => Message::NACK,
+            _ => None,
         }
     }
 
@@ -100,15 +101,15 @@ impl Commander {
                                 .copied()
                                 .collect();
                             if !unsent.is_empty() {
-                                let msg = Message::ACCEPTED {
+                                let msg = PmmcMessage::ACCEPTED {
                                     from: self.uuid,
                                     pvalue: PValue::new(slot, self.ballot, pending.cmd.clone()),
                                 };
-                                peers.broadcast_to(&msg, &unsent).await;
+                                peers.broadcast_to(msg.clone(), &unsent).await;
                             }
                         } else {
                             peers
-                                .broadcast(Message::P2A {
+                                .broadcast(PmmcMessage::P2A {
                                     from: self.uuid,
                                     pvalue: PValue::new(slot, self.ballot, pending.cmd.clone()),
                                 })

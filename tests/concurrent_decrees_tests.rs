@@ -1,8 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    common::types::DecreeId, message::Message, node::classic_paxos::ballot::Ballot,
-    paxos_command::PaxosCommand,
+    common::ballot::Ballot, common::types::DecreeId,
+    node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -34,15 +34,18 @@ async fn proposer_can_track_multiple_decrees() {
     let msg2 = proposer.propose(DecreeId(2), cmd2.clone()).await;
 
     // Each proposal increments ballot: (1,1), (2,1), (3,1)
-    assert!(
-        matches!(msg0, Message::Prepare { decree_num: dn, ballot, .. } if dn == DecreeId(0) && ballot.number == 1)
-    );
-    assert!(
-        matches!(msg1, Message::Prepare { decree_num: dn, ballot, .. } if dn == DecreeId(1) && ballot.number == 1)
-    );
-    assert!(
-        matches!(msg2, Message::Prepare { decree_num: dn, ballot, .. } if dn == DecreeId(2) && ballot.number == 1)
-    );
+    assert!(matches!(
+        msg0,
+        Message::Prepare { decree_num: dn, ballot, .. } if dn == DecreeId(0) && ballot.number == 1
+    ));
+    assert!(matches!(
+        msg1,
+        Message::Prepare { decree_num: dn, ballot, .. } if dn == DecreeId(1) && ballot.number == 1
+    ));
+    assert!(matches!(
+        msg2,
+        Message::Prepare { decree_num: dn, ballot, .. } if dn == DecreeId(2) && ballot.number == 1
+    ));
 }
 
 #[tokio::test]
@@ -61,8 +64,10 @@ async fn acceptor_can_accept_multiple_decrees() {
             ballot: b,
         })
         .await;
-    assert!(matches!(resp0, Message::Promise { decree_num: dn, .. } if dn == DecreeId(0)));
-
+    assert!(matches!(
+        resp0,
+        Some(Message::Promise { decree_num: dn, .. }) if dn == DecreeId(0)
+    ));
     // Acceptor receives Prepare for decree 1
     let resp1 = acceptor
         .handle_message(Message::Prepare {
@@ -71,8 +76,10 @@ async fn acceptor_can_accept_multiple_decrees() {
             ballot: b,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { decree_num: dn, .. } if dn == DecreeId(1)));
-
+    assert!(matches!(
+        resp1,
+        Some(Message::Promise { decree_num: dn, .. }) if dn == DecreeId(1)
+    ));
     // Acceptor receives Accept for decree 0
     let resp2 = acceptor
         .handle_message(Message::Accept {
@@ -83,8 +90,10 @@ async fn acceptor_can_accept_multiple_decrees() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp2, Message::Accepted { decree_num: dn, .. } if dn == DecreeId(0)));
-
+    assert!(matches!(
+        resp2,
+        Some(Message::Accepted { decree_num: dn, .. }) if dn == DecreeId(0)
+    ));
     // Acceptor receives Accept for decree 1 with different value
     let resp3 = acceptor
         .handle_message(Message::Accept {
@@ -97,8 +106,10 @@ async fn acceptor_can_accept_multiple_decrees() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp3, Message::Accepted { decree_num: dn, .. } if dn == DecreeId(1)));
-
+    assert!(matches!(
+        resp3,
+        Some(Message::Accepted { decree_num: dn, .. }) if dn == DecreeId(1)
+    ));
     // Both decrees should be independent
     observer.wait_for_events().await;
     let accepted_events = observer.accepted().await.len();
@@ -203,10 +214,9 @@ async fn multiple_decrees_with_different_ballots() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp, Message::Accepted { .. }));
-
+    assert!(matches!(resp, Some(Message::Accepted { .. })));
     // But decree 1 is independent - it can accept at its ballot
-    let resp2: Message = acceptor
+    let resp2 = acceptor
         .handle_message(Message::Accept {
             from: test_helpers::test_uuid(2),
             decree_num: DecreeId(1),
@@ -215,7 +225,7 @@ async fn multiple_decrees_with_different_ballots() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp2, Message::Accepted { .. }));
+    assert!(matches!(resp2, Some(Message::Accepted { .. })));
 }
 
 #[tokio::test]
@@ -261,9 +271,14 @@ async fn proposer_handles_promises_for_different_decrees() {
             accepted_value: PaxosCommand::BLANK,
         })
         .await;
-    assert!(
-        matches!(resp0, Message::Accept { decree_num: dn, value, .. } if dn == DecreeId(0) && value == cmd0)
-    );
+    assert!(matches!(
+        resp0,
+        Some(Message::Accept {
+            decree_num: dn,
+            value,
+            ..
+        }) if dn == DecreeId(0) && value == cmd0
+    ));
 
     // Receive promise for decree 1
     let resp1 = proposer
@@ -275,9 +290,14 @@ async fn proposer_handles_promises_for_different_decrees() {
             accepted_value: PaxosCommand::BLANK,
         })
         .await;
-    assert!(
-        matches!(resp1, Message::Accept { decree_num: dn, value, .. } if dn == DecreeId(1) && value == cmd1)
-    );
+    assert!(matches!(
+        resp1,
+        Some(Message::Accept {
+            decree_num: dn,
+            value,
+            ..
+        }) if dn == DecreeId(1) && value == cmd1
+    ));
 }
 
 #[tokio::test]
@@ -315,8 +335,10 @@ async fn concurrent_decrees_dont_interfere() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp, Message::Accepted { ballot, .. } if ballot.number == 5));
-
+    assert!(matches!(
+        resp,
+        Some(Message::Accepted { ballot, .. }) if ballot.number == 5
+    ));
     // Accept for decree 1 should also succeed, as decrees are independent
     let resp2 = acceptor
         .handle_message(Message::Accept {
@@ -327,7 +349,10 @@ async fn concurrent_decrees_dont_interfere() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp2, Message::Accepted { ballot, .. } if ballot.number == 5));
+    assert!(matches!(
+        resp2,
+        Some(Message::Accepted { ballot, .. }) if ballot.number == 5
+    ));
 }
 
 #[tokio::test]
@@ -352,12 +377,16 @@ async fn sequential_decrees_same_proposer() {
 
     // Propose decree 0
     let prepare0 = proposer.propose(DecreeId(0), cmd0.clone()).await;
-    assert!(matches!(prepare0, Message::Prepare { decree_num: dn, .. } if dn == DecreeId(0)));
-
+    assert!(matches!(
+        prepare0,
+        Message::Prepare { decree_num: dn, .. } if dn == DecreeId(0)
+    ));
     // Propose decree 1
     let prepare1 = proposer.propose(DecreeId(1), cmd1.clone()).await;
-    assert!(matches!(prepare1, Message::Prepare { decree_num: dn, .. } if dn == DecreeId(1)));
-
+    assert!(matches!(
+        prepare1,
+        Message::Prepare { decree_num: dn, .. } if dn == DecreeId(1)
+    ));
     // Each proposal increments ballot separately
     if let Message::Prepare { ballot: b0, .. } = prepare0 {
         if let Message::Prepare { ballot: b1, .. } = prepare1 {
@@ -426,7 +455,7 @@ async fn mixed_single_and_multi_decree_flow() {
     // Phase 1: Decree 0
     let prepare0 = proposer.propose(DecreeId(0), cmd0.clone()).await;
     // Extract the ballot from the Prepare message
-    let ballot0 = if let paxos::message::Message::Prepare { ballot, .. } = &prepare0 {
+    let ballot0 = if let Message::Prepare { ballot, .. } = &prepare0 {
         *ballot
     } else {
         panic!("Expected Prepare message");
@@ -454,7 +483,7 @@ async fn mixed_single_and_multi_decree_flow() {
     // Phase 2: Decree 1 while decree 0 is being processed
     let prepare1 = proposer.propose(DecreeId(1), cmd1.clone()).await;
     // Extract the ballot from the Prepare message
-    let ballot1 = if let paxos::message::Message::Prepare { ballot, .. } = &prepare1 {
+    let ballot1 = if let Message::Prepare { ballot, .. } = &prepare1 {
         *ballot
     } else {
         panic!("Expected Prepare message");

@@ -5,13 +5,13 @@ use uuid::Uuid;
 
 use crate::{
     cluster::cluster_configuration::ClusterConfiguration,
-    cluster::network_handle::NetworkHandle,
+    common::ballot::Ballot,
     common::persistence::NodePersistence,
-    message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
-    node::{
-        classic_paxos::ballot::Ballot,
-        pmmc::leader::leader_state::{LeaderState, durable::LeaderDurable},
+    node::pmmc::{
+        leader::leader_state::{LeaderState, durable::LeaderDurable},
+        message::PmmcMessage,
+        transport::PmmcHandle,
     },
     paxos_command::PaxosCommand,
 };
@@ -25,7 +25,7 @@ pub struct Leader {
     persistence: NodePersistence,
     quorum: usize,
     replicas: Vec<Uuid>,
-    peers: Arc<NetworkHandle>,
+    peers: Arc<PmmcHandle>,
     state: Arc<LeaderState>,
     observer: Arc<dyn PaxosObserver>,
 }
@@ -35,7 +35,7 @@ impl Leader {
         uuid: Uuid,
         persistence: NodePersistence,
         configuration: Arc<ClusterConfiguration>,
-        peers: Arc<NetworkHandle>,
+        peers: Arc<PmmcHandle>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
         #[cfg(feature = "persistence")]
@@ -63,7 +63,7 @@ impl Leader {
             .start_scout(self.quorum, Arc::clone(&self.observer))
             .await;
         self.peers
-            .broadcast(Message::P1A {
+            .broadcast(PmmcMessage::P1A {
                 from: self.uuid,
                 ballot,
                 start_index: 0,
@@ -96,24 +96,23 @@ impl Leader {
         }
         let ballot = self.state.ballot().await;
         self.peers
-            .broadcast(Message::HEARTBEAT {
+            .broadcast(PmmcMessage::HEARTBEAT {
                 from: self.uuid,
                 ballot: ballot.clone(),
             })
             .await;
     }
 
-    pub async fn propose_handler(&self, slot: usize, cmd: PaxosCommand) -> Message {
+    pub async fn propose_handler(&self, slot: usize, cmd: PaxosCommand) {
         if !self.state.is_active().await {
-            return Message::NACK;
+            return;
         }
         self.state.add(slot, cmd).await;
-        return Message::NACK;
     }
 
-    async fn heartbeat_handler(&self, from: Uuid, ballot: Ballot) -> Message {
+    async fn heartbeat_handler(&self, from: Uuid, ballot: Ballot) {
         if from == self.uuid {
-            return Message::NACK;
+            return;
         }
         let was_leader = self.state.is_active().await;
         self.state.heartbeat_handler(ballot).await;
@@ -123,7 +122,6 @@ impl Leader {
                 created_at: current_timestamp_millis(),
             });
         }
-        return Message::NACK;
     }
 
     async fn preempt(&self, ballot: Ballot) {
@@ -152,29 +150,35 @@ impl Leader {
         self.state.election_deadline().await
     }
 
-    pub async fn handle_message(&self, msg: Message) -> Message {
+    pub async fn handle_message<M>(&self, msg: M) -> Option<PmmcMessage>
+    where
+        M: TryInto<PmmcMessage>,
+    {
+        let msg = msg.try_into().ok()?;
         match msg {
-            Message::ADOPTED { ballot, .. } => {
+            PmmcMessage::ADOPTED { ballot, .. } => {
                 self.become_active(ballot).await;
-                return Message::NACK;
+                None
             }
-            Message::HEARTBEAT { from, ballot } => {
+            PmmcMessage::HEARTBEAT { from, ballot } => {
                 self.heartbeat_handler(from, ballot).await;
-                return Message::NACK;
+                None
             }
-            Message::PROPOSE { from: _, slot, cmd } => self.propose_handler(slot, cmd).await,
-            Message::ACK { from, slot, .. } => {
+            PmmcMessage::PROPOSE { from: _, slot, cmd } => {
+                self.propose_handler(slot, cmd).await;
+                None
+            }
+            PmmcMessage::ACK { from, slot, .. } => {
                 self.state.handle_ack(from, slot).await;
-                Message::NACK
+                None
             }
-            Message::P1B { .. } => self.state.handle_p1b(msg.clone()).await,
-
-            Message::P2B { .. } => self.state.handle_p2b(msg.clone()).await,
-            Message::PREEMPT { ballot, .. } => {
+            msg @ PmmcMessage::P1B { .. } => self.state.handle_p1b(msg).await,
+            msg @ PmmcMessage::P2B { .. } => self.state.handle_p2b(msg).await,
+            PmmcMessage::PREEMPT { ballot, .. } => {
                 self.preempt(ballot).await;
-                return Message::NACK;
+                None
             }
-            _ => Message::NACK,
+            _ => None,
         }
     }
 }
@@ -191,10 +195,14 @@ mod tests {
 
     use crate::{
         cluster::cluster_configuration::ClusterConfiguration,
-        cluster::network_handle::NetworkHandle,
+        common::ballot::Ballot,
         message::Message,
         monitor::{NoOpObserver, PaxosObserver},
-        node::{classic_paxos::ballot::Ballot, config::PmmcNodeConfig, pvalue::PValue},
+        node::{
+            config::PmmcNodeConfig,
+            pmmc::{message::PmmcMessage, transport::PmmcHandle},
+            pvalue::PValue,
+        },
         paxos_command::PaxosCommand,
     };
 
@@ -217,7 +225,7 @@ mod tests {
         let persistence =
             crate::common::persistence::ClusterPersistence::for_test("pmmc_leader").node(uuid);
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let peers = Arc::new(NetworkHandle::new(uuid, HashMap::new(), Arc::clone(&observer)).await);
+        let peers = Arc::new(PmmcHandle::new(uuid, HashMap::new()).await);
         let state = Arc::new(LeaderState::init(LeaderDurable::default(), uuid, 0));
 
         Leader {
@@ -231,7 +239,7 @@ mod tests {
         }
     }
 
-    async fn mk_leader_with_peer() -> (Leader, Uuid, mpsc::Receiver<Message>) {
+    async fn mk_leader_with_peer() -> (Leader, Uuid, mpsc::Receiver<PmmcMessage>) {
         let uuid = Uuid::new_v4();
         let persistence =
             crate::common::persistence::ClusterPersistence::for_test("pmmc_leader").node(uuid);
@@ -240,7 +248,7 @@ mod tests {
         let (tx, rx) = mpsc::channel(8);
         let mut peers_map = HashMap::new();
         peers_map.insert(peer, tx);
-        let peers = Arc::new(NetworkHandle::new(uuid, peers_map, Arc::clone(&observer)).await);
+        let peers = Arc::new(PmmcHandle::new(uuid, peers_map).await);
         let state = Arc::new(LeaderState::init(LeaderDurable::default(), uuid, 0));
 
         (
@@ -331,7 +339,7 @@ mod tests {
         cleanup_leader_files(&persistence);
 
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let peers = Arc::new(NetworkHandle::new(uuid, HashMap::new(), Arc::clone(&observer)).await);
+        let peers = Arc::new(PmmcHandle::new(uuid, HashMap::new()).await);
         let leader = Leader::new(
             uuid,
             persistence.clone(),
@@ -355,8 +363,7 @@ mod tests {
         leader.save().await.expect("save should work");
         drop(leader);
 
-        let peers2 =
-            Arc::new(NetworkHandle::new(uuid, HashMap::new(), Arc::clone(&observer)).await);
+        let peers2 = Arc::new(PmmcHandle::new(uuid, HashMap::new()).await);
         let reloaded = Leader::new(
             uuid,
             persistence.clone(),
@@ -375,7 +382,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unhandled_message_returns_nack() {
+    async fn unhandled_message_returns_none() {
         let leader = mk_leader().await;
         let reply = leader
             .handle_message(Message::PROPOSE {
@@ -384,7 +391,7 @@ mod tests {
                 cmd: crate::paxos_command::PaxosCommand::NOOP,
             })
             .await;
-        assert!(matches!(reply, Message::NACK));
+        assert!(reply.is_none());
     }
 
     #[tokio::test]
@@ -482,7 +489,7 @@ mod tests {
                 pvalue: PValue::new(slot, ballot, command.clone()),
             })
             .await;
-        assert!(matches!(first, Message::NACK));
+        assert!(first.is_none());
 
         let second = leader
             .handle_message(Message::P2B {
@@ -492,7 +499,7 @@ mod tests {
                 pvalue: PValue::new(slot, ballot, command),
             })
             .await;
-        assert!(matches!(second, Message::ACCEPTED { .. }));
+        assert!(matches!(second, Some(PmmcMessage::ACCEPTED { .. })));
     }
 
     #[tokio::test]
@@ -509,7 +516,7 @@ mod tests {
         let expected_ballot = leader.state.ballot().await;
         assert!(matches!(
             msg,
-            Message::P1A {
+            PmmcMessage::P1A {
                 from,
                 ballot,
                 start_index
@@ -542,7 +549,7 @@ mod tests {
             .expect("receiver should get heartbeat");
         assert!(matches!(
             msg,
-            Message::HEARTBEAT { from, ballot: hb } if from == leader.uuid && hb == ballot
+            PmmcMessage::HEARTBEAT { from, ballot: hb } if from == leader.uuid && hb == ballot
         ));
     }
 
@@ -571,7 +578,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(second, Message::ADOPTED { .. }),
+            matches!(second, Some(PmmcMessage::ADOPTED { .. })),
             "scout should emit ADOPTED at quorum"
         );
         assert!(
@@ -624,7 +631,7 @@ mod tests {
             })
             .await;
         assert!(
-            matches!(reply, Message::PREEMPT { ballot, .. } if ballot == higher),
+            matches!(reply, Some(PmmcMessage::PREEMPT { ballot, .. }) if ballot == higher),
             "commander should surface preempt on higher-ballot p2b"
         );
         assert!(

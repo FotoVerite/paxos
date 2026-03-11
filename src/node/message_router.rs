@@ -1,6 +1,6 @@
-use crate::{
-    message::Message,
-    node::{config::LearningStrategy, peer_topology::PeerTopology},
+use crate::node::{
+    classic_paxos::message::ClassicMessage, config::LearningStrategy, peer_topology::PeerTopology,
+    pmmc::message::PmmcMessage,
 };
 use uuid::Uuid;
 
@@ -31,17 +31,18 @@ impl MessageRouter {
         }
     }
 
-    /// Determine how to route a response message based on its type
-    pub fn route_response(&self, msg: &Message, from: Uuid) -> RoutingDecision {
+    pub fn route_classic(&self, msg: &ClassicMessage, from: Uuid) -> RoutingDecision {
         match msg {
             // Prepare and Accept messages go to acceptors only
-            Message::Prepare { .. } | Message::PrepareBatch { .. } => {
+            ClassicMessage::Prepare { .. } | ClassicMessage::PrepareBatch { .. } => {
                 RoutingDecision::SendToMany(self.topology.acceptors.clone())
             }
-            Message::Accept { .. } => RoutingDecision::SendToMany(self.topology.acceptors.clone()),
+            ClassicMessage::Accept { .. } => {
+                RoutingDecision::SendToMany(self.topology.acceptors.clone())
+            }
 
             // Accepted messages routing depends on learning strategy
-            Message::Accepted { .. } => match &self.learning_strategy {
+            ClassicMessage::Accepted { .. } => match &self.learning_strategy {
                 LearningStrategy::ProposerManaged => {
                     // Send back to the proposer who sent the Accept
                     RoutingDecision::SendTo(from)
@@ -57,31 +58,28 @@ impl MessageRouter {
             },
 
             // Promise and Success messages are broadcast to all
-            Message::Promise { .. } | Message::Success { .. } => RoutingDecision::Broadcast,
-
-            // NACK messages are dropped
-            Message::NACK => RoutingDecision::Drop,
-
-            _ => RoutingDecision::Drop,
+            ClassicMessage::Promise { .. } | ClassicMessage::Success { .. } => {
+                RoutingDecision::Broadcast
+            }
         }
     }
 
-    pub fn pmmc_route_response(&self, msg: &Message) -> RoutingDecision {
+    pub fn route_pmmc(&self, msg: &PmmcMessage) -> RoutingDecision {
         match msg {
-            Message::HEARTBEAT { .. } | Message::PROPOSE { .. } => {
+            PmmcMessage::HEARTBEAT { .. } | PmmcMessage::PROPOSE { .. } => {
                 RoutingDecision::SendToMany(self.topology.proposers.clone())
             }
-            Message::P1A { .. } | Message::P2A { .. } => {
+            PmmcMessage::P1A { .. } | PmmcMessage::P2A { .. } => {
                 RoutingDecision::SendToMany(self.topology.acceptors.clone())
             } // Prepare and Accept messages go to acceptors only
-            Message::ACCEPTED { .. } => RoutingDecision::SendToMany(self.topology.learners.clone()),
-            Message::ACK { to, .. }
-            | Message::ADOPTED { to, .. }
-            | Message::P1B { to, .. }
-            | Message::P2B { to, .. }
-            | Message::PREEMPT { to, .. } => RoutingDecision::SendTo(*to),
-
-            _ => RoutingDecision::Drop,
+            PmmcMessage::ACCEPTED { .. } => {
+                RoutingDecision::SendToMany(self.topology.learners.clone())
+            }
+            PmmcMessage::ACK { to, .. }
+            | PmmcMessage::ADOPTED { to, .. }
+            | PmmcMessage::P1B { to, .. }
+            | PmmcMessage::P2B { to, .. }
+            | PmmcMessage::PREEMPT { to, .. } => RoutingDecision::SendTo(*to),
         }
     }
 }
@@ -91,10 +89,10 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        message::Message,
+        common::ballot::Ballot,
         node::{
-            classic_paxos::ballot::Ballot, config::LearningStrategy, peer_topology::PeerTopology,
-            pvalue::PValue,
+            classic_paxos::message::ClassicMessage, config::LearningStrategy,
+            peer_topology::PeerTopology, pmmc::message::PmmcMessage, pvalue::PValue,
         },
         paxos_command::PaxosCommand,
     };
@@ -112,11 +110,11 @@ mod tests {
     #[test]
     fn pmmc_routes_accepted_to_learners() {
         let router = MessageRouter::new(LearningStrategy::default(), topo());
-        let msg = Message::ACCEPTED {
+        let msg = PmmcMessage::ACCEPTED {
             from: Uuid::new_v4(),
             pvalue: PValue::new(0, Ballot::new(1, Uuid::new_v4()), PaxosCommand::NOOP),
         };
-        let decision = router.pmmc_route_response(&msg);
+        let decision = router.route_pmmc(&msg);
         assert!(
             matches!(decision, RoutingDecision::SendToMany(nodes) if nodes == vec![Uuid::from_u128(0xB1), Uuid::from_u128(0xB2)]),
             "PMMC ACCEPTED should route to learner/replica nodes"
@@ -126,19 +124,19 @@ mod tests {
     #[test]
     fn pmmc_routes_phase_messages_to_acceptors_and_leader_msgs_to_proposers() {
         let router = MessageRouter::new(LearningStrategy::default(), topo());
-        let p1a = Message::P1A {
+        let p1a = PmmcMessage::P1A {
             from: Uuid::new_v4(),
             ballot: Ballot::new(1, Uuid::new_v4()),
             start_index: 0,
         };
-        let propose = Message::PROPOSE {
+        let propose = PmmcMessage::PROPOSE {
             from: Uuid::new_v4(),
             slot: 0,
             cmd: PaxosCommand::NOOP,
         };
 
-        let p1a_decision = router.pmmc_route_response(&p1a);
-        let propose_decision = router.pmmc_route_response(&propose);
+        let p1a_decision = router.route_pmmc(&p1a);
+        let propose_decision = router.route_pmmc(&propose);
 
         assert!(
             matches!(p1a_decision, RoutingDecision::SendToMany(nodes) if nodes == vec![Uuid::from_u128(0xA1), Uuid::from_u128(0xA2)])
@@ -152,12 +150,27 @@ mod tests {
     fn pmmc_routes_reply_messages_to_explicit_target() {
         let router = MessageRouter::new(LearningStrategy::default(), topo());
         let to = Uuid::new_v4();
-        let msg = Message::ACK {
+        let msg = PmmcMessage::ACK {
             from: Uuid::new_v4(),
             to,
             slot: 7,
         };
-        let decision = router.pmmc_route_response(&msg);
+        let decision = router.route_pmmc(&msg);
         assert!(matches!(decision, RoutingDecision::SendTo(t) if t == to));
+    }
+
+    #[test]
+    fn classic_routes_accepted_to_proposer_in_proposer_managed_mode() {
+        let router = MessageRouter::new(LearningStrategy::ProposerManaged, topo());
+        let accept_sender = Uuid::from_u128(0xDEADBEEF);
+        let msg = ClassicMessage::Accepted {
+            from: Uuid::new_v4(),
+            decree_num: crate::common::types::DecreeId(1),
+            ballot: Ballot::new(1, Uuid::new_v4()),
+            value: PaxosCommand::NOOP,
+        };
+
+        let decision = router.route_classic(&msg, accept_sender);
+        assert!(matches!(decision, RoutingDecision::SendTo(node) if node == accept_sender));
     }
 }

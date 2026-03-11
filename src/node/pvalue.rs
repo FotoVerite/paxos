@@ -2,7 +2,7 @@ use std::{cmp::Ordering, fmt};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{node::classic_paxos::ballot::Ballot, paxos_command::PaxosCommand};
+use crate::{common::ballot::Ballot, paxos_command::PaxosCommand};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PValue {
@@ -36,7 +36,6 @@ impl PValue {
     }
 }
 
-// Lexicographical ordering: compare number first, then node_id
 impl PartialOrd for PValue {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -58,5 +57,5 @@ impl fmt::Display for PValue {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PValueError {
     DifferentSlot,
-    InvalidOperation(String), // optional extra info
+    InvalidOperation(String),
 }

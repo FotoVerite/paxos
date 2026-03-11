@@ -1,8 +1,8 @@
 use crate::{
+    common::ballot::Ballot,
     common::types::DecreeId,
-    message::Message,
     monitor::{Event, PaxosObserver},
-    node::classic_paxos::{ballot::Ballot, proposer::quorum::Quorum},
+    node::classic_paxos::{message::ClassicMessage, proposer::quorum::Quorum},
     paxos_command::PaxosCommand,
 };
 use std::{collections::HashSet, sync::Arc};
@@ -58,8 +58,8 @@ impl ProposedDecree {
         return self.quorum.highest_accepted();
     }
 
-    pub fn create_prepare_msg(&mut self) -> Message {
-        let msg = Message::Prepare {
+    pub fn create_prepare_msg(&mut self) -> ClassicMessage {
+        let msg = ClassicMessage::Prepare {
             from: self.node_uuid,
             decree_num: self.decree_num,
             ballot: self.current_ballot,
@@ -75,8 +75,8 @@ impl ProposedDecree {
         msg
     }
 
-    pub fn create_accept_msg(&mut self) -> Message {
-        let msg = Message::Accept {
+    pub fn create_accept_msg(&mut self) -> ClassicMessage {
+        let msg = ClassicMessage::Accept {
             from: self.node_uuid,
             decree_num: self.decree_num,
             ballot: self.current_ballot,

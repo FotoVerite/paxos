@@ -130,9 +130,17 @@ and reconfiguration support.
   - [ ] replica-originated proposes
   - [ ] leader-only phase 1 / phase 2 orchestration
   - [ ] acceptor-only ballot/value adoption
-  - [ ] replica-only application / client replies
+  - [x] replica-only application / client replies
 - [ ] Remove or gate dead PMMC methods and fields that only exist because of earlier refactors.
 - [ ] Split large PMMC test modules when they become hard to reason about.
+
+### Message typing boundaries (in progress)
+- [x] Keep Classic role handlers typed (`ClassicMessage` in/out), no internal flat `Message` dispatch in proposer/acceptor/learner.
+- [x] Keep PMMC replica handler typed (`PmmcMessage` in/out), with no flat `Message` fallback path in handler logic.
+- [x] Keep flat-wire conversion at protocol boundaries (`PaxosState`/node state), not inside role internals.
+- [ ] Migrate Classic tests off flat `Message` matching for proposer outputs and typed handler inputs.
+- [ ] Migrate remaining PMMC unit tests to typed message inputs where still using flat `Message`.
+- [ ] Remove remaining compatibility assumptions that treat `NACK` as a required typed return in role handlers.
 
 ## Cluster / Runtime Reorganization
 

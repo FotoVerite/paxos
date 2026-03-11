@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::rsm::entry::KVEntry;
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub(crate) struct RsmCheckpoint {
+pub struct RsmCheckpoint {
     manifest: CheckpointManifest,
     state: CheckpointState,
 }
@@ -99,10 +99,6 @@ impl RsmCheckpointState {
         Self { kv_store }
     }
 
-    pub(crate) fn kv_store(&self) -> &HashMap<String, KVEntry> {
-        &self.kv_store
-    }
-
     pub(crate) fn into_kv_store(self) -> HashMap<String, KVEntry> {
         self.kv_store
     }
@@ -129,18 +125,22 @@ impl CheckpointManifest {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn snapshot_id(&self) -> Uuid {
         self.snapshot_id
     }
 
+    #[cfg(test)]
     pub(crate) fn source_node(&self) -> Uuid {
         self.source_node
     }
 
+    #[cfg(test)]
     pub(crate) fn config_id(&self) -> u64 {
         self.config_id
     }
 
+    #[cfg(test)]
     pub(crate) fn epoch(&self) -> u64 {
         self.epoch
     }
@@ -149,10 +149,12 @@ impl CheckpointManifest {
         self.last_applied_slot
     }
 
+    #[cfg(test)]
     pub(crate) fn created_at_ms(&self) -> u64 {
         self.created_at_ms
     }
 
+    #[cfg(test)]
     pub(crate) fn checksum(&self) -> &str {
         &self.checksum
     }
@@ -177,6 +179,7 @@ impl CheckpointState {
         &self.kv_store
     }
 
+    #[cfg(test)]
     pub(crate) fn client_dedup_watermark(&self) -> &HashMap<Uuid, u64> {
         &self.client_dedup_watermark
     }

@@ -1,8 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    common::types::DecreeId, message::Message, node::classic_paxos::ballot::Ballot,
-    paxos_command::PaxosCommand,
+    common::ballot::Ballot, common::types::DecreeId,
+    node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::collections::HashSet;
 use test_helpers::{NodeBuilder, RecordingObserver, cleanup_persisted_state};
@@ -52,7 +52,7 @@ async fn out_of_order_promise_after_accept() {
 
     // Either NACK (quorum already met) or Accept is acceptable
     match resp {
-        Message::NACK | Message::Accept { .. } => (),
+        None | Some(Message::Accept { .. }) => (),
         _ => (),
     }
 }
@@ -79,7 +79,7 @@ async fn accept_before_prepare_same_decree() {
     // SHOULD reject - acceptor must have promised before accepting
     // min_ballot should be 0/unset, so Accept should fail
     assert!(
-        matches!(resp, Message::NACK),
+        resp.is_none(),
         "Acceptor MUST reject Accept before any Prepare (no promise yet)"
     );
 }
@@ -100,8 +100,7 @@ async fn duplicate_prepare_messages() {
             ballot: b,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { .. }));
-
+    assert!(matches!(resp1, Some(Message::Promise { .. })));
     // Duplicate Prepare with same ballot
     let resp2 = acceptor
         .handle_message(Message::Prepare {
@@ -113,7 +112,7 @@ async fn duplicate_prepare_messages() {
 
     // Should be rejected (already promised to this ballot)
     assert!(
-        matches!(resp2, Message::NACK),
+        resp2.is_none(),
         "Acceptor should reject duplicate prepare at same ballot"
     );
 }
@@ -150,8 +149,7 @@ async fn duplicate_accept_messages() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp1, Message::Accepted { .. }));
-
+    assert!(matches!(resp1, Some(Message::Accepted { .. })));
     // Duplicate Accept with same ballot and value
     let resp2 = acceptor
         .handle_message(Message::Accept {
@@ -165,8 +163,8 @@ async fn duplicate_accept_messages() {
 
     // Could be accepted or rejected - both are safe (idempotent)
     match resp2 {
-        Message::Accepted { .. } => (),
-        Message::NACK => (),
+        Some(Message::Accepted { .. }) => (),
+        None => (),
         _ => panic!("Unexpected response to duplicate Accept"),
     }
 }
@@ -247,7 +245,7 @@ async fn proposer_with_insufficient_promises() {
 
     // MUST NOT send Accept yet (only 1 promise, need 3)
     assert!(
-        !matches!(resp1, Message::Accept { .. }),
+        !matches!(resp1, Some(Message::Accept { .. })),
         "Proposer MUST NOT send Accept without quorum (1 < 3)"
     );
 
@@ -264,7 +262,7 @@ async fn proposer_with_insufficient_promises() {
 
     // MUST NOT send Accept (only 2 promises, need 3)
     assert!(
-        !matches!(resp2, Message::Accept { .. }),
+        !matches!(resp2, Some(Message::Accept { .. })),
         "Proposer MUST NOT send Accept without quorum (2 < 3)"
     );
 
@@ -281,7 +279,7 @@ async fn proposer_with_insufficient_promises() {
 
     // MUST send Accept when quorum is reached (3 >= 3)
     assert!(
-        matches!(resp3, Message::Accept { .. }),
+        matches!(resp3, Some(Message::Accept { .. })),
         "Proposer MUST send Accept when quorum is reached (3 >= 3)"
     );
 }
@@ -303,8 +301,7 @@ async fn large_ballot_numbers() {
             ballot: b_huge,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { .. }));
-
+    assert!(matches!(resp1, Some(Message::Promise { .. })));
     // Higher ballot should still work
     let resp2 = acceptor
         .handle_message(Message::Prepare {
@@ -313,7 +310,7 @@ async fn large_ballot_numbers() {
             ballot: b_higher,
         })
         .await;
-    assert!(matches!(resp2, Message::Promise { .. }));
+    assert!(matches!(resp2, Some(Message::Promise { .. })));
 }
 
 /// Edge case: Proposer receives Promise from itself
@@ -346,8 +343,8 @@ async fn proposer_promise_from_itself() {
 
     // Should be handled gracefully - may count as a promise or ignore
     match resp {
-        Message::Accept { .. } => (),
-        Message::NACK => (),
+        Some(Message::Accept { .. }) => (),
+        None => (),
         _ => (),
     }
 }
@@ -407,7 +404,7 @@ async fn multiple_concurrent_proposals_same_decree() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp1, Message::NACK));
+    assert!(resp1.is_none());
 
     // P2 tries to accept (middle ballot) - should fail
     let resp2 = acceptor
@@ -419,7 +416,7 @@ async fn multiple_concurrent_proposals_same_decree() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp2, Message::NACK));
+    assert!(resp2.is_none());
 
     // P3 tries to accept (highest ballot) - should succeed
     let resp3 = acceptor
@@ -431,7 +428,10 @@ async fn multiple_concurrent_proposals_same_decree() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp3, Message::Accepted { value, .. } if value == value3));
+    assert!(matches!(
+        resp3,
+        Some(Message::Accepted { value, .. }) if value == value3
+    ));
 }
 
 /// Edge case: Acceptor receives messages for very sparse decree numbers
@@ -450,8 +450,7 @@ async fn sparse_decree_numbering() {
             ballot: b,
         })
         .await;
-    assert!(matches!(resp0, Message::Promise { .. }));
-
+    assert!(matches!(resp0, Some(Message::Promise { .. })));
     // Prepare for decree 1000 (huge gap)
     let resp1000 = acceptor
         .handle_message(Message::Prepare {
@@ -460,8 +459,7 @@ async fn sparse_decree_numbering() {
             ballot: b,
         })
         .await;
-    assert!(matches!(resp1000, Message::Promise { .. }));
-
+    assert!(matches!(resp1000, Some(Message::Promise { .. })));
     // Both decrees should be independent
     acceptor
         .handle_message(Message::Accept {
@@ -485,7 +483,7 @@ async fn sparse_decree_numbering() {
         })
         .await;
 
-    assert!(matches!(resp, Message::Accepted { .. }));
+    assert!(matches!(resp, Some(Message::Accepted { .. })));
 }
 
 /// Edge case: Learner receives Accepted for same decree from all acceptors
@@ -559,7 +557,7 @@ async fn promise_reports_higher_accepted_ballot() {
     let resp = proposer.handle_message(promise).await;
 
     // Proposer should adopt the old value despite its high ballot
-    if let Message::Accept { value, .. } = resp {
+    if let Some(Message::Accept { value, .. }) = resp {
         assert!(
             matches!(value, PaxosCommand::PUT { .. }),
             "Proposer should adopt value from higher accepted ballot"

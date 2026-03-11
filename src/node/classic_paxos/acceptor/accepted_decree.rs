@@ -1,5 +1,5 @@
 use crate::{
-    node::classic_paxos::{acceptor::prev_vote::PrevVote, ballot::Ballot},
+    common::ballot::Ballot, node::classic_paxos::acceptor::prev_vote::PrevVote,
     paxos_command::PaxosCommand,
 };
 use uuid::Uuid;

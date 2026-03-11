@@ -1,12 +1,12 @@
 mod accepted_decree;
 mod accepted_decrees;
 mod prev_vote;
+use crate::common::ballot::Ballot;
 use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
-use crate::message::Message;
 use crate::monitor::PaxosObserver;
 use crate::node::classic_paxos::acceptor::accepted_decrees::AcceptedDecrees;
-use crate::node::classic_paxos::ballot::Ballot;
+use crate::node::classic_paxos::message::ClassicMessage;
 use crate::paxos_command::PaxosCommand;
 use anyhow::Result;
 use std::sync::Arc;
@@ -44,7 +44,12 @@ impl Acceptor {
         self.persistence.save("acceptor.bin", &*state).await
     }
 
-    async fn prepare(&self, decree_num: DecreeId, ballot: Ballot, from: Uuid) -> Message {
+    async fn prepare(
+        &self,
+        decree_num: DecreeId,
+        ballot: Ballot,
+        from: Uuid,
+    ) -> Option<ClassicMessage> {
         let mut state = self.state.lock().await;
         let msg = state.promise(
             self.uuid,
@@ -75,7 +80,7 @@ impl Acceptor {
         ballot: Ballot,
         cmd: PaxosCommand,
         from: Uuid,
-    ) -> Message {
+    ) -> Option<ClassicMessage> {
         let mut state = self.state.lock().await;
         let msg = state.accept(
             self.uuid,
@@ -101,21 +106,27 @@ impl Acceptor {
         msg
     }
 
-    pub async fn handle_message(&self, msg: Message) -> Message {
+    pub async fn handle_message(
+        &self,
+        msg: impl Into<Option<ClassicMessage>>,
+    ) -> Option<ClassicMessage> {
+        let Some(msg) = msg.into() else {
+            return None;
+        };
         match msg {
-            Message::Prepare {
+            ClassicMessage::Prepare {
                 decree_num,
                 ballot,
                 from,
             } => self.prepare(decree_num, ballot, from).await,
-            Message::Accept {
+            ClassicMessage::Accept {
                 decree_num,
                 ballot,
                 value,
                 from,
                 ..
             } => self.accept(decree_num, ballot, value, from).await,
-            _ => Message::NACK,
+            _ => None,
         }
     }
 

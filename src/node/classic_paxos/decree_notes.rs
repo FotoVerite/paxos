@@ -1,6 +1,6 @@
 use crate::{
+    common::ballot::Ballot,
     common::{persistence::NodePersistence, types::DecreeId},
-    node::classic_paxos::ballot::Ballot,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

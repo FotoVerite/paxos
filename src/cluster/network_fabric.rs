@@ -1,133 +1,80 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
-use rand::Rng;
-use tokio::sync::{Mutex, RwLock, mpsc};
-use tokio::time::{Duration, sleep};
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::message::Message;
+use crate::common::network_fabric::NetworkFabric as GenericNetworkFabric;
+use crate::message::{Message, MessageTrace};
 use crate::monitor::PaxosObserver;
 
-#[derive(Debug, Clone)]
-pub enum NetworkFailure {
-    None,
-    Delay(Duration),
-    PacketLoss { drop_rate: f32 },
-    Partition,
-}
-
 pub struct NetworkFabric {
-    observer: Arc<dyn PaxosObserver>,
-    peers: RwLock<HashMap<Uuid, mpsc::Sender<Message>>>,
-    enabled: Mutex<bool>,
-    failures: Mutex<HashMap<(Uuid, Uuid), NetworkFailure>>,
+    inner: Arc<GenericNetworkFabric<Message>>,
 }
 
 impl NetworkFabric {
     pub fn new(observer: Arc<dyn PaxosObserver>) -> Self {
+        let trace = Arc::new(move |targets: &[Uuid], msg: &Message| {
+            observer.on_message_trace(MessageTrace::from_legacy(targets, msg));
+        });
+
         Self {
-            observer,
-            peers: RwLock::new(HashMap::new()),
-            enabled: Mutex::new(false),
-            failures: Mutex::new(HashMap::new()),
+            inner: Arc::new(GenericNetworkFabric::with_trace(trace)),
         }
+    }
+
+    pub(crate) fn inner(&self) -> Arc<GenericNetworkFabric<Message>> {
+        Arc::clone(&self.inner)
     }
 
     pub async fn register(&self, uuid: Uuid, sender: mpsc::Sender<Message>) {
-        self.peers.write().await.insert(uuid, sender);
+        self.inner.register(uuid, sender).await;
     }
 
     pub async fn unregister(&self, uuid: Uuid) {
-        self.peers.write().await.remove(&uuid);
-        self.failures
-            .lock()
-            .await
-            .retain(|(from, to), _| *from != uuid && *to != uuid);
+        self.inner.unregister(uuid).await;
     }
 
     pub async fn peers(&self) -> Vec<Uuid> {
-        self.peers.read().await.keys().copied().collect()
+        self.inner.peers().await
     }
 
     pub async fn set_enabled(&self, enabled: bool) {
-        *self.enabled.lock().await = enabled;
+        self.inner.set_enabled(enabled).await;
     }
 
     pub async fn set_failure(&self, from: Uuid, to: Uuid, failure: NetworkFailure) {
-        self.failures.lock().await.insert((from, to), failure);
+        self.inner.set_failure(from, to, failure).await;
     }
 
     pub async fn clear_failure(&self, from: Uuid, to: Uuid) {
-        self.failures.lock().await.remove(&(from, to));
+        self.inner.clear_failure(from, to).await;
     }
 
     pub async fn clear_failures_from(&self, from: Uuid) {
-        self.failures
-            .lock()
-            .await
-            .retain(|(src, _), _| *src != from);
+        self.inner.clear_failures_from(from).await;
     }
 
-    async fn should_fail(&self, from: Uuid, to: Uuid) -> bool {
-        let failures = self.failures.lock().await;
-        match failures.get(&(from, to)) {
-            Some(NetworkFailure::None) => false,
-            Some(NetworkFailure::Partition) => true,
-            Some(NetworkFailure::PacketLoss { drop_rate }) => {
-                let mut rng = rand::rng();
-                rng.random::<f32>() < *drop_rate
-            }
-            Some(NetworkFailure::Delay(_)) => false,
-            None => false,
-        }
-    }
-
-    async fn get_delay(&self, from: Uuid, to: Uuid) -> Option<Duration> {
-        let failures = self.failures.lock().await;
-        match failures.get(&(from, to)) {
-            Some(NetworkFailure::Delay(duration)) => Some(*duration),
-            _ => None,
-        }
-    }
-
-    pub async fn send(&self, from: Uuid, to: Uuid, msg: Message) {
-        let enabled = *self.enabled.lock().await;
-
-        if enabled {
-            if self.should_fail(from, to).await {
-                return;
-            }
-
-            if let Some(delay) = self.get_delay(from, to).await {
-                sleep(delay).await;
-            }
-        }
-
-        if let Some(peer) = self.peers.read().await.get(&to).cloned() {
-            let _ = peer.send(msg).await;
-        }
-    }
-
-    pub async fn broadcast(&self, from: Uuid, msg: Message)
+    pub async fn send<M>(&self, from: Uuid, to: Uuid, msg: M)
     where
-        Message: Clone,
+        M: Into<Message>,
     {
-        let peers = self.peers().await;
-        for to in peers.iter().copied() {
-            self.send(from, to, msg.clone()).await;
-        }
-        self.observer.on_message(&peers, msg);
+        self.inner.send(from, to, msg.into()).await;
     }
 
-    pub async fn broadcast_to(&self, from: Uuid, msg: &Message, peers: &HashSet<Uuid>)
+    pub async fn broadcast<M>(&self, from: Uuid, msg: M)
     where
-        Message: Clone,
+        M: Into<Message>,
     {
-        let peers: Vec<Uuid> = peers.iter().copied().collect();
-        for to in peers.iter().copied() {
-            self.send(from, to, msg.clone()).await;
-        }
-        self.observer.on_message(&peers, msg.clone());
+        self.inner.broadcast(from, msg.into()).await;
+    }
+
+    pub async fn broadcast_to<M>(&self, from: Uuid, msg: M, peers: &HashSet<Uuid>)
+    where
+        M: Into<Message>,
+    {
+        self.inner.broadcast_to(from, msg.into(), peers).await;
     }
 }
+
+pub use crate::common::network_fabric::NetworkFailure;

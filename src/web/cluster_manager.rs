@@ -12,7 +12,7 @@ use crate::cluster::{
 use crate::common::persistence::Persistence;
 use crate::console_observer::ConsoleObserver;
 use crate::decree_generator::DecreeGenerator;
-use crate::message::Message;
+use crate::message::MessageTrace;
 use crate::monitor::PaxosObserver;
 use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
 use crate::paxos_command::PaxosCommand;
@@ -46,9 +46,9 @@ impl PaxosObserver for ScenarioObserver {
         self.console.on_event(event);
     }
 
-    fn on_message(&self, indexes: &[Uuid], message: Message) {
-        self.websocket.on_message(indexes, message.clone());
-        self.console.on_message(indexes, message);
+    fn on_message_trace(&self, trace: MessageTrace) {
+        self.websocket.on_message_trace(trace.clone());
+        self.console.on_message_trace(trace);
     }
 }
 

@@ -17,9 +17,15 @@ use crate::cluster::runtime_member::RuntimeMember;
 use crate::cluster::runtime_registry::RuntimeRegistry;
 use crate::common::persistence::ClusterPersistence;
 use crate::{
-    cluster::network_fabric::NetworkFabric, common::persistence::Persistence,
-    message::ClientMessage, monitor::PaxosObserver, node::config::PmmcNodeConfig,
-    paxos_command::PaxosCommand, rsm::kv_store::ReplyOutcome,
+    common::persistence::Persistence,
+    message::ClientMessage,
+    monitor::PaxosObserver,
+    node::{
+        config::PmmcNodeConfig,
+        pmmc::transport::{PmmcFabric, new_pmmc_fabric},
+    },
+    paxos_command::PaxosCommand,
+    rsm::kv_store::ReplyOutcome,
 };
 
 pub mod fixtures;
@@ -32,7 +38,7 @@ pub struct PmmcCluster {
     observer: Arc<dyn PaxosObserver>,
     pub runtime_registry: RuntimeRegistry,
     persistence: Arc<ClusterPersistence>,
-    fabric: Arc<NetworkFabric>,
+    fabric: Arc<PmmcFabric>,
     cleanup_on_drop: bool,
 }
 
@@ -96,7 +102,7 @@ impl PmmcCluster {
         let node_configs = configuration.node_configs();
         let total_number = node_configs.len();
         let quorum = configuration.quorum();
-        let fabric = Arc::new(NetworkFabric::new(Arc::clone(&observer)));
+        let fabric = Arc::new(new_pmmc_fabric(Arc::clone(&observer)));
         let configuration = Arc::new(configuration);
 
         let runtime_registry = RuntimeRegistry::init(

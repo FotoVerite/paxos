@@ -1,5 +1,5 @@
 use crate::{
-    message::Message,
+    message::MessageTrace,
     monitor::{Event, PaxosObserver},
 };
 use colored::*;
@@ -30,33 +30,27 @@ impl NodeLabelMap {
     }
 }
 
-impl PaxosObserver for ConsoleObserver {
-    fn on_message(&self, _index: &[Uuid], message: Message) {
-        match message {
-            _ => {}
-        }
-    }
+fn labels() -> &'static Mutex<NodeLabelMap> {
+    static LABELS: OnceLock<Mutex<NodeLabelMap>> = OnceLock::new();
+    LABELS.get_or_init(|| Mutex::new(NodeLabelMap::default()))
+}
 
-    fn on_event(&self, event: Event) {
-        fn labels() -> &'static Mutex<NodeLabelMap> {
-            static LABELS: OnceLock<Mutex<NodeLabelMap>> = OnceLock::new();
-            LABELS.get_or_init(|| Mutex::new(NodeLabelMap::default()))
-        }
+fn node_label(id: Uuid) -> String {
+    let mut state = labels().lock().expect("label map lock poisoned");
+    format!("N{}", state.label(id))
+}
 
-        fn node_label(id: Uuid) -> String {
-            let mut state = labels().lock().expect("label map lock poisoned");
-            format!("N{}", state.label(id))
-        }
+fn node_list(ids: &[Uuid]) -> String {
+    let mut state = labels().lock().expect("label map lock poisoned");
+    let labels: Vec<String> = ids
+        .iter()
+        .map(|id| format!("N{}", state.label(*id)))
+        .collect();
+    format!("[{}]", labels.join(", "))
+}
 
-        fn node_list(ids: &[Uuid]) -> String {
-            let mut state = labels().lock().expect("label map lock poisoned");
-            let labels: Vec<String> = ids
-                .iter()
-                .map(|id| format!("N{}", state.label(*id)))
-                .collect();
-            format!("[{}]", labels.join(", "))
-        }
-
+impl ConsoleObserver {
+    fn handle_classic_event(&self, event: Event) {
         match event {
             Event::Proposal {
                 id,
@@ -183,22 +177,6 @@ impl PaxosObserver for ConsoleObserver {
                     .purple()
                 );
             }
-            Event::MessageSent {
-                from,
-                to,
-                message_type,
-            } => {
-                println!(
-                    "{}",
-                    format!(
-                        "[MESSAGE] {} -> {}: {}",
-                        node_label(from),
-                        node_label(to),
-                        message_type
-                    )
-                    .magenta()
-                );
-            }
             Event::Success {
                 id,
                 from,
@@ -217,24 +195,6 @@ impl PaxosObserver for ConsoleObserver {
                     )
                     .magenta()
                 );
-            }
-            Event::PartitionCreated {
-                partition_a,
-                partition_b,
-                ..
-            } => {
-                println!(
-                    "{}",
-                    format!(
-                        "[NETWORK] Partition created: A={:?}, B={:?}",
-                        node_list(&partition_a),
-                        node_list(&partition_b)
-                    )
-                    .red()
-                );
-            }
-            Event::PartitionHealed { .. } => {
-                println!("{}", "[NETWORK] Partition healed".green());
             }
             Event::InitialDecree { .. } => {}
             Event::BatchInitialDecrees { id, decrees, .. } => {
@@ -258,6 +218,46 @@ impl PaxosObserver for ConsoleObserver {
                     )
                     .cyan()
                 );
+            }
+            _ => unreachable!("classic event dispatcher received non-classic event"),
+        }
+    }
+
+    fn handle_system_event(&self, event: Event) {
+        match event {
+            Event::MessageSent {
+                from,
+                to,
+                message_type,
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[MESSAGE] {} -> {}: {}",
+                        node_label(from),
+                        node_label(to),
+                        message_type
+                    )
+                    .magenta()
+                );
+            }
+            Event::PartitionCreated {
+                partition_a,
+                partition_b,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[NETWORK] Partition created: A={:?}, B={:?}",
+                        node_list(&partition_a),
+                        node_list(&partition_b)
+                    )
+                    .red()
+                );
+            }
+            Event::PartitionHealed { .. } => {
+                println!("{}", "[NETWORK] Partition healed".green());
             }
             Event::NodeCapabilities {
                 id,
@@ -299,6 +299,12 @@ impl PaxosObserver for ConsoleObserver {
                         .bold()
                 );
             }
+            _ => unreachable!("system event dispatcher received non-system event"),
+        }
+    }
+
+    fn handle_pmmc_event(&self, event: Event) {
+        match event {
             Event::BallotAdopted { id, ballot } => {
                 println!(
                     "{}",
@@ -427,6 +433,21 @@ impl PaxosObserver for ConsoleObserver {
                     .cyan()
                 );
             }
+            _ => unreachable!("pmmc event dispatcher received non-pmmc event"),
+        }
+    }
+}
+
+impl PaxosObserver for ConsoleObserver {
+    fn on_message_trace(&self, _trace: MessageTrace) {
+        // Console observer currently emits only events; message traces are intentionally ignored.
+    }
+
+    fn on_event(&self, event: Event) {
+        match event.protocol() {
+            crate::monitor::EventProtocol::Classic => self.handle_classic_event(event),
+            crate::monitor::EventProtocol::Pmmc => self.handle_pmmc_event(event),
+            crate::monitor::EventProtocol::System => self.handle_system_event(event),
         }
     }
 }

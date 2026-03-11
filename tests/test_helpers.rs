@@ -14,7 +14,7 @@ use paxos::{
     cluster::classic_cluster::ClassicCluster,
     common::persistence::ClusterPersistence,
     common::types::DecreeId,
-    message::Message,
+    message::{Message, MessageTrace},
     monitor::{Event, PaxosObserver},
     node::classic_paxos::{
         acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, ledger::Ledger,
@@ -390,7 +390,7 @@ impl PaxosObserver for RecordingObserver {
         });
     }
 
-    fn on_message(&self, _indexes: &[Uuid], _message: Message) {}
+    fn on_message_trace(&self, _trace: MessageTrace) {}
 }
 
 // ============================================================================
@@ -664,8 +664,6 @@ pub fn assert_message_type(msg: &Message, expected: &str) {
         Message::P2A { .. } => "P2A",
         Message::P2B { .. } => "P2B",
         Message::ACCEPTED { .. } => "ACCEPTED",
-        Message::RECONFIGURE { .. } => "RECONFIGURE",
-        Message::CATCHUP_REQUEST { .. } => "CATCHUP_REQUEST",
     };
     assert_eq!(actual, expected, "Expected {}, got {}", expected, actual);
 }
@@ -692,9 +690,7 @@ pub fn assert_ballot_number(msg: &Message, expected_number: usize, expected_id: 
         | Message::P1B { .. }
         | Message::P2A { .. }
         | Message::P2B { .. }
-        | Message::ACCEPTED { .. }
-        | Message::RECONFIGURE { .. }
-        | Message::CATCHUP_REQUEST { .. } => {
+        | Message::ACCEPTED { .. } => {
             panic!("Cannot extract ballot from this message variant")
         }
     }

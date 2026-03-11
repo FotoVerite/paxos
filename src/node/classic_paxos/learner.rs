@@ -7,9 +7,11 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    message::Message,
     monitor::{Event, PaxosObserver},
-    node::classic_paxos::{decree_notes::DecreeNotes, learner::decrees::Decrees, ledger::Ledger},
+    node::classic_paxos::{
+        decree_notes::DecreeNotes, learner::decrees::Decrees, ledger::Ledger,
+        message::ClassicMessage,
+    },
 };
 
 pub struct Learner {
@@ -37,9 +39,16 @@ impl Learner {
         }
     }
 
-    pub async fn handle_message(&self, msg: Message, ledger: &Ledger) -> Message {
+    pub async fn handle_message(
+        &self,
+        msg: impl Into<Option<ClassicMessage>>,
+        ledger: &Ledger,
+    ) -> Option<ClassicMessage> {
+        let Some(msg) = msg.into() else {
+            return None;
+        };
         match msg {
-            Message::Accepted {
+            ClassicMessage::Accepted {
                 from,
                 decree_num,
                 ballot,
@@ -49,7 +58,7 @@ impl Learner {
                 // For pure learners: ignore Accepted messages (only receive Success via learn_decree)
                 if self.decree_notes.is_none() {
                     // Pure learner - no voting logic needed
-                    return Message::NACK;
+                    return None;
                 }
 
                 // Proposer+Learner: only count votes for our own ballots
@@ -57,7 +66,7 @@ impl Learner {
                 let decree_notes = decree_notes_arc.lock().await;
                 if let Some(notes) = decree_notes.state.get(&decree_num) {
                     if ballot != notes.last_tried {
-                        return Message::NACK;
+                        return None;
                     }
                 }
 
@@ -76,11 +85,11 @@ impl Learner {
 
                 // When quorum is reached (proposer learns it reached quorum),
                 // emit Success and insert into ledger
-                if let Message::Success {
+                if let Some(ClassicMessage::Success {
                     decree_num: success_decree_num,
                     value: success_value,
                     ..
-                } = &reply
+                }) = &reply
                 {
                     if ledger
                         .insert(*success_decree_num, success_value.clone())
@@ -109,12 +118,13 @@ impl Learner {
 
                 return reply;
             }
-            _ => return Message::NACK,
+            _ => return None,
         }
     }
-    pub async fn learn_decree(&self, msg: Message, ledger: &Ledger) {
+
+    pub async fn learn_decree(&self, msg: ClassicMessage, ledger: &Ledger) {
         match msg {
-            Message::Success {
+            ClassicMessage::Success {
                 decree_num,
                 value,
                 ballot_proposer,

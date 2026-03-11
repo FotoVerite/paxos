@@ -11,13 +11,19 @@ use uuid::Uuid;
 use crate::{
     cluster::{
         cluster_configuration::ClusterConfiguration,
-        configuration_handler::types::ConfigurationHandlerMessage, network_fabric::NetworkFabric,
-        network_handle::NetworkHandle, runtime_state::RuntimeState,
+        configuration_handler::types::ConfigurationHandlerMessage, runtime_state::RuntimeState,
     },
     common::persistence::NodePersistence,
-    message::{ClientMessage, Message},
+    message::ClientMessage,
     monitor::PaxosObserver,
-    node::{config::Roles, pmmc::pmmc_node::PmmcNode},
+    node::{
+        config::Roles,
+        pmmc::{
+            message::PmmcMessage,
+            pmmc_node::PmmcNode,
+            transport::{PmmcFabric, PmmcHandle},
+        },
+    },
 };
 
 pub struct RuntimeMember {
@@ -25,7 +31,7 @@ pub struct RuntimeMember {
     roles: Roles,
     state: RwLock<RuntimeState>,
     pub node: PmmcNode,
-    rx: Mutex<Option<Receiver<Message>>>,
+    rx: Mutex<Option<Receiver<PmmcMessage>>>,
     task: Mutex<Option<JoinHandle<()>>>,
 }
 
@@ -38,12 +44,12 @@ impl RuntimeMember {
         uuid: Uuid,
         roles: Roles,
         configuration: Arc<ClusterConfiguration>,
-        fabric: Arc<NetworkFabric>,
+        fabric: Arc<PmmcFabric>,
         persistence: NodePersistence,
-        rx: Receiver<Message>,
+        rx: Receiver<PmmcMessage>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
-        let handle = Arc::new(NetworkHandle::from_fabric(uuid, Arc::clone(&fabric)));
+        let handle = Arc::new(PmmcHandle::from_fabric(uuid, Arc::clone(&fabric)));
         Ok(RuntimeMember {
             uuid,
             roles: roles.clone(),

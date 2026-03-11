@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use std::{collections::HashMap, mem};
 
 use tokio::sync::{
     Mutex, RwLock,
@@ -22,21 +22,22 @@ use crate::cluster::{
     runtime_state::RuntimeState,
 };
 use crate::{
-    cluster::{
-        network_fabric::NetworkFabric, network_handle::NetworkFailure,
-        runtime_member::RuntimeMember,
-    },
+    cluster::runtime_member::RuntimeMember,
+    common::network_fabric::NetworkFailure,
     common::persistence::ClusterPersistence,
-    message::{ClientMessage, Message},
+    message::ClientMessage,
     monitor::PaxosObserver,
-    node::config::{PmmcNodeConfig, Roles},
+    node::{
+        config::{PmmcNodeConfig, Roles},
+        pmmc::{message::PmmcMessage, transport::PmmcFabric},
+    },
 };
 
 pub struct RuntimeRegistry {
     members: Arc<RwLock<HashMap<Uuid, Arc<RuntimeMember>>>>,
     member_ids: Vec<Uuid>,
-    inboxes: RwLock<HashMap<Uuid, Arc<Mutex<Option<Receiver<Message>>>>>>,
-    fabric: Arc<NetworkFabric>,
+    inboxes: RwLock<HashMap<Uuid, Arc<Mutex<Option<Receiver<PmmcMessage>>>>>>,
+    fabric: Arc<PmmcFabric>,
     handler: Arc<ConfigurationHandler>,
 }
 
@@ -51,7 +52,7 @@ impl RuntimeRegistry {
             .await;
     }
 
-    async fn take_provisioned_inbox(&self, id: Uuid) -> anyhow::Result<Receiver<Message>> {
+    async fn take_provisioned_inbox(&self, id: Uuid) -> anyhow::Result<Receiver<PmmcMessage>> {
         let inbox = {
             let inboxes = self.inboxes.read().await;
             inboxes.get(&id).cloned()
@@ -91,7 +92,7 @@ impl RuntimeRegistry {
 
     pub async fn init(
         members: Vec<(Uuid, PmmcNodeConfig)>,
-        fabric: Arc<NetworkFabric>,
+        fabric: Arc<PmmcFabric>,
         configuration: Arc<ClusterConfiguration>,
         persistence: Arc<ClusterPersistence>,
         observer: Arc<dyn PaxosObserver>,

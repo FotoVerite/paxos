@@ -1,7 +1,7 @@
 use std::{collections::HashSet, usize::MAX};
 use uuid::Uuid;
 
-use crate::node::classic_paxos::ballot::Ballot;
+use crate::common::ballot::Ballot;
 
 pub struct LearnerQuorum {
     votes: HashSet<Uuid>,

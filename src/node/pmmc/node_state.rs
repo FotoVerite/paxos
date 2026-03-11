@@ -7,12 +7,9 @@ use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::{
-    cluster::{
-        cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
-        network_handle::NetworkHandle,
-    },
+    cluster::cluster_configuration::ClusterConfiguration,
     common::persistence::NodePersistence,
-    message::{ClientMessage, Message},
+    message::ClientMessage,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
         config::{LearningStrategy, Roles},
@@ -21,7 +18,9 @@ use crate::{
         pmmc::{
             acceptor::Acceptor,
             leader::Leader,
+            message::PmmcMessage,
             replica::{ClientReplySink, Replica},
+            transport::{PmmcFabric, PmmcHandle},
         },
     },
 };
@@ -54,7 +53,7 @@ impl ClientReplySink for NodeClientSink {
 pub struct NodeState {
     uuid: Uuid,
     acceptor: Option<Acceptor>,
-    fabric: Arc<NetworkFabric>,
+    fabric: Arc<PmmcFabric>,
     leader: Option<Leader>,
     replica: Option<Arc<Replica>>,
     client_sink: Arc<NodeClientSink>,
@@ -65,8 +64,8 @@ pub struct NodeState {
 impl NodeState {
     pub async fn init(
         uuid: Uuid,
-        fabric: Arc<NetworkFabric>,
-        handle: Arc<NetworkHandle>,
+        fabric: Arc<PmmcFabric>,
+        handle: Arc<PmmcHandle>,
         persistence: NodePersistence,
         observer: Arc<dyn PaxosObserver>,
         roles: Roles,
@@ -212,97 +211,93 @@ impl NodeState {
         Some((client_tx, resp_rx))
     }
 
-    pub async fn handle_message(&self, msg: Message) {
-        match msg {
-            Message::ACK { from, .. }
-            | Message::ADOPTED { from, .. }
-            | Message::HEARTBEAT { from, .. }
-            | Message::P1B { from, .. }
-            | Message::P2B { from, .. }
-            | Message::PROPOSE { from, .. }
-            | Message::PREEMPT { from, .. } => {
+    pub async fn handle_message(&self, pmsg: PmmcMessage) {
+        match pmsg {
+            pmsg @ PmmcMessage::ACK { from, .. }
+            | pmsg @ PmmcMessage::ADOPTED { from, .. }
+            | pmsg @ PmmcMessage::HEARTBEAT { from, .. }
+            | pmsg @ PmmcMessage::P1B { from, .. }
+            | pmsg @ PmmcMessage::P2B { from, .. }
+            | pmsg @ PmmcMessage::PROPOSE { from, .. }
+            | pmsg @ PmmcMessage::PREEMPT { from, .. } => {
                 if let Some(leader) = &self.leader {
                     tracing::debug!(
                         "[Node {}] Routing message from node {} to Leader component",
                         self.uuid,
                         from
                     );
-                    let reply = leader.handle_message(msg).await;
-                    self.dispatch(&reply, from).await;
+                    if let Some(reply) = leader.handle_message(pmsg).await {
+                        self.dispatch(&reply).await;
+                    }
                 }
             }
-            Message::P1A { from, .. } | Message::P2A { from, .. } => {
+            pmsg @ PmmcMessage::P1A { from, .. } | pmsg @ PmmcMessage::P2A { from, .. } => {
                 if let Some(acceptor) = &self.acceptor {
                     tracing::debug!(
                         "[Node {}] Routing message from node {} to Acceptor component",
                         self.uuid,
                         from
                     );
-                    let reply = acceptor.handle_message(msg).await;
-                    self.dispatch(&reply, from).await;
+                    if let Some(reply) = acceptor.handle_message(pmsg).await {
+                        self.dispatch(&reply).await;
+                    }
                 }
             }
-            Message::ACCEPTED { from, .. } => {
+            pmsg @ PmmcMessage::ACCEPTED { from, .. } => {
                 if let Some(replica) = &self.replica {
                     tracing::debug!(
                         "[Node {}] Routing message from node {} to Replica component",
                         self.uuid,
                         from
                     );
-                    let reply = replica.handle_message(msg).await;
-                    self.dispatch(&reply, from).await;
+                    if let Some(reply) = replica.handle_message(pmsg).await {
+                        self.dispatch(&reply).await;
+                    }
                 }
-            }
-            _ => {
-                tracing::debug!("[Node {}] Ignoring unhandled message type", self.uuid);
             }
         }
     }
 
-    async fn dispatch(&self, msg: &Message, _from: Uuid) {
-        if let Message::NACK = msg {
-            return;
-        }
-
-        let decision = self.router.pmmc_route_response(msg);
+    async fn dispatch(&self, pmsg: &PmmcMessage) {
+        let decision = self.router.route_pmmc(pmsg);
         match decision {
             RoutingDecision::Broadcast => {
-                self.fabric.broadcast(self.uuid, msg.clone()).await;
+                self.fabric.broadcast(self.uuid, pmsg.clone()).await;
             }
             RoutingDecision::SendTo(to) => {
-                self.emit_pmmc_message_event(msg, to);
-                self.fabric.send(self.uuid, to, msg.clone()).await;
+                self.emit_pmmc_message_event(pmsg, to);
+                self.fabric.send(self.uuid, to, pmsg.clone()).await;
             }
             RoutingDecision::SendToMany(nodes) => {
                 for node in nodes {
-                    self.emit_pmmc_message_event(msg, node);
-                    self.fabric.send(self.uuid, node, msg.clone()).await;
+                    self.emit_pmmc_message_event(pmsg, node);
+                    self.fabric.send(self.uuid, node, pmsg.clone()).await;
                 }
             }
             RoutingDecision::Drop => {}
         }
     }
 
-    fn emit_pmmc_message_event(&self, msg: &Message, to: Uuid) {
+    fn emit_pmmc_message_event(&self, pmsg: &PmmcMessage, to: Uuid) {
         let created_at = current_timestamp_millis();
-        let evt = match msg {
-            Message::P1A { from, ballot, .. } => Some(Event::PmmcP1A {
+        let evt = match pmsg {
+            PmmcMessage::P1A { from, ballot, .. } => Some(Event::PmmcP1A {
                 from: *from,
                 ballot: *ballot,
                 created_at,
             }),
-            Message::P1B { from, ballot, .. } => Some(Event::PmmcP1B {
+            PmmcMessage::P1B { from, ballot, .. } => Some(Event::PmmcP1B {
                 from: *from,
                 to,
                 ballot: *ballot,
                 created_at,
             }),
-            Message::P2A { from, pvalue } => Some(Event::PmmcP2A {
+            PmmcMessage::P2A { from, pvalue } => Some(Event::PmmcP2A {
                 from: *from,
                 pvalue: pvalue.clone(),
                 created_at,
             }),
-            Message::P2B {
+            PmmcMessage::P2B {
                 from,
                 ballot,
                 pvalue,
@@ -314,30 +309,30 @@ impl NodeState {
                 pvalue: pvalue.clone(),
                 created_at,
             }),
-            Message::ADOPTED { from, ballot, .. } => Some(Event::PmmcAdopted {
+            PmmcMessage::ADOPTED { from, ballot, .. } => Some(Event::PmmcAdopted {
                 from: *from,
                 to,
                 ballot: *ballot,
                 created_at,
             }),
-            Message::PREEMPT { from, ballot, .. } => Some(Event::PmmcPreempted {
+            PmmcMessage::PREEMPT { from, ballot, .. } => Some(Event::PmmcPreempted {
                 from: *from,
                 to,
                 ballot: *ballot,
                 created_at,
             }),
-            Message::HEARTBEAT { from, ballot } => Some(Event::PmmcHeartbeat {
+            PmmcMessage::HEARTBEAT { from, ballot } => Some(Event::PmmcHeartbeat {
                 from: *from,
                 ballot: *ballot,
                 created_at,
             }),
-            Message::ACK { from, slot, .. } => Some(Event::PmmcAck {
+            PmmcMessage::ACK { from, slot, .. } => Some(Event::PmmcAck {
                 from: *from,
                 to,
                 slot: *slot,
                 created_at,
             }),
-            _ => None,
+            PmmcMessage::ACCEPTED { .. } | PmmcMessage::PROPOSE { .. } => None,
         };
         if let Some(event) = evt {
             self.observer.on_event(event);
@@ -352,15 +347,12 @@ mod tests {
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
-        cluster::{
-            cluster_configuration::ClusterConfiguration, network_fabric::NetworkFabric,
-            network_handle::NetworkHandle,
-        },
-        message::Message,
+        cluster::cluster_configuration::ClusterConfiguration,
+        common::ballot::Ballot,
         monitor::{NoOpObserver, PaxosObserver},
         node::{
-            classic_paxos::ballot::Ballot,
             config::{PmmcNodeConfig, Roles},
+            pmmc::{message::PmmcMessage, transport::new_pmmc_fabric},
             pvalue::PValue,
         },
         paxos_command::PaxosCommand,
@@ -390,9 +382,12 @@ mod tests {
         let peer_id = configuration.member(1).expect("node 1 should exist");
         let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
         let (peer_tx, mut peer_rx) = mpsc::channel(32);
-        let fabric = Arc::new(NetworkFabric::new(Arc::clone(&observer)));
+        let fabric = Arc::new(new_pmmc_fabric(Arc::clone(&observer)));
         fabric.register(peer_id, peer_tx).await;
-        let handle = Arc::new(NetworkHandle::from_fabric(node_id, Arc::clone(&fabric)));
+        let handle = Arc::new(crate::node::pmmc::transport::PmmcHandle::from_fabric(
+            node_id,
+            Arc::clone(&fabric),
+        ));
 
         let state = NodeState::init(
             node_id,
@@ -407,7 +402,7 @@ mod tests {
         .expect("node state init should work");
 
         state
-            .handle_message(Message::ACCEPTED {
+            .handle_message(PmmcMessage::ACCEPTED {
                 from: peer_id,
                 pvalue: PValue::new(0, Ballot::new(1, peer_id), cmd(7)),
             })
@@ -420,7 +415,7 @@ mod tests {
 
         assert!(matches!(
             out,
-            Message::ACK { from, to, slot } if from == node_id && to == peer_id && slot == 0
+            PmmcMessage::ACK { from, to, slot } if from == node_id && to == peer_id && slot == 0
         ));
     }
 }

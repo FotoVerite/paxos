@@ -3,7 +3,8 @@ use std::collections::{BTreeMap, btree_map::Entry};
 use uuid::Uuid;
 
 use crate::{
-    node::{classic_paxos::ballot::Ballot, pmmc::proposal::ProposalsStore, pvalue::PValue},
+    common::ballot::Ballot,
+    node::{pmmc::proposal::ProposalsStore, pvalue::PValue},
     paxos_command::PaxosCommand,
 };
 
@@ -97,10 +98,7 @@ mod tests {
 
     use uuid::Uuid;
 
-    use crate::{
-        node::{classic_paxos::ballot::Ballot, pvalue::PValue},
-        paxos_command::PaxosCommand,
-    };
+    use crate::{common::ballot::Ballot, node::pvalue::PValue, paxos_command::PaxosCommand};
 
     use super::LeaderDurable;
 

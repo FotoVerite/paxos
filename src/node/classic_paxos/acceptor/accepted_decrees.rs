@@ -3,12 +3,12 @@ use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 use crate::{
+    common::ballot::Ballot,
     common::{persistence::NodePersistence, types::DecreeId},
-    message::Message,
     monitor::{Event, PaxosObserver},
     node::classic_paxos::{
         acceptor::{accepted_decree::AcceptedDecree, prev_vote::PrevVote},
-        ballot::Ballot,
+        message::ClassicMessage,
     },
     paxos_command::PaxosCommand,
 };
@@ -26,7 +26,7 @@ impl AcceptedDecrees {
         decree_num: DecreeId,
         ballot: Ballot,
         observer: Arc<dyn PaxosObserver>,
-    ) -> Message {
+    ) -> Option<ClassicMessage> {
         let entry = self.decrees.entry(decree_num).or_default();
         if !entry.lt(ballot) {
             tracing::info!(
@@ -35,7 +35,7 @@ impl AcceptedDecrees {
                 ballot,
                 entry.next_bal()
             );
-            return Message::NACK;
+            return None;
         }
 
         tracing::info!(
@@ -54,13 +54,13 @@ impl AcceptedDecrees {
             created_at: crate::monitor::current_timestamp_millis(),
         });
 
-        Message::Promise {
+        Some(ClassicMessage::Promise {
             from: id_uuid,
             decree_num,
             ballot,
             accepted_ballot: entry.get_prev_bal(),
             accepted_value: entry.get_prev_val(),
-        }
+        })
     }
 
     pub fn accept(
@@ -71,7 +71,7 @@ impl AcceptedDecrees {
         ballot: Ballot,
         value: PaxosCommand,
         observer: Arc<dyn PaxosObserver>,
-    ) -> Message {
+    ) -> Option<ClassicMessage> {
         let entry = self.decrees.entry(decree_num).or_default();
         if !entry.eq(ballot) {
             tracing::info!(
@@ -80,7 +80,7 @@ impl AcceptedDecrees {
                 ballot,
                 entry.next_bal()
             );
-            return Message::NACK;
+            return None;
         }
 
         entry.prev_vote = PrevVote {
@@ -104,12 +104,12 @@ impl AcceptedDecrees {
             created_at: crate::monitor::current_timestamp_millis(),
         });
 
-        Message::Accepted {
+        Some(ClassicMessage::Accepted {
             from: id_uuid,
             decree_num,
             ballot,
             value,
-        }
+        })
     }
 
     pub async fn prepopulate(

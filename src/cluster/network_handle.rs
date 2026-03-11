@@ -4,12 +4,16 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::{cluster::network_fabric::NetworkFabric, message::Message, monitor::PaxosObserver};
+use crate::common::network_handle::NetworkHandle as GenericNetworkHandle;
+use crate::message::Message;
+use crate::monitor::PaxosObserver;
 
-pub use crate::cluster::network_fabric::NetworkFailure;
+use crate::cluster::network_fabric::NetworkFabric;
+
+pub use crate::common::network_fabric::NetworkFailure;
 
 pub struct NetworkHandle {
-    me: Uuid,
+    inner: GenericNetworkHandle<Message>,
     fabric: Arc<NetworkFabric>,
 }
 
@@ -23,45 +27,51 @@ impl NetworkHandle {
         for (uuid, sender) in peers {
             fabric.register(uuid, sender).await;
         }
-        Self { me, fabric }
+
+        let inner = GenericNetworkHandle::from_fabric(me, fabric.inner());
+        Self { inner, fabric }
     }
 
     pub fn from_fabric(me: Uuid, fabric: Arc<NetworkFabric>) -> Self {
-        Self { me, fabric }
+        let inner = GenericNetworkHandle::from_fabric(me, fabric.inner());
+        Self { inner, fabric }
     }
 
     pub async fn set_enabled(&self, enabled: bool) {
-        self.fabric.set_enabled(enabled).await;
+        self.inner.set_enabled(enabled).await;
     }
 
     pub async fn set_failure(&self, target: Uuid, failure: NetworkFailure) {
-        self.fabric.set_failure(self.me, target, failure).await;
+        self.inner.set_failure(target, failure).await;
     }
 
     pub async fn clear_failure(&self, target: Uuid) {
-        self.fabric.clear_failure(self.me, target).await;
+        self.inner.clear_failure(target).await;
     }
 
     pub async fn clear_all_failures(&self) {
-        self.fabric.clear_failures_from(self.me).await;
+        self.inner.clear_all_failures().await;
     }
 
-    pub async fn send(&self, to: Uuid, msg: Message) {
-        self.fabric.send(self.me, to, msg).await;
-    }
-
-    pub async fn broadcast(&self, msg: Message)
+    pub async fn send<M>(&self, to: Uuid, msg: M)
     where
-        Message: Clone,
+        M: Into<Message>,
     {
-        self.fabric.broadcast(self.me, msg).await;
+        self.inner.send(to, msg.into()).await;
     }
 
-    pub async fn broadcast_to(&self, msg: &Message, peers: &HashSet<Uuid>)
+    pub async fn broadcast<M>(&self, msg: M)
     where
-        Message: Clone,
+        M: Into<Message>,
     {
-        self.fabric.broadcast_to(self.me, msg, peers).await;
+        self.inner.broadcast(msg.into()).await;
+    }
+
+    pub async fn broadcast_to<M>(&self, msg: M, peers: &HashSet<Uuid>)
+    where
+        M: Into<Message>,
+    {
+        self.inner.broadcast_to(msg.into(), peers).await;
     }
 
     pub fn fabric(&self) -> Arc<NetworkFabric> {

@@ -1,7 +1,9 @@
 pub mod acceptor;
 pub mod admin;
 pub mod leader;
+pub mod message;
 pub mod node_state;
 pub mod pmmc_node;
 pub mod proposal;
 pub mod replica;
+pub mod transport;

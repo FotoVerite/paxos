@@ -3,9 +3,9 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    message::Message,
+    common::ballot::Ballot,
     monitor::NoOpObserver,
-    node::{classic_paxos::ballot::Ballot, pvalue::PValue},
+    node::{pmmc::message::PmmcMessage, pvalue::PValue},
     paxos_command::PaxosCommand,
 };
 
@@ -26,7 +26,7 @@ async fn preempts_when_acceptor_reports_higher_ballot() {
     let mut scout = Scout::new(leader, 2, Ballot::new(5, leader), Arc::new(NoOpObserver));
 
     let reply = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: acceptor,
             to: leader,
             ballot: Ballot::new(6, acceptor),
@@ -35,7 +35,7 @@ async fn preempts_when_acceptor_reports_higher_ballot() {
         .await;
 
     assert!(
-        matches!(reply, Message::PREEMPT { ballot, .. } if ballot == Ballot::new(6, acceptor)),
+        matches!(reply, Some(PmmcMessage::PREEMPT { ballot, .. }) if ballot == Ballot::new(6, acceptor)),
         "PMMC scout must preempt when any p1b carries a higher ballot"
     );
 }
@@ -47,7 +47,7 @@ async fn ignores_lower_ballot_responses() {
     let mut scout = Scout::new(leader, 2, Ballot::new(5, leader), Arc::new(NoOpObserver));
 
     let reply = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: acceptor,
             to: leader,
             ballot: Ballot::new(4, acceptor),
@@ -56,7 +56,7 @@ async fn ignores_lower_ballot_responses() {
         .await;
 
     assert!(
-        matches!(reply, Message::NACK),
+        reply.is_none(),
         "PMMC scout should ignore stale lower-ballot p1b responses"
     );
 }
@@ -73,17 +73,17 @@ async fn adopts_after_quorum_and_returns_pmax_per_slot() {
     let other_slot = PValue::new(9, Ballot::new(7, a1), cmd(300));
 
     let r1 = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: a1,
             to: leader,
             ballot: leader_ballot,
             pvalues: vec![lower.clone(), other_slot.clone()],
         })
         .await;
-    assert!(matches!(r1, Message::NACK));
+    assert!(r1.is_none());
 
     let r2 = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: a2,
             to: leader,
             ballot: leader_ballot,
@@ -91,9 +91,9 @@ async fn adopts_after_quorum_and_returns_pmax_per_slot() {
         })
         .await;
 
-    if let Message::ADOPTED {
+    if let Some(PmmcMessage::ADOPTED {
         ballot, pvalues, ..
-    } = r2
+    }) = r2
     {
         assert_eq!(ballot, leader_ballot);
         assert_eq!(pvalues.len(), 2);
@@ -114,27 +114,27 @@ async fn same_acceptor_cannot_satisfy_quorum_twice() {
     let mut scout = Scout::new(leader, 2, ballot, Arc::new(NoOpObserver));
 
     let first = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: a1,
             to: leader,
             ballot,
             pvalues: vec![],
         })
         .await;
-    assert!(matches!(first, Message::NACK));
+    assert!(first.is_none());
 
     let dup = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: a1,
             to: leader,
             ballot,
             pvalues: vec![],
         })
         .await;
-    assert!(matches!(dup, Message::NACK));
+    assert!(dup.is_none());
 
     let quorum = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: a2,
             to: leader,
             ballot,
@@ -142,7 +142,7 @@ async fn same_acceptor_cannot_satisfy_quorum_twice() {
         })
         .await;
 
-    assert!(matches!(quorum, Message::ADOPTED { .. }));
+    assert!(matches!(quorum, Some(PmmcMessage::ADOPTED { .. })));
 }
 
 #[tokio::test]
@@ -153,7 +153,7 @@ async fn quorum_one_adopts_on_first_matching_p1b() {
     let mut scout = Scout::new(leader, 1, ballot, Arc::new(NoOpObserver));
 
     let reply = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: a1,
             to: leader,
             ballot,
@@ -162,7 +162,7 @@ async fn quorum_one_adopts_on_first_matching_p1b() {
         .await;
 
     assert!(
-        matches!(reply, Message::ADOPTED { ballot: b, .. } if b == ballot),
+        matches!(reply, Some(PmmcMessage::ADOPTED { ballot: b, .. }) if b == ballot),
         "quorum=1 scout should adopt immediately on first valid p1b"
     );
 }
@@ -177,17 +177,17 @@ async fn preempt_after_partial_adoption_with_higher_ballot() {
     let mut scout = Scout::new(leader, 2, base, Arc::new(NoOpObserver));
 
     let first = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: a1,
             to: leader,
             ballot: base,
             pvalues: vec![],
         })
         .await;
-    assert!(matches!(first, Message::NACK));
+    assert!(first.is_none());
 
     let preempt = scout
-        .handle_message(Message::P1B {
+        .handle_message(PmmcMessage::P1B {
             from: a2,
             to: leader,
             ballot: higher,
@@ -196,7 +196,7 @@ async fn preempt_after_partial_adoption_with_higher_ballot() {
         .await;
 
     assert!(
-        matches!(preempt, Message::PREEMPT { ballot, .. } if ballot == higher),
+        matches!(preempt, Some(PmmcMessage::PREEMPT { ballot, .. }) if ballot == higher),
         "higher-ballot p1b should preempt even after partial progress"
     );
 }

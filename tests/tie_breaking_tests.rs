@@ -1,8 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    common::types::DecreeId, message::Message, node::classic_paxos::ballot::Ballot,
-    paxos_command::PaxosCommand,
+    common::ballot::Ballot, common::types::DecreeId,
+    node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::collections::HashSet;
 use test_helpers::NodeBuilder;
@@ -26,8 +26,7 @@ async fn tie_breaking_same_round_higher_node_id_wins() {
             ballot: b_node1,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { .. }));
-
+    assert!(matches!(resp1, Some(Message::Promise { .. })));
     // Node 2 has same round but higher node_id - should be accepted
     let resp2 = acceptor
         .handle_message(Message::Prepare {
@@ -36,7 +35,7 @@ async fn tie_breaking_same_round_higher_node_id_wins() {
             ballot: b_node2,
         })
         .await;
-    assert!(matches!(resp2, Message::Promise { .. }));
+    assert!(matches!(resp2, Some(Message::Promise { .. })));
 }
 
 #[tokio::test]
@@ -54,8 +53,7 @@ async fn tie_breaking_lower_node_id_rejected_same_round() {
             ballot: b_node2,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { .. }));
-
+    assert!(matches!(resp1, Some(Message::Promise { .. })));
     // Node 1 has same round but lower node_id - should be rejected
     let resp2 = acceptor
         .handle_message(Message::Prepare {
@@ -64,7 +62,7 @@ async fn tie_breaking_lower_node_id_rejected_same_round() {
             ballot: b_node1,
         })
         .await;
-    assert!(matches!(resp2, Message::NACK));
+    assert!(resp2.is_none());
 }
 
 #[tokio::test]
@@ -145,8 +143,7 @@ async fn acceptor_rejects_lower_node_id_when_already_promised_to_higher() {
             ballot: b_higher_node,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { .. }));
-
+    assert!(matches!(resp1, Some(Message::Promise { .. })));
     // Try lower node_id - should be rejected
     let resp2 = acceptor
         .handle_message(Message::Prepare {
@@ -155,7 +152,7 @@ async fn acceptor_rejects_lower_node_id_when_already_promised_to_higher() {
             ballot: b_lower_node,
         })
         .await;
-    assert!(matches!(resp2, Message::NACK));
+    assert!(resp2.is_none());
 }
 
 #[tokio::test]
@@ -194,7 +191,7 @@ async fn tie_breaking_affects_accept_phase() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp, Message::NACK));
+    assert!(resp.is_none());
 
     // Node 2 tries to Accept at its ballot (5,2) - should succeed
     let resp2 = acceptor
@@ -206,5 +203,5 @@ async fn tie_breaking_affects_accept_phase() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp2, Message::Accepted { .. }));
+    assert!(matches!(resp2, Some(Message::Accepted { .. })));
 }

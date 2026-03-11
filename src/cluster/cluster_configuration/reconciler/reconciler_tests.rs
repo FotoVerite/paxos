@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use super::*;
 use crate::cluster::cluster_configuration::{ConfigurationStatus, ConfigurationStrategy};
+use crate::node::config::Roles;
 use crate::rsm::checkpoint::{
     CheckpointManifest, CheckpointState, RsmCheckpoint, RsmCheckpointState,
 };
@@ -388,8 +389,6 @@ async fn get_checkpoint_returns_no_checkpoint_candidate_when_none_returned() {
     let reconciler = ClusterReconciler {
         prev: Arc::clone(&prev),
         next_config: (*prev).clone(),
-        to_add: HashMap::new(),
-        to_remove: std::collections::HashSet::new(),
     };
 
     let mock = MockOps::default();

@@ -4,12 +4,12 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::common::ballot::Ballot;
 use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
-use crate::message::Message;
 use crate::monitor::PaxosObserver;
-use crate::node::classic_paxos::ballot::Ballot;
 use crate::node::classic_paxos::decree_notes::{DecreeNote, DecreeNotes};
+use crate::node::classic_paxos::message::ClassicMessage;
 use crate::node::classic_paxos::proposer::proposed_decree::ProposedDecree;
 use crate::paxos_command::PaxosCommand;
 
@@ -40,7 +40,7 @@ impl Proposer {
         }
     }
 
-    pub async fn propose(&self, decree_num: DecreeId, cmd: PaxosCommand) -> Message {
+    pub async fn propose(&self, decree_num: DecreeId, cmd: PaxosCommand) -> ClassicMessage {
         // Increment the ballot number for every new proposal attempt.
         let mut state = self.state.lock().await;
 
@@ -82,7 +82,12 @@ impl Proposer {
 
             return msg;
         }
-        return Message::NACK;
+        tracing::warn!(
+            "[Node {}] Proposal ballot did not advance for decree {}; reusing current ballot",
+            self.uuid,
+            decree_num
+        );
+        entry.create_prepare_msg()
     }
 
     pub async fn promise(
@@ -92,10 +97,10 @@ impl Proposer {
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,
         from_node: Uuid,
-    ) -> Message {
+    ) -> Option<ClassicMessage> {
         let mut state = self.state.lock().await;
         let Some(entry) = state.get_mut(&decree_num) else {
-            return Message::NACK;
+            return None;
         };
         let mut decree_notes = self.decree_notes.lock().await;
         let notes = decree_notes
@@ -105,11 +110,11 @@ impl Proposer {
         match ballot.cmp(&notes.last_tried) {
             Ordering::Less => {
                 // stale, ignore
-                return Message::NACK;
+                return None;
             }
             Ordering::Greater => {
                 // preempted — future work: backoff / leader detection
-                return Message::NACK;
+                return None;
             }
             Ordering::Equal => {
                 return self
@@ -125,18 +130,24 @@ impl Proposer {
         proposed_decree: &mut ProposedDecree,
         accepted_ballot: Ballot,
         accepted_value: PaxosCommand,
-    ) -> Message {
+    ) -> Option<ClassicMessage> {
         proposed_decree.update_quorum(from_node, accepted_ballot, &accepted_value);
 
         if proposed_decree.has_met_quorum() {
-            return proposed_decree.create_accept_msg();
+            return Some(proposed_decree.create_accept_msg());
         }
-        return Message::NACK;
+        None
     }
 
-    pub async fn handle_message(&self, msg: Message) -> Message {
+    pub async fn handle_message(
+        &self,
+        msg: impl Into<Option<ClassicMessage>>,
+    ) -> Option<ClassicMessage> {
+        let Some(msg) = msg.into() else {
+            return None;
+        };
         match msg {
-            Message::Promise {
+            ClassicMessage::Promise {
                 from,
                 decree_num,
                 ballot,
@@ -146,7 +157,7 @@ impl Proposer {
                 self.promise(decree_num, ballot, accepted_ballot, accepted_value, from)
                     .await
             }
-            _ => Message::NACK,
+            _ => None,
         }
     }
 }

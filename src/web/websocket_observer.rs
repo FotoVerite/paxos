@@ -4,8 +4,8 @@ use tokio::sync::{RwLock, broadcast};
 use tracing::debug;
 use uuid::Uuid;
 
-use crate::message::Message;
-use crate::monitor::{Event, PaxosObserver};
+use crate::message::{Message, MessageProtocol, MessageTrace};
+use crate::monitor::{Event, EventProtocol, PaxosObserver};
 use crate::web::{ClusterInfo, VisualizerMessage};
 
 /// A PaxosObserver that broadcasts events to all connected WebSocket clients.
@@ -70,12 +70,8 @@ impl WebSocketObserver {
         let mut info = self.cluster_info.write().await;
         *info = None;
     }
-}
 
-impl PaxosObserver for WebSocketObserver {
-    /// Called when a Paxos event occurs.
-    /// Serializes the event to JSON and broadcasts it to all subscribed clients.
-    fn on_event(&self, event: Event) {
+    fn broadcast_event(&self, event: Event, protocol: EventProtocol) {
         let event_debug = format!("{:?}", event);
         let event_type = event_debug.split('(').next().unwrap_or("Unknown");
 
@@ -85,52 +81,92 @@ impl PaxosObserver for WebSocketObserver {
         let json_event =
             serde_json::to_string(&msg).expect("Failed to serialize visualizer message to JSON");
 
-        // Broadcast to all subscribers
         match self.sender.send(json_event) {
             Ok(subscriber_count) => {
                 debug!(
-                    "Broadcast {} event to {} subscribers",
-                    event_type, subscriber_count
+                    "Broadcast {:?} {} event to {} subscribers",
+                    protocol, event_type, subscriber_count
                 );
             }
             Err(e) => {
-                // This is expected when no clients are listening
                 debug!("No subscribers for {} event: {}", event_type, e);
             }
         }
     }
 
-    fn on_message(&self, indexes: &[Uuid], message: Message) {
+    fn handle_classic_event(&self, event: Event) {
+        self.broadcast_event(event, EventProtocol::Classic);
+    }
+
+    fn handle_pmmc_event(&self, event: Event) {
+        self.broadcast_event(event, EventProtocol::Pmmc);
+    }
+
+    fn handle_system_event(&self, event: Event) {
+        self.broadcast_event(event, EventProtocol::System);
+    }
+
+    fn broadcast_message(&self, indexes: &[Uuid], message: Message, protocol: MessageProtocol) {
         let payload = IndexedMessage {
             indexes,
             message: &message,
         };
-        match message {
-            Message::NACK => {}
-            _ => {
-                let debug = format!("{:?}", message);
+        let debug = format!("{:?}", message);
 
-                let message_json = serde_json::to_value(&payload)
-                    .expect("Failed to convert Paxos event to JSON value");
-                let message_type = debug.split('(').next().unwrap_or("Unknown");
+        let message_json =
+            serde_json::to_value(&payload).expect("Failed to convert Paxos event to JSON value");
+        let message_type = debug.split('(').next().unwrap_or("Unknown");
 
-                let msg = VisualizerMessage::Message(message_json);
-
-                let json_message = serde_json::to_string(&msg)
-                    .expect("Failed to serialize visualizer message to JSON");
-                match self.sender.send(json_message) {
-                    Ok(subscriber_count) => {
-                        debug!(
-                            "Broadcast {}-{:?} message to {} subscribers",
-                            message_type, indexes, subscriber_count
-                        );
-                    }
-                    Err(e) => {
-                        // This is expected when no clients are listening
-                        debug!("No subscribers for {} message: {}", message_type, e);
-                    }
-                }
+        let msg = VisualizerMessage::Message(message_json);
+        let json_message =
+            serde_json::to_string(&msg).expect("Failed to serialize visualizer message to JSON");
+        match self.sender.send(json_message) {
+            Ok(subscriber_count) => {
+                debug!(
+                    "Broadcast {:?} {}-{:?} message to {} subscribers",
+                    protocol, message_type, indexes, subscriber_count
+                );
             }
+            Err(e) => {
+                debug!("No subscribers for {} message: {}", message_type, e);
+            }
+        }
+    }
+
+    fn handle_classic_message(&self, indexes: &[Uuid], message: Message) {
+        self.broadcast_message(indexes, message, MessageProtocol::Classic);
+    }
+
+    fn handle_pmmc_message(&self, indexes: &[Uuid], message: Message) {
+        self.broadcast_message(indexes, message, MessageProtocol::Pmmc);
+    }
+
+    fn handle_system_message(&self, indexes: &[Uuid], message: Message) {
+        if !message.should_broadcast_to_visualizer() {
+            return;
+        }
+        self.broadcast_message(indexes, message, MessageProtocol::System);
+    }
+}
+
+impl PaxosObserver for WebSocketObserver {
+    /// Called when a Paxos event occurs.
+    /// Serializes the event to JSON and broadcasts it to all subscribed clients.
+    fn on_event(&self, event: Event) {
+        match event.protocol() {
+            EventProtocol::Classic => self.handle_classic_event(event),
+            EventProtocol::Pmmc => self.handle_pmmc_event(event),
+            EventProtocol::System => self.handle_system_event(event),
+        }
+    }
+
+    fn on_message_trace(&self, trace: MessageTrace) {
+        let indexes = trace.indexes().to_vec();
+        let message = trace.to_legacy_message();
+        match trace.protocol() {
+            MessageProtocol::Classic => self.handle_classic_message(&indexes, message),
+            MessageProtocol::Pmmc => self.handle_pmmc_message(&indexes, message),
+            MessageProtocol::System => self.handle_system_message(&indexes, message),
         }
     }
 }
@@ -139,5 +175,125 @@ impl PaxosObserver for WebSocketObserver {
 impl From<WebSocketObserver> for Arc<dyn PaxosObserver> {
     fn from(observer: WebSocketObserver) -> Self {
         Arc::new(observer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use serde_json::json;
+    use tokio::sync::broadcast;
+    use tokio::time::timeout;
+    use uuid::Uuid;
+
+    use super::WebSocketObserver;
+    use crate::common::ballot::Ballot;
+    use crate::common::types::DecreeId;
+    use crate::message::Message;
+    use crate::monitor::{Event, PaxosObserver};
+    use crate::paxos_command::PaxosCommand;
+
+    async fn recv_json(receiver: &mut broadcast::Receiver<String>) -> serde_json::Value {
+        let payload = timeout(Duration::from_millis(250), receiver.recv())
+            .await
+            .expect("timed out waiting for websocket payload")
+            .expect("websocket payload channel closed");
+        serde_json::from_str(&payload).expect("failed to parse websocket payload")
+    }
+
+    #[tokio::test]
+    async fn event_payload_contract_is_stable() {
+        let observer = WebSocketObserver::new(8);
+        let mut receiver = observer.subscribe().await;
+        let id = Uuid::from_u128(1);
+
+        observer.on_event(Event::Proposal {
+            id,
+            decree_num: DecreeId(7),
+            value: PaxosCommand::NOOP,
+            created_at: 42,
+        });
+
+        let got = recv_json(&mut receiver).await;
+        let expected = json!({
+            "Event": {
+                "Proposal": {
+                    "id": id,
+                    "decree_num": 7,
+                    "value": "NOOP",
+                    "created_at": 42
+                }
+            }
+        });
+        assert_eq!(got, expected);
+    }
+
+    #[tokio::test]
+    async fn message_payload_contract_is_stable() {
+        let observer = WebSocketObserver::new(8);
+        let mut receiver = observer.subscribe().await;
+        let from = Uuid::from_u128(11);
+        let to = Uuid::from_u128(22);
+
+        observer.on_message(
+            &[from, to],
+            Message::P1A {
+                from,
+                ballot: Ballot::with_epoch(3, from, 9),
+                start_index: 5,
+            },
+        );
+
+        let got = recv_json(&mut receiver).await;
+        let expected = json!({
+            "Message": {
+                "indexes": [from, to],
+                "message": {
+                    "P1A": {
+                        "from": from,
+                        "ballot": {
+                            "epoch": 9,
+                            "number": 3,
+                            "node_id": from
+                        },
+                        "start_index": 5
+                    }
+                }
+            }
+        });
+        assert_eq!(got, expected);
+    }
+
+    #[tokio::test]
+    async fn cluster_initialized_payload_contract_is_stable() {
+        let observer = WebSocketObserver::new(8);
+        let mut receiver = observer.subscribe().await;
+        let n1 = Uuid::from_u128(101);
+        let n2 = Uuid::from_u128(102);
+        let n3 = Uuid::from_u128(103);
+
+        observer.set_cluster_info(3, 2, vec![n1, n2, n3]).await;
+
+        let got = recv_json(&mut receiver).await;
+        let expected = json!({
+            "ClusterInitialized": {
+                "total_nodes": 3,
+                "quorum_size": 2,
+                "node_uuids": [n1, n2, n3]
+            }
+        });
+        assert_eq!(got, expected);
+    }
+
+    #[tokio::test]
+    async fn nack_is_not_broadcast() {
+        let observer = WebSocketObserver::new(8);
+        let mut receiver = observer.subscribe().await;
+
+        observer.on_message(&[Uuid::from_u128(44)], Message::NACK);
+
+        let result = timeout(Duration::from_millis(100), receiver.recv()).await;
+        assert!(result.is_err(), "unexpected websocket payload for NACK");
     }
 }

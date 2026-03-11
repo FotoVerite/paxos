@@ -4,12 +4,12 @@ use tokio::{sync::Mutex, time::Instant};
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_handle::NetworkHandle,
-    message::Message,
+    common::ballot::Ballot,
     monitor::PaxosObserver,
-    node::{
-        classic_paxos::ballot::Ballot,
-        pmmc::leader::leader_state::{durable::LeaderDurable, volatile::LeaderVolatile},
+    node::pmmc::{
+        leader::leader_state::{durable::LeaderDurable, volatile::LeaderVolatile},
+        message::PmmcMessage,
+        transport::PmmcHandle,
     },
     paxos_command::PaxosCommand,
 };
@@ -68,7 +68,7 @@ impl LeaderState {
         ballot: Ballot,
         replicas: Vec<Uuid>,
         observer: Arc<dyn PaxosObserver>,
-        peers: Arc<NetworkHandle>,
+        peers: Arc<PmmcHandle>,
     ) -> bool {
         let mut state = self.data.lock().await;
         if ballot != state.durable.ballot(self.id, self.epoch) {
@@ -131,12 +131,12 @@ impl LeaderState {
         state.durable.dump().await
     }
 
-    pub async fn handle_p1b(&self, msg: Message) -> Message {
+    pub async fn handle_p1b(&self, msg: PmmcMessage) -> Option<PmmcMessage> {
         let mut state = self.data.lock().await;
         state.volatile.p1b(msg).await
     }
 
-    pub async fn handle_p2b(&self, msg: Message) -> Message {
+    pub async fn handle_p2b(&self, msg: PmmcMessage) -> Option<PmmcMessage> {
         let mut state = self.data.lock().await;
         state.volatile.p2b(msg).await
     }
@@ -153,7 +153,7 @@ mod tests {
 
     use uuid::Uuid;
 
-    use crate::{monitor::NoOpObserver, node::classic_paxos::ballot::Ballot};
+    use crate::{common::ballot::Ballot, monitor::NoOpObserver};
 
     use super::{LeaderData, LeaderState, durable::LeaderDurable, volatile::LeaderVolatile};
 

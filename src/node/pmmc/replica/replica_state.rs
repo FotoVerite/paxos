@@ -93,7 +93,7 @@ impl ReplicaState {
         let state = self.data.lock().await;
         match state.durable.reconfiguration_strategy_in_effect() {
             ReconfigurationStrategyInEffect::None => false,
-            ReconfigurationStrategyInEffect::StopSign { slot, delayed } => true,
+            ReconfigurationStrategyInEffect::StopSign { .. } => true,
             ReconfigurationStrategyInEffect::Padding => true,
             ReconfigurationStrategyInEffect::BrickWall => true,
         }

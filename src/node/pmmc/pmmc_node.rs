@@ -11,15 +11,19 @@ use uuid::Uuid;
 use crate::{
     cluster::{
         cluster_configuration::ClusterConfiguration,
-        configuration_handler::types::ConfigurationHandlerMessage, network_fabric::NetworkFabric,
-        network_handle::NetworkHandle,
+        configuration_handler::types::ConfigurationHandlerMessage,
     },
     common::persistence::NodePersistence,
-    message::{ClientMessage, Message},
+    message::ClientMessage,
     monitor::PaxosObserver,
     node::{
         config::Roles,
-        pmmc::{admin::NodeAdmin, node_state::NodeState},
+        pmmc::{
+            admin::NodeAdmin,
+            message::PmmcMessage,
+            node_state::NodeState,
+            transport::{PmmcFabric, PmmcHandle},
+        },
     },
 };
 
@@ -33,8 +37,8 @@ impl PmmcNode {
     pub async fn new(
         uuid: Uuid,
         observer: Arc<dyn PaxosObserver>,
-        fabric: Arc<NetworkFabric>,
-        handle: Arc<NetworkHandle>,
+        fabric: Arc<PmmcFabric>,
+        handle: Arc<PmmcHandle>,
         persistence: NodePersistence,
         roles: Roles,
         configuration: Arc<ClusterConfiguration>,
@@ -89,7 +93,7 @@ impl PmmcNode {
         self.admin.stop().await;
     }
 
-    pub fn start(&self, mut rx: Receiver<Message>) -> JoinHandle<()> {
+    pub fn start(&self, mut rx: Receiver<PmmcMessage>) -> JoinHandle<()> {
         let state = Arc::clone(&self.state);
         let mut hb = time::interval_at(
             Instant::now() + Duration::from_millis(150),
@@ -135,19 +139,24 @@ mod tests {
 
     use crate::{
         cluster::cluster_configuration::ClusterConfiguration,
-        cluster::network_handle::NetworkHandle,
-        message::Message,
+        common::ballot::Ballot,
         monitor::{NoOpObserver, PaxosObserver},
-        node::{classic_paxos::ballot::Ballot, config::PmmcNodeConfig},
+        node::{
+            config::PmmcNodeConfig,
+            pmmc::{
+                message::PmmcMessage,
+                transport::{PmmcHandle, new_pmmc_fabric},
+            },
+        },
     };
 
     use super::PmmcNode;
 
     async fn new_node_with_peer() -> (
         PmmcNode,
-        mpsc::Sender<Message>,
-        mpsc::Receiver<Message>,
-        mpsc::Receiver<Message>,
+        mpsc::Sender<PmmcMessage>,
+        mpsc::Receiver<PmmcMessage>,
+        mpsc::Receiver<PmmcMessage>,
         Uuid,
         Uuid,
     ) {
@@ -165,11 +174,9 @@ mod tests {
         let (inbox_tx, inbox_rx) = mpsc::channel(64);
         let (peer_tx, peer_rx) = mpsc::channel(64);
 
-        let fabric = Arc::new(crate::cluster::network_fabric::NetworkFabric::new(
-            Arc::clone(&observer),
-        ));
+        let fabric = Arc::new(new_pmmc_fabric(Arc::clone(&observer)));
         fabric.register(peer_id, peer_tx).await;
-        let handle = Arc::new(NetworkHandle::from_fabric(node_id, Arc::clone(&fabric)));
+        let handle = Arc::new(PmmcHandle::from_fabric(node_id, Arc::clone(&fabric)));
 
         let node = PmmcNode::new(
             node_id,
@@ -194,7 +201,7 @@ mod tests {
         let adopted_ballot = timeout(Duration::from_millis(500), async {
             loop {
                 match peer_rx.recv().await {
-                    Some(Message::P1A { ballot, .. }) => return Some(ballot),
+                    Some(PmmcMessage::P1A { ballot, .. }) => return Some(ballot),
                     Some(_) => {}
                     None => return None,
                 }
@@ -205,7 +212,7 @@ mod tests {
         .expect("peer channel should stay open");
 
         inbox_tx
-            .send(Message::ADOPTED {
+            .send(PmmcMessage::ADOPTED {
                 from: Uuid::new_v4(),
                 to: node_id,
                 ballot: adopted_ballot,
@@ -220,7 +227,7 @@ mod tests {
         let got_p1a = timeout(Duration::from_millis(500), async {
             loop {
                 match peer_rx.recv().await {
-                    Some(Message::P1A { .. }) => return true,
+                    Some(PmmcMessage::P1A { .. }) => return true,
                     Some(_) => {}
                     None => return false,
                 }
@@ -238,7 +245,7 @@ mod tests {
         node.start(inbox_rx);
 
         inbox_tx
-            .send(Message::ADOPTED {
+            .send(PmmcMessage::ADOPTED {
                 from: Uuid::new_v4(),
                 to: node_id,
                 ballot: Ballot::with_epoch(0, node_id, 1),
@@ -250,7 +257,7 @@ mod tests {
         let got_heartbeat = timeout(Duration::from_millis(700), async {
             loop {
                 match peer_rx.recv().await {
-                    Some(Message::HEARTBEAT { .. }) => return true,
+                    Some(PmmcMessage::HEARTBEAT { .. }) => return true,
                     Some(_) => {}
                     None => return false,
                 }

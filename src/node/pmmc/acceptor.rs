@@ -3,12 +3,14 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
+    common::ballot::Ballot,
     common::persistence::NodePersistence,
-    message::Message,
     monitor::{Event, PaxosObserver},
     node::{
-        classic_paxos::ballot::Ballot,
-        pmmc::acceptor::accepted_state::{AcceptedData, AcceptorState},
+        pmmc::{
+            acceptor::accepted_state::{AcceptedData, AcceptorState},
+            message::PmmcMessage,
+        },
         pvalue::PValue,
     },
 };
@@ -41,7 +43,7 @@ impl Acceptor {
         })
     }
 
-    async fn p1a(&self, ballot: Ballot, start_index: usize) -> Message {
+    async fn p1a(&self, ballot: Ballot, start_index: usize) -> PmmcMessage {
         let (pvalues, a_ballot, updated) = self.state.p1a(ballot, start_index).await;
 
         if updated {
@@ -51,7 +53,7 @@ impl Acceptor {
                 ballot: a_ballot,
             });
         }
-        Message::P1B {
+        PmmcMessage::P1B {
             from: self.uuid,
             to: ballot.node_id,
             ballot: a_ballot,
@@ -59,7 +61,7 @@ impl Acceptor {
         }
     }
 
-    async fn p2a(&self, pvalue: PValue) -> Message {
+    async fn p2a(&self, pvalue: PValue) -> PmmcMessage {
         let accepted = self.state.p2a(pvalue.clone()).await;
 
         if accepted {
@@ -69,7 +71,7 @@ impl Acceptor {
                 pvalue: pvalue.clone(),
             });
         }
-        Message::P2B {
+        PmmcMessage::P2B {
             from: self.uuid,
             to: pvalue.ballot().node_id,
             ballot: self.state.ballot_num().await,
@@ -83,15 +85,19 @@ impl Acceptor {
         Ok(())
     }
 
-    pub async fn handle_message(&self, msg: Message) -> Message {
+    pub async fn handle_message<M>(&self, msg: M) -> Option<PmmcMessage>
+    where
+        M: TryInto<PmmcMessage>,
+    {
+        let msg = msg.try_into().ok()?;
         match msg {
-            Message::P1A {
+            PmmcMessage::P1A {
                 ballot,
                 start_index,
                 ..
-            } => self.p1a(ballot, start_index).await,
-            Message::P2A { pvalue, .. } => self.p2a(pvalue).await,
-            _ => Message::NACK,
+            } => Some(self.p1a(ballot, start_index).await),
+            PmmcMessage::P2A { pvalue, .. } => Some(self.p2a(pvalue).await),
+            _ => None,
         }
     }
 }
@@ -103,9 +109,10 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
+        common::ballot::Ballot,
         message::Message,
         monitor::NoOpObserver,
-        node::{classic_paxos::ballot::Ballot, pvalue::PValue},
+        node::{pmmc::message::PmmcMessage, pvalue::PValue},
         paxos_command::PaxosCommand,
     };
 
@@ -144,10 +151,11 @@ mod tests {
                 ballot: b5,
                 start_index: 0,
             })
-            .await;
+            .await
+            .expect("p1a should return p1b");
         assert!(matches!(
             first,
-            Message::P1B {
+            PmmcMessage::P1B {
                 to,
                 ballot,
                 pvalues,
@@ -161,10 +169,11 @@ mod tests {
                 ballot: b3,
                 start_index: 0,
             })
-            .await;
+            .await
+            .expect("p1a should return p1b");
         assert!(matches!(
             second,
-            Message::P1B { to, ballot, .. } if to == acceptor_id && ballot == b5
+            PmmcMessage::P1B { to, ballot, .. } if to == acceptor_id && ballot == b5
         ));
     }
 
@@ -204,10 +213,11 @@ mod tests {
                 from: leader,
                 pvalue: v8.clone(),
             })
-            .await;
+            .await
+            .expect("p2a should return p2b");
 
         assert!(
-            matches!(high, Message::P2B { ballot, .. } if ballot == b7),
+            matches!(high, PmmcMessage::P2B { ballot, .. } if ballot == b7),
             "paper rule: p2a with b > ballot_num should not advance ballot_num"
         );
 
@@ -217,9 +227,10 @@ mod tests {
                 ballot: b7,
                 start_index: 0,
             })
-            .await;
+            .await
+            .expect("p1a should return p1b");
 
-        if let Message::P1B {
+        if let PmmcMessage::P1B {
             ballot, pvalues, ..
         } = check
         {
@@ -271,9 +282,10 @@ mod tests {
                 ballot: b4,
                 start_index: 0,
             })
-            .await;
+            .await
+            .expect("p1a should return p1b");
 
-        if let Message::P1B {
+        if let PmmcMessage::P1B {
             pvalues, ballot, ..
         } = reply
         {
@@ -327,9 +339,10 @@ mod tests {
                 ballot: b4,
                 start_index: 2,
             })
-            .await;
+            .await
+            .expect("p1a should return p1b");
 
-        if let Message::P1B { pvalues, .. } = reply {
+        if let PmmcMessage::P1B { pvalues, .. } = reply {
             assert_eq!(pvalues.len(), 2);
             assert!(pvalues.contains(&v2));
             assert!(pvalues.contains(&v4));
@@ -372,9 +385,10 @@ mod tests {
                 ballot,
                 start_index: 0,
             })
-            .await;
+            .await
+            .expect("p1a should return p1b");
 
-        if let Message::P1B { pvalues, .. } = reply {
+        if let PmmcMessage::P1B { pvalues, .. } = reply {
             assert_eq!(pvalues.len(), 1);
             assert_eq!(pvalues[0], value);
         } else {
@@ -383,7 +397,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unhandled_message_returns_nack() {
+    async fn unhandled_message_returns_none() {
         let acceptor = new_acceptor().await;
         let resp = acceptor
             .handle_message(Message::PROPOSE {
@@ -392,6 +406,6 @@ mod tests {
                 cmd: PaxosCommand::NOOP,
             })
             .await;
-        assert!(matches!(resp, Message::NACK));
+        assert!(resp.is_none());
     }
 }

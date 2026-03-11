@@ -1,8 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    common::types::DecreeId, message::Message, node::classic_paxos::ballot::Ballot,
-    paxos_command::PaxosCommand,
+    common::ballot::Ballot, common::types::DecreeId,
+    node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::collections::HashSet;
 use test_helpers::NodeBuilder;
@@ -42,7 +42,7 @@ async fn acceptor_ballot_monotonicity_within_decree() {
 
     // INVARIANT: Must reject (ballot went backwards)
     assert!(
-        matches!(resp, Message::NACK),
+        resp.is_none(),
         "Acceptor violated monotonicity: accepted lower ballot after higher promise"
     );
 }
@@ -63,8 +63,7 @@ async fn acceptor_no_promise_downgrade_same_decree() {
             ballot: b5,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { .. }));
-
+    assert!(matches!(resp1, Some(Message::Promise { .. })));
     // Second promise attempt with same ballot - should be rejected
     let resp2 = acceptor
         .handle_message(Message::Prepare {
@@ -76,7 +75,7 @@ async fn acceptor_no_promise_downgrade_same_decree() {
 
     // INVARIANT: Must reject (same ballot requested twice)
     assert!(
-        matches!(resp2, Message::NACK),
+        resp2.is_none(),
         "Acceptor violated state invariant: accepted same ballot twice for same decree"
     );
 }
@@ -128,7 +127,7 @@ async fn acceptor_monotonic_promise_progression() {
 
     // INVARIANT: Must reject (ballot went backwards)
     assert!(
-        matches!(resp, Message::NACK),
+        resp.is_none(),
         "Acceptor violated monotonicity: accepted lower ballot after higher"
     );
 }
@@ -162,7 +161,7 @@ async fn acceptor_decree_independence_for_ballots() {
 
     // INVARIANT: Must succeed - decrees are independent
     assert!(
-        matches!(resp, Message::Promise { .. }),
+        matches!(resp, Some(Message::Promise { .. })),
         "Acceptor violated decree independence: ballot in decree 0 affected decree 1"
     );
 }
@@ -277,7 +276,7 @@ async fn acceptor_never_leaks_value_on_nack() {
 
     // INVARIANT: NACK should never expose accepted values
     assert!(
-        matches!(resp, Message::NACK),
+        resp.is_none(),
         "Acceptor violated invariant: should reject lower prepare, not leak state"
     );
 }
@@ -317,7 +316,7 @@ async fn proposer_value_adoption_invariant() {
     let msg1 = proposer.handle_message(promise1).await;
 
     // Verify proposer adopted the old value
-    if let Message::Accept { value, .. } = msg1 {
+    if let Some(Message::Accept { value, .. }) = msg1 {
         assert_eq!(
             value, old_value,
             "Proposer failed to adopt accepted value from higher ballot"
@@ -338,7 +337,7 @@ async fn proposer_value_adoption_invariant() {
     let msg2 = proposer.handle_message(promise2).await;
 
     // INVARIANT: Must keep the value from highest accepted_ballot
-    if let Message::Accept { value, .. } = msg2 {
+    if let Some(Message::Accept { value, .. }) = msg2 {
         assert_eq!(
             value, old_value,
             "Proposer violated invariant: should keep value from highest accepted_ballot"
@@ -378,10 +377,10 @@ async fn proposer_accept_ballot_matches_promise() {
     let accept = proposer.handle_message(promise).await;
 
     // INVARIANT: Accept ballot must match Promise ballot (which matched Prepare)
-    if let Message::Accept {
+    if let Some(Message::Accept {
         ballot: accept_ballot,
         ..
-    } = accept
+    }) = accept
     {
         assert_eq!(
             accept_ballot, prepare_ballot,
@@ -422,7 +421,7 @@ async fn acceptor_accept_ballot_validation() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp1, Message::NACK));
+    assert!(resp1.is_none());
 
     // Accept at (7, 1) - exact ballot
     let resp2 = acceptor
@@ -434,8 +433,7 @@ async fn acceptor_accept_ballot_validation() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp2, Message::Accepted { .. }));
-
+    assert!(matches!(resp2, Some(Message::Accepted { .. })));
     // Accept at (9, 1) - higher than promised, but we need a new promise first
     // This tests that acceptor enforces min_ballot >= promised ballot
     let new_promise = acceptor
@@ -445,8 +443,7 @@ async fn acceptor_accept_ballot_validation() {
             ballot: b9,
         })
         .await;
-    assert!(matches!(new_promise, Message::Promise { .. }));
-
+    assert!(matches!(new_promise, Some(Message::Promise { .. })));
     let resp3 = acceptor
         .handle_message(Message::Accept {
             from: test_helpers::test_uuid(1),
@@ -459,7 +456,7 @@ async fn acceptor_accept_ballot_validation() {
 
     // INVARIANT: Accept must be at or above min_ballot
     assert!(
-        matches!(resp3, Message::Accepted { .. }),
+        matches!(resp3, Some(Message::Accepted { .. })),
         "Acceptor violated invariant: rejected valid Accept at promised ballot"
     );
 }
@@ -526,11 +523,11 @@ async fn concurrent_proposals_ballot_isolation() {
 
     // INVARIANT: Both should be rejected (lower than min_ballot b1_3)
     assert!(
-        matches!(accept1, Message::NACK),
+        accept1.is_none(),
         "Acceptor accepted value from lower ballot when higher exists"
     );
     assert!(
-        matches!(accept2, Message::NACK),
+        accept2.is_none(),
         "Acceptor accepted value from lower ballot when highest exists"
     );
 
@@ -548,6 +545,9 @@ async fn concurrent_proposals_ballot_isolation() {
         .await;
     assert!(matches!(
         accept3,
-        Message::Accepted { value, .. } if value == PaxosCommand::GET { key: "p3".to_string(), }
+        Some(Message::Accepted { value, .. })
+            if value == PaxosCommand::GET {
+                key: "p3".to_string(),
+            }
     ));
 }

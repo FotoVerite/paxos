@@ -1,8 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    common::types::DecreeId, message::Message, monitor::Event, node::classic_paxos::ballot::Ballot,
-    paxos_command::PaxosCommand,
+    common::ballot::Ballot, common::types::DecreeId, monitor::Event,
+    node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -30,15 +30,12 @@ async fn basic_proposer_acceptor_interaction() {
     // Phase 1: Prepare
     let prepare = proposer.propose(DecreeId(0), cmd.clone()).await;
     assert!(matches!(prepare, Message::Prepare { .. }));
-
     // Acceptor promises
     let promise = acceptor.handle_message(prepare).await;
-    assert!(matches!(promise, Message::Promise { .. }));
-
+    assert!(matches!(promise, Some(Message::Promise { .. })));
     // Phase 2: Accept
     let accept = proposer.handle_message(promise).await;
-    assert!(matches!(accept, Message::Accept { .. }));
-
+    assert!(matches!(accept, Some(Message::Accept { .. })));
     // Acceptor accepts
     let accepted = acceptor
         .handle_message(Message::Accept {
@@ -49,8 +46,7 @@ async fn basic_proposer_acceptor_interaction() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(accepted, Message::Accepted { .. }));
-
+    assert!(matches!(accepted, Some(Message::Accepted { .. })));
     // Wait for all event recording tasks to complete
     observer.wait_for_events().await;
 
@@ -96,13 +92,11 @@ async fn ballot_comparison_ensures_safety() {
     // Proposer 1 sends Prepare (ballot 1,1)
     let prepare1 = proposer1.propose(DecreeId(0), cmd1.clone()).await;
     let promise1 = acceptor.handle_message(prepare1).await;
-    assert!(matches!(promise1, Message::Promise { .. }));
-
+    assert!(matches!(promise1, Some(Message::Promise { .. })));
     // Proposer 2 sends Prepare (ballot 1,2) - higher ballot
     let prepare2 = proposer2.propose(DecreeId(0), cmd2.clone()).await;
     let promise2 = acceptor.handle_message(prepare2).await;
-    assert!(matches!(promise2, Message::Promise { .. }));
-
+    assert!(matches!(promise2, Some(Message::Promise { .. })));
     // Proposer 1 tries to accept - should fail (acceptor now requires ballot >= 1,2)
     let _accept1 = proposer1.handle_message(promise1).await;
     let resp1 = acceptor
@@ -114,10 +108,7 @@ async fn ballot_comparison_ensures_safety() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(
-        matches!(resp1, Message::NACK),
-        "Lower ballot should be rejected"
-    );
+    assert!(resp1.is_none(), "Lower ballot should be rejected");
 
     // Proposer 2 can accept - higher ballot
     let _accept2 = proposer2.handle_message(promise2).await;
@@ -131,7 +122,7 @@ async fn ballot_comparison_ensures_safety() {
         })
         .await;
     assert!(
-        matches!(resp2, Message::Accepted { .. }),
+        matches!(resp2, Some(Message::Accepted { .. })),
         "Higher ballot should be accepted"
     );
 }
@@ -238,7 +229,7 @@ async fn proposer_adopts_accepted_values() {
     // Proposer should adopt the value from the promise
     let accept_msg = proposer2.handle_message(promise).await;
 
-    if let Message::Accept { value, .. } = accept_msg {
+    if let Some(Message::Accept { value, .. }) = accept_msg {
         assert_eq!(
             value, original_cmd,
             "Proposer should adopt value from promise with higher accepted_ballot"
@@ -265,8 +256,7 @@ async fn acceptor_monotonic_ballot_progression() {
             ballot: b1,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { .. }));
-
+    assert!(matches!(resp1, Some(Message::Promise { .. })));
     // Acceptor promises higher ballot (3, 1)
     let resp3 = acceptor
         .handle_message(Message::Prepare {
@@ -275,8 +265,7 @@ async fn acceptor_monotonic_ballot_progression() {
             ballot: b3,
         })
         .await;
-    assert!(matches!(resp3, Message::Promise { .. }));
-
+    assert!(matches!(resp3, Some(Message::Promise { .. })));
     // Acceptor refuses lower ballot (5, 1) is higher, so should accept
     let resp5 = acceptor
         .handle_message(Message::Prepare {
@@ -285,8 +274,7 @@ async fn acceptor_monotonic_ballot_progression() {
             ballot: b5,
         })
         .await;
-    assert!(matches!(resp5, Message::Promise { .. }));
-
+    assert!(matches!(resp5, Some(Message::Promise { .. })));
     // Trying the same ballot again should fail
     let resp_dup = acceptor
         .handle_message(Message::Prepare {
@@ -296,7 +284,7 @@ async fn acceptor_monotonic_ballot_progression() {
         })
         .await;
     assert!(
-        matches!(resp_dup, Message::NACK),
+        resp_dup.is_none(),
         "Acceptor should reject same ballot twice"
     );
 }

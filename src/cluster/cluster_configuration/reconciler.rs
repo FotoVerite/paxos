@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use tokio::time::{Instant, sleep};
@@ -18,7 +14,6 @@ use crate::{
         },
         runtime_registry::RuntimeRegistry,
     },
-    node::config::Roles,
     rsm::checkpoint::RsmCheckpoint,
 };
 
@@ -64,8 +59,6 @@ impl ReconcileOps for RuntimeRegistry {
 pub struct ClusterReconciler {
     prev: Arc<ClusterConfiguration>,
     next_config: ClusterConfiguration,
-    to_add: HashMap<Uuid, Roles>,
-    to_remove: HashSet<Uuid>,
 }
 
 impl ClusterReconciler {
@@ -295,16 +288,9 @@ impl TryFrom<(Arc<ClusterConfiguration>, ReconfigPatch)> for ClusterReconciler {
     fn try_from(
         (prev, patch): (Arc<ClusterConfiguration>, ReconfigPatch),
     ) -> Result<Self, Self::Error> {
-        let to_add = patch.add.clone();
-        let to_remove = patch.remove.clone();
         let next_config = ClusterConfiguration::try_from((Arc::clone(&prev), patch))?;
 
-        Ok(ClusterReconciler {
-            prev: prev,
-            next_config,
-            to_add,
-            to_remove,
-        })
+        Ok(ClusterReconciler { prev, next_config })
     }
 }
 

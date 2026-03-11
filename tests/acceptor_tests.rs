@@ -1,8 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    common::types::DecreeId, message::Message, node::classic_paxos::ballot::Ballot,
-    paxos_command::PaxosCommand,
+    common::ballot::Ballot, common::types::DecreeId,
+    node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::collections::HashSet;
 use test_helpers::NodeBuilder;
@@ -26,8 +26,10 @@ async fn acceptor_rejects_lower_ballot_prepare() {
             ballot: b_high,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { ballot, .. } if ballot == b_high));
-
+    assert!(matches!(
+        resp1,
+        Some(Message::Promise { ballot, .. }) if ballot == b_high
+    ));
     let resp2 = acceptor
         .handle_message(Message::Prepare {
             from: test_helpers::test_uuid(1),
@@ -35,7 +37,7 @@ async fn acceptor_rejects_lower_ballot_prepare() {
             ballot: b_low,
         })
         .await;
-    assert!(matches!(resp2, Message::NACK));
+    assert!(resp2.is_none());
 }
 
 #[tokio::test]
@@ -53,8 +55,10 @@ async fn acceptor_accepts_higher_ballot_prepare() {
             ballot: b5,
         })
         .await;
-    assert!(matches!(resp1, Message::Promise { ballot, .. } if ballot == b5));
-
+    assert!(matches!(
+        resp1,
+        Some(Message::Promise { ballot, .. }) if ballot == b5
+    ));
     let resp2 = acceptor
         .handle_message(Message::Prepare {
             from: test_helpers::test_uuid(1),
@@ -62,7 +66,10 @@ async fn acceptor_accepts_higher_ballot_prepare() {
             ballot: b7,
         })
         .await;
-    assert!(matches!(resp2, Message::Promise { ballot, .. } if ballot == b7));
+    assert!(matches!(
+        resp2,
+        Some(Message::Promise { ballot, .. }) if ballot == b7
+    ));
 }
 
 #[tokio::test]
@@ -90,7 +97,7 @@ async fn acceptor_rejects_accept_below_min_ballot() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp, Message::NACK));
+    assert!(resp.is_none());
 }
 
 #[tokio::test]
@@ -117,9 +124,11 @@ async fn acceptor_accepts_accept_at_min_ballot() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(
-        matches!(resp, Message::Accepted { ballot, value, .. } if value == PaxosCommand::NOOP && ballot == b5)
-    );
+    assert!(matches!(
+        resp,
+        Some(Message::Accepted { ballot, value, .. })
+            if value == PaxosCommand::NOOP && ballot == b5
+    ));
 }
 
 #[tokio::test]
@@ -158,7 +167,10 @@ async fn acceptor_accepts_accept_above_min_ballot() {
             quorum: HashSet::new(),
         })
         .await;
-    assert!(matches!(resp, Message::Accepted { ballot, .. } if ballot == b7));
+    assert!(matches!(
+        resp,
+        Some(Message::Accepted { ballot, .. }) if ballot == b7
+    ));
 }
 
 #[tokio::test]
@@ -198,12 +210,12 @@ async fn acceptor_returns_previous_accepted_value() {
         })
         .await;
 
-    if let Message::Promise {
+    if let Some(Message::Promise {
         ballot,
         accepted_ballot,
         accepted_value,
         ..
-    } = resp
+    }) = resp
     {
         assert_eq!(ballot, b3);
         assert_eq!(accepted_ballot, b1);
@@ -242,5 +254,5 @@ async fn acceptor_handles_equal_ballot_prepare() {
             ballot: b5,
         })
         .await;
-    assert!(matches!(resp, Message::NACK));
+    assert!(resp.is_none());
 }

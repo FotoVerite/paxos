@@ -1,8 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    common::types::DecreeId, message::Message, node::classic_paxos::ballot::Ballot,
-    paxos_command::PaxosCommand,
+    common::ballot::Ballot, common::types::DecreeId,
+    node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use test_helpers::NodeBuilder;
 
@@ -55,7 +55,7 @@ async fn proposer_sends_accept_on_promise() {
     };
     let resp = proposer.handle_message(promise).await;
 
-    if let Message::Accept { ballot, value, .. } = resp {
+    if let Some(Message::Accept { ballot, value, .. }) = resp {
         assert_eq!(ballot, Ballot::new(1, test_helpers::test_uuid(1)));
         assert_eq!(value, cmd);
     } else {
@@ -87,7 +87,7 @@ async fn proposer_adopts_previously_accepted_value() {
     };
     let resp = proposer.handle_message(promise).await;
 
-    if let Message::Accept { ballot, value, .. } = resp {
+    if let Some(Message::Accept { ballot, value, .. }) = resp {
         assert_eq!(ballot, Ballot::new(1, test_helpers::test_uuid(1)));
         assert_eq!(value, previous_cmd);
     } else {
@@ -119,7 +119,7 @@ async fn proposer_ignores_promise_for_wrong_ballot() {
     let resp = proposer.handle_message(promise).await;
 
     // Wrong ballot should return NACK
-    assert!(matches!(resp, Message::NACK));
+    assert!(resp.is_none());
 }
 
 #[tokio::test]
@@ -147,7 +147,7 @@ async fn proposer_picks_highest_accepted_ballot() {
     };
     let resp = proposer.handle_message(promise1).await;
 
-    if let Message::Accept { value, .. } = resp {
+    if let Some(Message::Accept { value, .. }) = resp {
         assert_eq!(value, value_from_5);
     } else {
         panic!("Expected Accept message");

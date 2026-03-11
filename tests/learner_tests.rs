@@ -1,8 +1,8 @@
 mod test_helpers;
 
 use paxos::{
-    common::types::DecreeId, message::Message, monitor::Event, node::classic_paxos::ballot::Ballot,
-    paxos_command::PaxosCommand,
+    common::ballot::Ballot, common::types::DecreeId, monitor::Event,
+    node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::sync::Arc;
 use test_helpers::{NodeBuilder, RecordingObserver, cleanup_persisted_state, create_ledger}; // Added Arc import

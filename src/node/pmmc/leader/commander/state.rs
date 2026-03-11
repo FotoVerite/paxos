@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use crate::{
     common::aimd_timeout::AimdTimeout,
-    message::Message,
-    node::{classic_paxos::ballot::Ballot, pmmc::proposal::ProposalsStore, pvalue::PValue},
+    common::ballot::Ballot,
+    node::{pmmc::message::PmmcMessage, pmmc::proposal::ProposalsStore, pvalue::PValue},
     paxos_command::PaxosCommand,
 };
 
@@ -97,7 +97,7 @@ impl CommanderState {
         self.stop_notify.notified().await;
     }
 
-    pub async fn process(&self, acceptor: Uuid, pvalue: PValue) -> Message {
+    pub async fn process(&self, acceptor: Uuid, pvalue: PValue) -> Option<PmmcMessage> {
         let mut state = self.data.lock().await;
 
         let (cmd, ack_count, already_decided) = match state.proposals.get_mut(&pvalue.slot()) {
@@ -109,19 +109,19 @@ impl CommanderState {
                     pending.decided,
                 )
             }
-            None => return Message::NACK,
+            None => return None,
         };
         state.aimd_timeout.success();
         if !already_decided && ack_count >= state.quorum {
             if let Some(pending) = state.proposals.get_mut(&pvalue.slot()) {
                 pending.decided = true;
             }
-            return Message::ACCEPTED {
+            return Some(PmmcMessage::ACCEPTED {
                 from: state.id,
                 pvalue: PValue::new(pvalue.slot(), state.ballot, cmd),
-            };
+            });
         }
-        return Message::NACK;
+        None
     }
 
     #[cfg(test)]
@@ -184,11 +184,7 @@ mod tests {
 
     use uuid::Uuid;
 
-    use crate::{
-        message::Message,
-        node::{classic_paxos::ballot::Ballot, pvalue::PValue},
-        paxos_command::PaxosCommand,
-    };
+    use crate::{common::ballot::Ballot, node::pvalue::PValue, paxos_command::PaxosCommand};
 
     use super::CommanderState;
 
@@ -227,6 +223,6 @@ mod tests {
         let reply = state
             .process(Uuid::new_v4(), PValue::new(7, ballot, cmd(7)))
             .await;
-        assert!(matches!(reply, Message::NACK));
+        assert!(reply.is_none());
     }
 }

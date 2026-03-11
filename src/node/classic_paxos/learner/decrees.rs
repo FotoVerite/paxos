@@ -3,10 +3,10 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 use crate::{
+    common::ballot::Ballot,
     common::types::DecreeId,
-    message::Message,
     monitor::PaxosObserver,
-    node::classic_paxos::{ballot::Ballot, learner::learner_quorum::LearnerQuorum},
+    node::classic_paxos::{learner::learner_quorum::LearnerQuorum, message::ClassicMessage},
     paxos_command::PaxosCommand,
 };
 use uuid::Uuid;
@@ -31,7 +31,7 @@ impl Decrees {
         quorum_size: usize,
         _observer: Arc<dyn PaxosObserver>,
         value: PaxosCommand,
-    ) -> Message {
+    ) -> Option<ClassicMessage> {
         let mut decrees = self.decrees.lock().await;
         let proposer_id = ballot.node_id;
 
@@ -49,13 +49,13 @@ impl Decrees {
                 proposer_id,
                 quorum.quorum_set()
             );
-            return Message::Success {
+            return Some(ClassicMessage::Success {
                 from: id,
                 decree_num,
                 value: value.clone(),
                 ballot_proposer: proposer_id,
-            };
+            });
         }
-        return Message::NACK;
+        None
     }
 }

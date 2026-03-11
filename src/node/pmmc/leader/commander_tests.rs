@@ -8,10 +8,12 @@ use tokio::{sync::mpsc, time::sleep};
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_handle::NetworkHandle,
-    message::Message,
+    common::ballot::Ballot,
     monitor::{NoOpObserver, PaxosObserver},
-    node::{classic_paxos::ballot::Ballot, pvalue::PValue},
+    node::{
+        pmmc::{message::PmmcMessage, transport::PmmcHandle},
+        pvalue::PValue,
+    },
     paxos_command::PaxosCommand,
 };
 
@@ -32,7 +34,7 @@ async fn mk_commander(
 ) -> Commander {
     let id = ballot.node_id;
     let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-    let peers = Arc::new(NetworkHandle::new(id, HashMap::new(), Arc::clone(&observer)).await);
+    let peers = Arc::new(PmmcHandle::new(id, HashMap::new()).await);
     Commander::new(id, quorum, ballot, vec![], proposals, peers, observer)
 }
 
@@ -47,17 +49,17 @@ async fn p2b_returns_nack_until_quorum_then_accepted() {
     let mut commander = mk_commander(2, ballot, proposals).await;
 
     let first = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: a1,
             to: leader,
             ballot,
             pvalue: PValue::new(3, ballot, cmd(10)),
         })
         .await;
-    assert!(matches!(first, Message::NACK));
+    assert!(first.is_none());
 
     let second = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: a2,
             to: leader,
             ballot,
@@ -66,7 +68,7 @@ async fn p2b_returns_nack_until_quorum_then_accepted() {
         .await;
     assert!(matches!(
         second,
-        Message::ACCEPTED { from, pvalue } if from == leader && pvalue.slot() == 3 && pvalue.ballot() == ballot && pvalue.cmd() == cmd(10)
+        Some(PmmcMessage::ACCEPTED { from, pvalue }) if from == leader && pvalue.slot() == 3 && pvalue.ballot() == ballot && pvalue.cmd() == cmd(10)
     ));
 }
 
@@ -81,34 +83,34 @@ async fn duplicate_acceptor_ack_does_not_count_twice() {
     let mut commander = mk_commander(2, ballot, proposals).await;
 
     let r1 = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: a1,
             to: leader,
             ballot,
             pvalue: PValue::new(1, ballot, cmd(1)),
         })
         .await;
-    assert!(matches!(r1, Message::NACK));
+    assert!(r1.is_none());
 
     let dup = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: a1,
             to: leader,
             ballot,
             pvalue: PValue::new(1, ballot, cmd(1)),
         })
         .await;
-    assert!(matches!(dup, Message::NACK));
+    assert!(dup.is_none());
 
     let quorum = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: a2,
             to: leader,
             ballot,
             pvalue: PValue::new(1, ballot, cmd(1)),
         })
         .await;
-    assert!(matches!(quorum, Message::ACCEPTED { .. }));
+    assert!(matches!(quorum, Some(PmmcMessage::ACCEPTED { .. })));
 }
 
 #[tokio::test]
@@ -121,7 +123,7 @@ async fn higher_ballot_p2b_preempts_commander() {
     let higher = Ballot::new(9, Uuid::new_v4());
 
     let reply = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: Uuid::new_v4(),
             to: leader,
             ballot: higher,
@@ -130,7 +132,7 @@ async fn higher_ballot_p2b_preempts_commander() {
         .await;
 
     assert!(
-        matches!(reply, Message::PREEMPT { ballot, .. } if ballot == higher),
+        matches!(reply, Some(PmmcMessage::PREEMPT { ballot, .. }) if ballot == higher),
         "PMMC commander should preempt on a higher ballot in p2b"
     );
 }
@@ -145,7 +147,7 @@ async fn lower_ballot_p2b_is_ignored() {
     let mut commander = mk_commander(2, ballot, proposals).await;
 
     let reply = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: Uuid::new_v4(),
             to: leader,
             ballot: lower,
@@ -154,7 +156,7 @@ async fn lower_ballot_p2b_is_ignored() {
         .await;
 
     assert!(
-        matches!(reply, Message::NACK),
+        reply.is_none(),
         "PMMC commander should ignore lower-ballot p2b responses"
     );
 }
@@ -168,13 +170,13 @@ async fn unhandled_message_returns_nack() {
     let mut commander = mk_commander(1, ballot, proposals).await;
 
     let reply = commander
-        .handle_message(Message::P1A {
+        .handle_message(PmmcMessage::P1A {
             from: leader,
             ballot,
             start_index: 0,
         })
         .await;
-    assert!(matches!(reply, Message::NACK));
+    assert!(reply.is_none());
 }
 
 #[tokio::test]
@@ -186,14 +188,14 @@ async fn unknown_slot_p2b_is_ignored() {
     let mut commander = mk_commander(2, ballot, proposals).await;
 
     let reply = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: Uuid::new_v4(),
             to: leader,
             ballot,
             pvalue: PValue::new(42, ballot, cmd(42)),
         })
         .await;
-    assert!(matches!(reply, Message::NACK));
+    assert!(reply.is_none());
 }
 
 #[tokio::test]
@@ -208,7 +210,7 @@ async fn run_rebroadcasts_p2a_periodically_until_quorum() {
     let (peer_tx, mut peer_rx) = mpsc::channel(2);
     let mut peers_map = HashMap::new();
     peers_map.insert(peer, peer_tx);
-    let peers = Arc::new(NetworkHandle::new(leader, peers_map, Arc::clone(&observer)).await);
+    let peers = Arc::new(PmmcHandle::new(leader, peers_map).await);
     let commander = Commander::new(leader, 2, ballot, vec![peer], proposals, peers, observer);
     let runner = commander.clone();
     tokio::spawn(async move {
@@ -218,7 +220,7 @@ async fn run_rebroadcasts_p2a_periodically_until_quorum() {
     sleep(Duration::from_millis(700)).await;
     let mut p2a_count = 0usize;
     while let Ok(msg) = peer_rx.try_recv() {
-        if matches!(msg, Message::P2A { .. }) {
+        if matches!(msg, PmmcMessage::P2A { .. }) {
             p2a_count += 1;
         }
     }
@@ -241,7 +243,7 @@ async fn run_stops_rebroadcasts_after_stop_signal() {
     let (peer_tx, mut peer_rx) = mpsc::channel(8);
     let mut peers_map = HashMap::new();
     peers_map.insert(peer, peer_tx);
-    let peers = Arc::new(NetworkHandle::new(leader, peers_map, Arc::clone(&observer)).await);
+    let peers = Arc::new(PmmcHandle::new(leader, peers_map).await);
     let commander = Commander::new(leader, 2, ballot, vec![peer], proposals, peers, observer);
     let runner = commander.clone();
     tokio::spawn(async move {
@@ -250,14 +252,14 @@ async fn run_stops_rebroadcasts_after_stop_signal() {
 
     sleep(Duration::from_millis(320)).await;
     let before_stop = std::iter::from_fn(|| peer_rx.try_recv().ok())
-        .filter(|m| matches!(m, Message::P2A { .. }))
+        .filter(|m| matches!(m, PmmcMessage::P2A { .. }))
         .count();
     assert!(before_stop >= 1, "commander should emit p2a before stop");
 
     commander.stop();
     sleep(Duration::from_millis(380)).await;
     let after_stop = std::iter::from_fn(|| peer_rx.try_recv().ok())
-        .filter(|m| matches!(m, Message::P2A { .. }))
+        .filter(|m| matches!(m, PmmcMessage::P2A { .. }))
         .count();
 
     assert_eq!(
@@ -281,19 +283,19 @@ async fn run_rebroadcasts_accepted_to_only_unacked_replicas_once_decided() {
     let mut peers_map = HashMap::new();
     peers_map.insert(r1, r1_tx);
     peers_map.insert(r2, r2_tx);
-    let peers = Arc::new(NetworkHandle::new(leader, peers_map, Arc::clone(&observer)).await);
+    let peers = Arc::new(PmmcHandle::new(leader, peers_map).await);
     let commander = Commander::new(leader, 1, ballot, vec![r1, r2], proposals, peers, observer);
     let mut gate = commander.clone();
 
     let accepted = gate
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: Uuid::new_v4(),
             to: leader,
             ballot,
             pvalue: PValue::new(0, ballot, cmd(11)),
         })
         .await;
-    assert!(matches!(accepted, Message::ACCEPTED { .. }));
+    assert!(matches!(accepted, Some(PmmcMessage::ACCEPTED { .. })));
 
     commander.record_replica_ack(r1, 0).await;
 
@@ -308,11 +310,11 @@ async fn run_rebroadcasts_accepted_to_only_unacked_replicas_once_decided() {
 
     let r1_accepted = r1_msgs
         .iter()
-        .filter(|m| matches!(m, Message::ACCEPTED { .. }))
+        .filter(|m| matches!(m, PmmcMessage::ACCEPTED { .. }))
         .count();
     let r2_accepted = r2_msgs
         .iter()
-        .filter(|m| matches!(m, Message::ACCEPTED { .. }))
+        .filter(|m| matches!(m, PmmcMessage::ACCEPTED { .. }))
         .count();
 
     assert_eq!(
@@ -332,26 +334,26 @@ async fn all_replica_acks_compact_decided_slot() {
     let r1 = Uuid::new_v4();
     let r2 = Uuid::new_v4();
     let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-    let peers = Arc::new(NetworkHandle::new(leader, HashMap::new(), Arc::clone(&observer)).await);
+    let peers = Arc::new(PmmcHandle::new(leader, HashMap::new()).await);
     let mut proposals = BTreeMap::new();
     proposals.insert(5, cmd(5));
     let mut commander = Commander::new(leader, 1, ballot, vec![r1, r2], proposals, peers, observer);
 
     let accepted = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: Uuid::new_v4(),
             to: leader,
             ballot,
             pvalue: PValue::new(5, ballot, cmd(5)),
         })
         .await;
-    assert!(matches!(accepted, Message::ACCEPTED { .. }));
+    assert!(matches!(accepted, Some(PmmcMessage::ACCEPTED { .. })));
 
     commander.record_replica_ack(r1, 5).await;
     commander.record_replica_ack(r2, 5).await;
 
     let after_compact = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: Uuid::new_v4(),
             to: leader,
             ballot,
@@ -359,7 +361,7 @@ async fn all_replica_acks_compact_decided_slot() {
         })
         .await;
     assert!(
-        matches!(after_compact, Message::NACK),
+        after_compact.is_none(),
         "once slot is compacted by replica acks, further p2b for that slot should be ignored"
     );
 }
@@ -379,20 +381,19 @@ async fn role_split_replica_acks_compaction_stops_accepted_rebroadcasts() {
     let mut peers_map = HashMap::new();
     peers_map.insert(r1, r1_tx);
     peers_map.insert(r2, r2_tx);
-    let peers = Arc::new(NetworkHandle::new(leader, peers_map, Arc::clone(&observer)).await);
+    let peers = Arc::new(PmmcHandle::new(leader, peers_map).await);
     let mut commander = Commander::new(leader, 1, ballot, vec![r1, r2], proposals, peers, observer);
 
     let accepted = commander
-        .handle_message(Message::P2B {
+        .handle_message(PmmcMessage::P2B {
             from: Uuid::new_v4(),
             to: leader,
             ballot,
             pvalue: PValue::new(0, ballot, cmd(17)),
         })
         .await;
-    assert!(matches!(accepted, Message::ACCEPTED { .. }));
+    assert!(matches!(accepted, Some(PmmcMessage::ACCEPTED { .. })));
 
-    // Both replicas ACKed the decided slot; commander should compact it.
     commander.record_replica_ack(r1, 0).await;
     commander.record_replica_ack(r2, 0).await;
 
@@ -403,10 +404,10 @@ async fn role_split_replica_acks_compaction_stops_accepted_rebroadcasts() {
     sleep(Duration::from_millis(450)).await;
 
     let r1_accepted = std::iter::from_fn(|| r1_rx.try_recv().ok())
-        .filter(|m| matches!(m, Message::ACCEPTED { .. }))
+        .filter(|m| matches!(m, PmmcMessage::ACCEPTED { .. }))
         .count();
     let r2_accepted = std::iter::from_fn(|| r2_rx.try_recv().ok())
-        .filter(|m| matches!(m, Message::ACCEPTED { .. }))
+        .filter(|m| matches!(m, PmmcMessage::ACCEPTED { .. }))
         .count();
 
     assert_eq!(

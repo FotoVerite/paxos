@@ -6,8 +6,8 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    message::Message,
-    node::{classic_paxos::ballot::Ballot, pvalue::PValue},
+    common::ballot::Ballot,
+    node::{pmmc::message::PmmcMessage, pvalue::PValue},
 };
 pub struct Scout {
     uuid: Uuid,
@@ -37,13 +37,13 @@ impl Scout {
         self.pvalues.iter().map(|(_, v)| v.clone()).collect()
     }
 
-    fn p1b(&mut self, acceptor: Uuid, ballot: Ballot, pvalues: Vec<PValue>) -> Message {
+    fn p1b(&mut self, acceptor: Uuid, ballot: Ballot, pvalues: Vec<PValue>) -> Option<PmmcMessage> {
         if ballot > self.ballot {
-            return Message::PREEMPT {
+            return Some(PmmcMessage::PREEMPT {
                 from: self.uuid,
                 to: self.uuid,
                 ballot,
-            };
+            });
         }
 
         if ballot == self.ballot {
@@ -52,20 +52,20 @@ impl Scout {
             return self.is_adopted();
         }
 
-        Message::NACK
+        None
     }
 
-    fn is_adopted(&self) -> Message {
+    fn is_adopted(&self) -> Option<PmmcMessage> {
         if self.adopted.len() >= self.quorum {
             let v = self.pvalues.iter().map(|(_, v)| v.clone()).collect();
-            return Message::ADOPTED {
+            return Some(PmmcMessage::ADOPTED {
                 from: self.uuid,
                 to: self.uuid,
                 ballot: self.ballot,
                 pvalues: v,
-            };
+            });
         }
-        Message::NACK
+        None
     }
 
     fn pmax(&mut self, pvalues: Vec<PValue>) {
@@ -83,15 +83,15 @@ impl Scout {
         }
     }
 
-    pub async fn handle_message(&mut self, msg: Message) -> Message {
+    pub async fn handle_message(&mut self, msg: PmmcMessage) -> Option<PmmcMessage> {
         match msg {
-            Message::P1B {
+            PmmcMessage::P1B {
                 from,
                 ballot,
                 pvalues,
                 ..
             } => self.p1b(from, ballot, pvalues),
-            _ => Message::NACK,
+            _ => None,
         }
     }
 }

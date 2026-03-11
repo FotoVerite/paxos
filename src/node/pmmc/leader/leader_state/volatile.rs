@@ -5,15 +5,15 @@ use tokio::{task::JoinHandle, time::Instant};
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_handle::NetworkHandle,
     common::aimd_timeout::AimdTimeout,
-    message::Message,
+    common::ballot::Ballot,
     monitor::PaxosObserver,
     node::{
-        classic_paxos::ballot::Ballot,
         pmmc::{
             leader::{commander::Commander, scout::Scout},
+            message::PmmcMessage,
             proposal::ProposalsStore,
+            transport::PmmcHandle,
         },
         pvalue::PValue,
     },
@@ -72,7 +72,7 @@ impl LeaderVolatile {
         replicas: Vec<Uuid>,
         proposals: ProposalsStore,
         observer: Arc<dyn PaxosObserver>,
-        peers: Arc<NetworkHandle>,
+        peers: Arc<PmmcHandle>,
     ) {
         if let Some(runtime) = self.commander.take() {
             runtime.commander.stop();
@@ -123,18 +123,18 @@ impl LeaderVolatile {
         }
     }
 
-    pub async fn p1b(&mut self, msg: Message) -> Message {
+    pub async fn p1b(&mut self, msg: PmmcMessage) -> Option<PmmcMessage> {
         if let Some(scout) = self.scout.as_mut() {
             return scout.handle_message(msg).await;
         }
-        Message::NACK
+        None
     }
 
-    pub async fn p2b(&mut self, msg: Message) -> Message {
+    pub async fn p2b(&mut self, msg: PmmcMessage) -> Option<PmmcMessage> {
         if let Some(runtime) = self.commander.as_mut() {
             return runtime.commander.handle_message(msg).await;
         }
-        Message::NACK
+        None
     }
 
     pub async fn ack(&mut self, from: Uuid, slot: usize) {
