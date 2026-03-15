@@ -9,7 +9,7 @@ use crate::{
         pmmc::{
             proposal::ProposalsStore,
             replica::replica_state::{
-                durable::{ReconfigurationStrategyInEffect, ReplicaDurable},
+                durable::{ProposalPolicy, ReconfigurationStrategyInEffect, ReplicaDurable, StopObservation},
                 volatile::ReplicaVolatile,
             },
         },
@@ -111,8 +111,8 @@ impl ReplicaState {
         let (cached, response) = state.durable.is_cached(&cmd);
 
         if !cached {
-            match state.durable.reconfiguration_strategy_in_effect() {
-                ReconfigurationStrategyInEffect::BrickWall => {
+            match state.durable.proposal_policy() {
+                ProposalPolicy::RejectStopped => {
                     return ReplicaAdmissionOutcome::Stopped;
                 }
                 _ => {}
@@ -137,11 +137,8 @@ impl ReplicaState {
     pub async fn add_decision(&self, pvalue: PValue) -> Option<ReplicaAdmissionOutcome> {
         let admitted = {
             let mut state = self.data.lock().await;
-            match state.durable.reconfiguration_strategy_in_effect() {
-                ReconfigurationStrategyInEffect::BrickWall => {
-                    return Some(ReplicaAdmissionOutcome::Stopped);
-                }
-                _ => {}
+            if state.durable.reject_decision_after_stop() {
+                return Some(ReplicaAdmissionOutcome::Stopped);
             }
 
             if state.durable.add_decision(pvalue) {
@@ -180,6 +177,21 @@ impl ReplicaState {
     pub async fn client_dedup_watermark(&self) -> std::collections::HashMap<Uuid, u64> {
         let state = self.data.lock().await;
         state.durable.client_dedup_watermark()
+    }
+
+    pub async fn stop_observation(&self) -> StopObservation {
+        let state = self.data.lock().await;
+        state.durable.stop_observation()
+    }
+
+    pub async fn delayed_stop_slots(&self) -> usize {
+        let state = self.data.lock().await;
+        state.durable.delayed_stop_slots()
+    }
+
+    pub async fn is_stop_drained(&self) -> bool {
+        let state = self.data.lock().await;
+        state.durable.is_stop_drained()
     }
 
     pub async fn dump(&self) -> ReplicaDurable {

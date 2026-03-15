@@ -6,6 +6,10 @@ import { createDecreePanelPlugin } from '/js/paxos-demo/plugins/decree-panel.js'
 import { createPlaybackDelayPlugin } from '/js/paxos-demo/plugins/playback-delay.js';
 import { createNodeCapabilitiesPlugin } from '/js/paxos-demo/plugins/node-capabilities.js';
 import { createClientStripPlugin } from '/js/paxos-demo/plugins/client-strip.js';
+import { createClientLanesPlugin } from '/js/paxos-demo/plugins/client-lanes.js';
+import { createSlotTapePlugin } from '/js/paxos-demo/plugins/slot-tape.js';
+import { createReconfigPhasePlugin } from '/js/paxos-demo/plugins/reconfig-phase.js';
+import { getPmmcScenarioNodeCount } from '/js/paxos-demo/config/pmmc-scenarios.js';
 
 let controller = null;
 let visualizer = null;
@@ -21,6 +25,8 @@ let speedValue;
 let scenarioSelect;
 let statusTitle;
 let statusDescription;
+let reconfigPhaseTitle;
+let reconfigPhaseDescription;
 let togglePlayBtn;
 let resetBtn;
 let stepBackBtn;
@@ -36,6 +42,8 @@ let filterStatus;
 let copyAllLogsBtn;
 let nodeLabelModeSelect;
 let clientStrip;
+let clientLanes;
+let slotTape;
 let clientFeed;
 let clientSnapshot;
 let topologyPanel;
@@ -44,6 +52,25 @@ const NODE_LABEL_MODE_STORAGE_KEY = 'paxos.nodeLabelMode';
 const PMMC_LOG_PRESETS = [
   { key: 'all', label: 'All', types: null },
   { key: 'flow', label: 'Flow', types: ['PmmcPropose', 'PmmcP1A', 'PmmcP1B', 'PmmcP2A', 'PmmcP2B', 'NodeCrashed', 'PartitionCreated', 'PartitionHealed'] },
+  {
+    key: 'reconfig',
+    label: 'Reconfig',
+    types: [
+      'ReconfigurationRequested',
+      'ReconfigurationStopStarted',
+      'ReconfigurationStopCommandSent',
+      'ReconfigurationStopCompleted',
+      'ReconfigurationStopDecided',
+      'ReconfigurationStopApplied',
+      'ReconfigurationProposalObserved',
+      'ReconfigurationCheckpointSelected',
+      'ReconfigurationApplied',
+      'ReconfigurationNodeRetired',
+      'ReconfigurationNodeRebooted',
+      'ReconfigurationReady',
+      'ReconfigurationFailed',
+    ],
+  },
   { key: 'leader', label: 'Leader', types: ['LeaderElected', 'LeaderSteppedDown', 'NodeCrashed', 'PartitionCreated', 'PartitionHealed', 'PmmcAdopted', 'PmmcPreempted', 'PmmcHeartbeat'] },
   { key: 'acks', label: 'Acks', types: ['PmmcAck'] },
 ];
@@ -149,6 +176,16 @@ function buildController() {
       createNodeCapabilitiesPlugin(),
       topologyPlugin,
       createPmmcEventDebugPlugin(),
+      createReconfigPhasePlugin({
+        titleEl: reconfigPhaseTitle,
+        descriptionEl: reconfigPhaseDescription,
+      }),
+      createClientLanesPlugin({
+        container: clientLanes,
+      }),
+      createSlotTapePlugin({
+        container: slotTape,
+      }),
       createClientStripPlugin({
         container: clientStrip,
         feed: clientFeed,
@@ -311,15 +348,7 @@ async function playScenario() {
   try {
     scenarioStartInFlight = true;
     const scenarioType = scenarioSelect?.value || 'pmmc_single_client';
-    const scenarioNodeCount =
-      scenarioType === 'pmmc_role_split' ||
-      scenarioType === 'pmmc_leader_crash' ||
-      scenarioType === 'pmmc_replica_crash_failover' ||
-      scenarioType === 'pmmc_leader_partition_heal' ||
-      scenarioType === 'pmmc_acceptor_majority_loss_then_recover' ||
-      scenarioType === 'pmmc_staggered_leader_join'
-        ? 7
-        : 5;
+    const scenarioNodeCount = getPmmcScenarioNodeCount(scenarioType, 5);
     const response = await fetch('/api/start-scenario', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -465,6 +494,8 @@ function initUI() {
   scenarioSelect = document.getElementById('scenarioSelect');
   statusTitle = document.getElementById('statusTitle');
   statusDescription = document.getElementById('statusDescription');
+  reconfigPhaseTitle = document.getElementById('reconfigPhaseTitle');
+  reconfigPhaseDescription = document.getElementById('reconfigPhaseDescription');
   togglePlayBtn = document.getElementById('togglePlayBtn');
   resetBtn = document.getElementById('resetBtn');
   stepBackBtn = document.getElementById('stepBackBtn');
@@ -480,6 +511,8 @@ function initUI() {
   copyAllLogsBtn = document.getElementById('eventCopyAllBtn');
   nodeLabelModeSelect = document.getElementById('nodeLabelMode');
   clientStrip = document.getElementById('clientStrip');
+  clientLanes = document.getElementById('clientLanes');
+  slotTape = document.getElementById('slotTape');
   clientFeed = document.getElementById('clientFeed');
   clientSnapshot = document.getElementById('clientSnapshot');
   topologyPanel = document.getElementById('topologyPanel');

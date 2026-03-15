@@ -15,6 +15,25 @@ const FILTER_PRESETS = [
   { key: 'success', label: 'Success', types: ['Success'] },
   { key: 'partition', label: 'Partition', types: ['PartitionCreated', 'PartitionHealed'] },
   { key: 'leader', label: 'Leader', types: ['LeaderElected'] },
+  {
+    key: 'reconfig',
+    label: 'Reconfig',
+    types: [
+      'ReconfigurationRequested',
+      'ReconfigurationStopStarted',
+      'ReconfigurationStopCommandSent',
+      'ReconfigurationStopCompleted',
+      'ReconfigurationStopDecided',
+      'ReconfigurationStopApplied',
+      'ReconfigurationProposalObserved',
+      'ReconfigurationCheckpointSelected',
+      'ReconfigurationNodeRetired',
+      'ReconfigurationNodeRebooted',
+      'ReconfigurationApplied',
+      'ReconfigurationReady',
+      'ReconfigurationFailed',
+    ],
+  },
   { key: 'initial', label: 'Initial', types: ['InitialDecree', 'BatchInitialDecrees', 'LedgerDump'] },
 ];
 
@@ -36,6 +55,7 @@ export function createEventLogPlugin({
   const items = [];
   let cursor = -1;
   let baseTimestamp = null;
+  let replayCheckpointSlot = null;
   let activeFilter = defaultFilter || 'all';
   const typeCounts = {};
   const filterButtons = new Map();
@@ -45,6 +65,13 @@ export function createEventLogPlugin({
     const viz = getEventVisualizer(eventType);
     if (!viz || typeof viz.format !== 'function') return '';
     return viz.format(eventData, ctx?.nodeLabels);
+  }
+
+  function detectReplay(eventType, eventData) {
+    if (eventType !== 'PmmcP2B') return false;
+    if (!Number.isInteger(replayCheckpointSlot)) return false;
+    const slot = eventData?.pvalue?.slot;
+    return Number.isInteger(slot) && slot <= replayCheckpointSlot;
   }
 
   function formatRelativeTime(createdAtMicros) {
@@ -227,8 +254,19 @@ export function createEventLogPlugin({
       if (!eventLog) return;
       for (const entry of batch) {
         if (excludedTypeSet.has(entry.eventType)) continue;
+        if (entry.eventType === 'ReconfigurationRequested') {
+          replayCheckpointSlot = null;
+        } else if (entry.eventType === 'ReconfigurationCheckpointSelected') {
+          const slot = entry.eventData?.last_applied_slot;
+          replayCheckpointSlot = Number.isInteger(slot) ? slot : null;
+        }
+
         const viz = getEventVisualizer(entry.eventType);
         if (!viz || !viz.format) continue;
+        const isReplay = detectReplay(entry.eventType, entry.eventData);
+        const baseText = formatEventText(entry.eventType, entry.eventData, ctx);
+        const text = isReplay ? `${baseText} [replay]` : baseText;
+        if (!text || !text.trim()) continue;
 
         if (baseTimestamp === null && Number.isFinite(entry.created_at)) {
           baseTimestamp = entry.created_at;
@@ -246,7 +284,7 @@ export function createEventLogPlugin({
 
         const textEl = document.createElement('span');
         textEl.className = 'event-text';
-        textEl.textContent = formatEventText(entry.eventType, entry.eventData, ctx);
+        textEl.textContent = text;
 
         node.appendChild(timeEl);
         node.appendChild(textEl);
@@ -255,6 +293,7 @@ export function createEventLogPlugin({
         items.unshift({
           node,
           textEl,
+          isReplay,
           frameIndex: batchIndex,
           eventType: entry.eventType,
           eventData: entry.eventData,
@@ -274,7 +313,8 @@ export function createEventLogPlugin({
 
     onNodeLabelsChanged(_, ctx) {
       for (const item of items) {
-        item.textEl.textContent = formatEventText(item.eventType, item.eventData, ctx);
+        const baseText = formatEventText(item.eventType, item.eventData, ctx);
+        item.textEl.textContent = item.isReplay ? `${baseText} [replay]` : baseText;
       }
       updateVisibility();
       scrollToActive();
@@ -307,6 +347,7 @@ export function createEventLogPlugin({
       items.length = 0;
       cursor = -1;
       baseTimestamp = null;
+      replayCheckpointSlot = null;
       for (const key of Object.keys(typeCounts)) {
         delete typeCounts[key];
       }

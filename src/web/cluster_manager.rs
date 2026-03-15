@@ -78,7 +78,56 @@ impl ClusterManager {
         ip: IpAddr,
         scenario_type: ScenarioType,
         node_count: usize,
+        pmmc_spec: Option<&crate::web::scenarios::pmmc::spec::PmmcScenarioSpec>,
     ) -> anyhow::Result<ClusterConfiguration> {
+        let initial_strategy = pmmc_spec
+            .and_then(|spec| spec.initial_configuration.strategy)
+            .unwrap_or(crate::cluster::cluster_configuration::ConfigurationStrategy::JointConsensus);
+        let initial_alpha = pmmc_spec
+            .and_then(|spec| spec.initial_configuration.alpha_max_inflight)
+            .unwrap_or(5);
+
+        if matches!(
+            scenario_type,
+            ScenarioType::PmmcReconfigJointConsensus
+                | ScenarioType::PmmcReconfigStopSign
+                | ScenarioType::PmmcReconfigDelayedStopSign
+                | ScenarioType::PmmcReconfigPadding
+                | ScenarioType::PmmcReconfigBrickWall
+        ) {
+            let mut configs = Vec::with_capacity(5);
+            configs.push(crate::node::config::PmmcNodeConfig {
+                roles: Roles {
+                    proposer: true,
+                    acceptor: false,
+                    learner: false,
+                },
+            });
+            for _ in 0..3 {
+                configs.push(crate::node::config::PmmcNodeConfig {
+                    roles: Roles {
+                        proposer: false,
+                        acceptor: true,
+                        learner: false,
+                    },
+                });
+            }
+            configs.push(crate::node::config::PmmcNodeConfig {
+                roles: Roles {
+                    proposer: false,
+                    acceptor: false,
+                    learner: true,
+                },
+            });
+            return ClusterConfiguration::bootstrap_pmmc_with_params(
+                ip,
+                configs,
+                initial_strategy,
+                Some(initial_alpha),
+            )
+            .map_err(Into::into);
+        }
+
         if scenario_type.uses_role_split_topology() {
             let mut configs = Vec::with_capacity(7);
             for _ in 0..2 {
@@ -108,11 +157,19 @@ impl ClusterManager {
                     },
                 });
             }
-            ClusterConfiguration::bootstrap_pmmc(ip, configs).map_err(Into::into)
+            ClusterConfiguration::bootstrap_pmmc_with_params(
+                ip,
+                configs,
+                initial_strategy,
+                Some(initial_alpha),
+            )
+            .map_err(Into::into)
         } else {
-            ClusterConfiguration::bootstrap_pmmc(
+            ClusterConfiguration::bootstrap_pmmc_with_params(
                 ip,
                 vec![crate::node::config::PmmcNodeConfig::default(); node_count],
+                initial_strategy,
+                Some(initial_alpha),
             )
             .map_err(Into::into)
         }
@@ -230,10 +287,15 @@ impl ClusterManager {
         leader_node: Option<usize>,
         scenario_observer: Arc<dyn PaxosObserver>,
         classic_spec: Option<&crate::web::scenarios::classic::spec::ClassicScenarioSpec>,
+        pmmc_spec: Option<&crate::web::scenarios::pmmc::spec::PmmcScenarioSpec>,
     ) -> anyhow::Result<(ActiveCluster, usize)> {
         if scenario_type.is_pmmc() {
-            let configuration =
-                Self::pmmc_configuration_for_scenario(ip, scenario_type, requested_node_count)?;
+            let configuration = Self::pmmc_configuration_for_scenario(
+                ip,
+                scenario_type,
+                requested_node_count,
+                pmmc_spec,
+            )?;
             let cluster = Self::create_pmmc_runtime(ip, configuration, scenario_observer).await?;
             let node_count = cluster.num_nodes();
             info!(
@@ -342,6 +404,7 @@ impl ClusterManager {
         stop_tx: broadcast::Sender<()>,
         leader_node: Option<usize>,
         classic_spec: Option<crate::web::scenarios::classic::spec::ClassicScenarioSpec>,
+        pmmc_spec: Option<crate::web::scenarios::pmmc::spec::PmmcScenarioSpec>,
     ) -> anyhow::Result<()> {
         let mut stop_rx = stop_tx.subscribe();
         let observer_for_runner = self.observer.clone();
@@ -380,17 +443,20 @@ impl ClusterManager {
                     }
                 }
                 ActiveCluster::Pmmc(cluster_for_runner) => {
-                    let spec = match PmmcScenarioLoader::load_for(scenario_type).await {
-                        Ok(spec) => spec,
-                        Err(err) => {
-                            warn!(
-                                %scenario_run_id,
-                                scenario_type = scenario_type.as_str(),
-                                error = %err,
-                                "Failed to load PMMC scenario spec"
-                            );
-                            return;
-                        }
+                    let spec = match pmmc_spec {
+                        Some(spec) => spec,
+                        None => match PmmcScenarioLoader::load_for(scenario_type).await {
+                            Ok(spec) => spec,
+                            Err(err) => {
+                                warn!(
+                                    %scenario_run_id,
+                                    scenario_type = scenario_type.as_str(),
+                                    error = %err,
+                                    "Failed to load PMMC scenario spec"
+                                );
+                                return;
+                            }
+                        },
                     };
 
                     PmmcScenarioExecution::new(
@@ -439,6 +505,11 @@ impl ClusterManager {
             .await?;
 
         let learning_strat = Self::parse_learning_strategy(learning_strategy);
+        let pmmc_spec = if scenario_type.is_pmmc() {
+            Some(PmmcScenarioLoader::load_for(scenario_type).await?)
+        } else {
+            None
+        };
         let classic_spec = if scenario_type.is_pmmc() {
             None
         } else {
@@ -459,6 +530,7 @@ impl ClusterManager {
                 leader_node,
                 scenario_observer,
                 classic_spec.as_ref(),
+                pmmc_spec.as_ref(),
             )
             .await?;
 
@@ -471,6 +543,7 @@ impl ClusterManager {
             stop_tx,
             leader_node,
             classic_spec,
+            pmmc_spec,
         )
         .await?;
 

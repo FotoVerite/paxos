@@ -1,0 +1,38 @@
+{
+  "name": "pmmc_reconfig_delayed_stop_sign",
+  "description": "PMMC reconfiguration using DelayedStopSign strategy.",
+  "topology": {
+    "kind": "role_split",
+    "node_count": 5
+  },
+  "clients": [
+    {
+      "id": "c0",
+      "start_replica_index": 4
+    }
+  ],
+  "request_plan": {
+    "kind": {
+      "type": "sequential_kv_puts",
+      "key": "pmmc-reconfig",
+      "value_prefix": "val",
+      "start_at": 1
+    },
+    "wait_for_reply": true
+  },
+  "completion": {
+    "type": "success_count",
+    "count": 5
+  },
+  "actions": [],
+  "reconfiguration": {
+    "strategy": "DelayedStopSign"
+  },
+  "timings": {
+    "initial_settle_ms": 500,
+    "response_timeout_ms": 2000,
+    "retry_backoff_ms": 250,
+    "post_action_pause_ms": 700,
+    "loop_interval_ms": 1000
+  }
+}

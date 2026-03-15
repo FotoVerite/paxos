@@ -41,6 +41,20 @@ pub enum ReconfigurationStrategyInEffect {
     BrickWall,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ProposalPolicy {
+    Admit,
+    PadWithNoop,
+    RejectStopped,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct StopObservation {
+    pub stop_slot: Option<usize>,
+    pub delayed_slots: usize,
+    pub barrier_active: bool,
+}
+
 impl ReplicaDurable {
     pub fn set_alpha(&mut self, alpha_max_inflight: usize) {
         self.alpha_max_inflight = alpha_max_inflight;
@@ -74,13 +88,98 @@ impl ReplicaDurable {
                     ReconfigurationStrategyInEffect::StopSign { slot, delayed: 0 }
                 }
                 ConfigurationStrategy::DelayedStopSign => {
-                    ReconfigurationStrategyInEffect::StopSign { slot, delayed: 0 }
+                    ReconfigurationStrategyInEffect::StopSign {
+                        slot,
+                        delayed: self.alpha_max_inflight,
+                    }
                 }
                 ConfigurationStrategy::Padding => ReconfigurationStrategyInEffect::Padding,
                 ConfigurationStrategy::BrickWall => ReconfigurationStrategyInEffect::BrickWall,
             };
         }
         return ReconfigurationStrategyInEffect::None;
+    }
+
+    pub fn delayed_stop_slots(&self) -> usize {
+        match self.strategy {
+            ConfigurationStrategy::DelayedStopSign => self.alpha_max_inflight,
+            _ => 0,
+        }
+    }
+
+    pub fn stop_observation(&self) -> StopObservation {
+        match self.reconfiguration_strategy_in_effect() {
+            ReconfigurationStrategyInEffect::None => StopObservation {
+                stop_slot: None,
+                delayed_slots: 0,
+                barrier_active: false,
+            },
+            ReconfigurationStrategyInEffect::StopSign { slot, delayed } => StopObservation {
+                stop_slot: Some(slot),
+                delayed_slots: delayed,
+                barrier_active: self.proposal_slot() > slot.saturating_add(delayed),
+            },
+            ReconfigurationStrategyInEffect::Padding => StopObservation {
+                stop_slot: self.stop_slot,
+                delayed_slots: 0,
+                barrier_active: true,
+            },
+            ReconfigurationStrategyInEffect::BrickWall => StopObservation {
+                stop_slot: self.stop_slot,
+                delayed_slots: 0,
+                barrier_active: true,
+            },
+        }
+    }
+
+    fn is_stop_applied(&self) -> bool {
+        match self.stop_slot {
+            Some(slot) => self.next_execute_slot > slot,
+            None => false,
+        }
+    }
+
+    pub fn is_stop_drained(&self) -> bool {
+        let Some(stop_slot) = self.stop_slot else {
+            return false;
+        };
+        if !self.is_stop_applied() {
+            return false;
+        }
+        if matches!(self.strategy, ConfigurationStrategy::BrickWall) {
+            return true;
+        }
+        let target = stop_slot.saturating_add(self.alpha_max_inflight);
+        self.execution_slot() > target
+    }
+
+    pub fn proposal_policy(&self) -> ProposalPolicy {
+        let stop = self.stop_observation();
+        if stop.stop_slot.is_none() || !stop.barrier_active {
+            return ProposalPolicy::Admit;
+        }
+
+        match self.strategy {
+            ConfigurationStrategy::Padding => {
+                let Some(stop_slot) = stop.stop_slot else {
+                    return ProposalPolicy::Admit;
+                };
+                let alpha_limit = stop_slot.saturating_add(self.alpha_max_inflight);
+                if self.proposal_slot() > alpha_limit {
+                    ProposalPolicy::RejectStopped
+                } else {
+                    ProposalPolicy::PadWithNoop
+                }
+            }
+            ConfigurationStrategy::JointConsensus
+            | ConfigurationStrategy::StopSign
+            | ConfigurationStrategy::DelayedStopSign
+            | ConfigurationStrategy::BrickWall => ProposalPolicy::RejectStopped,
+        }
+    }
+
+    pub fn reject_decision_after_stop(&self) -> bool {
+        self.stop_slot.is_some() && matches!(self.strategy, ConfigurationStrategy::BrickWall)
     }
 
     pub fn proposals(&self) -> ProposalsStore {
@@ -114,11 +213,9 @@ impl ReplicaDurable {
     }
 
     pub fn add_proposal(&mut self, cmd: PaxosCommand) -> PaxosCommand {
-        let cmd = {
-            match self.reconfiguration_strategy_in_effect() {
-                ReconfigurationStrategyInEffect::Padding => PaxosCommand::NOOP,
-                _ => cmd,
-            }
+        let cmd = match self.proposal_policy() {
+            ProposalPolicy::PadWithNoop => PaxosCommand::NOOP,
+            _ => cmd,
         };
         self.proposals.insert(self.proposal_slot(), cmd.clone());
         if let Some(client_key) = cmd.client_identity() {
@@ -197,27 +294,5 @@ impl ReplicaDurable {
 }
 
 #[cfg(test)]
-mod tests {
-    use uuid::Uuid;
-
-    use crate::{paxos_command::PaxosCommand, rsm::kv_store::ReplyOutcome};
-
-    use super::ReplicaDurable;
-
-    #[test]
-    fn dedup_watermark_ignores_pending_cache_entries() {
-        let mut durable = ReplicaDurable::default();
-        let client_id = Uuid::new_v4();
-        let req1 = PaxosCommand::NOOP.with_client(client_id, 1);
-        let req2 = PaxosCommand::NOOP.with_client(client_id, 2);
-
-        durable.add_to_cache(&req1);
-        assert!(durable.client_dedup_watermark().is_empty());
-
-        durable.update_cache(&req1, ReplyOutcome::Ok);
-        assert_eq!(durable.client_dedup_watermark().get(&client_id), Some(&1));
-
-        durable.add_to_cache(&req2);
-        assert_eq!(durable.client_dedup_watermark().get(&client_id), Some(&1));
-    }
-}
+#[path = "durable_tests.rs"]
+mod durable_tests;

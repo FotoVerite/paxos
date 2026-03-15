@@ -43,13 +43,16 @@ impl ClientSession {
         self.tx.is_some() && self.rx.is_some()
     }
 
-    pub fn record_success(&mut self) {
-        self.next_request_id += 1;
-        self.success_count += 1;
+    pub fn current_request_id(&self) -> u64 {
+        self.next_request_id
     }
 
-    pub fn request_id(&self) -> u64 {
-        self.next_request_id
+    pub fn advance_request_id(&mut self) {
+        self.next_request_id += 1;
+    }
+
+    pub fn record_success(&mut self) {
+        self.success_count += 1;
     }
 
     pub fn sender(&self) -> Option<&mpsc::Sender<ClientMessage>> {
@@ -93,6 +96,10 @@ impl ClientPool {
         &mut self.sessions[index]
     }
 
+    pub fn len(&self) -> usize {
+        self.sessions.len()
+    }
+
     pub fn move_client(&mut self, client_id: &str, replica_index: usize) -> bool {
         if let Some(session) = self
             .sessions
@@ -104,6 +111,24 @@ impl ClientPool {
             true
         } else {
             false
+        }
+    }
+
+    pub fn detach_all(&mut self) {
+        for session in &mut self.sessions {
+            session.detach();
+        }
+    }
+
+    pub fn normalize_replica_indexes(&mut self, replica_count: usize) {
+        if replica_count == 0 {
+            return;
+        }
+        for session in &mut self.sessions {
+            if session.replica_index >= replica_count {
+                session.replica_index = replica_count - 1;
+                session.detach();
+            }
         }
     }
 }

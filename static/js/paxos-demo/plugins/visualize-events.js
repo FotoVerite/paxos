@@ -24,6 +24,18 @@ const NODE_STATE_LABELS = {
   PmmcAck: 'ack',
   LeaderSteppedDown: 'passive',
   NodeCrashed: 'crash',
+  ReconfigurationRequested: 'reconfig',
+  ReconfigurationStopStarted: 'stop',
+  ReconfigurationStopCommandSent: 'stop-send',
+  ReconfigurationStopCompleted: 'stopped',
+  ReconfigurationStopDecided: 'stop-decided',
+  ReconfigurationStopApplied: 'stop-applied',
+  ReconfigurationCheckpointSelected: 'checkpoint',
+  ReconfigurationApplied: 'reconfig',
+  ReconfigurationReady: 'active',
+  ReconfigurationNodeRetired: 'retired',
+  ReconfigurationNodeRebooted: 'reboot',
+  ReconfigurationFailed: 'error',
 };
 
 function createQuietVisualizer(visualizer) {
@@ -78,6 +90,19 @@ export function createVisualizeEventsPlugin({ skip = new Set() } = {}) {
           ctx.state.setLeader(null);
         }
         ctx.state.setNodeCrashed(eventData.id, true);
+      }
+      if (eventType === 'ReconfigurationNodeRetired' && eventData?.id !== undefined) {
+        const snapshot = ctx.state.snapshot();
+        if (snapshot.leaderId === eventData.id) {
+          ctx.state.setLeader(null);
+        }
+        ctx.state.setNodeCrashed(eventData.id, true);
+      }
+      if (eventType === 'ReconfigurationNodeRebooted' && eventData?.id !== undefined) {
+        ctx.state.setNodeCrashed(eventData.id, false);
+      }
+      if (eventType === 'ReconfigurationReady' && eventData?.leader !== undefined) {
+        ctx.state.setLeader(eventData.leader ?? null);
       }
 
       const playbackMode = ctx.playbackMode;

@@ -1,0 +1,44 @@
+{
+  "name": "pmmc_reconfig_padding",
+  "description": "PMMC reconfiguration using Padding strategy.",
+  "topology": {
+    "kind": "role_split",
+    "node_count": 5
+  },
+  "clients": [
+    {
+      "id": "c0",
+      "start_replica_index": 4
+    }
+  ],
+  "request_plan": {
+    "kind": {
+      "type": "sequential_kv_puts",
+      "key": "pmmc-reconfig",
+      "value_prefix": "val",
+      "start_at": 1
+    },
+    "wait_for_reply": false,
+    "multi_key": true
+  },
+  "completion": {
+    "type": "success_count",
+    "count": 10
+  },
+  "actions": [],
+  "reconfiguration": {
+    "strategy": "Padding",
+    "alpha_max_inflight": 5
+  },
+  "initial_configuration": {
+    "strategy": "Padding",
+    "alpha_max_inflight": 5
+  },
+  "timings": {
+    "initial_settle_ms": 500,
+    "response_timeout_ms": 2000,
+    "retry_backoff_ms": 250,
+    "post_action_pause_ms": 700,
+    "loop_interval_ms": 60
+  }
+}

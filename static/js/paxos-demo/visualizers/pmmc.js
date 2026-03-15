@@ -7,6 +7,13 @@ import {
   scheduleNodeReset
 } from '/js/paxos-demo/visualizers/shared.js';
 
+function ballotText(ballot) {
+  if (!ballot || typeof ballot !== 'object') return 'unknown';
+  const epoch = ballot.epoch ?? '?';
+  const number = ballot.number ?? '?';
+  return `e${epoch}:b${number}`;
+}
+
 export const PMMC_EVENT_VISUALIZERS = {
   PmmcPropose: {
     color: '#60a5fa',
@@ -35,7 +42,7 @@ export const PMMC_EVENT_VISUALIZERS = {
     color: '#f59e0b',
     name: 'P1A',
     format(event, labels) {
-      return `[P1A] ${nodeText(labels, event.from)} ballot ${event.ballot.number}`;
+      return `[P1A] ${nodeText(labels, event.from)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
       visualizer.activateNode(event.from, this.color);
@@ -55,7 +62,7 @@ export const PMMC_EVENT_VISUALIZERS = {
     color: '#eab308',
     name: 'P1B',
     format(event, labels) {
-      return `[P1B] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${event.ballot.number}`;
+      return `[P1B] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
       visualizer.activateNode(event.from, this.color);
@@ -107,7 +114,7 @@ export const PMMC_EVENT_VISUALIZERS = {
     color: '#22c55e',
     name: 'Adopted',
     format(event, labels) {
-      return `[ADOPTED] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${event.ballot.number}`;
+      return `[ADOPTED] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
       const duration = getBeamDuration(state.snapshot(), 160);
@@ -123,7 +130,7 @@ export const PMMC_EVENT_VISUALIZERS = {
     color: '#ef4444',
     name: 'Preempted',
     format(event, labels) {
-      return `[PREEMPT] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${event.ballot.number}`;
+      return `[PREEMPT] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
       const duration = getBeamDuration(state.snapshot(), 160);
@@ -138,7 +145,7 @@ export const PMMC_EVENT_VISUALIZERS = {
     color: '#a78bfa',
     name: 'Heartbeat',
     format(event, labels) {
-      return `[HEARTBEAT] ${nodeText(labels, event.from)} ballot ${event.ballot.number}`;
+      return `[HEARTBEAT] ${nodeText(labels, event.from)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
       const snapshot = state.snapshot();

@@ -8,7 +8,9 @@ use crate::cluster::cluster_configuration::ClusterConfiguration;
 use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
 use crate::message::ClientMessage;
-use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
+use crate::monitor::{
+    Event, PaxosObserver, ReconfigurationProposalOutcome, current_timestamp_millis,
+};
 use crate::node::pmmc::message::PmmcMessage;
 use crate::node::pmmc::replica::replica_state::ReplicaState;
 use crate::node::pmmc::replica::replica_state::durable::ReplicaDurable;
@@ -70,6 +72,10 @@ impl Replica {
         self.state.is_stopped().await
     }
 
+    pub async fn is_stop_drained(&self) -> bool {
+        self.state.is_stop_drained().await
+    }
+
     pub(crate) async fn emit_checkpoint(&self) -> RsmCheckpoint {
         let next_execution_slot = self.state.execution_slot().await;
         let last_applied_slot = next_execution_slot.checked_sub(1);
@@ -88,8 +94,16 @@ impl Replica {
     }
 
     pub async fn propose_from_client(&self, cmd: PaxosCommand) {
+        let original_cmd = cmd.clone();
         match self.state.proposal_handler(cmd).await {
             ReplicaAdmissionOutcome::Admitted { slot, cmd } => {
+                self.emit_proposal_observed(
+                    ReconfigurationProposalOutcome::Admitted,
+                    original_cmd.clone(),
+                    Some(cmd.clone()),
+                    Some(slot),
+                )
+                .await;
                 Self::send_proposal(
                     self.uuid,
                     Arc::clone(&self.fabric),
@@ -99,13 +113,36 @@ impl Replica {
                 )
                 .await;
             }
-            ReplicaAdmissionOutcome::Queued => {}
-            ReplicaAdmissionOutcome::Stopped => {}
+            ReplicaAdmissionOutcome::Queued => {
+                self.emit_proposal_observed(
+                    ReconfigurationProposalOutcome::Queued,
+                    original_cmd.clone(),
+                    None,
+                    None,
+                )
+                .await;
+            }
+            ReplicaAdmissionOutcome::Stopped => {
+                self.emit_proposal_observed(
+                    ReconfigurationProposalOutcome::Stopped,
+                    original_cmd.clone(),
+                    None,
+                    None,
+                )
+                .await;
+            }
             ReplicaAdmissionOutcome::CachedResponse {
                 client_id,
                 request_id,
                 response,
             } => {
+                self.emit_proposal_observed(
+                    ReconfigurationProposalOutcome::CachedResponse,
+                    original_cmd,
+                    None,
+                    None,
+                )
+                .await;
                 if let Some(outcome) = response {
                     self.client_sink
                         .send(
@@ -121,7 +158,38 @@ impl Replica {
         }
     }
 
+    async fn emit_proposal_observed(
+        &self,
+        outcome: ReconfigurationProposalOutcome,
+        original_cmd: PaxosCommand,
+        effective_cmd: Option<PaxosCommand>,
+        slot: Option<usize>,
+    ) {
+        let stop = self.state.stop_observation().await;
+        self.observer.on_event(Event::ReconfigurationProposalObserved {
+            id: self.uuid,
+            strategy: self.configuration.strategy(),
+            outcome,
+            original_cmd,
+            effective_cmd,
+            slot,
+            stop_slot: stop.stop_slot,
+            delayed_slots: stop.delayed_slots,
+            barrier_active: stop.barrier_active,
+            created_at: current_timestamp_millis(),
+        });
+    }
+
     pub async fn accepted(&self, pvalue: PValue) -> PmmcMessage {
+        if pvalue.cmd().operation() == &PaxosCommand::STOP {
+            self.observer.on_event(Event::ReconfigurationStopDecided {
+                id: self.uuid,
+                strategy: self.configuration.strategy(),
+                slot: pvalue.slot(),
+                delayed_slots: self.state.delayed_stop_slots().await,
+                created_at: current_timestamp_millis(),
+            });
+        }
         if let Some(outcome) = self.state.add_decision(pvalue.clone()).await {
             if let ReplicaAdmissionOutcome::Admitted { slot, cmd } = outcome {
                 Self::send_proposal(
@@ -182,6 +250,7 @@ impl Replica {
         let store = Arc::clone(&self.store);
         let observer = Arc::clone(&self.observer);
         let client_sink = Arc::clone(&self.client_sink);
+        let strategy = self.configuration.strategy();
         let node_id = self.uuid;
         tokio::spawn(async move {
             loop {
@@ -199,6 +268,15 @@ impl Replica {
                             value: cmd.clone(),
                             created_at: current_timestamp_millis(),
                         });
+                        if cmd.operation() == &PaxosCommand::STOP {
+                            observer.on_event(Event::ReconfigurationStopApplied {
+                                id: node_id,
+                                strategy,
+                                slot,
+                                delayed_slots: state.delayed_stop_slots().await,
+                                created_at: current_timestamp_millis(),
+                            });
+                        }
                         client_sink
                             .send(
                                 cmd.client_id(),

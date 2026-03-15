@@ -1,0 +1,44 @@
+{
+  "name": "pmmc_reconfig_brick_wall",
+  "description": "PMMC reconfiguration using BrickWall strategy.",
+  "topology": {
+    "kind": "role_split",
+    "node_count": 5
+  },
+  "clients": [
+    {
+      "id": "c0",
+      "start_replica_index": 4
+    }
+  ],
+  "request_plan": {
+    "kind": {
+      "type": "sequential_kv_puts",
+      "key": "pmmc-reconfig",
+      "value_prefix": "val",
+      "start_at": 1
+    },
+    "wait_for_reply": false,
+    "multi_key": true
+
+  },
+  "completion": {
+    "type": "success_count",
+    "count": 7
+  },
+  "actions": [],
+  "reconfiguration": {
+    "strategy": "BrickWall"
+  },
+  "initial_configuration": {
+    "strategy": "BrickWall",
+    "alpha_max_inflight": 2
+  },
+  "timings": {
+    "initial_settle_ms": 500,
+    "response_timeout_ms": 2000,
+    "retry_backoff_ms": 250,
+    "post_action_pause_ms": 700,
+    "loop_interval_ms": 1000
+  }
+}

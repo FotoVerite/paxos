@@ -26,6 +26,11 @@ pub enum ScenarioType {
     PmmcLeaderPartitionHeal,
     PmmcAcceptorMajorityLossThenRecover,
     PmmcStaggeredLeaderJoin,
+    PmmcReconfigJointConsensus,
+    PmmcReconfigStopSign,
+    PmmcReconfigDelayedStopSign,
+    PmmcReconfigPadding,
+    PmmcReconfigBrickWall,
 }
 
 impl ScenarioType {
@@ -45,6 +50,11 @@ impl ScenarioType {
             "pmmc_leader_partition_heal" => Self::PmmcLeaderPartitionHeal,
             "pmmc_acceptor_majority_loss_then_recover" => Self::PmmcAcceptorMajorityLossThenRecover,
             "pmmc_staggered_leader_join" => Self::PmmcStaggeredLeaderJoin,
+            "pmmc_reconfig_joint_consensus" => Self::PmmcReconfigJointConsensus,
+            "pmmc_reconfig_stop_sign" => Self::PmmcReconfigStopSign,
+            "pmmc_reconfig_delayed_stop_sign" => Self::PmmcReconfigDelayedStopSign,
+            "pmmc_reconfig_padding" => Self::PmmcReconfigPadding,
+            "pmmc_reconfig_brick_wall" => Self::PmmcReconfigBrickWall,
             _ => Self::HappyPath,
         }
     }
@@ -65,6 +75,11 @@ impl ScenarioType {
             Self::PmmcLeaderPartitionHeal => "pmmc_leader_partition_heal",
             Self::PmmcAcceptorMajorityLossThenRecover => "pmmc_acceptor_majority_loss_then_recover",
             Self::PmmcStaggeredLeaderJoin => "pmmc_staggered_leader_join",
+            Self::PmmcReconfigJointConsensus => "pmmc_reconfig_joint_consensus",
+            Self::PmmcReconfigStopSign => "pmmc_reconfig_stop_sign",
+            Self::PmmcReconfigDelayedStopSign => "pmmc_reconfig_delayed_stop_sign",
+            Self::PmmcReconfigPadding => "pmmc_reconfig_padding",
+            Self::PmmcReconfigBrickWall => "pmmc_reconfig_brick_wall",
         }
     }
 
@@ -78,6 +93,11 @@ impl ScenarioType {
                 | Self::PmmcLeaderPartitionHeal
                 | Self::PmmcAcceptorMajorityLossThenRecover
                 | Self::PmmcStaggeredLeaderJoin
+                | Self::PmmcReconfigJointConsensus
+                | Self::PmmcReconfigStopSign
+                | Self::PmmcReconfigDelayedStopSign
+                | Self::PmmcReconfigPadding
+                | Self::PmmcReconfigBrickWall
         )
     }
 
@@ -101,6 +121,11 @@ impl ScenarioType {
             | Self::PmmcLeaderPartitionHeal
             | Self::PmmcAcceptorMajorityLossThenRecover
             | Self::PmmcStaggeredLeaderJoin => "2 leaders, 2 replicas, 3 acceptors",
+            Self::PmmcReconfigJointConsensus
+            | Self::PmmcReconfigStopSign
+            | Self::PmmcReconfigDelayedStopSign
+            | Self::PmmcReconfigPadding
+            | Self::PmmcReconfigBrickWall => "1 leader, 1 replica, 3 acceptors",
             _ if node_count > 0 => "all nodes have leader+acceptor+replica roles",
             _ => "unknown",
         }
@@ -113,6 +138,11 @@ impl ScenarioType {
             | Self::PmmcLeaderPartitionHeal
             | Self::PmmcAcceptorMajorityLossThenRecover
             | Self::PmmcStaggeredLeaderJoin => 2,
+            Self::PmmcReconfigJointConsensus
+            | Self::PmmcReconfigStopSign
+            | Self::PmmcReconfigDelayedStopSign
+            | Self::PmmcReconfigPadding
+            | Self::PmmcReconfigBrickWall => 4,
             _ => 0,
         }
     }
@@ -126,6 +156,11 @@ impl ScenarioType {
             Self::PmmcLeaderPartitionHeal => Some(5),
             Self::PmmcAcceptorMajorityLossThenRecover => Some(7),
             Self::PmmcStaggeredLeaderJoin => Some(5),
+            Self::PmmcReconfigJointConsensus => Some(5),
+            Self::PmmcReconfigStopSign => Some(5),
+            Self::PmmcReconfigDelayedStopSign => Some(5),
+            Self::PmmcReconfigPadding => Some(5),
+            Self::PmmcReconfigBrickWall => Some(5),
             _ => None,
         }
     }
@@ -236,5 +271,37 @@ impl ScenarioType {
             id: node_uuids[elected_leader],
             created_at: current_timestamp_millis(),
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ScenarioType;
+
+    #[test]
+    fn parses_reconfiguration_scenario_types() {
+        let cases = [
+            (
+                "pmmc_reconfig_joint_consensus",
+                ScenarioType::PmmcReconfigJointConsensus,
+            ),
+            ("pmmc_reconfig_stop_sign", ScenarioType::PmmcReconfigStopSign),
+            (
+                "pmmc_reconfig_delayed_stop_sign",
+                ScenarioType::PmmcReconfigDelayedStopSign,
+            ),
+            ("pmmc_reconfig_padding", ScenarioType::PmmcReconfigPadding),
+            (
+                "pmmc_reconfig_brick_wall",
+                ScenarioType::PmmcReconfigBrickWall,
+            ),
+        ];
+
+        for (raw, expected) in cases {
+            let parsed = ScenarioType::parse(raw);
+            assert_eq!(parsed, expected);
+            assert_eq!(parsed.as_str(), raw);
+            assert!(parsed.is_pmmc());
+        }
     }
 }

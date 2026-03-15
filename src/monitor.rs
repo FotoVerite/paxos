@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::message::{Message, MessageTrace};
 mod event;
-pub use event::{Event, EventProtocol};
+pub use event::{Event, EventProtocol, ReconfigurationPhase, ReconfigurationProposalOutcome};
 
 pub fn current_timestamp_millis() -> u64 {
     SystemTime::now()

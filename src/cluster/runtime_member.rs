@@ -97,6 +97,8 @@ impl RuntimeMember {
     }
 
     pub async fn abort_process(&self) {
+        self.node.shutdown().await;
+
         let mut task = self.task.lock().await;
         if let Some(runtime) = task.take() {
             runtime.abort();

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::cluster::cluster_configuration::ConfigurationStrategy;
+
 use super::reconfiguration::PmmcReconfigurationSpec;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -15,6 +17,8 @@ pub struct PmmcScenarioSpec {
     pub actions: Vec<PmmcActionRule>,
     #[serde(default)]
     pub reconfiguration: Option<PmmcReconfigurationSpec>,
+    #[serde(default)]
+    pub initial_configuration: PmmcInitialConfigurationSpec,
     #[serde(default)]
     pub timings: PmmcTimingSpec,
 }
@@ -37,6 +41,12 @@ impl PmmcScenarioSpec {
 
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PmmcInitialConfigurationSpec {
+    pub strategy: Option<ConfigurationStrategy>,
+    pub alpha_max_inflight: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -63,6 +73,8 @@ pub struct PmmcRequestPlan {
     pub kind: PmmcRequestPlanKind,
     #[serde(default = "default_wait_for_reply")]
     pub wait_for_reply: bool,
+    #[serde(default)]
+    pub multi_key: bool,
 }
 
 const fn default_wait_for_reply() -> bool {
@@ -202,10 +214,12 @@ mod tests {
                     start_at: 1,
                 },
                 wait_for_reply: true,
+                multi_key: false,
             },
             completion: PmmcCompletion::SuccessCount { count: 5 },
             actions: Vec::new(),
             reconfiguration: None,
+            initial_configuration: PmmcInitialConfigurationSpec::default(),
             timings: PmmcTimingSpec::default(),
         };
 

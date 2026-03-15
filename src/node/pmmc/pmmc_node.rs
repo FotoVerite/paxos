@@ -93,6 +93,10 @@ impl PmmcNode {
         self.admin.stop().await;
     }
 
+    pub async fn shutdown(&self) {
+        self.state.shutdown().await;
+    }
+
     pub fn start(&self, mut rx: Receiver<PmmcMessage>) -> JoinHandle<()> {
         let state = Arc::clone(&self.state);
         let mut hb = time::interval_at(

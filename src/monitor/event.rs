@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use uuid::Uuid;
 
+use crate::cluster::cluster_configuration::ConfigurationStrategy;
 use crate::common::ballot::Ballot;
 use crate::node::pvalue::PValue;
 use crate::{common::types::DecreeId, paxos_command::PaxosCommand};
@@ -11,6 +12,25 @@ pub enum EventProtocol {
     Classic,
     Pmmc,
     System,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReconfigurationPhase {
+    Requested,
+    Stop,
+    Checkpoint,
+    Apply,
+    Ready,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReconfigurationProposalOutcome {
+    Admitted,
+    Queued,
+    Stopped,
+    CachedResponse,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -177,6 +197,84 @@ pub enum Event {
         id: Uuid,
         created_at: u64,
     },
+    ReconfigurationRequested {
+        strategy: ConfigurationStrategy,
+        add_nodes: Vec<Uuid>,
+        remove_nodes: Vec<Uuid>,
+        created_at: u64,
+    },
+    ReconfigurationStopStarted {
+        strategy: ConfigurationStrategy,
+        target_nodes: Vec<Uuid>,
+        created_at: u64,
+    },
+    ReconfigurationStopCommandSent {
+        to: Uuid,
+        created_at: u64,
+    },
+    ReconfigurationStopCompleted {
+        strategy: ConfigurationStrategy,
+        stopped_nodes: Vec<Uuid>,
+        created_at: u64,
+    },
+    ReconfigurationStopDecided {
+        id: Uuid,
+        strategy: ConfigurationStrategy,
+        slot: usize,
+        delayed_slots: usize,
+        created_at: u64,
+    },
+    ReconfigurationStopApplied {
+        id: Uuid,
+        strategy: ConfigurationStrategy,
+        slot: usize,
+        delayed_slots: usize,
+        created_at: u64,
+    },
+    ReconfigurationProposalObserved {
+        id: Uuid,
+        strategy: ConfigurationStrategy,
+        outcome: ReconfigurationProposalOutcome,
+        original_cmd: PaxosCommand,
+        effective_cmd: Option<PaxosCommand>,
+        slot: Option<usize>,
+        stop_slot: Option<usize>,
+        delayed_slots: usize,
+        barrier_active: bool,
+        created_at: u64,
+    },
+    ReconfigurationCheckpointSelected {
+        strategy: ConfigurationStrategy,
+        source_node: Option<Uuid>,
+        last_applied_slot: Option<usize>,
+        created_at: u64,
+    },
+    ReconfigurationApplied {
+        strategy: ConfigurationStrategy,
+        previous_node_count: usize,
+        next_node_count: usize,
+        created_at: u64,
+    },
+    ReconfigurationReady {
+        strategy: ConfigurationStrategy,
+        leader: Option<Uuid>,
+        active_nodes: Vec<Uuid>,
+        created_at: u64,
+    },
+    ReconfigurationNodeRetired {
+        id: Uuid,
+        created_at: u64,
+    },
+    ReconfigurationNodeRebooted {
+        id: Uuid,
+        created_at: u64,
+    },
+    ReconfigurationFailed {
+        strategy: Option<ConfigurationStrategy>,
+        phase: ReconfigurationPhase,
+        reason: String,
+        created_at: u64,
+    },
 }
 
 impl Event {
@@ -212,7 +310,20 @@ impl Event {
             | Event::PartitionHealed { .. }
             | Event::LeaderElected { .. }
             | Event::LeaderSteppedDown { .. }
-            | Event::NodeCrashed { .. } => EventProtocol::System,
+            | Event::NodeCrashed { .. }
+            | Event::ReconfigurationRequested { .. }
+            | Event::ReconfigurationStopStarted { .. }
+            | Event::ReconfigurationStopCommandSent { .. }
+            | Event::ReconfigurationStopCompleted { .. }
+            | Event::ReconfigurationStopDecided { .. }
+            | Event::ReconfigurationStopApplied { .. }
+            | Event::ReconfigurationProposalObserved { .. }
+            | Event::ReconfigurationCheckpointSelected { .. }
+            | Event::ReconfigurationApplied { .. }
+            | Event::ReconfigurationReady { .. }
+            | Event::ReconfigurationNodeRetired { .. }
+            | Event::ReconfigurationNodeRebooted { .. }
+            | Event::ReconfigurationFailed { .. } => EventProtocol::System,
         }
     }
 }

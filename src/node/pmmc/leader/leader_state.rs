@@ -145,6 +145,13 @@ impl LeaderState {
         let mut state = self.data.lock().await;
         state.volatile.ack(from, slot).await;
     }
+
+    pub async fn shutdown(&self) {
+        let mut state = self.data.lock().await;
+        state.durable.set_as_passive();
+        state.volatile.drop_scout();
+        state.volatile.drop_commander().await;
+    }
 }
 
 #[cfg(test)]

@@ -188,6 +188,7 @@ mod tests {
     use uuid::Uuid;
 
     use super::WebSocketObserver;
+    use crate::cluster::cluster_configuration::ConfigurationStrategy;
     use crate::common::ballot::Ballot;
     use crate::common::types::DecreeId;
     use crate::message::Message;
@@ -259,6 +260,34 @@ mod tests {
                         },
                         "start_index": 5
                     }
+                }
+            }
+        });
+        assert_eq!(got, expected);
+    }
+
+    #[tokio::test]
+    async fn reconfiguration_event_payload_contract_is_stable() {
+        let observer = WebSocketObserver::new(8);
+        let mut receiver = observer.subscribe().await;
+        let add_node = Uuid::from_u128(101);
+        let remove_node = Uuid::from_u128(202);
+
+        observer.on_event(Event::ReconfigurationRequested {
+            strategy: ConfigurationStrategy::StopSign,
+            add_nodes: vec![add_node],
+            remove_nodes: vec![remove_node],
+            created_at: 77,
+        });
+
+        let got = recv_json(&mut receiver).await;
+        let expected = json!({
+            "Event": {
+                "ReconfigurationRequested": {
+                    "strategy": "StopSign",
+                    "add_nodes": [add_node],
+                    "remove_nodes": [remove_node],
+                    "created_at": 77
                 }
             }
         });

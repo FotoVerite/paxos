@@ -7,13 +7,15 @@ use uuid::Uuid;
 use crate::{
     cluster::{
         cluster_configuration::{
-            ClusterConfiguration, reconfig_patch::ReconfigPatch, types::ReconcileError,
+            ClusterConfiguration, ConfigurationStrategy, reconfig_patch::ReconfigPatch,
+            types::ReconcileError,
         },
         configuration_handler::types::{
             ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
         },
         runtime_registry::RuntimeRegistry,
     },
+    monitor::{Event, current_timestamp_millis},
     rsm::checkpoint::RsmCheckpoint,
 };
 
@@ -32,6 +34,13 @@ trait ReconcileOps {
         cmd: ConfigurationCommand,
         timeout: Duration,
     ) -> HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>>;
+
+    fn emit_reconfiguration_stop_completed(
+        &self,
+        _strategy: ConfigurationStrategy,
+        _stopped_nodes: Vec<Uuid>,
+    ) {
+    }
 }
 
 #[async_trait]
@@ -53,6 +62,18 @@ impl ReconcileOps for RuntimeRegistry {
     ) -> HashMap<Uuid, Result<ConfigurationReplyOutcome, ConfigurationHandlerError>> {
         RuntimeRegistry::configuration_operation_batch(self, endpoints, |_| cmd.clone(), timeout)
             .await
+    }
+
+    fn emit_reconfiguration_stop_completed(
+        &self,
+        strategy: ConfigurationStrategy,
+        stopped_nodes: Vec<Uuid>,
+    ) {
+        self.observe_event(Event::ReconfigurationStopCompleted {
+            strategy,
+            stopped_nodes,
+            created_at: current_timestamp_millis(),
+        });
     }
 }
 
@@ -124,7 +145,9 @@ impl ClusterReconciler {
             return Err(ReconcileError::StopFailed { per_node: failures });
         }
 
-        self.wait_until_replicas_stopped(ops, timeout).await
+        self.wait_until_replicas_stopped(ops, timeout).await?;
+        ops.emit_reconfiguration_stop_completed(self.next_config.strategy(), replicas);
+        Ok(())
     }
 
     async fn wait_until_replicas_stopped<O: ReconcileOps + Sync>(

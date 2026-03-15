@@ -7,7 +7,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{Instant, sleep, timeout};
 use uuid::Uuid;
 
-use crate::cluster::cluster_configuration::ClusterConfiguration;
+use crate::cluster::cluster_configuration::{ClusterConfiguration, ConfigurationStrategy};
 use crate::cluster::cluster_configuration::reconciler::ClusterReconciler;
 use crate::cluster::cluster_configuration::reconfig_patch::ReconfigPatch;
 use crate::cluster::configuration_handler::types::{
@@ -19,7 +19,7 @@ use crate::common::persistence::ClusterPersistence;
 use crate::{
     common::persistence::Persistence,
     message::ClientMessage,
-    monitor::PaxosObserver,
+    monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
         config::PmmcNodeConfig,
         pmmc::transport::{PmmcFabric, new_pmmc_fabric},
@@ -53,14 +53,18 @@ impl PmmcCluster {
         let configs = vec![PmmcNodeConfig::default(); total_number];
         Self::new_with_configs(ip, configs, observer).await
     }
+
     pub async fn update_configuration(&mut self, patch: ReconfigPatch) -> anyhow::Result<()> {
         timeout(Self::UPDATE_CONFIGURATION_TIMEOUT, async {
+            let strategy = patch.strategy.unwrap_or(self.configuration.strategy());
+            let previous_nodes = self.configuration.member_uuids();
             let mut reconciler =
                 ClusterReconciler::try_from((Arc::clone(&self.configuration), patch))?;
             reconciler
                 .execute(&self.runtime_registry, Self::UPDATE_CONFIGURATION_TIMEOUT)
                 .await?;
-            self.runtime_registry.reset().await;
+
+            self.runtime_registry.reset_for_reconfiguration().await;
             let configuration = Arc::new(reconciler.next_config().clone());
             let runtime_registry = RuntimeRegistry::init(
                 configuration.node_configs(),
@@ -74,7 +78,14 @@ impl PmmcCluster {
             self.quorum_size = configuration.quorum();
             self.configuration = configuration;
             self.runtime_registry = runtime_registry;
-            self.runtime_registry.start().await;
+            self.runtime_registry.start_for_reconfiguration().await;
+
+            self.observer.on_event(Event::ReconfigurationApplied {
+                strategy,
+                previous_node_count: previous_nodes.len(),
+                next_node_count: self.configuration.member_uuids().len(),
+                created_at: current_timestamp_millis(),
+            });
 
             Ok::<(), anyhow::Error>(())
         })
@@ -217,6 +228,14 @@ impl PmmcCluster {
 
     pub fn get_node_uuids(&self) -> Vec<Uuid> {
         self.configuration.member_uuids()
+    }
+
+    pub fn strategy(&self) -> ConfigurationStrategy {
+        self.configuration.strategy()
+    }
+
+    pub fn checkpoint_last_applied_slot(&self) -> Option<usize> {
+        self.configuration.starting_slot().checked_sub(1)
     }
 
     pub async fn connect_client_to(

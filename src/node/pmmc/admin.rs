@@ -163,7 +163,12 @@ impl NodeAdmin {
 
     async fn emit_status(&self) -> Result<ConfigurationReplyOutcome, ConfigurationHandlerError> {
         if self.state.is_stopped().await {
-            Ok(ConfigurationReplyOutcome::Stopped)
+            let replica = self.require_replica()?;
+            if replica.is_stop_drained().await {
+                Ok(ConfigurationReplyOutcome::Stopped)
+            } else {
+                Ok(ConfigurationReplyOutcome::Active)
+            }
         } else {
             Ok(ConfigurationReplyOutcome::Active)
         }
@@ -176,6 +181,12 @@ impl NodeAdmin {
         self.ensure_internal_client_registered().await;
 
         if self.state.is_stopped().await {
+            if !replica.is_stop_drained().await {
+                return Err(ConfigurationHandlerError::Rejected {
+                    reason: "replica stop boundary reached but inflight work not drained yet"
+                        .to_string(),
+                });
+            }
             Ok(ConfigurationReplyOutcome::Checkpoint(
                 replica.emit_checkpoint().await,
             ))

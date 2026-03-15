@@ -299,6 +299,208 @@ impl ConsoleObserver {
                         .bold()
                 );
             }
+            Event::ReconfigurationRequested {
+                strategy,
+                add_nodes,
+                remove_nodes,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] Requested {:?}: +{} -{}",
+                        strategy,
+                        node_list(&add_nodes),
+                        node_list(&remove_nodes)
+                    )
+                    .yellow()
+                    .bold()
+                );
+            }
+            Event::ReconfigurationStopStarted {
+                strategy,
+                target_nodes,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] Stop started ({:?}) for {}",
+                        strategy,
+                        node_list(&target_nodes)
+                    )
+                    .yellow()
+                );
+            }
+            Event::ReconfigurationStopCommandSent { to, .. } => {
+                println!(
+                    "{}",
+                    format!("[RECONFIG] stop command sent -> {}", node_label(to))
+                        .yellow()
+                );
+            }
+            Event::ReconfigurationStopCompleted {
+                strategy,
+                stopped_nodes,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] Stop completed ({:?}) for {}",
+                        strategy,
+                        node_list(&stopped_nodes)
+                    )
+                    .green()
+                );
+            }
+            Event::ReconfigurationStopDecided {
+                id,
+                strategy,
+                slot,
+                delayed_slots,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] stop decided on {} @slot={} ({:?}, delay={})",
+                        node_label(id),
+                        slot,
+                        strategy,
+                        delayed_slots
+                    )
+                    .yellow()
+                );
+            }
+            Event::ReconfigurationStopApplied {
+                id,
+                strategy,
+                slot,
+                delayed_slots,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] stop applied on {} @slot={} ({:?}, delay={})",
+                        node_label(id),
+                        slot,
+                        strategy,
+                        delayed_slots
+                    )
+                    .yellow()
+                );
+            }
+            Event::ReconfigurationProposalObserved {
+                id,
+                strategy,
+                outcome,
+                slot,
+                stop_slot,
+                barrier_active,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] proposal gate on {} ({:?}): outcome={:?}, slot={:?}, stop_slot={:?}, barrier_active={}",
+                        node_label(id),
+                        strategy,
+                        outcome,
+                        slot,
+                        stop_slot,
+                        barrier_active
+                    )
+                    .cyan()
+                );
+            }
+            Event::ReconfigurationCheckpointSelected {
+                strategy,
+                source_node,
+                last_applied_slot,
+                ..
+            } => {
+                let source_text = source_node
+                    .map(node_label)
+                    .unwrap_or_else(|| "unknown".to_string());
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] Checkpoint selected ({:?}) from {} at slot {:?}",
+                        strategy,
+                        source_text,
+                        last_applied_slot
+                    )
+                    .cyan()
+                );
+            }
+            Event::ReconfigurationApplied {
+                strategy,
+                previous_node_count,
+                next_node_count,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] Applied {:?}: nodes {} -> {}",
+                        strategy, previous_node_count, next_node_count
+                    )
+                    .green()
+                    .bold()
+                );
+            }
+            Event::ReconfigurationReady {
+                strategy,
+                leader,
+                active_nodes,
+                ..
+            } => {
+                let leader_text = leader
+                    .map(node_label)
+                    .unwrap_or_else(|| "none".to_string());
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] Ready ({:?}): leader={}, active={}",
+                        strategy,
+                        leader_text,
+                        node_list(&active_nodes)
+                    )
+                    .green()
+                );
+            }
+            Event::ReconfigurationNodeRetired { id, .. } => {
+                println!(
+                    "{}",
+                    format!("[RECONFIG] node retired {}", node_label(id))
+                        .red()
+                );
+            }
+            Event::ReconfigurationNodeRebooted { id, .. } => {
+                println!(
+                    "{}",
+                    format!("[RECONFIG] node rebooted {}", node_label(id))
+                        .green()
+                );
+            }
+            Event::ReconfigurationFailed {
+                strategy,
+                phase,
+                reason,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[RECONFIG] Failed strategy={:?} phase={:?}: {}",
+                        strategy, phase, reason
+                    )
+                    .red()
+                    .bold()
+                );
+            }
             _ => unreachable!("system event dispatcher received non-system event"),
         }
     }

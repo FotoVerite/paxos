@@ -12,6 +12,9 @@ const DECREE_EVENTS = new Set([
 
 function formatCommand(value, decreeNum) {
   if (value === 'NOOP') return 'NOOP';
+  if (value === 'STOP') return 'STOP';
+  if (value === 'BLANK') return 'BLANK';
+  if (typeof value === 'string') return value;
   if (!value || typeof value !== 'object') return `cmd ${decreeNum}`;
 
   if (value.ClientRequest && typeof value.ClientRequest === 'object') {
@@ -32,6 +35,9 @@ function formatCommand(value, decreeNum) {
   }
   if (value.EnactDecree) {
     return value.EnactDecree.law;
+  }
+  if (Object.prototype.hasOwnProperty.call(value, 'STOP')) {
+    return 'STOP';
   }
 
   const [kind] = Object.keys(value);

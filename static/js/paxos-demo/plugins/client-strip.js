@@ -21,7 +21,19 @@ function extractClientInfo(cmd) {
   };
 }
 
+function normalizeClientId(clientId) {
+  if (typeof clientId !== 'string') return null;
+  const normalized = clientId.trim().toLowerCase();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function isUserClientOperation(operation) {
+  if (!operation || typeof operation !== 'object') return false;
+  return Boolean(operation.PUT || operation.GET || operation.ADD);
+}
+
 function summarizeOperation(operation) {
+  if (typeof operation === 'string') return operation;
   if (!operation || typeof operation !== 'object') return 'cmd';
   if (operation.PUT) {
     const { key, value } = operation.PUT;
@@ -36,6 +48,16 @@ function summarizeOperation(operation) {
   }
   const [kind] = Object.keys(operation);
   return kind || 'cmd';
+}
+
+function isStopOperation(operation) {
+  if (!operation) return false;
+  if (typeof operation === 'string') return operation === 'STOP';
+  if (typeof operation !== 'object') return false;
+  if (operation.ClientRequest && typeof operation.ClientRequest === 'object') {
+    return isStopOperation(operation.ClientRequest.cmd);
+  }
+  return Object.prototype.hasOwnProperty.call(operation, 'STOP');
 }
 
 function applyOperation(kv, operation) {
@@ -164,7 +186,12 @@ export function createClientStripPlugin({
 
       if (eventType === 'PmmcPropose') {
         const info = extractClientInfo(eventData.cmd);
-        const key = ensureClient(info?.clientId);
+        const operation = info?.operation || eventData.cmd;
+        if (isStopOperation(operation)) return;
+        if (!isUserClientOperation(operation)) return;
+        const normalizedClientId = normalizeClientId(info?.clientId);
+        if (!normalizedClientId) return;
+        const key = ensureClient(normalizedClientId);
         const client = clients.get(key);
         if (!client) return;
 
@@ -172,10 +199,10 @@ export function createClientStripPlugin({
         client.lastReq = info?.requestId ?? null;
         client.proposePulseUntil = Date.now() + 800;
         const requestKey = info?.requestId !== null && info?.requestId !== undefined
-          ? `${info.clientId}:${info.requestId}`
+          ? `${normalizedClientId}:${info.requestId}`
           : null;
-        const slotKey = info?.clientId !== null && info?.clientId !== undefined
-          ? `${info.clientId}:slot:${eventData.slot ?? 'unknown'}`
+        const slotKey = normalizedClientId !== null && normalizedClientId !== undefined
+          ? `${normalizedClientId}:slot:${eventData.slot ?? 'unknown'}`
           : null;
 
         if (requestKey && slotKey) {
@@ -195,7 +222,7 @@ export function createClientStripPlugin({
         const target = ctx?.nodeLabels?.node
           ? ctx.nodeLabels.node(eventData.id)
           : `Node ${eventData.id}`;
-        const op = summarizeOperation(info?.operation || eventData.cmd);
+        const op = summarizeOperation(operation);
         const reqText = info?.requestId !== null && info?.requestId !== undefined
           ? ` r${info.requestId}`
           : '';
@@ -206,14 +233,18 @@ export function createClientStripPlugin({
 
       if (eventType === 'LearnedValue') {
         const info = extractClientInfo(eventData.value);
-        if (!info || !info.clientId) return;
+        if (!info) return;
+        if (isStopOperation(info.operation)) return;
+        if (!isUserClientOperation(info.operation)) return;
+        const normalizedClientId = normalizeClientId(info.clientId);
+        if (!normalizedClientId) return;
         const learnedKey = info.requestId !== null && info.requestId !== undefined
-          ? `${info.clientId}:${info.requestId}`
-          : `${info.clientId}:decree:${eventData.decree_num ?? 'unknown'}`;
+          ? `${normalizedClientId}:${info.requestId}`
+          : `${normalizedClientId}:decree:${eventData.decree_num ?? 'unknown'}`;
         if (seenLearned.has(learnedKey)) return;
         seenLearned.add(learnedKey);
 
-        const key = ensureClient(info.clientId);
+        const key = ensureClient(normalizedClientId);
         const client = clients.get(key);
         if (!client) return;
 

@@ -90,12 +90,26 @@ impl ClusterConfiguration {
     }
 
     pub fn bootstrap_pmmc(ip: IpAddr, configs: Vec<PmmcNodeConfig>) -> Result<Self, ReconfigError> {
+        Self::bootstrap_pmmc_with_params(
+            ip,
+            configs,
+            ConfigurationStrategy::JointConsensus,
+            Some(5),
+        )
+    }
+
+    pub fn bootstrap_pmmc_with_params(
+        ip: IpAddr,
+        configs: Vec<PmmcNodeConfig>,
+        strategy: ConfigurationStrategy,
+        alpha_max_inflight: Option<usize>,
+    ) -> Result<Self, ReconfigError> {
         let nodes = configs
             .into_iter()
             .enumerate()
             .map(|(index, config)| (Self::pmmc_node_uuid(ip, index), config.roles))
             .collect();
-        Self::bootstrap_with_roles(nodes, ConfigurationStrategy::JointConsensus, Some(5))
+        Self::bootstrap_with_roles(nodes, strategy, alpha_max_inflight)
     }
 
     fn next_id(&self) -> u64 {

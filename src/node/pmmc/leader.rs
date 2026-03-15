@@ -25,6 +25,7 @@ pub struct Leader {
     persistence: NodePersistence,
     quorum: usize,
     replicas: Vec<Uuid>,
+    start_index: usize,
     peers: Arc<PmmcHandle>,
     state: Arc<LeaderState>,
     observer: Arc<dyn PaxosObserver>,
@@ -51,6 +52,7 @@ impl Leader {
             peers,
             quorum: configuration.quorum(),
             replicas: configuration.replicas(),
+            start_index: configuration.starting_slot(),
             observer,
             state: Arc::new(state),
         };
@@ -66,7 +68,7 @@ impl Leader {
             .broadcast(PmmcMessage::P1A {
                 from: self.uuid,
                 ballot,
-                start_index: 0,
+                start_index: self.start_index,
             })
             .await;
     }
@@ -148,6 +150,10 @@ impl Leader {
 
     pub async fn election_deadline(&self) -> Instant {
         self.state.election_deadline().await
+    }
+
+    pub async fn shutdown(&self) {
+        self.state.shutdown().await;
     }
 
     pub async fn handle_message<M>(&self, msg: M) -> Option<PmmcMessage>
@@ -233,6 +239,7 @@ mod tests {
             persistence,
             quorum: 2,
             replicas: vec![],
+            start_index: 0,
             peers,
             state,
             observer,
@@ -257,6 +264,7 @@ mod tests {
                 persistence,
                 quorum: 2,
                 replicas: vec![],
+                start_index: 0,
                 peers,
                 state,
                 observer,

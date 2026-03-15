@@ -1,8 +1,8 @@
-{% extends "paxos-made-moderately-complex/base.html" %}
+{% extends "reconfiguring-a-state-machine/base.html" %}
 {% import "macros/nav.html" as nav %}
 {% import "macros/pmmc_scenarios.html" as pmmc_scenarios %}
 
-{% block title %}PMMC Single Client Demo{% endblock %}
+{% block title %}Reconfiguration Visualizer - Reconfiguring a State Machine{% endblock %}
 {% block body_class %}protocol-page pmmc-demo{% endblock %}
 {% block extra_stylesheets %}
 <link rel="stylesheet" href="/css/demo.css">
@@ -16,6 +16,7 @@
       <div class="client-strip-section">
         <div class="client-strip-title">Clients</div>
         <div id="clientStrip" class="client-strip"></div>
+        <div id="clientLanes" class="client-lanes"></div>
         <div id="clientFeed" class="client-feed"></div>
         <div id="clientSnapshot" class="client-snapshot"></div>
         <div id="topologyPanel" class="topology-panel"></div>
@@ -33,7 +34,7 @@
       <div class="control-group">
         <h3>Scenario</h3>
         <select id="scenarioSelect">
-          {{ pmmc_scenarios::core_options() }}
+          {{ pmmc_scenarios::reconfig_options() }}
         </select>
       </div>
       <div class="control-group">
@@ -61,8 +62,20 @@
 
     <div class="status-info">
       <div id="statusTitle">Ready</div>
-      <div id="statusDescription">Click Play to start the PMMC single-client scenario</div>
+      <div id="statusDescription">Click Play to start a PMMC reconfiguration scenario</div>
     </div>
+    <div class="status-info reconfig-phase-info">
+      <div id="reconfigPhaseTitle">Reconfiguration Idle</div>
+      <div id="reconfigPhaseDescription">Run a reconfiguration scenario to visualize stop boundaries and reboot behavior.</div>
+    </div>
+  </div>
+
+  <div class="slot-tape-section">
+    <div class="slot-tape-header">
+      <h3>Slot Tape</h3>
+      <span class="slot-tape-subtitle">Live per-slot progression</span>
+    </div>
+    <div id="slotTape" class="slot-tape"></div>
   </div>
 
   <div class="event-log-section">
@@ -85,11 +98,11 @@
   </div>
 
   {{ nav::breadcrumb(
-    prev_url="/communication-with-the-rsm",
-    prev_label="Communication with the RSM",
-    current_label="Single Client Demo",
-    next_url="/the-problem",
-    next_label="The Problem"
+    prev_url="/interface",
+    prev_label="Interface",
+    current_label="Reconfiguration Visualizer",
+    next_url="/conclusion",
+    next_label="Conclusion"
   ) }}
 </div>
 {% endblock %}
@@ -97,5 +110,5 @@
 {% block scripts %}
 <script src="/websocket-helper.js"></script>
 <script src="/paxos-visualizer.js"></script>
-<script type="module" src="/pmmc-single-client-demo.js"></script>
+<script type="module" src="/reconfig-state-machine-demo.js"></script>
 {% endblock %}

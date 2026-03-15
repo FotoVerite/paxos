@@ -144,7 +144,9 @@ impl NodeState {
 
     pub async fn is_stopped(&self) -> bool {
         match &self.replica {
-            None => true,
+            // Non-replica nodes (leader-only / acceptor-only) are part of an
+            // active runtime member and should not report stopped.
+            None => false,
             Some(replica) => replica.is_stopped().await,
         }
     }
@@ -169,6 +171,12 @@ impl NodeState {
                 return;
             }
             leader.start_election().await;
+        }
+    }
+
+    pub async fn shutdown(&self) {
+        if let Some(leader) = &self.leader {
+            leader.shutdown().await;
         }
     }
 
@@ -417,5 +425,82 @@ mod tests {
             out,
             PmmcMessage::ACK { from, to, slot } if from == node_id && to == peer_id && slot == 0
         ));
+    }
+
+    #[tokio::test]
+    async fn non_replica_node_does_not_report_stopped() {
+        let ip = std::net::IpAddr::V4([127, 0, 0, 1].into());
+        let configuration = Arc::new(
+            ClusterConfiguration::bootstrap_pmmc(
+                ip,
+                vec![
+                    PmmcNodeConfig {
+                        roles: Roles {
+                            proposer: true,
+                            acceptor: false,
+                            learner: false,
+                        },
+                    },
+                    PmmcNodeConfig {
+                        roles: Roles {
+                            proposer: false,
+                            acceptor: true,
+                            learner: false,
+                        },
+                    },
+                    PmmcNodeConfig {
+                        roles: Roles {
+                            proposer: false,
+                            acceptor: true,
+                            learner: false,
+                        },
+                    },
+                    PmmcNodeConfig {
+                        roles: Roles {
+                            proposer: false,
+                            acceptor: true,
+                            learner: false,
+                        },
+                    },
+                    PmmcNodeConfig {
+                        roles: Roles {
+                            proposer: false,
+                            acceptor: false,
+                            learner: true,
+                        },
+                    },
+                ],
+            )
+            .expect("test config should bootstrap"),
+        );
+
+        let leader_only = configuration.member(0).expect("node 0 should exist");
+        let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        let fabric = Arc::new(new_pmmc_fabric(Arc::clone(&observer)));
+        let handle = Arc::new(crate::node::pmmc::transport::PmmcHandle::from_fabric(
+            leader_only,
+            Arc::clone(&fabric),
+        ));
+
+        let state = NodeState::init(
+            leader_only,
+            fabric,
+            handle,
+            crate::common::persistence::ClusterPersistence::for_test("node_state").node(leader_only),
+            observer,
+            Roles {
+                proposer: true,
+                acceptor: false,
+                learner: false,
+            },
+            configuration,
+        )
+        .await
+        .expect("node state init should work");
+
+        assert!(
+            !state.is_stopped().await,
+            "leader-only node should report active runtime status"
+        );
     }
 }

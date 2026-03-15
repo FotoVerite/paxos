@@ -35,6 +35,13 @@ impl PmmcScenarioLoader {
                 "pmmc_acceptor_majority_loss_then_recover.json"
             }
             ScenarioType::PmmcStaggeredLeaderJoin => "pmmc_staggered_leader_join.json",
+            ScenarioType::PmmcReconfigJointConsensus => "pmmc_reconfig_joint_consensus.json",
+            ScenarioType::PmmcReconfigStopSign => "pmmc_reconfig_stop_sign.json",
+            ScenarioType::PmmcReconfigDelayedStopSign => {
+                "pmmc_reconfig_delayed_stop_sign.json"
+            }
+            ScenarioType::PmmcReconfigPadding => "pmmc_reconfig_padding.json",
+            ScenarioType::PmmcReconfigBrickWall => "pmmc_reconfig_brick_wall.json",
             _ => return None,
         };
 
@@ -67,6 +74,11 @@ mod tests {
             ScenarioType::PmmcLeaderPartitionHeal,
             ScenarioType::PmmcAcceptorMajorityLossThenRecover,
             ScenarioType::PmmcStaggeredLeaderJoin,
+            ScenarioType::PmmcReconfigJointConsensus,
+            ScenarioType::PmmcReconfigStopSign,
+            ScenarioType::PmmcReconfigDelayedStopSign,
+            ScenarioType::PmmcReconfigPadding,
+            ScenarioType::PmmcReconfigBrickWall,
         ];
 
         for scenario_type in scenarios {

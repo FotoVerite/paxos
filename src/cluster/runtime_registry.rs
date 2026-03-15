@@ -26,7 +26,7 @@ use crate::{
     common::network_fabric::NetworkFailure,
     common::persistence::ClusterPersistence,
     message::ClientMessage,
-    monitor::PaxosObserver,
+    monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
         config::{PmmcNodeConfig, Roles},
         pmmc::{message::PmmcMessage, transport::PmmcFabric},
@@ -38,6 +38,7 @@ pub struct RuntimeRegistry {
     member_ids: Vec<Uuid>,
     inboxes: RwLock<HashMap<Uuid, Arc<Mutex<Option<Receiver<PmmcMessage>>>>>>,
     fabric: Arc<PmmcFabric>,
+    observer: Arc<dyn PaxosObserver>,
     handler: Arc<ConfigurationHandler>,
 }
 
@@ -103,6 +104,7 @@ impl RuntimeRegistry {
             member_ids,
             inboxes: RwLock::new(HashMap::new()),
             fabric,
+            observer: Arc::clone(&observer),
             handler: ConfigurationHandler::new(CONFIG_HANDLER_ID),
         };
 
@@ -186,13 +188,28 @@ impl RuntimeRegistry {
 
     pub async fn start(&self) {
         self.handler.clone().start().await;
-        let members: Vec<_> = {
-            let members = self.members.read().await;
-            members.values().cloned().collect()
-        };
-        for member in members {
-            member.start().await;
+        for id in self.member_ids.iter().copied() {
+            if let Some(member) = self.get(id).await {
+                member.start().await;
+            }
         }
+    }
+
+    pub async fn start_for_reconfiguration(&self) {
+        self.handler.clone().start().await;
+        for id in self.member_ids.iter().copied() {
+            if let Some(member) = self.get(id).await {
+                member.start().await;
+                self.observe_event(Event::ReconfigurationNodeRebooted {
+                    id,
+                    created_at: current_timestamp_millis(),
+                });
+            }
+        }
+    }
+
+    pub fn observe_event(&self, event: Event) {
+        self.observer.on_event(event);
     }
 
     pub async fn submit_configuration_op(
@@ -301,6 +318,20 @@ impl RuntimeRegistry {
             self.stop_member(*member).await;
             self.unregister_configuration_endpoint(*member).await;
             self.fabric.unregister(*member).await;
+        }
+        *self.members.write().await = HashMap::new();
+        self.member_ids.clear();
+    }
+
+    pub async fn reset_for_reconfiguration(&mut self) {
+        for member in self.member_ids.iter().copied() {
+            self.stop_member(member).await;
+            self.observe_event(Event::ReconfigurationNodeRetired {
+                id: member,
+                created_at: current_timestamp_millis(),
+            });
+            self.unregister_configuration_endpoint(member).await;
+            self.fabric.unregister(member).await;
         }
         *self.members.write().await = HashMap::new();
         self.member_ids.clear();
