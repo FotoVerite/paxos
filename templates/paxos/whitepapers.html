@@ -1,147 +1,296 @@
 {% extends "paxos/base.html" %}
 {% import "macros/nav.html" as nav %}
 {% block title %}Paxos Explained{% endblock %}
-{% block body_class %}landing-page{% endblock %}
+{% block body_class %}whitepapers-page{% endblock %}
 
 {% block extra_stylesheets %}
-<link rel="stylesheet" href="{{ nav::site_url(raw_url="/css/paxos/pages/landing.css") }}">
+<link rel="stylesheet" href="{{ nav::site_url(raw_url="/css/paxos/pages/whitepapers.css") }}">
 {% endblock %}
 
 {% block content %}
 <div class="container">
-  <header>
-    <h1>Paxos a <i>very</i> part-time parliament</h1>
-    <p class="tagline">
-      Paxos a part time parliament published in 1998 by Leslie Lamport is the
-      one of the landmark white papers on distributed consensus. It's the
-      backbone of many modern systems, from databases to cloud services. Being
-      seminal doesn't mean it's easy to understand. Nor does it mean the white
-      paper describing it was well written. It notoriously isn't, but as a
-      foundational work it is useful for anyone trying to understand both the
-      history and theory of distributed systems.
-    </p>
+  <header class="whitepapers-hero">
+    <div class="hero-copy">
+      <p class="page-kicker">Whitepapers</p>
+      <h1>What to read if you actually want to understand Paxos</h1>
+      <p class="tagline">
+        Not every paper here solves the same problem. Some help you understand
+        Paxos itself, some help once you start thinking about real systems, and
+        some explain why consensus is such a pain in the first place.
+      </p>
+    </div>
+    <aside class="hero-aside" aria-label="Quick recommendation">
+      <span class="hero-aside-label">Quick take</span>
+      <p>
+        If you only read one first, make it
+        <strong>Paxos Made Moderately Complex</strong>. It is the least annoying
+        entry point.
+      </p>
+    </aside>
   </header>
 
   <section class="whitepapers-section">
-    <h2>White Papers</h2>
+    <div class="section-intro">
+      <div>
+        <p class="section-kicker">Suggested order</p>
+        <h2>Read by purpose, not by publication date</h2>
+      </div>
+      <p class="section-summary">
+        If you read these in the wrong order, Paxos gets harder than it needs
+        to be.
+      </p>
+    </div>
 
-    <p>
-      Various papers that can help with understanding as we go through the
-      protocol.
-    </p>
+    <div class="reading-path" aria-label="Recommended reading path">
+      <div class="reading-path-header">
+        <h3>Recommended order</h3>
+        <p>
+          If this is your first real pass through Paxos, start here instead of
+          jumping straight into Lamport and wondering why everyone pretends the
+          original papers are easy reads.
+        </p>
+      </div>
+      <ol class="reading-path-list">
+        <li>
+          <span class="path-step">01</span>
+          <div>
+          <strong>Paxos Made Moderately Complex</strong>
+            <p>Get the roles, message flow, and the shape of the system.</p>
+          </div>
+        </li>
+        <li>
+          <span class="path-step">02</span>
+          <div>
+          <strong>Paxos Made Simple</strong>
+            <p>Come back once the moving parts already make sense.</p>
+          </div>
+        </li>
+        <li>
+          <span class="path-step">03</span>
+          <div>
+            <strong>The Part-Time Parliament</strong> or <strong>FLP</strong>
+            <p>Read one for history, the other for the theory underneath it.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
 
     <div class="paper-category">
-      <h3>Paxos Papers</h3>
-      <div class="paper-item">
-        <div class="title">The Part‑Time Parliament</div>
-        <div class="author">📄 Lamport, Leslie</div>
-        <div class="description">
-          Lamport's original paper wrapped in an allegory about an ancient Greek
-          parliament. It's dense and and rambling, with some brilliant insights
-          along with asides that add nothing. But that's why this website
-          exists.
+      <div class="category-heading">
+        <span class="category-index">01</span>
+        <div>
+          <h3>Paxos papers</h3>
+          <p class="category-summary">
+            Lamport's own papers. Important, but not where I would tell most
+            people to start.
+          </p>
         </div>
-        <a href="http://lamport.azurewebsites.net/pubs/pubs.html#paxos-original" target="_blank" class="link">Paxos The
-          Part‑Time Parliament ↗</a>
       </div>
-      <div class="paper-item">
-        <div class="title">Paxos Made Simple</div>
-        <div class="author">📄 Lamport, Leslie</div>
-        <div class="description">
-          After watching thousands struggle with his first paper, Lamport tried
-          to simplify it but just ended up writing math proofs with no
-          explination. Math PHDs please read, normal computer science people
-          try, but it's not you.
-        </div>
-        <a href="http://lamport.azurewebsites.net/pubs/pubs.html#paxos-simple" target="_blank" class="link">Get the
-          "Simple" Version ↗</a>
+      <div class="paper-stack">
+        <article class="paper-item">
+          <div class="paper-rail">
+            <span class="paper-badge">Original text</span>
+            <span class="paper-badge paper-badge--muted">Historical</span>
+          </div>
+          <div class="paper-body">
+            <h4 class="title">The Part-Time Parliament</h4>
+            <p class="author">Leslie Lamport</p>
+            <p class="description">
+              The original Paxos paper. Historically important, full of the
+              parliament metaphor, and much harder to learn from than its
+              reputation would suggest.
+            </p>
+            <p class="paper-note">
+              <strong>Read it for:</strong> the source material, the metaphor,
+              and the history.
+            </p>
+          </div>
+          <a href="http://lamport.azurewebsites.net/pubs/pubs.html#paxos-original" target="_blank" rel="noopener noreferrer" class="link">Read the original ↗</a>
+        </article>
+        <article class="paper-item">
+          <div class="paper-rail">
+            <span class="paper-badge">Shorter</span>
+            <span class="paper-badge paper-badge--muted">Proof-first</span>
+          </div>
+          <div class="paper-body">
+            <h4 class="title">Paxos Made Simple</h4>
+            <p class="author">Leslie Lamport</p>
+            <p class="description">
+              The shorter retelling. Cleaner than the original, but it still
+              leaves a lot of the intuition up to the reader.
+            </p>
+            <p class="paper-note">
+              <strong>Read it for:</strong> the stripped down statement of the
+              algorithm once you already know the cast.
+            </p>
+          </div>
+          <a href="http://lamport.azurewebsites.net/pubs/pubs.html#paxos-simple" target="_blank" rel="noopener noreferrer" class="link">Read the “simple” version ↗</a>
+        </article>
       </div>
     </div>
 
     <div class="paper-category">
-      <h3>From Theory to Practice</h3>
-      <div class="paper-item">
-        <div class="title">Paxos Made Moderately Complex</div>
-        <div class="author">📄 van Renesse, Robbert</div>
-        <div class="description">
-          The perfect bridge between academic theory and real-world code. This
-          paper pulls back the curtain on the engineering details you'll
-          actually need when building production systems. It reads like a
-          commented walkthrough of how to actually implemented paxos for a
-          production system.
+      <div class="category-heading">
+        <span class="category-index">02</span>
+        <div>
+          <h3>From theory to practice</h3>
+          <p class="category-summary">
+            The useful stuff once you stop asking "what is Paxos?" and start
+            asking "how would this actually run?"
+          </p>
         </div>
-        <a href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf" target="_blank" class="link">Paxos Made Moderately
-          Complex ↗</a>
       </div>
-      <div class="paper-item">
-        <div class="title">Paxos Made Practical</div>
-        <div class="author">📄 Mazières, David</div>
-        <div class="description">
-          This paper digs into the operational challenges, failure modes, and
-          pragmatic choices you'll face when deploying Paxos in the wild.
-          Essential reading if you're thinking about actually using this in
-          production.
-        </div>
-        <a href="https://web.archive.org/web/20140228103759/http://www.scs.stanford.edu/2013wi-cs244b/labs/paxos_made_practical.pdf"
-          target="_blank" class="link">Paxos Made Practical ↗</a>
-      </div>
-    </div>
-
-    <div class="paper-category">
-      <h3>Other distributed systems algorithms</h3>
-      <div class="paper-item">
-        <div class="title">
-          In Search of an Understandable Consensus Algorithm (Raft)
-        </div>
-        <div class="author">📄 Ongaro & Ousterhout</div>
-        <div class="description">
-          The paper that asked: "Does consensus really need to be this hard?"
-          Raft was designed with understandability as a first-class concern, and
-          it shows. It became wildly popular for good reason.
-        </div>
-        <a href="https://raft.github.io/raft.pdf" target="_blank" class="link">Raft ↗</a>
-      </div>
-      <div class="paper-item">
-        <div class="title">Viewstamped Replication</div>
-        <div class="author">📄 Oki & Liskov</div>
-        <div class="description">
-          Developed independently around the same time as Paxos, It's another
-          foundational consensus algorithm—a perfect example of how similar
-          solutions emerge from the same hard problems.
-        </div>
-        <a href="https://pmg.csail.mit.edu/papers/vr-revisited.pdf" target="_blank" class="link">Viewstamped Replication
-          ↗</a>
-      </div>
-      <div class="paper-item">
-        <div class="title">Reconfiguring a State Machine</div>
-        <div class="author">📄 Lamport, Malkhi, Zhou</div>
-        <div class="description">
-          A practical tutorial on safely changing membership in replicated state
-          machines. Great companion for moving from static Paxos clusters to
-          real-world reconfiguration.
-        </div>
-        <a href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf" target="_blank" class="link">Reconfiguring a State Machine ↗</a>
+      <div class="paper-stack">
+        <article class="paper-item">
+          <div class="paper-rail">
+            <span class="paper-badge">Start here</span>
+            <span class="paper-badge paper-badge--muted">Implementation bridge</span>
+          </div>
+          <div class="paper-body">
+            <h4 class="title">Paxos Made Moderately Complex</h4>
+            <p class="author">Robbert van Renesse and Deniz Altinbuken</p>
+            <p class="description">
+              The paper I would hand most people first. It turns Paxos from an
+              abstract proof object into something you can actually picture
+              running.
+            </p>
+            <p class="paper-note">
+              <strong>Read it for:</strong> the implementation view.
+            </p>
+          </div>
+          <a href="https://www.cs.cornell.edu/home/rvr/Paxos/paxos.pdf" target="_blank" rel="noopener noreferrer" class="link">Read the bridge paper ↗</a>
+        </article>
+        <article class="paper-item">
+          <div class="paper-rail">
+            <span class="paper-badge">Operational</span>
+            <span class="paper-badge paper-badge--muted">Failure-focused</span>
+          </div>
+          <div class="paper-body">
+            <h4 class="title">Paxos Made Practical</h4>
+            <p class="author">David Mazières</p>
+            <p class="description">
+              A pragmatic look at what starts breaking once Paxos stops being a
+              paper exercise and turns into an actual deployed system.
+            </p>
+            <p class="paper-note">
+              <strong>Read it for:</strong> operations, failure modes, and the
+              annoying bits the cleaner papers skip.
+            </p>
+          </div>
+          <a href="https://web.archive.org/web/20140228103759/http://www.scs.stanford.edu/2013wi-cs244b/labs/paxos_made_practical.pdf" target="_blank" rel="noopener noreferrer" class="link">Read the practical take ↗</a>
+        </article>
       </div>
     </div>
 
     <div class="paper-category">
-      <h3>Foundational Antecedent Papers</h3>
-      <div class="paper-item">
-        <div class="title">Fischer-Lynch-Paterson (FLP) Impossibility</div>
-        <div class="author">📄 Fischer, Lynch, Paterson</div>
-        <div class="description">
-          The theoretical bedrock. FLP proves that perfect consensus is
-          mathematically impossible in a fully asynchronous system where any
-          single node can fail. This is why Paxos has to be so clever—it's
-          working around an actual impossibility proof.
+      <div class="category-heading">
+        <span class="category-index">03</span>
+        <div>
+          <h3>Neighboring algorithms and extensions</h3>
+          <p class="category-summary">
+            Good comparison papers if you want to see what is special about
+            Paxos and what is just distributed systems showing up again.
+          </p>
         </div>
-        <a href="https://groups.csail.mit.edu/tds/papers/Lynch/jacm85.pdf" target="_blank" class="link">FLP ↗</a>
+      </div>
+      <div class="paper-stack">
+        <article class="paper-item">
+          <div class="paper-rail">
+            <span class="paper-badge">Contrast</span>
+            <span class="paper-badge paper-badge--muted">Understandability</span>
+          </div>
+          <div class="paper-body">
+            <h4 class="title">In Search of an Understandable Consensus Algorithm (Raft)</h4>
+            <p class="author">Diego Ongaro and John Ousterhout</p>
+            <p class="description">
+              The obvious contrast case. It was written to be understandable on
+              purpose, which makes it useful even if you are here to learn
+              Paxos, not switch sides.
+            </p>
+            <p class="paper-note">
+              <strong>Read it for:</strong> a comparison point built around
+              clarity.
+            </p>
+          </div>
+          <a href="https://raft.github.io/raft.pdf" target="_blank" rel="noopener noreferrer" class="link">Read Raft ↗</a>
+        </article>
+        <article class="paper-item">
+          <div class="paper-rail">
+            <span class="paper-badge">Sibling</span>
+            <span class="paper-badge paper-badge--muted">Replication lineage</span>
+          </div>
+          <div class="paper-body">
+            <h4 class="title">Viewstamped Replication</h4>
+            <p class="author">Brian Oki and Barbara Liskov</p>
+            <p class="description">
+              Another foundational replication line. Useful for separating what
+              is specifically Paxos from what is common to this whole family of
+              systems.
+            </p>
+            <p class="paper-note">
+              <strong>Read it for:</strong> broader context around replication.
+            </p>
+          </div>
+          <a href="https://pmg.csail.mit.edu/papers/vr-revisited.pdf" target="_blank" rel="noopener noreferrer" class="link">Read Viewstamped Replication ↗</a>
+        </article>
+        <article class="paper-item">
+          <div class="paper-rail">
+            <span class="paper-badge">Extension</span>
+            <span class="paper-badge paper-badge--muted">Membership changes</span>
+          </div>
+          <div class="paper-body">
+            <h4 class="title">Reconfiguring a State Machine</h4>
+            <p class="author">Leslie Lamport, Dahlia Malkhi, and Lidong Zhou</p>
+            <p class="description">
+              A focused tutorial on one of the harder practical problems:
+              changing cluster membership without breaking safety.
+            </p>
+            <p class="paper-note">
+              <strong>Read it for:</strong> reconfiguration.
+            </p>
+          </div>
+          <a href="https://lamport.azurewebsites.net/pubs/reconfiguration-tutorial.pdf" target="_blank" rel="noopener noreferrer" class="link">Read about reconfiguration ↗</a>
+        </article>
       </div>
     </div>
 
-    <!-- Bottom Breadcrumb Navigation -->
+    <div class="paper-category">
+      <div class="category-heading">
+        <span class="category-index">04</span>
+        <div>
+          <h3>Foundational antecedents</h3>
+          <p class="category-summary">
+            The theory paper here because consensus did not become painful by
+            accident.
+          </p>
+        </div>
+      </div>
+      <div class="paper-stack">
+        <article class="paper-item">
+          <div class="paper-rail">
+            <span class="paper-badge">Bedrock</span>
+            <span class="paper-badge paper-badge--muted">Impossibility</span>
+          </div>
+          <div class="paper-body">
+            <h4 class="title">Fischer-Lynch-Paterson (FLP) Impossibility</h4>
+            <p class="author">Michael Fischer, Nancy Lynch, and Michael Paterson</p>
+            <p class="description">
+              The impossibility result under the whole field. It explains why
+              consensus papers keep making timing assumptions and awkward
+              tradeoffs instead of just "solving" the problem cleanly.
+            </p>
+            <p class="paper-note">
+              <strong>Read it for:</strong> the theoretical background.
+            </p>
+          </div>
+          <a href="https://groups.csail.mit.edu/tds/papers/Lynch/jacm85.pdf" target="_blank" rel="noopener noreferrer" class="link">Read FLP ↗</a>
+        </article>
+      </div>
+    </div>
+
   </section>
-    {{ nav::breadcrumb(
+
+  {{ nav::breadcrumb(
     prev_url="/",
     prev_label="Home",
     current_label="Whitepapers",

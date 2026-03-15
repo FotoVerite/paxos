@@ -5,7 +5,10 @@
         <div class="nav-brand">
             <a href="{{ nav::site_url(raw_url="/") }}" class="brand-link">
                 <img src="{{ nav::site_url(raw_url="/favicon.svg") }}" alt="Paxos Logo" class="brand-logo">
-                <span class="brand-text">Paxos</span>
+                <span class="brand-copy">
+                    <span class="brand-text">Paxos</span>
+                    <span class="brand-note">part-time parliament</span>
+                </span>
             </a>
         </div>
 
@@ -18,7 +21,7 @@
         <div class="nav-menu" id="navMenu">
             <!-- Introduction -->
             <div class="nav-item">
-                <button class="nav-link">Introduction</button>
+                <button class="nav-link">Intro</button>
                 <div class="nav-dropdown">
                     <a href="{{ nav::site_url(raw_url="/") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/") }}">Landing</a>
                     <a href="{{ nav::site_url(raw_url="/whitepapers") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/whitepapers") }}">Whitepapers</a>
@@ -32,7 +35,7 @@
 
             <!-- Section 1 -->
             <div class="nav-item">
-                <button class="nav-link">Section 1: The Problem</button>
+                <button class="nav-link">Problem</button>
                 <div class="nav-dropdown">
                     <a href="{{ nav::site_url(raw_url="/the-problem/the-island-of-paxos") }}" class="nav-dropdown-item"
                         data-route="{{ nav::site_url(raw_url="/the-problem/the-island-of-paxos") }}">1.1 The Island of Paxos</a>
@@ -45,7 +48,7 @@
 
             <!-- Section 2.1: Synod - Mathematical Foundation -->
             <div class="nav-item">
-                <button class="nav-link">Section 2.1: Synod (Math)</button>
+                <button class="nav-link">Synod</button>
                 <div class="nav-dropdown">
                     <a href="{{ nav::site_url(raw_url="/synod/overview") }}" class="nav-dropdown-item" data-route="{{ nav::site_url(raw_url="/synod/overview") }}">Overview</a>
                     <a href="{{ nav::site_url(raw_url="/synod/ballot-definitions") }}" class="nav-dropdown-item"
@@ -66,7 +69,7 @@
 
             <!-- Section 2.2: Synod - Protocols -->
             <div class="nav-item">
-                <button class="nav-link">Section 2.2: Protocols</button>
+                <button class="nav-link">Protocol</button>
                 <div class="nav-dropdown">
                     <a href="{{ nav::site_url(raw_url="/protocols/preliminary-protocol") }}" class="nav-dropdown-item"
                         data-route="{{ nav::site_url(raw_url="/protocols/preliminary-protocol") }}">Preliminary Protocol</a>
@@ -83,7 +86,7 @@
 
             <!-- Section 3 -->
             <div class="nav-item">
-                <button class="nav-link">Section 3: Multi-Decree Parliament</button>
+                <button class="nav-link">Parliament</button>
                 <div class="nav-dropdown">
                     <a href="{{ nav::site_url(raw_url="/multi-decree-parliament/overview") }}" class="nav-dropdown-item"
                         data-route="{{ nav::site_url(raw_url="/multi-decree-parliament/overview") }}">3.1 Overview</a>
@@ -98,7 +101,7 @@
 
             <!-- Section 4 -->
             <div class="nav-item">
-                <button class="nav-link">Section 4: Further Developments</button>
+                <button class="nav-link">Further</button>
                 <div class="nav-dropdown">
                     <a href="{{ nav::site_url(raw_url="/further-developments/picking-a-president") }}" class="nav-dropdown-item"
                         data-route="{{ nav::site_url(raw_url="/further-developments/picking-a-president") }}">4.1 Picking a President</a>
@@ -185,46 +188,71 @@
 
 <style>
     .navbar {
-        background-color: #1a1a1a;
-        border-bottom: 1px solid #333;
-        padding: 0;
         position: sticky;
         top: 0;
         z-index: 100;
+        background:
+            radial-gradient(circle at 12% 0%, rgba(255, 113, 206, 0.08), transparent 26%),
+            radial-gradient(circle at 88% 0%, rgba(1, 205, 254, 0.07), transparent 28%),
+            linear-gradient(180deg, rgba(15, 11, 32, 0.97), rgba(8, 12, 24, 0.95));
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+        padding: 0;
+        backdrop-filter: blur(10px);
+        overflow: visible;
+    }
+
+    .navbar::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 1px;
+        background: linear-gradient(90deg,
+            rgba(255, 113, 206, 0.4),
+            rgba(1, 205, 254, 0.32),
+            rgba(255, 113, 206, 0.2));
+        pointer-events: none;
+    }
+
+    .navbar::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0 0;
+        height: 16px;
+        background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.02));
+        pointer-events: none;
     }
 
     .nav-container {
         max-width: 1400px;
         margin: 0 auto;
-        padding: 0;
+        padding: 0 10px;
         display: flex;
         align-items: center;
-        height: 60px;
+        height: 56px;
         width: 100%;
     }
 
     .nav-brand {
-        padding: 0 20px;
-        font-size: 20px;
-        font-weight: bold;
+        padding: 0 14px 0 8px;
         flex-shrink: 0;
-        border-right: 1px solid #333;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
         height: 100%;
         display: flex;
         align-items: center;
+        position: relative;
     }
 
     .brand-link {
         display: flex;
         align-items: center;
-        gap: 10px;
-        color: #60a5fa;
+        gap: 9px;
+        color: #dbe7ff;
         text-decoration: none;
         height: 100%;
     }
 
     .brand-link:hover {
-        color: #93c5fd;
+        color: #ffffff;
     }
 
     .brand-link:hover .brand-logo {
@@ -232,14 +260,35 @@
     }
 
     .brand-logo {
-        height: 50px;
+        height: 40px;
         width: auto;
         transition: filter 0.2s;
     }
 
+    .brand-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        line-height: 1;
+    }
+
     .brand-text {
-        font-size: 20px;
-        font-weight: bold;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-family: "Georgia", "Times New Roman", serif;
+        font-style: italic;
+        color: #f4f1ff;
+        text-shadow: 0 0 10px rgba(255, 113, 206, 0.08);
+    }
+
+    .brand-note {
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #97cfe5;
+        opacity: 0.88;
     }
 
     .hamburger-menu {
@@ -248,10 +297,10 @@
         background: none;
         border: none;
         cursor: pointer;
-        padding: 16px;
+        padding: 14px;
         gap: 6px;
         margin-left: auto;
-        margin-right: 10px;
+        margin-right: 4px;
     }
 
     .hamburger-menu span {
@@ -279,6 +328,7 @@
         align-items: center;
         height: 100%;
         flex: 1;
+        justify-content: flex-end;
     }
 
     .nav-item {
@@ -289,43 +339,73 @@
     }
 
     .nav-link {
-        padding: 20px 16px;
+        padding: 0 12px;
         background: none;
         border: none;
-        color: #cbd5e1;
-        font-size: 13px;
-        font-weight: 500;
+        color: #b7c4db;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
         cursor: pointer;
         height: 100%;
         white-space: nowrap;
-        transition: color 0.2s, background-color 0.2s;
-        border-bottom: 2px solid transparent;
+        transition: color 0.2s, background-color 0.2s, text-shadow 0.2s;
+        border-bottom: 1px solid transparent;
+        position: relative;
     }
 
     .nav-link:hover {
-        color: #e2e8f0;
-        background-color: #1e293b;
+        color: #edf4ff;
+        background-color: rgba(255, 255, 255, 0.02);
+        text-shadow: 0 0 8px rgba(1, 205, 254, 0.1);
+    }
+
+    .nav-link::after {
+        content: "";
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 9px;
+        height: 1px;
+        background: linear-gradient(90deg, rgba(255, 113, 206, 0.55), rgba(1, 205, 254, 0.55));
+        transform: scaleX(0);
+        transform-origin: center;
+        opacity: 0;
+        transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
     .nav-link.active {
-        color: #60a5fa;
-        border-bottom-color: #60a5fa;
+        color: #eef5ff;
+        border-bottom-color: transparent;
+        text-shadow: 0 0 10px rgba(255, 113, 206, 0.1);
+    }
+
+    .nav-link:hover::after,
+    .nav-link.active::after {
+        transform: scaleX(1);
+        opacity: 1;
     }
 
     .nav-dropdown {
         position: absolute;
         top: 100%;
         left: 0;
-        background-color: #0f172a;
-        border: 1px solid #333;
-        border-top: none;
-        min-width: 250px;
+        background:
+            linear-gradient(180deg, rgba(15, 11, 31, 0.98), rgba(8, 12, 24, 0.98)),
+            linear-gradient(90deg, rgba(255, 113, 206, 0.025), rgba(1, 205, 254, 0.025));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        min-width: 230px;
         display: none;
         flex-direction: column;
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        box-shadow:
+            0 18px 40px rgba(0, 0, 0, 0.32),
+            0 0 18px rgba(255, 113, 206, 0.05),
+            0 0 20px rgba(1, 205, 254, 0.03);
         z-index: 1000;
         max-height: 500px;
         overflow-y: auto;
+        padding: 6px 0;
     }
 
     .nav-dropdown-group {
@@ -343,25 +423,29 @@
 
     .nav-dropdown-item {
         display: block;
-        padding: 10px 16px;
-        color: #94a3b8;
+        padding: 9px 14px;
+        color: #a6b6d1;
         text-decoration: none;
-        font-size: 13px;
+        font-size: 12px;
+        line-height: 1.35;
         transition: color 0.2s, background-color 0.2s;
-        white-space: nowrap;
+        white-space: normal;
     }
 
     .nav-dropdown-item:hover {
-        background-color: #1e293b;
-        color: #cbd5e1;
+        background:
+            linear-gradient(90deg, rgba(255, 113, 206, 0.05), rgba(1, 205, 254, 0.035));
+        color: #edf4ff;
     }
 
     .nav-dropdown-item.active {
-        background-color: #1e293b;
-        color: #60a5fa;
+        background:
+            linear-gradient(90deg, rgba(255, 113, 206, 0.06), rgba(1, 205, 254, 0.05));
+        color: #f6fbff;
         font-weight: 500;
-        padding-left: 12px;
-        border-left: 4px solid #60a5fa;
+        padding-left: 10px;
+        border-left: 3px solid transparent;
+        border-image: linear-gradient(180deg, #ff71ce, #01cdfe) 1;
     }
 
     .nav-dropdown-group+.nav-dropdown-group {
@@ -376,12 +460,13 @@
 
         .nav-menu {
             position: fixed;
-            top: 60px;
+            top: 56px;
             left: 0;
             right: 0;
             width: 100vw;
-            background-color: #0f172a;
-            border-bottom: 1px solid #333;
+            background:
+                linear-gradient(180deg, rgba(15, 11, 32, 0.985), rgba(8, 12, 24, 0.98));
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             flex-direction: column;
             height: auto;
             max-height: 0;
@@ -399,23 +484,28 @@
             height: auto;
             flex-direction: column;
             align-items: flex-start;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             margin: 0;
         }
 
         .nav-link {
             width: 100%;
             height: auto;
-            padding: 12px 16px;
+            padding: 13px 16px;
             border-bottom: none;
-            font-size: 14px;
+            font-size: 11px;
+        }
+
+        .nav-link::after {
+            display: none;
         }
 
         .nav-dropdown {
             position: static;
             border: none;
-            border-top: 1px solid #1a1a1a;
-            background-color: #0a0f1a;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            background:
+                linear-gradient(180deg, rgba(14, 10, 29, 0.98), rgba(7, 11, 21, 0.96));
             box-shadow: none;
             max-height: 500px;
             overflow: visible;
@@ -429,8 +519,18 @@
         }
 
         .nav-dropdown-item {
-            padding: 12px 16px 12px 32px;
+            padding: 11px 16px 11px 28px;
             white-space: normal;
+        }
+
+        .nav-dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.035);
+        }
+
+        .nav-dropdown-item.active {
+            background: rgba(255, 255, 255, 0.045);
+            border-left: 2px solid rgba(127, 214, 255, 0.75);
+            border-image: none;
         }
     }
 
@@ -441,17 +541,13 @@
             padding: 0 12px;
         }
 
-        .brand-logo {
-            height: 40px;
-        }
-
-        .brand-text {
+        .brand-copy {
             display: none;
         }
 
         .nav-link {
             padding: 12px 12px;
-            font-size: 13px;
+            font-size: 11px;
         }
 
         .nav-dropdown-item {

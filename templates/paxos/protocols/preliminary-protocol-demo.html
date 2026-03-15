@@ -4,7 +4,7 @@
 {% block extra_stylesheets %}
     <link rel="stylesheet" href="/css/demo.css">
 {% endblock %} {% block content %}
-<div class="demo-container">
+<div class="demo-container preliminary-protocol-demo">
   <!-- Visualization -->
   <div class="visualization">
     <svg id="demovSvg"></svg>
@@ -26,7 +26,7 @@
           </option>
         </select>
       </div>
-      <div class="control-group"  style="display: none;">
+      <div class="control-group">
         <h3>Speed</h3>
         <div class="speed-control">
           <input type="range" id="speed" value="1" min="0.25" max="2" step="0.25" />
@@ -34,16 +34,22 @@
         </div>
       </div>
       <div class="button-group">
-        <button id="playBtn" onclick="playScenario()">Play</button>
-        <button id="pauseBtn" onclick="pauseScenario()" disabled>Pause</button>
-        <button id="resetBtn" onclick="resetScenario()">Reset</button>
+        <button class="demo-toggle demo-toggle-primary" id="playBtn" onclick="playScenario()">Play</button>
+        <button class="demo-toggle" id="pauseBtn" onclick="pauseScenario()" disabled>Pause</button>
+        <button class="demo-toggle" id="resetBtn" onclick="resetScenario()">Reset</button>
       </div>
+      <div class="playback-cursor" id="playbackCursor">Step 0/0</div>
+    </div>
+
+    <div class="scenario-description">
+      <p id="scenarioSummaryTitle">Selected scenario</p>
+      <p id="scenarioSummaryDescription">Choose a run, then watch how the ballot moves phase by phase.</p>
     </div>
 
     <!-- Status Info -->
     <div class="status-info">
       <div id="phaseTitle">Ready</div>
-      <div id="phaseDescription">Select a scenario and click Play</div>
+      <div id="phaseDescription">Select a scenario and click Play.</div>
     </div>
   </div>
 
@@ -80,8 +86,15 @@
 
   <!-- Event Log -->
   <div class="event-log-section">
-    <h3>Event Log</h3>
-    <div id="eventLog"></div>
+    <div class="event-log-header">
+      <h3>Event Log</h3>
+      <div class="event-log-actions">
+        <span class="event-filter-status">Latest step first</span>
+      </div>
+    </div>
+    <div class="event-log-wrapper">
+      <div id="eventLog"></div>
+    </div>
   </div>
 
   <!-- Bottom Breadcrumb Navigation -->
@@ -139,14 +152,18 @@
   const speedSlider = document.getElementById("speed");
   const speedValue = document.getElementById("speedValue");
   const scenarioSelect = document.getElementById("scenarioSelect");
+  const scenarioSummaryTitle = document.getElementById("scenarioSummaryTitle");
+  const scenarioSummaryDescription = document.getElementById("scenarioSummaryDescription");
   const phaseTitle = document.getElementById("phaseTitle");
   const phaseDescription = document.getElementById("phaseDescription");
+  const playbackCursor = document.getElementById("playbackCursor");
   const playBtn = document.getElementById("playBtn");
   const pauseBtn = document.getElementById("pauseBtn");
   const resetBtn = document.getElementById("resetBtn");
 
   let isRunning = false;
   let currentScenario = null;
+  let eventSequence = 0;
   let eventCounts = {
     nextballot: 0,
     lastvote: 0,
@@ -157,8 +174,8 @@
   };
 
   // Update speed display
-  speedSlider.addEventListener("change", (e) => {
-    speedValue.textContent = parseFloat(e.target.value).toFixed(2) + "x";
+  speedSlider.addEventListener("input", (e) => {
+    speedValue.textContent = parseFloat(e.target.value).toString() + "x";
   });
 
   // Helper functions
@@ -172,11 +189,37 @@
     const item = document.createElement("div");
     item.className = "event-item";
     item.style.borderLeftColor = color;
-    item.textContent = text;
+    eventSequence += 1;
+
+    const sequence = document.createElement("span");
+    sequence.className = "event-time";
+    sequence.textContent = `#${eventSequence}`;
+
+    const body = document.createElement("span");
+    body.className = "event-text";
+    body.textContent = text;
+
+    item.append(sequence, body);
     eventLog.insertBefore(item, eventLog.firstChild);
     while (eventLog.children.length > 30) {
       eventLog.removeChild(eventLog.lastChild);
     }
+  }
+
+  function updateScenarioSummary() {
+    const scenario = scenarios[scenarioSelect.value];
+    const selectedLabel =
+      scenarioSelect.options[scenarioSelect.selectedIndex]?.text ||
+      "Selected scenario";
+
+    scenarioSummaryTitle.textContent = selectedLabel;
+    scenarioSummaryDescription.textContent = scenario
+      ? scenario.description
+      : "Choose a run, then watch how the ballot moves phase by phase.";
+  }
+
+  function updatePlaybackCursor(stepIndex = 0, totalSteps = 0) {
+    playbackCursor.textContent = `Step ${stepIndex}/${totalSteps}`;
   }
 
   function updateCounts() {
@@ -227,6 +270,9 @@
     isRunning = false;
     playBtn.disabled = false;
     pauseBtn.disabled = true;
+    scenarioSelect.disabled = false;
+    speedSlider.value = 1;
+    speedValue.textContent = "1x";
     // Reset properties instead of reassigning to preserve object reference
     eventCounts.nextballot = 0;
     eventCounts.lastvote = 0;
@@ -234,14 +280,17 @@
     eventCounts.voted = 0;
     eventCounts.learned = 0;
     eventCounts.success = 0;
+    eventSequence = 0;
     updateCounts();
     eventLog.innerHTML = "";
     phaseTitle.textContent = "Ready";
-    phaseDescription.textContent = "Select a scenario and click Play";
+    phaseDescription.textContent = "Select a scenario and click Play.";
     phaseTitle.style.color = "#60a5fa";
 
     const scenarioName = scenarioSelect.value;
     const scenario = scenarios[scenarioName];
+    updateScenarioSummary();
+    updatePlaybackCursor(0, scenario?.phases.length || 0);
     if (scenario) {
       visualizer.nodeRadius = adjustNodeRadiusForViewport();
       visualizer.render({ total_nodes: scenario.nodeCount });
@@ -270,12 +319,13 @@
     visualizer.nodeRadius = adjustNodeRadiusForViewport();
     visualizer.render({ total_nodes: currentScenario.nodeCount });
 
-    for (const phase of currentScenario.phases) {
+    for (const [index, phase] of currentScenario.phases.entries()) {
       if (!isRunning) break;
 
       phaseTitle.textContent = phase.title;
       phaseDescription.textContent = phase.description;
       phaseTitle.style.color = "#60a5fa";
+      updatePlaybackCursor(index + 1, currentScenario.phases.length);
 
       await phase.action();
     }
@@ -286,6 +336,10 @@
     scenarioSelect.disabled = false;
     phaseTitle.textContent = "Complete";
     phaseTitle.style.color = "#34d399";
+    updatePlaybackCursor(
+      currentScenario?.phases.length || 0,
+      currentScenario?.phases.length || 0
+    );
   }
 
   function pauseScenario() {
@@ -294,6 +348,10 @@
     pauseBtn.disabled = true;
     scenarioSelect.disabled = false;
   }
+
+  scenarioSelect.addEventListener("change", () => {
+    resetScenario();
+  });
 
   // Initialize
   resetScenario();

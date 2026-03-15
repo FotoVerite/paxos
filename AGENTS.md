@@ -32,3 +32,24 @@ usable, and aligned with the teaching goal.
    stripped down, empty, or generic.
 5. Preserve a shared editorial baseline across the site while allowing each paper to
    develop its own mood, typography, palette, and visual identity.
+
+### Writing Tone
+- Write like a sharp engineer explaining a hard paper to another engineer, not like
+  a marketer, professor, or product copywriter.
+- Be direct, plainspoken, and willing to say when the original paper is confusing,
+  badly explained, or overly theatrical.
+- Keep a little bite and personality. Mild irreverence is good. Forced charm,
+  brand cheerfulness, and faux-grand language are not.
+- Prefer concrete explanations over abstraction. Name what the thing is, why it
+  matters, and where the paper makes life harder than it needs to.
+- Use short, active sentences when possible. Keep the signal high. Cut filler,
+  hedging, and generic framing.
+- Humor should be sparse and purposeful. It should clarify or puncture pretension,
+  not turn the site into a running bit.
+- Do not write like "AI explainer copy". Avoid polished but empty transitions,
+  repetitive scaffolding, and generic phrases like "bridge", "journey", "dive into",
+  "pull back the curtain", or "under the hood" unless they are truly the best wording.
+
+### Copy Editing Rule
+- Do not rewrite existing copy outside `templates/paxos/whitepapers.html` unless the
+  user explicitly asks for copy changes on that page or section first.
