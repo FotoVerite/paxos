@@ -182,9 +182,15 @@ impl ScenarioType {
 
     pub fn classic_topology_summary(self) -> &'static str {
         match self {
-            Self::DedicatedAcceptors => "1 proposer+learner node, 3 acceptor-only nodes, 2 learner-only nodes",
-            Self::LearnersOffWritePath => "1 proposer+learner node, 3 acceptor-only nodes, 3 learner-only nodes",
-            Self::CompetingProposers => "2 proposer+learner nodes, 3 acceptor-only nodes, 2 learner-only nodes",
+            Self::DedicatedAcceptors => {
+                "1 proposer+learner node, 3 acceptor-only nodes, 2 learner-only nodes"
+            }
+            Self::LearnersOffWritePath => {
+                "1 proposer+learner node, 3 acceptor-only nodes, 3 learner-only nodes"
+            }
+            Self::CompetingProposers => {
+                "2 proposer+learner nodes, 3 acceptor-only nodes, 2 learner-only nodes"
+            }
             Self::AsymmetricProposers => "2 proposer+learner nodes, 4 acceptor-only nodes",
             Self::PartialRoles => "2 proposers, 3 acceptors, 2 learners, 2 full nodes",
             Self::HappyPathWithLeader => "5 full-role nodes with designated leader event",
@@ -294,7 +300,10 @@ mod tests {
                 "pmmc_reconfig_joint_consensus",
                 ScenarioType::PmmcReconfigJointConsensus,
             ),
-            ("pmmc_reconfig_stop_sign", ScenarioType::PmmcReconfigStopSign),
+            (
+                "pmmc_reconfig_stop_sign",
+                ScenarioType::PmmcReconfigStopSign,
+            ),
             (
                 "pmmc_reconfig_delayed_stop_sign",
                 ScenarioType::PmmcReconfigDelayedStopSign,

@@ -7,9 +7,9 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{Instant, sleep, timeout};
 use uuid::Uuid;
 
-use crate::cluster::cluster_configuration::{ClusterConfiguration, ConfigurationStrategy};
 use crate::cluster::cluster_configuration::reconciler::ClusterReconciler;
 use crate::cluster::cluster_configuration::reconfig_patch::ReconfigPatch;
+use crate::cluster::cluster_configuration::{ClusterConfiguration, ConfigurationStrategy};
 use crate::cluster::configuration_handler::types::{
     ConfigurationCommand, ConfigurationReplyOutcome,
 };

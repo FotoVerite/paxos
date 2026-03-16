@@ -1,11 +1,8 @@
 use uuid::Uuid;
 
 use crate::{
-    cluster::cluster_configuration::ConfigurationStrategy,
-    common::ballot::Ballot,
-    node::pvalue::PValue,
-    paxos_command::PaxosCommand,
-    rsm::kv_store::ReplyOutcome,
+    cluster::cluster_configuration::ConfigurationStrategy, common::ballot::Ballot,
+    node::pvalue::PValue, paxos_command::PaxosCommand, rsm::kv_store::ReplyOutcome,
 };
 
 use super::{ProposalPolicy, ReplicaDurable};
@@ -35,7 +32,10 @@ fn stop_sign_rejects_new_proposals_after_stop_slot() {
     let stop = PaxosCommand::STOP.with_client(node, 1);
     let _ = durable.add_decision(PValue::new(0, Ballot::new(1, node), stop));
 
-    assert!(matches!(durable.proposal_policy(), ProposalPolicy::RejectStopped));
+    assert!(matches!(
+        durable.proposal_policy(),
+        ProposalPolicy::RejectStopped
+    ));
 }
 
 #[test]
@@ -51,7 +51,10 @@ fn delayed_stop_sign_allows_grace_slots_before_rejecting() {
     let _ = durable.add_proposal(PaxosCommand::NOOP.with_client(node, 2));
     assert!(matches!(durable.proposal_policy(), ProposalPolicy::Admit));
     let _ = durable.add_proposal(PaxosCommand::NOOP.with_client(node, 3));
-    assert!(matches!(durable.proposal_policy(), ProposalPolicy::RejectStopped));
+    assert!(matches!(
+        durable.proposal_policy(),
+        ProposalPolicy::RejectStopped
+    ));
 }
 
 #[test]
@@ -79,11 +82,20 @@ fn padding_rejects_proposals_after_alpha_boundary() {
     let stop = PaxosCommand::STOP.with_client(node, 1);
     let _ = durable.add_decision(PValue::new(0, Ballot::new(1, node), stop));
 
-    assert!(matches!(durable.proposal_policy(), ProposalPolicy::PadWithNoop));
+    assert!(matches!(
+        durable.proposal_policy(),
+        ProposalPolicy::PadWithNoop
+    ));
     let _ = durable.add_proposal(PaxosCommand::NOOP.with_client(node, 2));
-    assert!(matches!(durable.proposal_policy(), ProposalPolicy::PadWithNoop));
+    assert!(matches!(
+        durable.proposal_policy(),
+        ProposalPolicy::PadWithNoop
+    ));
     let _ = durable.add_proposal(PaxosCommand::NOOP.with_client(node, 3));
-    assert!(matches!(durable.proposal_policy(), ProposalPolicy::RejectStopped));
+    assert!(matches!(
+        durable.proposal_policy(),
+        ProposalPolicy::RejectStopped
+    ));
 }
 
 #[test]

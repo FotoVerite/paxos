@@ -335,8 +335,7 @@ impl ConsoleObserver {
             Event::ReconfigurationStopCommandSent { to, .. } => {
                 println!(
                     "{}",
-                    format!("[RECONFIG] stop command sent -> {}", node_label(to))
-                        .yellow()
+                    format!("[RECONFIG] stop command sent -> {}", node_label(to)).yellow()
                 );
             }
             Event::ReconfigurationStopCompleted {
@@ -428,9 +427,7 @@ impl ConsoleObserver {
                     "{}",
                     format!(
                         "[RECONFIG] Checkpoint selected ({:?}) from {} at slot {:?}",
-                        strategy,
-                        source_text,
-                        last_applied_slot
+                        strategy, source_text, last_applied_slot
                     )
                     .cyan()
                 );
@@ -457,9 +454,7 @@ impl ConsoleObserver {
                 active_nodes,
                 ..
             } => {
-                let leader_text = leader
-                    .map(node_label)
-                    .unwrap_or_else(|| "none".to_string());
+                let leader_text = leader.map(node_label).unwrap_or_else(|| "none".to_string());
                 println!(
                     "{}",
                     format!(
@@ -474,15 +469,13 @@ impl ConsoleObserver {
             Event::ReconfigurationNodeRetired { id, .. } => {
                 println!(
                     "{}",
-                    format!("[RECONFIG] node retired {}", node_label(id))
-                        .red()
+                    format!("[RECONFIG] node retired {}", node_label(id)).red()
                 );
             }
             Event::ReconfigurationNodeRebooted { id, .. } => {
                 println!(
                     "{}",
-                    format!("[RECONFIG] node rebooted {}", node_label(id))
-                        .green()
+                    format!("[RECONFIG] node rebooted {}", node_label(id)).green()
                 );
             }
             Event::ReconfigurationFailed {

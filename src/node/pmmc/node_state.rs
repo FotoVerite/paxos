@@ -486,7 +486,8 @@ mod tests {
             leader_only,
             fabric,
             handle,
-            crate::common::persistence::ClusterPersistence::for_test("node_state").node(leader_only),
+            crate::common::persistence::ClusterPersistence::for_test("node_state")
+                .node(leader_only),
             observer,
             Roles {
                 proposer: true,

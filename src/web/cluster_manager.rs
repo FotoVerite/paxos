@@ -82,7 +82,9 @@ impl ClusterManager {
     ) -> anyhow::Result<ClusterConfiguration> {
         let initial_strategy = pmmc_spec
             .and_then(|spec| spec.initial_configuration.strategy)
-            .unwrap_or(crate::cluster::cluster_configuration::ConfigurationStrategy::JointConsensus);
+            .unwrap_or(
+                crate::cluster::cluster_configuration::ConfigurationStrategy::JointConsensus,
+            );
         let initial_alpha = pmmc_spec
             .and_then(|spec| spec.initial_configuration.alpha_max_inflight)
             .unwrap_or(5);

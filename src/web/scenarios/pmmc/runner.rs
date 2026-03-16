@@ -99,8 +99,9 @@ impl PmmcScenarioExecution {
         let wait_for_reply = self.context.spec.request_plan.wait_for_reply;
         let mut completion_reason: Option<CompletionReason> = None;
         let mut reconfiguration_pending = self.context.spec.reconfiguration.is_some();
-        let mut reconfiguration_task: Option<JoinHandle<anyhow::Result<ReconfigurationTaskResult>>> =
-            None;
+        let mut reconfiguration_task: Option<
+            JoinHandle<anyhow::Result<ReconfigurationTaskResult>>,
+        > = None;
         let mut reconfiguration_strategy_inflight: Option<
             crate::cluster::cluster_configuration::ConfigurationStrategy,
         > = None;
@@ -147,12 +148,14 @@ impl PmmcScenarioExecution {
                             .await;
                         match completed {
                             Ok(Ok(result)) => {
-                                self.emit_reconfiguration_event(Event::ReconfigurationCheckpointSelected {
-                                    strategy: result.strategy,
-                                    source_node: None,
-                                    last_applied_slot: result.checkpoint_last_applied_slot,
-                                    created_at: current_timestamp_millis(),
-                                });
+                                self.emit_reconfiguration_event(
+                                    Event::ReconfigurationCheckpointSelected {
+                                        strategy: result.strategy,
+                                        source_node: None,
+                                        last_applied_slot: result.checkpoint_last_applied_slot,
+                                        created_at: current_timestamp_millis(),
+                                    },
+                                );
                                 let leader = result.active_nodes.get(result.leader_index).copied();
                                 self.emit_reconfiguration_event(Event::ReconfigurationReady {
                                     strategy: result.strategy,

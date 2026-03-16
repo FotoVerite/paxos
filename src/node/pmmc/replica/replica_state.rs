@@ -9,7 +9,10 @@ use crate::{
         pmmc::{
             proposal::ProposalsStore,
             replica::replica_state::{
-                durable::{ProposalPolicy, ReconfigurationStrategyInEffect, ReplicaDurable, StopObservation},
+                durable::{
+                    ProposalPolicy, ReconfigurationStrategyInEffect, ReplicaDurable,
+                    StopObservation,
+                },
                 volatile::ReplicaVolatile,
             },
         },

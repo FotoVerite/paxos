@@ -166,18 +166,19 @@ impl Replica {
         slot: Option<usize>,
     ) {
         let stop = self.state.stop_observation().await;
-        self.observer.on_event(Event::ReconfigurationProposalObserved {
-            id: self.uuid,
-            strategy: self.configuration.strategy(),
-            outcome,
-            original_cmd,
-            effective_cmd,
-            slot,
-            stop_slot: stop.stop_slot,
-            delayed_slots: stop.delayed_slots,
-            barrier_active: stop.barrier_active,
-            created_at: current_timestamp_millis(),
-        });
+        self.observer
+            .on_event(Event::ReconfigurationProposalObserved {
+                id: self.uuid,
+                strategy: self.configuration.strategy(),
+                outcome,
+                original_cmd,
+                effective_cmd,
+                slot,
+                stop_slot: stop.stop_slot,
+                delayed_slots: stop.delayed_slots,
+                barrier_active: stop.barrier_active,
+                created_at: current_timestamp_millis(),
+            });
     }
 
     pub async fn accepted(&self, pvalue: PValue) -> PmmcMessage {
