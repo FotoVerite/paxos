@@ -606,7 +606,9 @@
 }
 
 .partial-roles-demo .event-log-wrapper,
-.preliminary-protocol-demo .event-log-wrapper {
+.preliminary-protocol-demo .event-log-wrapper,
+.demo-container .event-log-wrapper {
+    position: relative;
     border: 1px solid #1e293b;
     border-radius: 8px;
     overflow: hidden;
@@ -680,7 +682,8 @@
 }
 
 .partial-roles-demo #eventLog,
-.preliminary-protocol-demo #eventLog {
+.preliminary-protocol-demo #eventLog,
+.demo-container #eventLog {
     height: 200px;
     overflow-y: auto;
     padding: 10px;
@@ -693,7 +696,8 @@
 }
 
 .partial-roles-demo .event-item,
-.preliminary-protocol-demo .event-item {
+.preliminary-protocol-demo .event-item,
+.demo-container .event-item {
     display: flex;
     align-items: flex-start;
     gap: 8px;
@@ -707,12 +711,25 @@
     color: #cbd5e1;
     font-family: 'JetBrains Mono', monospace;
     word-break: break-word;
-    transition: opacity 0.2s ease, filter 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    transition: opacity 0.2s ease, filter 0.2s ease, color 0.2s ease,
+        background-color 0.2s ease, border-color 0.2s ease,
+        box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .partial-roles-demo .event-item.future {
     opacity: 0.35;
     filter: grayscale(80%);
+}
+
+.demo-container .event-item.active {
+    background: #1a2740;
+    border-color: #35527f;
+    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18);
+}
+
+.demo-container .event-item.future {
+    opacity: 0.34;
+    filter: grayscale(82%);
 }
 
 .partial-roles-demo .event-item.filtered {

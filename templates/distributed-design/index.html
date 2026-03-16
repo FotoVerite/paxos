@@ -1,0 +1,95 @@
+{% extends "distributed-design/base.html" %}
+{% block title %}Distributed Design{% endblock %}
+{% block body_class %}distributed-design-page{% endblock %}
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/distributed-design.css">
+{% endblock %}
+{% block content %}
+<div class="distributed-shell">
+  <header class="distributed-hero">
+    <div class="distributed-hero-grid">
+      <div class="distributed-hero-copy">
+        <p class="distributed-eyebrow">Distributed Design</p>
+        <h1>Paper walkthroughs and working demos for distributed systems.</h1>
+       
+      </div>
+    </div>
+  </header>
+
+  <section class="paper-index" aria-label="Paper index">
+    <article class="paper-row paper-row-parliament">
+      <div class="paper-row-order">01</div>
+      <div class="paper-row-mark paper-row-mark-parliament" aria-hidden="true"></div>
+      <div class="paper-row-body">
+        <div class="paper-row-head">
+          <p class="paper-row-kicker">Starts with the original paper</p>
+          <h2>The Part-Time Parliament</h2>
+        </div>
+        <p class="paper-row-summary">
+          The most authored track. More atmosphere, more framing, and more help moving through the original paper without pretending it explains itself.
+        </p>
+      </div>
+      <a href="/" class="paper-row-link">Open</a>
+    </article>
+
+    <article class="paper-row paper-row-simple">
+      <div class="paper-row-order">02</div>
+      <div class="paper-row-mark paper-row-mark-simple" aria-hidden="true">
+        <span class="simple-a">PAXOS</span>
+        <span class="simple-b">MADE SIMPLE</span>
+        <span class="simple-cursor"></span>
+      </div>
+      <div class="paper-row-body">
+        <div class="paper-row-head">
+          <p class="paper-row-kicker">The sharp rewrite</p>
+          <h2>Paxos Made Simple</h2>
+        </div>
+        <p class="paper-row-summary">
+          Same subject, less ceremony. Plainer language, harder edges, and a lower tolerance for academic fog.
+        </p>
+      </div>
+      <a href="/papers/paxos-made-simple" class="paper-row-link">Open</a>
+    </article>
+
+    <article class="paper-row paper-row-complex">
+      <div class="paper-row-order">03</div>
+      <div class="paper-row-mark paper-row-mark-complex" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="paper-row-body">
+        <div class="paper-row-head">
+          <p class="paper-row-kicker">Where the systems details show up</p>
+          <h2>Paxos Made Moderately Complex</h2>
+        </div>
+        <p class="paper-row-summary">
+          The easy story stops being enough here. More mechanics, more failure handling, and more of the parts people usually hand-wave away.
+        </p>
+      </div>
+      <a href="/papers/paxos-made-moderately-complex" class="paper-row-link">Open</a>
+    </article>
+
+    <article class="paper-row paper-row-reconfig">
+      <div class="paper-row-order">04</div>
+      <div class="paper-row-mark paper-row-mark-reconfig" aria-hidden="true">
+        <span class="reconfig-chip">CTRL</span>
+        <span class="reconfig-grid"></span>
+        <span class="reconfig-column reconfig-column-a"></span>
+        <span class="reconfig-column reconfig-column-b"></span>
+        <span class="reconfig-led reconfig-led-a"></span>
+        <span class="reconfig-led reconfig-led-b"></span>
+        <span class="reconfig-trace"></span>
+      </div>
+      <div class="paper-row-body">
+        <div class="paper-row-head">
+          <p class="paper-row-kicker">The rougher follow-on problem</p>
+          <h2>Reconfiguring a State Machine</h2>
+        </div>
+        <p class="paper-row-summary">
+          Changing membership sounds straightforward until it isn’t. This one is closer to a working notebook than a clean lecture.
+        </p>
+      </div>
+      <a href="/papers/reconfiguring-a-state-machine" class="paper-row-link">Open</a>
+    </article>
+  </section>
+</div>
+{% endblock %}

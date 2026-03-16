@@ -177,6 +177,16 @@ pub async fn paxos_handler(
             };
             ("reconfiguring-a-state-machine", template_name)
         }
+        "distributed-design" => {
+            let template_name = if path.is_empty() || path == "/" {
+                "distributed-design/index.html".to_string()
+            } else if path.ends_with('/') {
+                format!("distributed-design/{}index.html", path)
+            } else {
+                format!("distributed-design/{}.html", path)
+            };
+            ("distributed-design", template_name)
+        }
         _ => {
             let template_name = if path.is_empty() {
                 "paxos/index.html".to_string()

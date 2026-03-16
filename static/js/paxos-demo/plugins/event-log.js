@@ -39,7 +39,7 @@ const FILTER_PRESETS = [
 
 export function createEventLogPlugin({
   eventLog,
-  limit = 30,
+  limit = null,
   presets = FILTER_PRESETS,
   defaultFilter = 'all',
   excludeTypes = [],
@@ -143,6 +143,7 @@ export function createEventLogPlugin({
     for (const item of items) {
       const isFuture = item.frameIndex > cursor;
       item.node.classList.toggle('future', isFuture);
+      item.node.classList.toggle('active', item.frameIndex === cursor);
     }
   }
 
@@ -156,22 +157,21 @@ export function createEventLogPlugin({
       (item) => item.frameIndex === cursor && matchesFilter(item)
     );
     if (!activeItem) {
-      activeItem = items.find(
+      activeItem = [...items].reverse().find(
         (item) => item.frameIndex <= cursor && matchesFilter(item)
       );
     }
     if (!activeItem) return;
-    // Defer until after DOM/layout settles; prepend insertions can otherwise
-    // anchor the viewport and override immediate scrollTop writes.
     scrollRaf = requestAnimationFrame(() => {
-      eventLog.scrollTop = activeItem.node.offsetTop;
+      const targetTop = activeItem.node.offsetTop + activeItem.node.offsetHeight - eventLog.clientHeight + 18;
+      const maxTop = Math.max(0, eventLog.scrollHeight - eventLog.clientHeight);
+      eventLog.scrollTop = Math.min(Math.max(0, targetTop), maxTop);
       scrollRaf = null;
     });
   }
 
   async function copyAllLogs() {
     const lines = [...items]
-      .reverse()
       .map((item) => {
         const time = item.node.querySelector('.event-time')?.textContent || '';
         const text = item.textEl?.textContent || '';
@@ -205,8 +205,6 @@ export function createEventLogPlugin({
   return {
     init() {
       if (eventLog) {
-        // Disable browser scroll anchoring so prepending entries does not
-        // fight plugin-controlled positioning.
         eventLog.style.overflowAnchor = 'none';
       }
       if (!filterChips) return;
@@ -299,7 +297,7 @@ export function createEventLogPlugin({
           eventData: entry.eventData,
         });
 
-        if (items.length > limit) {
+        if (Number.isInteger(limit) && limit > 0 && items.length > limit) {
           const removed = items.pop();
           if (removed?.node?.parentNode) {
             removed.node.parentNode.removeChild(removed.node);
@@ -331,14 +329,6 @@ export function createEventLogPlugin({
       if (!eventLog) return;
       cursor = playbackState.cursor ?? cursor;
       updateFutureClasses();
-      if (playbackState?.playerMode === 'follow') {
-        if (scrollRaf !== null) {
-          cancelAnimationFrame(scrollRaf);
-          scrollRaf = null;
-        }
-        eventLog.scrollTop = 0;
-        return;
-      }
       scrollToActive();
     },
 
