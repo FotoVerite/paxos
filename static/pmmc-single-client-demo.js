@@ -5,9 +5,6 @@ import { createVisualizeEventsPlugin } from '/js/paxos-demo/plugins/visualize-ev
 import { createDecreePanelPlugin } from '/js/paxos-demo/plugins/decree-panel.js';
 import { createPlaybackDelayPlugin } from '/js/paxos-demo/plugins/playback-delay.js';
 import { createNodeCapabilitiesPlugin } from '/js/paxos-demo/plugins/node-capabilities.js';
-import { createClientStripPlugin } from '/js/paxos-demo/plugins/client-strip.js';
-import { createClientLanesPlugin } from '/js/paxos-demo/plugins/client-lanes.js';
-import { createSlotTapePlugin } from '/js/paxos-demo/plugins/slot-tape.js';
 import { createReconfigPhasePlugin } from '/js/paxos-demo/plugins/reconfig-phase.js';
 import { getPmmcScenarioNodeCount } from '/js/paxos-demo/config/pmmc-scenarios.js';
 
@@ -25,6 +22,9 @@ let speedValue;
 let scenarioSelect;
 let statusTitle;
 let statusDescription;
+let statusFocus;
+let statusChange;
+let statusNext;
 let reconfigPhaseTitle;
 let reconfigPhaseDescription;
 let togglePlayBtn;
@@ -41,40 +41,78 @@ let filterClose;
 let filterStatus;
 let copyAllLogsBtn;
 let nodeLabelModeSelect;
-let clientStrip;
-let clientLanes;
-let slotTape;
-let clientFeed;
-let clientSnapshot;
 let topologyPanel;
+let secondaryControls;
+let playbackTools;
+let decreeViewer;
+let resizeHandle = null;
 const FRAME_WINDOW_MICROS = 50;
 const NODE_LABEL_MODE_STORAGE_KEY = 'paxos.nodeLabelMode';
 const PMMC_LOG_PRESETS = [
   { key: 'all', label: 'All', types: null },
   { key: 'flow', label: 'Flow', types: ['PmmcPropose', 'PmmcP1A', 'PmmcP1B', 'PmmcP2A', 'PmmcP2B', 'NodeCrashed', 'PartitionCreated', 'PartitionHealed'] },
-  {
-    key: 'reconfig',
-    label: 'Reconfig',
-    types: [
-      'ReconfigurationRequested',
-      'ReconfigurationStopStarted',
-      'ReconfigurationStopCommandSent',
-      'ReconfigurationStopCompleted',
-      'ReconfigurationStopDecided',
-      'ReconfigurationStopApplied',
-      'ReconfigurationProposalObserved',
-      'ReconfigurationCheckpointSelected',
-      'ReconfigurationApplied',
-      'ReconfigurationNodeRetired',
-      'ReconfigurationNodeRebooted',
-      'ReconfigurationReady',
-      'ReconfigurationFailed',
-    ],
-  },
   { key: 'leader', label: 'Leader', types: ['LeaderElected', 'LeaderSteppedDown', 'NodeCrashed', 'PartitionCreated', 'PartitionHealed', 'PmmcAdopted', 'PmmcPreempted', 'PmmcHeartbeat'] },
   { key: 'acks', label: 'Acks', types: ['PmmcAck'] },
 ];
 const PMMC_CLIENT_DEBUG = true;
+const scenarioTeachingNotes = {
+  pmmc_single_client: {
+    title: 'Single Client',
+    focus: 'Start with one client and follow how a single request becomes ordered state.',
+    runningChange: 'The request path is live now: propose, admit, accept, apply.',
+    readyNext: 'Watch the request move from the client edge into the replicated log.',
+    runningNext: 'Notice where leadership matters, and where replicas only catch up after the slot is chosen.',
+    replayNext: 'Step through the captured batches if you want to isolate the handoff from leader to replicas.',
+  },
+  pmmc_leader_crash: {
+    title: 'Leader Crash',
+    focus: 'This run is about continuity after the obvious failure. The client keeps pressure on while leadership breaks.',
+    runningChange: 'The request path now has to survive a leadership handoff.',
+    readyNext: 'Watch when the first leader stops being useful, then see which node actually takes over.',
+    runningNext: 'Notice how client intent stays the same while the leadership path changes underneath it.',
+    replayNext: 'Use step mode to inspect the exact gap between crash, takeover, and resumed progress.',
+  },
+  pmmc_replica_crash_failover: {
+    title: 'Replica Crash Failover',
+    focus: 'This run separates the ordering path from the state machine edge. Replicas can fail without immediately breaking ordering.',
+    runningChange: 'One replica drops out, but the rest of the pipeline keeps moving.',
+    readyNext: 'Watch the chosen commands continue even after one replica disappears from the apply path.',
+    runningNext: 'Notice what the leader and acceptors keep doing while replica state shifts.',
+    replayNext: 'Step through the batches if you want to separate log progress from application progress.',
+  },
+  pmmc_leader_partition_heal: {
+    title: 'Leader Partition',
+    focus: 'This is about split communication, not just a dead node. The leader is still alive, but not useful everywhere.',
+    runningChange: 'The request path now depends on who can still hear whom.',
+    readyNext: 'Watch the moment the partition makes the current leader ineffective, then watch recovery after heal.',
+    runningNext: 'Notice how topology, not just leadership, controls whether the client request can keep moving.',
+    replayNext: 'Use replay to inspect the before, during, and after of the partition.',
+  },
+  pmmc_acceptor_majority_loss_then_recover: {
+    title: 'Acceptor Majority Loss',
+    focus: 'This run is about quorum pressure. The protocol can look busy long before it can make progress again.',
+    runningChange: 'Messages are still moving, but the acceptor majority is gone for part of the run.',
+    readyNext: 'Watch for the difference between traffic and actual progress.',
+    runningNext: 'Notice when the pipeline starts working again: it is the quorum returning that matters, not just more messages.',
+    replayNext: 'Step through this one if the loss and recovery blur together on live playback.',
+  },
+  pmmc_staggered_leader_join: {
+    title: 'Staggered Leader Join',
+    focus: 'This run is about leadership arriving unevenly instead of being cleanly installed from the start.',
+    runningChange: 'The ordering path is being assembled while requests are already in flight.',
+    readyNext: 'Watch which leader actually becomes useful, not just which leader exists on paper.',
+    runningNext: 'Notice how the client path stabilizes only after the leadership path settles.',
+    replayNext: 'Use replay to compare the early unstable steps with the later steady state.',
+  },
+  pmmc_role_split: {
+    title: 'Role Split',
+    focus: 'This is the architectural version of the story. Leaders, acceptors, and replicas are fully split out.',
+    runningChange: 'The request path is now visibly distributed across distinct roles instead of bundled into one node type.',
+    readyNext: 'Watch who orders, who votes, and who applies. They are not the same machines anymore.',
+    runningNext: 'Notice how the system gets clearer once the roles stop pretending to be one thing.',
+    replayNext: 'Step through this one if you want to see the role boundaries without the live motion.',
+  },
+};
 
 function extractClientDebugInfo(cmd) {
   if (!cmd || typeof cmd !== 'object') return { clientId: null, requestId: null };
@@ -136,6 +174,34 @@ function canCommunicate(from, to) {
 
 function buildController() {
   const topologyPlugin = createTopologyPanelPlugin({ container: topologyPanel });
+  const ensureLearnableSelection = {
+    onCluster(_, ctx) {
+      const selectedNode = ctx.state.snapshot().simulation.selectedNode;
+      if (selectedNode === null || selectedNode === undefined) return;
+      const roles = ctx.state.snapshot().nodes.get(selectedNode)?.role?.roles || [];
+      if (roles.includes('Replica') || roles.includes('Learner')) return;
+      ctx.state.selectNode(null);
+    },
+    onEvent({ eventType, eventData }, ctx) {
+      if (eventType !== 'NodeCapabilities' || !eventData) return;
+      const snapshot = ctx.state.snapshot();
+      const selectedNode = snapshot.simulation.selectedNode;
+      const selectedRoles = snapshot.nodes.get(selectedNode)?.role?.roles || [];
+      const selectedCanLearn = selectedRoles.includes('Replica') || selectedRoles.includes('Learner');
+      if (selectedCanLearn) return;
+
+      let nextLearner = null;
+      snapshot.nodes.forEach((node, nodeId) => {
+        if (nextLearner !== null) return;
+        const roles = node?.role?.roles || [];
+        if (roles.includes('Replica') || roles.includes('Learner')) {
+          nextLearner = nodeId;
+        }
+      });
+
+      ctx.state.selectNode(nextLearner);
+    },
+  };
   const clusterRenderPlugin = {
     onCluster(clusterInfo, ctx) {
       if (ctx.state.snapshot().simulation.selectedNode === null && clusterInfo.total_nodes > 0) {
@@ -174,26 +240,20 @@ function buildController() {
       }),
       createVisualizeEventsPlugin(),
       createNodeCapabilitiesPlugin(),
+      ensureLearnableSelection,
       topologyPlugin,
       createPmmcEventDebugPlugin(),
       createReconfigPhasePlugin({
         titleEl: reconfigPhaseTitle,
         descriptionEl: reconfigPhaseDescription,
       }),
-      createClientLanesPlugin({
-        container: clientLanes,
-      }),
-      createSlotTapePlugin({
-        container: slotTape,
-      }),
-      createClientStripPlugin({
-        container: clientStrip,
-        feed: clientFeed,
-        snapshotContainer: clientSnapshot,
-      }),
       createDecreePanelPlugin({
         statsContainer,
         decreePanel,
+        nodeFilter: (_node, nodeId, snapshot) => {
+          const roleSet = snapshot.nodes.get(nodeId)?.role?.roles || [];
+          return roleSet.includes('Replica') || roleSet.includes('Learner');
+        },
         itemLabelSingular: 'command',
         itemLabelPlural: 'commands',
         itemRenderLabel: 'cmd',
@@ -208,12 +268,38 @@ function createTopologyPanelPlugin({ container } = {}) {
   const roleByNode = new Map();
   const totals = { leaders: 0, replicas: 0, acceptors: 0 };
 
+  const rolePatterns = [
+    { key: 'Leader+Replica+Acceptor', label: 'Full node', shape: 'circle', tone: 'all' },
+    { key: 'Leader+Replica', label: 'Leader + replica', shape: 'octagon', tone: 'mixed' },
+    { key: 'Leader+Acceptor', label: 'Leader + acceptor', shape: 'octagon', tone: 'mixed' },
+    { key: 'Replica+Acceptor', label: 'Replica + acceptor', shape: 'octagon', tone: 'mixed' },
+    { key: 'Leader', label: 'Leader only', shape: 'diamond', tone: 'leader' },
+    { key: 'Replica', label: 'Replica only', shape: 'triangle', tone: 'replica' },
+    { key: 'Acceptor', label: 'Acceptor only', shape: 'square', tone: 'acceptor' },
+  ];
+
   function normalizeRoles(roles = []) {
+    const normalized = new Set();
+    for (const role of roles) {
+      if (role === 'Leader' || role === 'Proposer') normalized.add('Leader');
+      if (role === 'Replica' || role === 'Learner') normalized.add('Replica');
+      if (role === 'Acceptor') normalized.add('Acceptor');
+    }
     return {
-      leader: roles.includes('Leader'),
-      replica: roles.includes('Replica'),
-      acceptor: roles.includes('Acceptor'),
+      leader: normalized.has('Leader'),
+      replica: normalized.has('Replica'),
+      acceptor: normalized.has('Acceptor'),
     };
+  }
+
+  function rolePatternKey(roleSet) {
+    return ['Leader', 'Replica', 'Acceptor']
+      .filter((role) => {
+        if (role === 'Leader') return roleSet.leader;
+        if (role === 'Replica') return roleSet.replica;
+        return roleSet.acceptor;
+      })
+      .join('+');
   }
 
   function recalcTotals() {
@@ -229,14 +315,59 @@ function createTopologyPanelPlugin({ container } = {}) {
 
   function render(clusterSize = 0) {
     if (!container) return;
+    const nodesByPattern = new Map();
+    for (const [nodeId, roleSet] of roleByNode.entries()) {
+      const key = rolePatternKey(roleSet);
+      if (!key) continue;
+      if (!nodesByPattern.has(key)) {
+        nodesByPattern.set(key, []);
+      }
+      nodesByPattern.get(key).push(nodeId);
+    }
+
+    const rows = rolePatterns
+      .map((pattern) => {
+        const nodeIds = (nodesByPattern.get(pattern.key) || []).sort((a, b) => a - b);
+        if (!nodeIds.length) return '';
+        const countLabel = nodeIds.length === 1 ? 'node' : 'nodes';
+        const nodeChips = nodeIds
+          .map((nodeId) => `<span class="topology-node-chip">${nodeShortLabel(nodeId)}</span>`)
+          .join('');
+        return `
+          <div class="topology-role-row">
+            <span class="topology-shape topology-shape-${pattern.shape} topology-tone-${pattern.tone}"></span>
+            <div class="topology-role-main">
+              <span class="topology-role-label">${pattern.label}</span>
+              <span class="topology-role-count">${nodeIds.length} ${countLabel}</span>
+            </div>
+            <div class="topology-node-list">${nodeChips}</div>
+          </div>
+        `;
+      })
+      .filter(Boolean)
+      .join('');
+
     container.innerHTML = `
       <div class="topology-title">Topology</div>
-      <div class="topology-grid">
-        <div class="topology-item topology-item-leader"><span>Leaders</span><span class="topology-value">${totals.leaders}</span></div>
-        <div class="topology-item topology-item-replica"><span>Replicas</span><span class="topology-value">${totals.replicas}</span></div>
-        <div class="topology-item topology-item-acceptor"><span>Acceptors</span><span class="topology-value">${totals.acceptors}</span></div>
-        <div class="topology-item topology-item-node"><span>Nodes</span><span class="topology-value">${clusterSize}</span></div>
+      <div class="topology-summary">
+        <div class="topology-summary-item">
+          <span class="topology-summary-label">Leaders</span>
+          <span class="topology-summary-value">${totals.leaders}</span>
+        </div>
+        <div class="topology-summary-item">
+          <span class="topology-summary-label">Replicas</span>
+          <span class="topology-summary-value">${totals.replicas}</span>
+        </div>
+        <div class="topology-summary-item">
+          <span class="topology-summary-label">Acceptors</span>
+          <span class="topology-summary-value">${totals.acceptors}</span>
+        </div>
+        <div class="topology-summary-item">
+          <span class="topology-summary-label">Nodes</span>
+          <span class="topology-summary-value">${clusterSize}</span>
+        </div>
       </div>
+      <div class="topology-role-list">${rows}</div>
     `;
   }
 
@@ -258,10 +389,86 @@ function createTopologyPanelPlugin({ container } = {}) {
   };
 }
 
+function getScenarioTeachingNote() {
+  return scenarioTeachingNotes[scenarioSelect?.value || 'pmmc_single_client']
+    || scenarioTeachingNotes.pmmc_single_client;
+}
+
+function setTeachingStatus(mode, options = {}) {
+  if (!statusTitle || !statusFocus || !statusChange || !statusNext) return;
+
+  const note = getScenarioTeachingNote();
+  const totalBatches = options.totalBatches ?? 0;
+
+  switch (mode) {
+    case 'ready':
+      statusTitle.textContent = note.title;
+      statusTitle.style.color = '#60a5fa';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = 'Nothing is moving yet.';
+      statusNext.textContent = note.readyNext;
+      break;
+    case 'running':
+      statusTitle.textContent = note.title;
+      statusTitle.style.color = '#60a5fa';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = note.runningChange;
+      statusNext.textContent = note.runningNext;
+      break;
+    case 'paused':
+      statusTitle.textContent = 'Paused on the live path';
+      statusTitle.style.color = '#f59e0b';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = 'The live run is paused at the current playback position.';
+      statusNext.textContent = 'Resume to keep following the run, or step through the captured batches to inspect the transition.';
+      break;
+    case 'replaying':
+      statusTitle.textContent = 'Catching up';
+      statusTitle.style.color = '#f59e0b';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = 'The live run has finished, but the captured playback is still draining into the timeline.';
+      statusNext.textContent = note.replayNext;
+      break;
+    case 'stepping':
+      statusTitle.textContent = 'Step through it';
+      statusTitle.style.color = '#f59e0b';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = 'You are moving one captured batch at a time now.';
+      statusNext.textContent = note.replayNext;
+      break;
+    case 'complete':
+      statusTitle.textContent = 'Captured run';
+      statusTitle.style.color = '#34d399';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = `This run captured ${totalBatches} batches of protocol activity.`;
+      statusNext.textContent = note.replayNext;
+      break;
+    case 'error':
+      statusTitle.textContent = 'Run failed';
+      statusTitle.style.color = '#f87171';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = options.message || 'The scenario did not start cleanly.';
+      statusNext.textContent = 'Reset the demo and try the run again.';
+      break;
+    default:
+      break;
+  }
+}
+
 function updatePlaybackControls(playbackState) {
   if (!playbackState || !stepBackBtn || !stepForwardBtn || !togglePlayBtn) return;
   const { batchCount, cursor, playerMode, isBusy } = playbackState;
   const followLive = playerMode === 'follow';
+  const hasCapturedPlayback = batchCount > 0;
+  if (secondaryControls) {
+    secondaryControls.hidden = !scenarioStarted && !hasCapturedPlayback;
+  }
+  if (playbackTools) {
+    playbackTools.hidden = !hasCapturedPlayback;
+  }
+  if (decreeViewer) {
+    decreeViewer.hidden = !scenarioStarted && !hasCapturedPlayback;
+  }
   stepBackBtn.disabled = followLive || isBusy || cursor < 0;
   stepForwardBtn.disabled = followLive || isBusy || cursor + 1 >= batchCount;
   const hasUnplayed = batchCount > 0 && cursor + 1 < batchCount;
@@ -312,9 +519,7 @@ async function resetScenario() {
   if (scenarioSelect) {
     scenarioSelect.disabled = false;
   }
-  statusTitle.textContent = 'Ready';
-  statusDescription.textContent = 'Click Play to start the PMMC single-client scenario';
-  statusTitle.style.color = '#60a5fa';
+  setTeachingStatus('ready');
 }
 
 async function playScenario() {
@@ -340,10 +545,7 @@ async function playScenario() {
   if (togglePlayBtn) {
     togglePlayBtn.textContent = 'Pause';
   }
-
-  statusTitle.textContent = 'Running';
-  statusDescription.textContent = 'PMMC single-client scenario in progress...';
-  statusTitle.style.color = '#60a5fa';
+  setTeachingStatus('running');
 
   try {
     scenarioStartInFlight = true;
@@ -373,9 +575,7 @@ async function playScenario() {
       }, 30000);
     });
 
-    statusTitle.textContent = 'Processing';
-    statusDescription.textContent = 'Waiting for all events to visualize...';
-    statusTitle.style.color = '#f59e0b';
+    setTeachingStatus('replaying');
 
     while (
       controller &&
@@ -394,9 +594,9 @@ async function playScenario() {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
 
-    statusTitle.textContent = 'Complete';
-    statusDescription.textContent = 'Scenario complete. Use Step controls or Reset to rerun.';
-    statusTitle.style.color = '#34d399';
+    setTeachingStatus('complete', {
+      totalBatches: controller?.getPlaybackState().batchCount || 0,
+    });
     scenarioRunning = false;
     state.setRunning(false);
     scenarioFinished = true;
@@ -413,9 +613,7 @@ async function playScenario() {
   } catch (error) {
     scenarioStartInFlight = false;
     console.error('Error running scenario:', error);
-    statusTitle.textContent = 'Error';
-    statusDescription.textContent = String(error);
-    statusTitle.style.color = '#f87171';
+    setTeachingStatus('error', { message: String(error) });
   }
 }
 
@@ -426,8 +624,7 @@ async function pauseScenario() {
   if (togglePlayBtn) {
     togglePlayBtn.textContent = scenarioStarted ? 'Resume' : 'Play';
   }
-  statusTitle.textContent = 'Paused';
-  statusTitle.style.color = '#f59e0b';
+  setTeachingStatus('paused');
 }
 
 async function resumePlayback() {
@@ -441,8 +638,7 @@ async function resumePlayback() {
   if (togglePlayBtn) {
     togglePlayBtn.textContent = 'Pause';
   }
-  statusTitle.textContent = 'Running';
-  statusTitle.style.color = '#60a5fa';
+  setTeachingStatus('running');
 }
 
 async function togglePlayPause() {
@@ -475,16 +671,25 @@ async function stepForward() {
   if (!controller) return;
   await controller.pause({ waitForFrame: true });
   await controller.stepForward();
-  statusTitle.textContent = 'Stepping';
-  statusTitle.style.color = '#f59e0b';
+  setTeachingStatus('stepping');
 }
 
 async function stepBack() {
   if (!controller) return;
   await controller.pause({ waitForFrame: true });
   await controller.stepBack();
-  statusTitle.textContent = 'Stepping';
-  statusTitle.style.color = '#f59e0b';
+  setTeachingStatus('stepping');
+}
+
+function handleVisualizerResize() {
+  if (!visualizer) return;
+  if (resizeHandle) {
+    cancelAnimationFrame(resizeHandle);
+  }
+  resizeHandle = requestAnimationFrame(() => {
+    visualizer.onResize();
+    resizeHandle = null;
+  });
 }
 
 function initUI() {
@@ -494,6 +699,9 @@ function initUI() {
   scenarioSelect = document.getElementById('scenarioSelect');
   statusTitle = document.getElementById('statusTitle');
   statusDescription = document.getElementById('statusDescription');
+  statusFocus = document.getElementById('statusFocus');
+  statusChange = document.getElementById('statusChange');
+  statusNext = document.getElementById('statusNext');
   reconfigPhaseTitle = document.getElementById('reconfigPhaseTitle');
   reconfigPhaseDescription = document.getElementById('reconfigPhaseDescription');
   togglePlayBtn = document.getElementById('togglePlayBtn');
@@ -510,18 +718,17 @@ function initUI() {
   filterStatus = document.getElementById('eventFilterStatus');
   copyAllLogsBtn = document.getElementById('eventCopyAllBtn');
   nodeLabelModeSelect = document.getElementById('nodeLabelMode');
-  clientStrip = document.getElementById('clientStrip');
-  clientLanes = document.getElementById('clientLanes');
-  slotTape = document.getElementById('slotTape');
-  clientFeed = document.getElementById('clientFeed');
-  clientSnapshot = document.getElementById('clientSnapshot');
   topologyPanel = document.getElementById('topologyPanel');
+  secondaryControls = document.getElementById('secondaryControls');
+  playbackTools = document.getElementById('playbackTools');
+  decreeViewer = document.getElementById('decree-viewer');
 
   visualizer = new PaxosVisualizer('basicProtocolSvg', {
     nodeRadius: 210,
     nodeCircleRadius: 27,
     nodeStateOffsetY: 38,
     centerYOffset: 15,
+    useRoleShapes: true,
   });
 
   if (nodeLabelModeSelect) {
@@ -560,6 +767,7 @@ function initUI() {
   if (controller) {
     updatePlaybackControls(controller.getPlaybackState());
   }
+  window.addEventListener('resize', handleVisualizerResize);
 }
 
 document.addEventListener('DOMContentLoaded', initUI);
@@ -567,4 +775,5 @@ window.addEventListener('beforeunload', () => {
   if (scenarioRunning) {
     void fetch('/api/stop-scenario', { method: 'POST' });
   }
+  window.removeEventListener('resize', handleVisualizerResize);
 });

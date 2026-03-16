@@ -1,5 +1,6 @@
 import {
   drawBeamsTo,
+  flashNodeWithMotion,
   getBeamDuration,
   getLeaderTargets,
   getReachableTargets,
@@ -22,9 +23,12 @@ export const PMMC_EVENT_VISUALIZERS = {
       return `[PMMC Propose] ${nodeText(labels, event.id)} slot ${event.slot}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      visualizer.activateNode(event.id, this.color);
+      flashNodeWithMotion(visualizer, event.id, this.color, {
+        motion: 'proposal',
+        resetDelay: 360,
+      });
       const snapshot = state.snapshot();
-      const duration = getBeamDuration(snapshot, 260);
+      const duration = getBeamDuration(snapshot, 180);
       let targets = getLeaderTargets(snapshot, event.id, canCommunicate);
       if (targets.length === 0) {
         targets = getReachableTargets(
@@ -33,8 +37,12 @@ export const PMMC_EVENT_VISUALIZERS = {
           canCommunicate
         );
       }
-      await drawBeamsTo(visualizer, event.id, targets, this.color, duration, 'solid');
-      scheduleNodeReset(visualizer, event.id, duration + 50);
+      await drawBeamsTo(visualizer, event.id, targets, this.color, duration, 'solid', {
+        motion: 'proposal',
+        staggerMs: 18,
+        curveOffset: 54,
+      });
+      scheduleNodeReset(visualizer, event.id, duration + 70);
     }
   },
 
@@ -45,16 +53,23 @@ export const PMMC_EVENT_VISUALIZERS = {
       return `[P1A] ${nodeText(labels, event.from)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      visualizer.activateNode(event.from, this.color);
+      flashNodeWithMotion(visualizer, event.from, this.color, {
+        motion: 'proposal',
+        resetDelay: 420,
+      });
       const snapshot = state.snapshot();
-      const duration = getBeamDuration(snapshot, 420);
+      const duration = getBeamDuration(snapshot, 260);
       const targets = getReachableTargets(
         event.from,
         snapshot.cluster?.total_nodes,
         canCommunicate
       );
-      await drawBeamsTo(visualizer, event.from, targets, this.color, duration, 'solid');
-      scheduleNodeReset(visualizer, event.from, duration + 50);
+      await drawBeamsTo(visualizer, event.from, targets, this.color, duration, 'solid', {
+        motion: 'proposal',
+        staggerMs: 24,
+        curveOffset: 68,
+      });
+      scheduleNodeReset(visualizer, event.from, duration + 90);
     }
   },
 
@@ -65,10 +80,16 @@ export const PMMC_EVENT_VISUALIZERS = {
       return `[P1B] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      visualizer.activateNode(event.from, this.color);
-      const duration = getBeamDuration(state.snapshot(), 240);
+      flashNodeWithMotion(visualizer, event.from, this.color, {
+        motion: 'reply',
+        resetDelay: 260,
+      });
+      const duration = getBeamDuration(state.snapshot(), 150);
       if (canCommunicate(event.from, event.to)) {
-        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dashed');
+        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dashed', {
+          motion: 'reply',
+          curveOffset: 24,
+        });
       }
       scheduleNodeReset(visualizer, event.from, duration + 50);
     }
@@ -81,16 +102,23 @@ export const PMMC_EVENT_VISUALIZERS = {
       return `[P2A] ${nodeText(labels, event.from)} slot ${event.pvalue.slot}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      visualizer.activateNode(event.from, this.color);
+      flashNodeWithMotion(visualizer, event.from, this.color, {
+        motion: 'proposal',
+        resetDelay: 440,
+      });
       const snapshot = state.snapshot();
-      const duration = getBeamDuration(snapshot, 420);
+      const duration = getBeamDuration(snapshot, 240);
       const targets = getReachableTargets(
         event.from,
         snapshot.cluster?.total_nodes,
         canCommunicate
       );
-      await drawBeamsTo(visualizer, event.from, targets, this.color, duration, 'solid');
-      scheduleNodeReset(visualizer, event.from, duration + 50);
+      await drawBeamsTo(visualizer, event.from, targets, this.color, duration, 'solid', {
+        motion: 'proposal',
+        staggerMs: 20,
+        curveOffset: 48,
+      });
+      scheduleNodeReset(visualizer, event.from, duration + 80);
     }
   },
 
@@ -101,10 +129,16 @@ export const PMMC_EVENT_VISUALIZERS = {
       return `[P2B] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} slot ${event.pvalue.slot}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      visualizer.activateNode(event.from, this.color);
-      const duration = getBeamDuration(state.snapshot(), 350);
+      flashNodeWithMotion(visualizer, event.from, this.color, {
+        motion: 'reply',
+        resetDelay: 280,
+      });
+      const duration = getBeamDuration(state.snapshot(), 170);
       if (canCommunicate(event.from, event.to)) {
-        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dotted');
+        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dotted', {
+          motion: 'reply',
+          curveOffset: 18,
+        });
       }
       scheduleNodeReset(visualizer, event.from, duration + 50);
     }
@@ -117,12 +151,19 @@ export const PMMC_EVENT_VISUALIZERS = {
       return `[ADOPTED] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      const duration = getBeamDuration(state.snapshot(), 160);
+      flashNodeWithMotion(visualizer, event.to, this.color, {
+        motion: 'success',
+        resetDelay: 620,
+      });
+      const duration = getBeamDuration(state.snapshot(), 140);
       if (canCommunicate(event.from, event.to)) {
-        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'solid');
+        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'solid', {
+          motion: 'success',
+          curveOffset: 34,
+        });
       }
       visualizer.setLeader(event.to);
-      scheduleNodeReset(visualizer, event.to, duration + 50);
+      scheduleNodeReset(visualizer, event.to, duration + 260);
     }
   },
 
@@ -133,9 +174,19 @@ export const PMMC_EVENT_VISUALIZERS = {
       return `[PREEMPT] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      const duration = getBeamDuration(state.snapshot(), 160);
+      if (typeof visualizer.pulseNode === 'function') {
+        visualizer.pulseNode(event.to, this.color, {
+          resetDelay: 260,
+          glowRadius: 10,
+          glowOpacity: 0.7,
+        });
+      }
+      const duration = getBeamDuration(state.snapshot(), 110);
       if (canCommunicate(event.from, event.to)) {
-        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dashed');
+        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dashed', {
+          motion: 'failure',
+          curveOffset: 12,
+        });
       }
       scheduleNodeReset(visualizer, event.to, duration + 50);
     }
@@ -148,14 +199,22 @@ export const PMMC_EVENT_VISUALIZERS = {
       return `[HEARTBEAT] ${nodeText(labels, event.from)} ballot ${ballotText(event.ballot)}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
+      flashNodeWithMotion(visualizer, event.from, this.color, {
+        motion: 'reply',
+        resetDelay: 220,
+      });
       const snapshot = state.snapshot();
-      const duration = getBeamDuration(snapshot, 240);
+      const duration = getBeamDuration(snapshot, 150);
       const targets = getReachableTargets(
         event.from,
         snapshot.cluster?.total_nodes,
         canCommunicate
       );
-      await drawBeamsTo(visualizer, event.from, targets, this.color, duration, 'dashed');
+      await drawBeamsTo(visualizer, event.from, targets, this.color, duration, 'dashed', {
+        motion: 'reply',
+        staggerMs: 12,
+        curveOffset: 16,
+      });
       scheduleNodeReset(visualizer, event.from, duration + 50);
     }
   },
@@ -167,9 +226,16 @@ export const PMMC_EVENT_VISUALIZERS = {
       return `[ACK] ${nodeText(labels, event.from)} -> ${nodeText(labels, event.to)} slot ${event.slot}`;
     },
     async visualize(event, visualizer, state, canCommunicate) {
-      const duration = getBeamDuration(state.snapshot(), 260);
+      flashNodeWithMotion(visualizer, event.from, this.color, {
+        motion: 'reply',
+        resetDelay: 240,
+      });
+      const duration = getBeamDuration(state.snapshot(), 140);
       if (canCommunicate(event.from, event.to)) {
-        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dotted');
+        await visualizer.drawBeam(event.from, event.to, this.color, duration, 'dotted', {
+          motion: 'reply',
+          curveOffset: 14,
+        });
       }
       scheduleNodeReset(visualizer, event.from, duration + 50);
     }

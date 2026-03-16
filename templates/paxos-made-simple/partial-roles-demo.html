@@ -10,11 +10,6 @@
         <div id="topologyPanel" class="topology-info-panel">
             <h3>Topology</h3>
             <div id="topologyDetails">Loading topology...</div>
-            <div class="layout-toggle">
-                <button id="circleLayoutBtn" class="btn-compact active">Circle</button>
-                <button id="gridLayoutBtn" class="btn-compact">Grouped</button>
-            </div>
-            
             <div class="role-legend">
                 <div class="legend-title">Role Key</div>
                 <div class="legend-item">
@@ -52,8 +47,8 @@
 
     <!-- Controls -->
     <div class="controls-section">
-        <div class="control-grid">
-            <div class="control-group">
+        <div class="primary-run-controls">
+            <div class="control-group control-group-scenario">
                 <h3>Scenario</h3>
                 <select id="scenarioSelect">
                     <option value="happy_path_with_leader" selected>All Roles Happy Path</option>
@@ -63,29 +58,31 @@
                     <option value="partial_roles">Mixed vs Dedicated</option>
                 </select>
             </div>
-            <div class="control-group">
-                <h3>Learning Strategy</h3>
-                <select id="learningStrategySelect">
-                    <option value="ProposerManaged" selected>Proposer Managed</option>
-                    <option value="Direct">Direct</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <h3>Speed</h3>
+            <div class="control-group control-group-speed">
+                <h3>Pace</h3>
                 <div class="speed-control">
                     <input type="range" id="speed" value="0.75" min="0.25" max="2" step="0.25" />
                     <span id="speedValue">0.75x</span>
                 </div>
             </div>
-            <div class="button-group">
-                <div class="primary-controls">
-                    <button id="playBtn" class="btn-primary">Play</button>
-                    <button id="pauseBtn" class="btn-secondary" disabled>Pause</button>
-                    <button id="resetBtn" class="btn-secondary">Reset</button>
-                </div>
+            <button id="playBtn" class="btn-primary primary-run-button">Start</button>
+        </div>
+
+        <div id="secondaryControls" class="secondary-controls" hidden>
+            <div class="control-group control-group-learning">
+                <h3>Learning</h3>
+                <select id="learningStrategySelect">
+                    <option value="ProposerManaged" selected>Proposer Managed</option>
+                    <option value="Direct">Direct</option>
+                </select>
+            </div>
+            <div class="secondary-actions">
+                <button id="resetBtn" class="btn-secondary">Reset</button>
+            </div>
+            <div id="playbackTools" class="playback-tools" hidden>
                 <div class="step-controls">
-                    <button id="stepBackBtn" class="btn-secondary" disabled>Step Back</button>
-                    <button id="stepForwardBtn" class="btn-secondary" disabled>Step Forward</button>
+                    <button id="stepBackBtn" class="btn-secondary" disabled>Back</button>
+                    <button id="stepForwardBtn" class="btn-secondary" disabled>Forward</button>
                 </div>
                 <div class="playback-cursor" id="playbackCursor">Batch 0/0</div>
             </div>
@@ -95,41 +92,40 @@
         <div class="status-info">
             <div id="statusTitle">Ready</div>
             <div id="statusDescription" class="scenario-description">
-                <p>Select a scenario to demonstrate consensus concepts from the State Machine section.</p>
-                <p id="scenarioDetails"></p>
+                <p id="statusFocus">Start with the baseline, then split the roles apart and watch what actually changes.</p>
+                <p id="statusChange"></p>
+                <p id="statusNext"></p>
             </div>
         </div>
     </div>
 
     <div class="stats-and-logs">
-        <!-- Stats -->
         <div class="stats-section">
             <h3>Protocol Events</h3>
             <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="nextBallotCount">0</div>
+                <div class="stat-card stat-card-next">
                     <div class="stat-label">NextBallot</div>
+                    <div class="stat-value" id="nextBallotCount">0</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="lastVoteCount">0</div>
+                <div class="stat-card stat-card-last">
                     <div class="stat-label">LastVote</div>
+                    <div class="stat-value" id="lastVoteCount">0</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="beginBallotCount">0</div>
+                <div class="stat-card stat-card-begin">
                     <div class="stat-label">BeginBallot</div>
+                    <div class="stat-value" id="beginBallotCount">0</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="votedCount">0</div>
+                <div class="stat-card stat-card-voted">
                     <div class="stat-label">Voted</div>
+                    <div class="stat-value" id="votedCount">0</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="learnedCount">0</div>
+                <div class="stat-card stat-card-learned">
                     <div class="stat-label">Learned</div>
+                    <div class="stat-value" id="learnedCount">0</div>
                 </div>
             </div>
         </div>
 
-        <!-- Event Log -->
         <div class="event-log-section">
             <div class="event-log-header">
                 <h3>Event Log</h3>
@@ -199,6 +195,91 @@
     color: var(--pms-text-muted);
 }
 
+.partial-roles-demo .controls-section {
+    padding: 18px 20px;
+}
+
+.partial-roles-demo .stats-and-logs {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.partial-roles-demo .primary-run-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(210px, 0.95fr) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.partial-roles-demo .primary-run-controls .control-group,
+.partial-roles-demo .secondary-controls .control-group {
+    gap: 6px;
+}
+
+.partial-roles-demo .primary-run-controls .control-group h3,
+.partial-roles-demo .secondary-controls .control-group h3 {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.partial-roles-demo .primary-run-button {
+    align-self: stretch;
+    min-width: 124px;
+}
+
+.partial-roles-demo .secondary-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 10px 14px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(34, 197, 94, 0.1);
+}
+
+.partial-roles-demo .secondary-controls .control-group-learning {
+    min-width: 220px;
+}
+
+.partial-roles-demo .secondary-actions,
+.partial-roles-demo .playback-tools,
+.partial-roles-demo .step-controls {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.partial-roles-demo .playback-tools[hidden],
+.partial-roles-demo .secondary-controls[hidden] {
+    display: none;
+}
+
+.partial-roles-demo .speed-control {
+    gap: 10px;
+}
+
+.partial-roles-demo .speed-control span,
+.partial-roles-demo .playback-cursor {
+    font-size: 12px;
+}
+
+.partial-roles-demo .status-info {
+    margin-top: 12px;
+    padding: 10px 12px 10px 14px;
+}
+
+.partial-roles-demo #statusDescription p {
+    margin: 0;
+}
+
+.partial-roles-demo #statusDescription {
+    display: grid;
+    gap: 4px;
+}
+
 .partial-roles-demo .btn-primary {
     background: var(--pms-primary);
     color: #03110a;
@@ -237,8 +318,87 @@
     color: var(--pms-primary);
 }
 
+.partial-roles-demo .stats-section {
+    padding: 10px 14px 12px;
+}
+
+.partial-roles-demo .stats-section h3 {
+    margin-bottom: 6px;
+}
+
+.partial-roles-demo .stats-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.partial-roles-demo .stat-card {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    text-align: left;
+    padding: 7px 9px 7px 11px;
+    min-height: 0;
+    border-radius: 999px;
+    background: rgba(7, 16, 10, 0.76);
+    overflow: hidden;
+}
+
+.partial-roles-demo .stat-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 999px;
+}
+
+.partial-roles-demo .stat-card-next::before {
+    background: #86efac;
+}
+
+.partial-roles-demo .stat-card-last::before {
+    background: #2dd4bf;
+}
+
+.partial-roles-demo .stat-card-begin::before {
+    background: #c084fc;
+}
+
+.partial-roles-demo .stat-card-voted::before {
+    background: #f59e0b;
+}
+
+.partial-roles-demo .stat-card-learned::before {
+    background: #34d399;
+}
+
 .partial-roles-demo .stat-value {
-    color: var(--pms-primary-light);
+    color: #ecfdf5;
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1;
+}
+
+.partial-roles-demo .stat-label {
+    color: var(--pms-text-muted);
+    font-size: 10px;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 4px;
+}
+
+.partial-roles-demo .event-log-section {
+    padding: 14px 16px 16px;
+}
+
+.partial-roles-demo #eventLog {
+    height: 260px;
 }
 
 .partial-roles-demo .event-log-wrapper {
@@ -427,6 +587,21 @@
 @media (max-width: 1200px) {
     .partial-roles-demo .visualization-main {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .partial-roles-demo .primary-run-controls {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .partial-roles-demo .primary-run-button {
+        width: 100%;
+    }
+
+    .partial-roles-demo .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 </style>

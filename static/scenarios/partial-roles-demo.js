@@ -35,6 +35,74 @@ const scenarioDescriptions = {
     'A mixed cluster combines full-role nodes with dedicated proposers, acceptors, and learners so the topology split is visible in one run.',
 };
 
+const scenarioTeachingNotes = {
+  happy_path_with_leader: {
+    title: 'Baseline',
+    focus:
+      'Every node is doing every job here. This is the control case for the rest of the page.',
+    runningChange:
+      'Nothing is split yet. Proposing, accepting, and learning are all happening on the same nodes.',
+    readyNext:
+      'Watch the full path first, then move to the role-split scenarios and compare what actually changes.',
+    runningNext:
+      'Notice how short the path feels when one node can carry the whole cycle.',
+    replayNext:
+      'Step through the batches and use this as your mental baseline for the split topologies.',
+  },
+  dedicated_acceptors: {
+    title: 'Dedicated Acceptors',
+    focus:
+      'This run isolates the write path. Acceptors hold the quorum, while separate learners stay downstream.',
+    runningChange:
+      'The quorum now forms on acceptor-only nodes. Learning happens after that, not in the same place.',
+    readyNext:
+      'Watch who actually handles Prepare and Accept, then see who only shows up once success is broadcast.',
+    runningNext:
+      'Notice which nodes are busy during voting, and which ones stay quiet until the value is already chosen.',
+    replayNext:
+      'Step back through the batches and compare the acceptor core to the learner-only followers.',
+  },
+  learners_off_write_path: {
+    title: 'Learners Off the Write Path',
+    focus:
+      'This one separates choosing from learning. The quorum finishes first, and the learner tier catches up afterward.',
+    runningChange:
+      'The write path is over before every learner knows the result.',
+    readyNext:
+      'Watch for the moment the value is effectively decided, then watch how the learner-only nodes hear about it later.',
+    runningNext:
+      'Pay attention to the gap between votes landing and learner-only nodes updating.',
+    replayNext:
+      'Use step mode if you want to isolate the exact handoff from quorum to learning.',
+  },
+  competing_proposers: {
+    title: 'Competing Proposers',
+    focus:
+      'Now the proposers are split too. Two proposer-learner nodes are contending for the same acceptor core.',
+    runningChange:
+      'The conflict is happening at the proposer edge, while the acceptor quorum stays shared.',
+    readyNext:
+      'Watch which proposer gets traction, and how the acceptor-only nodes become the common bottleneck.',
+    runningNext:
+      'Notice that the learners are downstream observers here. The real struggle is between the proposers and the acceptor core.',
+    replayNext:
+      'Step through this one if the contention feels too fast on live playback.',
+  },
+  partial_roles: {
+    title: 'Mixed Roles',
+    focus:
+      'This is the comparison run. Full-role nodes sit beside dedicated proposers, acceptors, and learners.',
+    runningChange:
+      'You are watching the same protocol move through mixed topologies at once.',
+    readyNext:
+      'Compare which nodes carry the whole cycle and which ones only touch a single phase.',
+    runningNext:
+      'Watch the full-role nodes against the dedicated ones. The difference is architectural, not algorithmic.',
+    replayNext:
+      'Step through the batches if you want to see exactly where the mixed topology stops behaving like the baseline.',
+  },
+};
+
 let controller = null;
 let visualizer = null;
 let scenarioTimeout = null;
@@ -46,15 +114,15 @@ let speedSlider;
 let speedValue;
 let statusTitle;
 let statusDescription;
+let statusFocus;
+let statusChange;
+let statusNext;
 let playBtn;
-let pauseBtn;
 let resetBtn;
 let stepBackBtn;
 let stepForwardBtn;
 let playbackCursor;
 let topologyDetails;
-let circleLayoutBtn;
-let gridLayoutBtn;
 let learningStrategySelect;
 let scenarioSelect;
 let scenarioDetails;
@@ -65,6 +133,73 @@ let filterChips;
 let filterToggle;
 let filterClose;
 let filterStatus;
+let secondaryControls;
+let playbackTools;
+
+function getScenarioTeachingNote() {
+  return scenarioTeachingNotes[scenarioSelect?.value] || scenarioTeachingNotes.happy_path_with_leader;
+}
+
+function setTeachingStatus(mode, options = {}) {
+  if (!statusTitle || !statusFocus || !statusChange || !statusNext) return;
+
+  const note = getScenarioTeachingNote();
+  const totalEvents = options.totalEvents ?? 0;
+
+  switch (mode) {
+    case 'ready':
+      statusTitle.textContent = note.title;
+      statusTitle.style.color = '#60a5fa';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = 'Nothing has moved yet.';
+      statusNext.textContent = note.readyNext;
+      break;
+    case 'running':
+      statusTitle.textContent = note.title;
+      statusTitle.style.color = '#60a5fa';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = note.runningChange;
+      statusNext.textContent = note.runningNext;
+      break;
+    case 'paused':
+      statusTitle.textContent = 'Paused on the split';
+      statusTitle.style.color = '#f59e0b';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = 'The live run is paused on the current playback position.';
+      statusNext.textContent = 'Use Resume to keep following live, or step through the batches to inspect the handoff more closely.';
+      break;
+    case 'stepping':
+      statusTitle.textContent = 'Step through it';
+      statusTitle.style.color = '#f59e0b';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = 'You are looking at one captured batch at a time now.';
+      statusNext.textContent = note.replayNext;
+      break;
+    case 'replaying':
+      statusTitle.textContent = 'Live run captured';
+      statusTitle.style.color = '#f59e0b';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = 'The live run has finished, but the captured playback is still catching up.';
+      statusNext.textContent = note.replayNext;
+      break;
+    case 'complete':
+      statusTitle.textContent = 'Captured run';
+      statusTitle.style.color = '#34d399';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = `This run captured ${totalEvents} events.`;
+      statusNext.textContent = note.replayNext;
+      break;
+    case 'error':
+      statusTitle.textContent = 'Run failed';
+      statusTitle.style.color = '#ef4444';
+      statusFocus.textContent = note.focus;
+      statusChange.textContent = options.message || 'The scenario did not start cleanly.';
+      statusNext.textContent = 'Reset the run and try again.';
+      break;
+    default:
+      break;
+  }
+}
 
 function getRoleSignature(roles = []) {
   return ROLE_ORDER.filter((role) => roles.includes(role))
@@ -92,6 +227,14 @@ function updatePlaybackControls(playbackState) {
   if (!playbackState) return;
   const { batchCount, cursor, playerMode, isBusy } = playbackState;
   const followLive = playerMode === 'follow';
+  const hasCapturedPlayback = batchCount > 0;
+
+  if (secondaryControls) {
+    secondaryControls.hidden = !scenarioStarted && !hasCapturedPlayback;
+  }
+  if (playbackTools) {
+    playbackTools.hidden = !hasCapturedPlayback;
+  }
 
   if (stepBackBtn) {
     stepBackBtn.disabled = followLive || isBusy || cursor < 0;
@@ -106,8 +249,12 @@ function updatePlaybackControls(playbackState) {
   }
 
   if (playBtn) {
-    if (!followLive && scenarioStarted && batchCount > 0) {
+    if (scenarioRunning && followLive) {
+      playBtn.textContent = 'Pause';
+    } else if (!followLive && scenarioStarted && batchCount > 0) {
       playBtn.textContent = 'Resume';
+    } else if (!scenarioStarted) {
+      playBtn.textContent = 'Start';
     } else {
       playBtn.textContent = 'Play';
     }
@@ -115,20 +262,13 @@ function updatePlaybackControls(playbackState) {
 }
 
 function updateScenarioDescription() {
-  if (!scenarioDetails || !scenarioSelect) return;
-  const description = scenarioDescriptions[scenarioSelect.value] || '';
-  scenarioDetails.textContent = description;
-}
-
-function setLayout(mode) {
-  if (!visualizer) return;
-  visualizer.setLayoutMode(mode);
-
-  if (circleLayoutBtn) {
-    circleLayoutBtn.classList.toggle('active', mode === 'circle');
+  if (!scenarioSelect) return;
+  if (scenarioDetails) {
+    const description = scenarioDescriptions[scenarioSelect.value] || '';
+    scenarioDetails.textContent = description;
   }
-  if (gridLayoutBtn) {
-    gridLayoutBtn.classList.toggle('active', mode === 'role-grouped');
+  if (!scenarioStarted) {
+    setTeachingStatus('ready');
   }
 }
 
@@ -206,26 +346,6 @@ function updateTopologyPanel() {
   `;
 }
 
-function maybeRerenderRoleLayout() {
-  if (!visualizer || visualizer.layoutMode !== 'role-grouped') return;
-  const snapshot = state.snapshot();
-  if (!snapshot.cluster) return;
-
-  let roleCount = 0;
-  for (let i = 0; i < snapshot.cluster.total_nodes; i++) {
-    const node = snapshot.nodes.get(i);
-    if (node?.role) {
-      roleCount += 1;
-    }
-  }
-  if (roleCount === snapshot.cluster.total_nodes) {
-    visualizer.render(snapshot.cluster);
-    if (snapshot.leaderId !== null && snapshot.leaderId !== undefined) {
-      visualizer.setLeader(snapshot.leaderId);
-    }
-  }
-}
-
 function canCommunicate(from, to) {
   const snapshot = state.snapshot();
   const fromNode = snapshot.nodes.get(from);
@@ -250,7 +370,6 @@ function buildController() {
     onEvent({ eventType }, ctx) {
       if (eventType === 'NodeCapabilities') {
         updateTopologyPanel();
-        maybeRerenderRoleLayout();
       }
     },
     onCluster() {
@@ -304,10 +423,9 @@ async function resumePlayback() {
   if (scenarioRunning) {
     state.setRunning(true);
   }
-  playBtn.disabled = true;
-  pauseBtn.disabled = false;
-  statusTitle.textContent = 'Running';
-  statusTitle.style.color = '#60a5fa';
+  playBtn.disabled = false;
+  setTeachingStatus('running');
+  updatePlaybackControls(controller.getPlaybackState());
 }
 
 async function playScenario() {
@@ -325,6 +443,7 @@ async function playScenario() {
   const startingNewScenario = !scenarioStarted;
 
   scenarioStarted = true;
+  updatePlaybackControls(controller.getPlaybackState());
 
   if (controller) {
     if (startingNewScenario) {
@@ -337,14 +456,11 @@ async function playScenario() {
 
   scenarioRunning = true;
   state.setRunning(true);
-  playBtn.disabled = true;
-  pauseBtn.disabled = false;
+  playBtn.disabled = false;
   scenarioSelect.disabled = true;
   learningStrategySelect.disabled = true;
   updateScenarioDescription();
-
-  statusTitle.textContent = 'Running';
-  statusTitle.style.color = '#60a5fa';
+  setTeachingStatus('running');
 
   try {
     const payload = {
@@ -372,8 +488,7 @@ async function playScenario() {
       }, 60000);
     });
 
-    statusTitle.textContent = 'Processing';
-    statusTitle.style.color = '#f59e0b';
+    setTeachingStatus('replaying');
 
     while (
       controller &&
@@ -388,11 +503,7 @@ async function playScenario() {
     console.error(error);
     scenarioRunning = false;
     state.setRunning(false);
-    statusTitle.style.color = '#ef4444';
-    statusTitle.textContent = 'Error';
-    if (scenarioDetails) {
-      scenarioDetails.textContent = error.message;
-    }
+    setTeachingStatus('error', { message: error.message });
   }
 
   scenarioRunning = false;
@@ -403,17 +514,13 @@ async function playScenario() {
   }
 
   playBtn.disabled = false;
-  pauseBtn.disabled = true;
   scenarioSelect.disabled = false;
   learningStrategySelect.disabled = false;
+  updatePlaybackControls(controller.getPlaybackState());
 
   const totalEvents = controller ? controller.getCapturedEventCount() : 0;
 
-  statusTitle.textContent = 'Complete';
-  statusTitle.style.color = '#34d399';
-  if (scenarioDetails) {
-    scenarioDetails.textContent = `Scenario finished - ${totalEvents} total events visualized`;
-  }
+  setTeachingStatus('complete', { totalEvents });
 }
 
 async function pauseScenario() {
@@ -422,14 +529,13 @@ async function pauseScenario() {
   }
   state.setRunning(false);
   playBtn.disabled = false;
-  pauseBtn.disabled = true;
   scenarioSelect.disabled = false;
   learningStrategySelect.disabled = false;
+  updatePlaybackControls(controller.getPlaybackState());
 
-  statusTitle.textContent = 'Paused';
-  statusTitle.style.color = '#f59e0b';
+  setTeachingStatus('paused');
   if (playBtn) {
-    playBtn.textContent = scenarioStarted ? 'Resume' : 'Play';
+    playBtn.textContent = scenarioStarted ? 'Resume' : 'Start';
   }
 }
 
@@ -437,16 +543,14 @@ async function stepForward() {
   if (!controller) return;
   await controller.pause({ waitForFrame: true });
   await controller.stepForward();
-  statusTitle.textContent = 'Stepping';
-  statusTitle.style.color = '#f59e0b';
+  setTeachingStatus('stepping');
 }
 
 async function stepBack() {
   if (!controller) return;
   await controller.pause({ waitForFrame: true });
   await controller.stepBack();
-  statusTitle.textContent = 'Stepping';
-  statusTitle.style.color = '#f59e0b';
+  setTeachingStatus('stepping');
 }
 
 async function resetScenario() {
@@ -473,13 +577,12 @@ async function resetScenario() {
   }
 
   playBtn.disabled = false;
-  pauseBtn.disabled = true;
   scenarioSelect.disabled = false;
   learningStrategySelect.disabled = false;
+  updatePlaybackControls(controller ? controller.getPlaybackState() : null);
 
-  statusTitle.textContent = 'Ready';
-  statusTitle.style.color = '#60a5fa';
   updateScenarioDescription();
+  setTeachingStatus('ready');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -488,15 +591,15 @@ document.addEventListener('DOMContentLoaded', () => {
   speedValue = document.getElementById('speedValue');
   statusTitle = document.getElementById('statusTitle');
   statusDescription = document.getElementById('statusDescription');
+  statusFocus = document.getElementById('statusFocus');
+  statusChange = document.getElementById('statusChange');
+  statusNext = document.getElementById('statusNext');
   playBtn = document.getElementById('playBtn');
-  pauseBtn = document.getElementById('pauseBtn');
   resetBtn = document.getElementById('resetBtn');
   stepBackBtn = document.getElementById('stepBackBtn');
   stepForwardBtn = document.getElementById('stepForwardBtn');
   playbackCursor = document.getElementById('playbackCursor');
   topologyDetails = document.getElementById('topologyDetails');
-  circleLayoutBtn = document.getElementById('circleLayoutBtn');
-  gridLayoutBtn = document.getElementById('gridLayoutBtn');
   learningStrategySelect = document.getElementById('learningStrategySelect');
   scenarioSelect = document.getElementById('scenarioSelect');
   scenarioDetails = document.getElementById('scenarioDetails');
@@ -507,6 +610,8 @@ document.addEventListener('DOMContentLoaded', () => {
   filterToggle = document.getElementById('eventFilterToggle');
   filterClose = document.getElementById('eventFilterClose');
   filterStatus = document.getElementById('eventFilterStatus');
+  secondaryControls = document.getElementById('secondaryControls');
+  playbackTools = document.getElementById('playbackTools');
 
   visualizer = new PaxosVisualizer('partialRolesSvg', {
     nodeRadius: 180,
@@ -535,13 +640,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  if (playBtn) playBtn.addEventListener('click', playScenario);
-  if (pauseBtn) pauseBtn.addEventListener('click', pauseScenario);
+  if (playBtn) {
+    playBtn.addEventListener('click', async () => {
+      if (scenarioRunning && controller?.getPlaybackState().playerMode === 'follow') {
+        await pauseScenario();
+        return;
+      }
+      await playScenario();
+    });
+  }
   if (resetBtn) resetBtn.addEventListener('click', resetScenario);
   if (stepBackBtn) stepBackBtn.addEventListener('click', stepBack);
   if (stepForwardBtn) stepForwardBtn.addEventListener('click', stepForward);
-  if (circleLayoutBtn) circleLayoutBtn.addEventListener('click', () => setLayout('circle'));
-  if (gridLayoutBtn) gridLayoutBtn.addEventListener('click', () => setLayout('role-grouped'));
 
   const initialSpeed = parseFloat(speedSlider.value);
   state.setSpeed(initialSpeed);

@@ -7,42 +7,522 @@
 {% block extra_stylesheets %}
 <link rel="stylesheet" href="/css/demo.css">
 <link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/demo.css">
+<style>
+.pmmc-demo .pmmc-primary-controls {
+  grid-template-columns: minmax(0, 1.8fr) minmax(220px, 0.9fr) auto;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.pmmc-demo .visualization {
+  grid-template-columns: 210px minmax(0, 1fr) 252px;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.pmmc-demo .pmmc-topology-rail,
+.pmmc-demo .pmmc-decree-rail {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.pmmc-demo .pmmc-topology-rail {
+  grid-template-rows: auto auto;
+}
+
+.pmmc-demo .pmmc-decree-rail {
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  max-height: 420px;
+}
+
+.pmmc-demo .pmmc-main-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 500px;
+  display: grid;
+  align-items: stretch;
+}
+
+.pmmc-demo #basicProtocolSvg {
+  display: block;
+  width: 100%;
+  min-height: 500px;
+  height: 100%;
+}
+
+.pmmc-demo .pmmc-primary-actions {
+  align-self: end;
+}
+
+.pmmc-demo .pmmc-primary-actions button {
+  min-width: 144px;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 7px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.pmmc-demo .controls-section select,
+.pmmc-demo .controls-section input[type="range"] {
+  min-height: 40px;
+}
+
+.pmmc-demo .control-group select {
+  padding-block: 8px;
+}
+
+.pmmc-demo .pmmc-secondary-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px 14px;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid #273449;
+}
+
+.pmmc-demo .pmmc-secondary-controls[hidden],
+.pmmc-demo .pmmc-playback-tools[hidden] {
+  display: none;
+}
+
+.pmmc-demo .pmmc-secondary-actions,
+.pmmc-demo .pmmc-playback-tools,
+.pmmc-demo .pmmc-playback-buttons {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pmmc-demo .pmmc-secondary-actions button,
+.pmmc-demo .pmmc-playback-buttons button {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pmmc-demo .pmmc-playback-buttons {
+  flex-wrap: nowrap;
+}
+
+.pmmc-demo #togglePlayBtn {
+  background: linear-gradient(180deg, #3f8cff 0%, #2563eb 100%);
+}
+
+.pmmc-demo #togglePlayBtn:hover {
+  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+}
+
+.pmmc-demo #resetBtn,
+.pmmc-demo #stepBackBtn,
+.pmmc-demo #stepForwardBtn {
+  background: #1a2332;
+  color: #dbe6f3;
+  border: 1px solid #334155;
+}
+
+.pmmc-demo #resetBtn:hover:not(:disabled),
+.pmmc-demo #stepBackBtn:hover:not(:disabled),
+.pmmc-demo #stepForwardBtn:hover:not(:disabled) {
+  background: #202c3f;
+  border-color: #475569;
+}
+
+.pmmc-demo .scenario-description {
+  display: grid;
+  gap: 4px;
+}
+
+.pmmc-demo .scenario-description p {
+  margin: 0;
+}
+
+.pmmc-demo .status-info {
+  margin-top: 12px;
+}
+
+.pmmc-demo .playback-cursor {
+  margin-top: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #273449;
+  border-radius: 999px;
+  background: #111827;
+}
+
+.pmmc-demo #decree-viewer[hidden] {
+  display: none;
+}
+
+.pmmc-demo #decree-viewer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+  height: 100%;
+  max-height: 420px;
+  align-self: start;
+}
+
+.pmmc-demo .topology-panel {
+  padding: 10px;
+  gap: 10px;
+}
+
+.pmmc-demo .topology-title {
+  color: #93c5fd;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pmmc-demo .topology-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pmmc-demo .topology-summary-item {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 7px;
+  background: rgba(17, 24, 39, 0.78);
+  border: 1px solid #1f2937;
+  min-height: 54px;
+}
+
+.pmmc-demo .topology-summary-label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #86a0c4;
+  line-height: 1.15;
+}
+
+.pmmc-demo .topology-summary-value {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: #e2e8f0;
+}
+
+.pmmc-demo .topology-role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pmmc-demo .topology-role-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: rgba(17, 24, 39, 0.84);
+  border: 1px solid #1f2937;
+}
+
+.pmmc-demo .topology-role-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pmmc-demo .topology-role-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #dbe6f3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pmmc-demo .topology-role-count {
+  font-size: 9px;
+  color: #8ca0ba;
+  white-space: nowrap;
+}
+
+.pmmc-demo .topology-node-list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pmmc-demo .topology-node-chip {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: rgba(11, 18, 32, 0.92);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pmmc-demo .topology-shape {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  border: 1px solid rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.pmmc-demo .topology-shape-circle {
+  border-radius: 999px;
+}
+
+.pmmc-demo .topology-shape-square {
+  border-radius: 3px;
+}
+
+.pmmc-demo .topology-shape-diamond {
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+.pmmc-demo .topology-shape-triangle {
+  width: 13px;
+  height: 12px;
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.pmmc-demo .topology-shape-octagon {
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+}
+
+.pmmc-demo .topology-key {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #0b1220;
+  border: 1px solid #1f2937;
+}
+
+.pmmc-demo .topology-key-title {
+  color: #8eb8f9;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.pmmc-demo .topology-key-list {
+  display: grid;
+  gap: 6px;
+}
+
+.pmmc-demo .topology-key-item {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  color: #cbd5e1;
+  font-size: 10px;
+}
+
+.pmmc-demo .topology-tone-all {
+  background: #4f46e5;
+}
+
+.pmmc-demo .topology-tone-leader {
+  background: #3b82f6;
+}
+
+.pmmc-demo .topology-tone-replica {
+  background: #22c55e;
+}
+
+.pmmc-demo .topology-tone-acceptor {
+  background: #14b8a6;
+}
+
+.pmmc-demo .topology-tone-mixed {
+  background: #64748b;
+}
+
+.pmmc-demo #proposalStatsContainer {
+  padding: 8px;
+}
+
+.pmmc-demo .proposal-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pmmc-demo .proposal-stat-item {
+  min-width: 0;
+  flex: none;
+  min-height: 38px;
+  padding: 7px 8px;
+}
+
+.pmmc-demo #decreePanel {
+  min-height: 0;
+  padding: 9px;
+  max-height: 332px;
+}
+
+.pmmc-demo .decree-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pmmc-demo .decree-node-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #111827;
+  padding-bottom: 8px;
+}
+
+.pmmc-demo .decree-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  padding-right: 2px;
+}
+
+@media (max-width: 900px) {
+  .pmmc-demo .pmmc-primary-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .pmmc-demo .pmmc-primary-actions button {
+    width: 100%;
+  }
+
+  .pmmc-demo .visualization {
+    grid-template-columns: 1fr;
+  }
+
+  .pmmc-demo .pmmc-main-stage {
+    order: 1;
+    min-height: clamp(320px, 68vw, 460px);
+  }
+
+  .pmmc-demo .pmmc-topology-rail {
+    order: 2;
+  }
+
+  .pmmc-demo .pmmc-decree-rail {
+    order: 3;
+  }
+
+  .pmmc-demo .pmmc-decree-rail {
+    min-height: 0;
+    max-height: none;
+  }
+
+  .pmmc-demo #basicProtocolSvg {
+    min-height: clamp(320px, 68vw, 460px);
+  }
+
+  .pmmc-demo #decree-viewer {
+    min-height: 0;
+    max-height: none;
+  }
+
+  .pmmc-demo #decreePanel {
+    max-height: 260px;
+  }
+
+  .pmmc-demo .proposal-stats {
+    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  }
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="demo-container">
   <div class="visualization">
-    <div id="client-sidebar">
-      <div class="client-strip-section">
-        <div class="client-strip-title">Clients</div>
-        <div id="clientStrip" class="client-strip"></div>
-        <div id="clientFeed" class="client-feed"></div>
-        <div id="clientSnapshot" class="client-snapshot"></div>
-        <div id="topologyPanel" class="topology-panel"></div>
+    <div class="pmmc-topology-rail">
+      <div id="topologyPanel" class="topology-panel"></div>
+      <div class="topology-key">
+        <div class="topology-key-title">Shape Key</div>
+        <div class="topology-key-list">
+          <div class="topology-key-item">
+            <span class="topology-shape topology-shape-circle topology-tone-all"></span>
+            <span>Full node</span>
+          </div>
+          <div class="topology-key-item">
+            <span class="topology-shape topology-shape-diamond topology-tone-leader"></span>
+            <span>Leader only</span>
+          </div>
+          <div class="topology-key-item">
+            <span class="topology-shape topology-shape-triangle topology-tone-replica"></span>
+            <span>Replica only</span>
+          </div>
+          <div class="topology-key-item">
+            <span class="topology-shape topology-shape-square topology-tone-acceptor"></span>
+            <span>Acceptor only</span>
+          </div>
+          <div class="topology-key-item">
+            <span class="topology-shape topology-shape-octagon topology-tone-mixed"></span>
+            <span>Mixed pair</span>
+          </div>
+        </div>
       </div>
     </div>
-    <svg id="basicProtocolSvg"></svg>
-    <div id="decree-viewer">
-      <div id="proposalStatsContainer"></div>
-      <div id="decreePanel"></div>
+    <div class="pmmc-main-stage">
+      <svg id="basicProtocolSvg"></svg>
+    </div>
+    <div class="pmmc-decree-rail">
+      <div id="decree-viewer" hidden>
+        <div id="proposalStatsContainer"></div>
+        <div id="decreePanel"></div>
+      </div>
     </div>
   </div>
 
   <div class="controls-section">
-    <div class="control-grid">
-      <div class="control-group">
+    <div class="control-grid pmmc-primary-controls">
+      <div class="control-group control-group-scenario">
         <h3>Scenario</h3>
         <select id="scenarioSelect">
-          {{ pmmc_scenarios::core_options() }}
+          <option value="pmmc_single_client">PMMC Single Client (5 nodes)</option>
+          <option value="pmmc_leader_crash">PMMC Leader Crash (2L, 2R, 3A)</option>
+          <option value="pmmc_acceptor_majority_loss_then_recover">PMMC Acceptor Majority Loss + Recover (2L, 2R, 3A)</option>
+          <option value="pmmc_role_split">PMMC Role Split (2L, 2R, 3A)</option>
         </select>
       </div>
-      <div class="control-group">
-        <h3>Speed</h3>
+      <div class="control-group control-group-speed">
+        <h3>Pace</h3>
         <div class="speed-control">
-          <input type="range" id="speed" value="0.5" min="0.25" max="2" step="0.25" />
-          <span id="speedValue">0.5x</span>
+          <input type="range" id="speed" value="1" min="0.25" max="2" step="0.25" />
+          <span id="speedValue">1x</span>
         </div>
       </div>
+      <div class="button-group pmmc-primary-actions">
+        <button id="togglePlayBtn" class="btn-primary">Play</button>
+      </div>
+    </div>
+
+    <div id="secondaryControls" class="pmmc-secondary-controls" hidden>
       <div class="control-group">
         <h3>Node Labels</h3>
         <select id="nodeLabelMode">
@@ -50,18 +530,25 @@
           <option value="greek">Greek (α, β, γ)</option>
         </select>
       </div>
-      <div class="button-group">
-        <button id="togglePlayBtn">Play</button>
-        <button id="stepBackBtn" disabled>Step Back</button>
-        <button id="stepForwardBtn" disabled>Step Forward</button>
-        <button id="resetBtn">Reset</button>
+      <div class="button-group pmmc-secondary-actions">
+        <button id="resetBtn" class="btn-secondary">Reset</button>
       </div>
-      <div class="playback-cursor" id="playbackCursor">Batch 0/0</div>
+      <div id="playbackTools" class="pmmc-playback-tools" hidden>
+        <div class="button-group pmmc-playback-buttons">
+          <button id="stepBackBtn" class="btn-secondary" disabled>Step Back</button>
+          <button id="stepForwardBtn" class="btn-secondary" disabled>Step Forward</button>
+        </div>
+        <div class="playback-cursor" id="playbackCursor">Batch 0/0</div>
+      </div>
     </div>
 
     <div class="status-info">
-      <div id="statusTitle">Ready</div>
-      <div id="statusDescription">Click Play to start the PMMC single-client scenario</div>
+      <div id="statusTitle">Single Client</div>
+      <div id="statusDescription" class="scenario-description">
+        <p id="statusFocus">Start with one client and follow how a single request becomes ordered state.</p>
+        <p id="statusChange"></p>
+        <p id="statusNext"></p>
+      </div>
     </div>
   </div>
 

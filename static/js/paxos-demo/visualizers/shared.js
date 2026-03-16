@@ -85,8 +85,9 @@ export function getLeaderTargets(snapshot, fromId, canCommunicate) {
 
 export async function drawBeamsTo(visualizer, fromId, toIds, color, duration, pattern, options = {}) {
   if (!toIds || toIds.length === 0) return;
+  const staggerMs = typeof options.staggerMs === 'number' ? options.staggerMs : 0;
   if (typeof visualizer.drawBeamsTo === 'function') {
-    await visualizer.drawBeamsTo(fromId, toIds, color, duration, pattern, options);
+    await visualizer.drawBeamsTo(fromId, toIds, color, duration, pattern, staggerMs, options);
     return;
   }
   const promises = toIds.map((toId) =>

@@ -211,6 +211,15 @@ class PaxosVisualizer {
         return 'circle';
     }
 
+    getLabelYOffsetForShape(shape) {
+        return 0;
+    }
+
+    getStateYOffsetForShape(shape) {
+        if (shape === 'diamond') return 7;
+        return 0;
+    }
+
     createNodeShape(shape, x, y, radius, attrs = {}) {
         const ns = 'http://www.w3.org/2000/svg';
         let element;
@@ -399,13 +408,14 @@ class PaxosVisualizer {
             text.setAttribute('font-weight', 'bold');
             text.setAttribute('font-size', '14');
             text.setAttribute('class', 'paxos-node-label');
+            text.setAttribute('dy', String(this.getLabelYOffsetForShape(nodeShape)));
             text.textContent = this.#formatNodeLabel(i);
             group.appendChild(text);
 
             // State text
             const stateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             stateText.setAttribute('x', x);
-            stateText.setAttribute('y', y + this.nodeStateOffsetY);
+            stateText.setAttribute('y', y + this.nodeStateOffsetY + this.getStateYOffsetForShape(nodeShape));
             stateText.setAttribute('text-anchor', 'middle');
             stateText.setAttribute('fill', '#94a3b8');
             stateText.setAttribute('font-size', '10');
@@ -546,13 +556,14 @@ class PaxosVisualizer {
         text.setAttribute('font-weight', 'bold');
         text.setAttribute('font-size', '12');
         text.setAttribute('class', 'paxos-node-label');
+        text.setAttribute('dy', String(this.getLabelYOffsetForShape(nodeShape)));
         text.textContent = this.#formatNodeLabel(nodeId);
         group.appendChild(text);
 
         // State text
         const stateText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         stateText.setAttribute('x', x);
-        stateText.setAttribute('y', y + this.nodeStateOffsetY);
+        stateText.setAttribute('y', y + this.nodeStateOffsetY + this.getStateYOffsetForShape(nodeShape));
         stateText.setAttribute('text-anchor', 'middle');
         stateText.setAttribute('fill', '#94a3b8');
         stateText.setAttribute('font-size', '9');
@@ -761,11 +772,6 @@ class PaxosVisualizer {
         const glow = element.element.querySelector('.paxos-node-glow');
         if (!circle || !glow) return;
 
-        const originalStroke = circle.getAttribute('stroke');
-        const originalStrokeWidth = circle.getAttribute('stroke-width');
-        const originalFilter = circle.style.filter;
-        const originalGlowStroke = glow.getAttribute('stroke');
-        const originalGlowOpacity = glow.getAttribute('opacity');
         const resetDelay = options.resetDelay || 360;
         const strokeWidth = String(options.strokeWidth || 4);
         const glowRadius = options.glowRadius || 12;
@@ -778,11 +784,7 @@ class PaxosVisualizer {
         glow.setAttribute('opacity', String(glowOpacity));
 
         setTimeout(() => {
-            circle.setAttribute('stroke', originalStroke || '#1e40af');
-            circle.setAttribute('stroke-width', originalStrokeWidth || '2');
-            circle.style.filter = originalFilter;
-            glow.setAttribute('stroke', originalGlowStroke || '#60a5fa');
-            glow.setAttribute('opacity', originalGlowOpacity || '0');
+            this.resetNodeToRoleColor(nodeId);
         }, this.prefersReducedMotion ? 120 : resetDelay);
     }
 
@@ -1092,7 +1094,10 @@ class PaxosVisualizer {
             if (Number.isFinite(dist) && dist > 0.0001) {
                 const perpX = -dy / dist;
                 const perpY = dx / dist;
-                const curveOffset = 40 + ((fromId * 7 + toId * 11) % 30); // Varying curve for different beam pairs
+                const curveOffset =
+                    typeof options.curveOffset === 'number'
+                        ? options.curveOffset
+                        : 40 + ((fromId * 7 + toId * 11) % 30);
                 controlX += perpX * curveOffset;
                 controlY += perpY * curveOffset;
             }
