@@ -31,6 +31,7 @@ let stepBackBtn;
 let stepForwardBtn;
 let statsContainer;
 let decreePanel;
+let decreeViewer;
 let playbackCursor;
 let filterBar;
 let filterChips;
@@ -38,8 +39,17 @@ let filterToggle;
 let filterClose;
 let filterStatus;
 let nodeLabelModeSelect;
+let nodeLabelControl;
+let playbackStepGroup;
 const FRAME_WINDOW_MICROS = 50;
 const NODE_LABEL_MODE_STORAGE_KEY = 'paxos.nodeLabelMode';
+
+function setDemoStatus(title, description, color) {
+  if (!statusTitle || !statusDescription) return;
+  statusTitle.textContent = title;
+  statusDescription.textContent = description;
+  statusTitle.style.color = color;
+}
 
 function getPreferredNodeLabelMode() {
   const stored = localStorage.getItem(NODE_LABEL_MODE_STORAGE_KEY);
@@ -115,8 +125,19 @@ function updatePlaybackControls(playbackState) {
   if (!playbackState || !stepBackBtn || !stepForwardBtn || !togglePlayBtn) return;
   const { batchCount, cursor, playerMode, isBusy } = playbackState;
   const followLive = playerMode === 'follow';
+  const hasCapturedPlayback = batchCount > 0;
   stepBackBtn.disabled = followLive || isBusy || cursor < 0;
   stepForwardBtn.disabled = followLive || isBusy || cursor + 1 >= batchCount;
+
+  if (nodeLabelControl) {
+    nodeLabelControl.hidden = !hasCapturedPlayback;
+  }
+  if (playbackStepGroup) {
+    playbackStepGroup.hidden = !hasCapturedPlayback;
+  }
+  if (playbackCursor) {
+    playbackCursor.hidden = !hasCapturedPlayback;
+  }
 
   if (followLive) {
     togglePlayBtn.textContent = 'Pause';
@@ -130,6 +151,11 @@ function updatePlaybackControls(playbackState) {
     const displayIndex = Math.max(0, cursor + 1);
     playbackCursor.textContent = `Batch ${displayIndex}/${batchCount}`;
   }
+}
+
+function updateDecreeViewerVisibility() {
+  if (!decreeViewer) return;
+  decreeViewer.hidden = !scenarioStarted;
 }
 
 async function resetScenario() {
@@ -158,9 +184,8 @@ async function resetScenario() {
   if (togglePlayBtn) {
     togglePlayBtn.textContent = 'Play';
   }
-  statusTitle.textContent = 'Ready';
-  statusDescription.textContent = 'Click Play to start the demonstration';
-  statusTitle.style.color = '#60a5fa';
+  updateDecreeViewerVisibility();
+  setDemoStatus('Ready', 'Pick a scenario, then watch one live run.', '#60a5fa');
 }
 
 async function playScenario() {
@@ -168,6 +193,7 @@ async function playScenario() {
   const startingNewScenario = !scenarioStarted;
 
   scenarioStarted = true;
+  updateDecreeViewerVisibility();
 
   if (controller) {
     if (startingNewScenario) {
@@ -184,9 +210,11 @@ async function playScenario() {
     togglePlayBtn.textContent = 'Pause';
   }
 
-  statusTitle.textContent = 'Running';
-  statusDescription.textContent = 'Scenario in progress...';
-  statusTitle.style.color = '#60a5fa';
+  setDemoStatus(
+    'Capturing',
+    'Watching the live run. Focus on who opens the ballot, who replies, and where quorum forms.',
+    '#60a5fa'
+  );
 
   try {
     const response = await fetch('/api/start-scenario', {
@@ -211,9 +239,11 @@ async function playScenario() {
       }, 30000);
     });
 
-    statusTitle.textContent = 'Processing';
-    statusDescription.textContent = 'Waiting for all events to visualize...';
-    statusTitle.style.color = '#f59e0b';
+    setDemoStatus(
+      'Replaying',
+      'The live run is over. Replaying the captured batches so the order is easier to inspect.',
+      '#f59e0b'
+    );
 
     while (
       controller &&
@@ -226,9 +256,7 @@ async function playScenario() {
     }
   } catch (error) {
     console.error('Error starting scenario:', error);
-    statusTitle.style.color = '#ef4444';
-    statusTitle.textContent = 'Error';
-    statusDescription.textContent = error.message;
+    setDemoStatus('Error', error.message, '#ef4444');
   }
 
   scenarioRunning = false;
@@ -244,9 +272,7 @@ async function playScenario() {
 
   const totalEvents = controller ? controller.getCapturedEventCount() : 0;
 
-  statusTitle.textContent = 'Complete';
-  statusTitle.style.color = '#34d399';
-  statusDescription.textContent = `Scenario finished - ${totalEvents} total events visualized`;
+  setDemoStatus('Done', `${totalEvents} events captured. Step through the batches to inspect the run.`, '#34d399');
 }
 
 async function pauseScenario() {
@@ -258,8 +284,7 @@ async function pauseScenario() {
     togglePlayBtn.textContent = scenarioStarted ? 'Resume' : 'Play';
   }
 
-  statusTitle.textContent = 'Paused';
-  statusTitle.style.color = '#f59e0b';
+  setDemoStatus('Paused', 'Live replay paused. Resume or step through the captured batches.', '#f59e0b');
 }
 
 async function resumePlayback() {
@@ -274,8 +299,13 @@ async function resumePlayback() {
   if (togglePlayBtn) {
     togglePlayBtn.textContent = 'Pause';
   }
-  statusTitle.textContent = 'Running';
-  statusTitle.style.color = '#60a5fa';
+  setDemoStatus(
+    scenarioRunning ? 'Capturing' : 'Replaying',
+    scenarioRunning
+      ? 'Watching the live run. Focus on who opens the ballot, who replies, and where quorum forms.'
+      : 'Replaying the captured batches so the order is easier to inspect.',
+    '#60a5fa'
+  );
 }
 
 async function togglePlayPause() {
@@ -299,16 +329,14 @@ async function stepForward() {
   if (!controller) return;
   await controller.pause({ waitForFrame: true });
   await controller.stepForward();
-  statusTitle.textContent = 'Stepping';
-  statusTitle.style.color = '#f59e0b';
+  setDemoStatus('Stepping', 'Moving forward one captured batch.', '#f59e0b');
 }
 
 async function stepBack() {
   if (!controller) return;
   await controller.pause({ waitForFrame: true });
   await controller.stepBack();
-  statusTitle.textContent = 'Stepping';
-  statusTitle.style.color = '#f59e0b';
+  setDemoStatus('Stepping', 'Moving backward one captured batch.', '#f59e0b');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -323,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
   stepBackBtn = document.getElementById('stepBackBtn');
   stepForwardBtn = document.getElementById('stepForwardBtn');
   playbackCursor = document.getElementById('playbackCursor');
+  decreeViewer = document.getElementById('decree-viewer');
   statsContainer = document.getElementById('proposalStatsContainer');
   decreePanel = document.getElementById('decreePanel');
   filterBar = document.getElementById('eventFilterBar');
@@ -331,10 +360,14 @@ document.addEventListener('DOMContentLoaded', () => {
   filterClose = document.getElementById('eventFilterClose');
   filterStatus = document.getElementById('eventFilterStatus');
   nodeLabelModeSelect = document.getElementById('nodeLabelMode');
+  nodeLabelControl = document.getElementById('nodeLabelControl');
+  playbackStepGroup = document.getElementById('playbackStepGroup');
 
   if (nodeLabelModeSelect) {
     nodeLabelModeSelect.value = getPreferredNodeLabelMode();
   }
+
+  state.setSpeed(1);
 
   visualizer = new PaxosVisualizer('basicProtocolSvg', {
     nodeRadius: 195,
@@ -374,6 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildController();
   controller.connect();
   resetScenario();
+  updateDecreeViewerVisibility();
 
   if (controller) {
     updatePlaybackControls(controller.getPlaybackState());

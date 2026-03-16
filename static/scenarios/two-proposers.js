@@ -26,15 +26,18 @@ const scenarioTwoProposers = {
             colors.nextballot
           );
           const acceptors = [1, 2, 3, 4, 5, 6];
-          const beams = [];
-          for (const node of acceptors) {
-            beams.push(visualizer.drawBeam(0, node, colors.nextballot, 500, "solid", { motion: "proposal" }));
-            await sleep(80);
-          }
-          await Promise.all(beams);
+          await visualizer.drawBeamsTo(
+            0,
+            acceptors,
+            colors.nextballot,
+            500,
+            "solid",
+            80,
+            { motion: "proposal", focus: false }
+          );
           eventCounts.nextballot++;
           updateCounts();
-          await sleep(400);
+          await sleep(260);
         },
       },
       {
@@ -43,7 +46,6 @@ const scenarioTwoProposers = {
           "Nodes 1-4 reply: no prior votes. Creates gap constraint [⊥, 100)",
         action: async () => {
           visualizer.clearBeams();
-          const beams = [];
           for (let i of [1, 2, 3, 4]) {
             visualizer.setNodeState(i, "respond");
             visualizer.flashNode(i, colors.lastvote, { motion: "reply" });
@@ -52,16 +54,22 @@ const scenarioTwoProposers = {
               colors.lastvote
             );
             eventCounts.lastvote++;
-            beams.push(visualizer.drawBeam(i, 0, colors.lastvote, 500, "solid", { motion: "reply" }));
-            await sleep(100);
           }
-          await Promise.all(beams);
+          await visualizer.drawBeamsFrom(
+            [1, 2, 3, 4],
+            0,
+            colors.lastvote,
+            500,
+            "solid",
+            85,
+            { motion: "reply", focus: false }
+          );
           updateCounts();
           addEvent(
             '[Gap Constraint] Nodes 1-4: "We promise no vote < 100"',
             "#94a3b8"
           );
-          await sleep(300);
+          await sleep(220);
         },
       },
       {
@@ -78,15 +86,18 @@ const scenarioTwoProposers = {
             "#a78bfa"
           );
           const acceptors = [1, 2, 3, 4, 5, 6];
-          const beams = [];
-          for (const node of acceptors) {
-            beams.push(visualizer.drawBeam(1, node, colors.nextballot, 500, "solid", { motion: "proposal" }));
-            await sleep(80);
-          }
-          await Promise.all(beams);
+          await visualizer.drawBeamsTo(
+            1,
+            acceptors,
+            colors.nextballot,
+            500,
+            "solid",
+            70,
+            { motion: "proposal", focus: false }
+          );
           eventCounts.nextballot++;
           updateCounts();
-          await sleep(400);
+          await sleep(240);
         },
       },
       {
@@ -96,7 +107,6 @@ const scenarioTwoProposers = {
           "Nodes 1-5 reply: null. Node 6 times out. NEW gap constraint [⊥, 101)",
         action: async () => {
           visualizer.clearBeams();
-          const beams = [];
           for (let i of [1, 2, 3, 4, 5]) {
             visualizer.setNodeState(i, "respond");
             visualizer.flashNode(i, colors.lastvote, { motion: "reply" });
@@ -105,12 +115,21 @@ const scenarioTwoProposers = {
               colors.lastvote
             );
             eventCounts.lastvote++;
-            beams.push(visualizer.drawBeam(i, 1, colors.lastvote, 500, "dashed", { motion: "reply" }));
-            await sleep(100);
           }
-          await Promise.all(beams);
+          await visualizer.drawBeamsFrom(
+            [1, 2, 3, 4, 5],
+            1,
+            colors.lastvote,
+            500,
+            "dashed",
+            80,
+            { motion: "reply", focus: false }
+          );
           visualizer.setNodeState(6, "timeout");
-          visualizer.setNodeColor(6, "#64748b");
+          visualizer.setNodeMuted(6, true, {
+            color: "#64748b",
+            opacity: 0.58,
+          });
           visualizer.pulseNode(6, "#94a3b8", {
             resetDelay: 420,
             glowRadius: 8,
@@ -123,7 +142,7 @@ const scenarioTwoProposers = {
             '[NEW Gap] Nodes 1-5: "Promise no vote in [⊥, 101) - replaces [⊥, 100)"',
             "#ef4444"
           );
-          await sleep(300);
+          await sleep(220);
         },
       },
       {
@@ -139,12 +158,15 @@ const scenarioTwoProposers = {
             "[BeginBallot] P0 tries to vote with ballot 100",
             colors.beginballot
           );
-          const beams = [];
-          for (let i of [1, 2, 3, 4]) {
-            beams.push(visualizer.drawBeam(0, i, "#ef4444", 500, "dotted", { motion: "failure" }));
-            await sleep(80);
-          }
-          await Promise.all(beams);
+          await visualizer.drawBeamsTo(
+            0,
+            [1, 2, 3, 4],
+            "#ef4444",
+            500,
+            "dotted",
+            55,
+            { motion: "failure", focus: false }
+          );
           for (let i of [1, 2, 3, 4]) {
             visualizer.setNodeState(i, "reject");
             visualizer.pulseNode(i, "#ef4444", {
@@ -153,7 +175,7 @@ const scenarioTwoProposers = {
               glowOpacity: 0.78,
             });
           }
-          await sleep(200);
+          await sleep(120);
           addEvent(
             "[REJECT] Gap violation: 100 < 101 (promised gap)",
             "#ef4444"
@@ -164,7 +186,7 @@ const scenarioTwoProposers = {
           );
           eventCounts.beginballot++;
           updateCounts();
-          await sleep(400);
+          await sleep(260);
         },
       },
       {
@@ -181,16 +203,21 @@ const scenarioTwoProposers = {
             "#a78bfa"
           );
           const quorum = [1, 2, 3, 4, 5];
-          const beams = [];
           for (const node of quorum) {
             visualizer.setNodeState(node, "wait");
-            beams.push(visualizer.drawBeam(1, node, colors.beginballot, 500, "solid", { motion: "proposal" }));
-            await sleep(80);
           }
-          await Promise.all(beams);
+          await visualizer.drawBeamsTo(
+            1,
+            quorum,
+            colors.beginballot,
+            500,
+            "solid",
+            70,
+            { motion: "proposal", focus: false }
+          );
           eventCounts.beginballot++;
           updateCounts();
-          await sleep(300);
+          await sleep(220);
         },
       },
       {
@@ -200,7 +227,6 @@ const scenarioTwoProposers = {
         action: async () => {
           visualizer.clearBeams();
           const quorum = [1, 2, 3, 4, 5];
-          const beams = [];
           for (const node of quorum) {
             visualizer.setNodeState(node, "voted");
             visualizer.flashNode(node, colors.voted, { motion: "reply" });
@@ -209,11 +235,18 @@ const scenarioTwoProposers = {
               colors.voted
             );
             eventCounts.voted++;
-            beams.push(visualizer.drawBeam(node, 1, colors.voted, 500, "solid", { motion: "reply" }));
-            await sleep(100);
           }
-          await Promise.all(beams);
+          await visualizer.drawBeamsFrom(
+            quorum,
+            1,
+            colors.voted,
+            500,
+            "solid",
+            80,
+            { motion: "reply", focus: false }
+          );
           updateCounts();
+          await sleep(180);
         },
       },
       {
@@ -233,11 +266,11 @@ const scenarioTwoProposers = {
           for (const node of acceptors) {
             visualizer.setNodeState(node, "learned");
           }
-          await visualizer.drawBeamsTo(1, acceptors, colors.success, 500, 'solid', 80, { motion: "success" });
+          await visualizer.drawBeamsTo(1, acceptors, colors.success, 500, 'solid', 80, { motion: "success", focus: false });
           eventCounts.success += acceptors.length;
           eventCounts.learned += acceptors.length;
           updateCounts();
-          await sleep(500);
+          await sleep(380);
         },
       },
       {

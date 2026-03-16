@@ -42,6 +42,17 @@ export function scheduleNodeReset(visualizer, nodeId, delayMs) {
   }, delayMs);
 }
 
+export function flashNodeWithMotion(visualizer, nodeId, color, options = {}) {
+  if (!visualizer) return;
+  if (typeof visualizer.flashNode === 'function') {
+    visualizer.flashNode(nodeId, color, options);
+    return;
+  }
+  if (typeof visualizer.activateNode === 'function') {
+    visualizer.activateNode(nodeId, color, options);
+  }
+}
+
 export function getBeamDuration(snapshot, base = 500) {
   const speed = snapshot?.simulation?.speed || 1;
   return Math.max(200, (base / speed) * 0.67);
@@ -72,14 +83,14 @@ export function getLeaderTargets(snapshot, fromId, canCommunicate) {
   return targets;
 }
 
-export async function drawBeamsTo(visualizer, fromId, toIds, color, duration, pattern) {
+export async function drawBeamsTo(visualizer, fromId, toIds, color, duration, pattern, options = {}) {
   if (!toIds || toIds.length === 0) return;
   if (typeof visualizer.drawBeamsTo === 'function') {
-    await visualizer.drawBeamsTo(fromId, toIds, color, duration, pattern);
+    await visualizer.drawBeamsTo(fromId, toIds, color, duration, pattern, options);
     return;
   }
   const promises = toIds.map((toId) =>
-    visualizer.drawBeam(fromId, toId, color, duration, pattern)
+    visualizer.drawBeam(fromId, toId, color, duration, pattern, options)
   );
   await Promise.all(promises);
 }

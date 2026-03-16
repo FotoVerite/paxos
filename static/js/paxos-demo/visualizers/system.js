@@ -1,4 +1,5 @@
 import {
+  flashNodeWithMotion,
   getBeamDuration,
   listText,
   nodeText,
@@ -97,6 +98,10 @@ export const SYSTEM_EVENT_VISUALIZERS = {
       if (typeof visualizer.setNodeState === 'function') {
         visualizer.setNodeState(event.id, 'passive');
       }
+      flashNodeWithMotion(visualizer, event.id, this.color, {
+        motion: 'failure',
+        resetDelay: 320,
+      });
       scheduleNodeReset(visualizer, event.id, 250);
     }
   },
@@ -113,6 +118,13 @@ export const SYSTEM_EVENT_VISUALIZERS = {
       }
       if (typeof visualizer.setNodeState === 'function') {
         visualizer.setNodeState(event.id, 'crash');
+      }
+      if (typeof visualizer.pulseNode === 'function') {
+        visualizer.pulseNode(event.id, this.color, {
+          resetDelay: 420,
+          glowRadius: 12,
+          glowOpacity: 0.82,
+        });
       }
       if (typeof visualizer.setNodeCrashed === 'function') {
         visualizer.setNodeCrashed(event.id, true);
@@ -160,11 +172,17 @@ export const SYSTEM_EVENT_VISUALIZERS = {
         canCommunicate(leader, event.to) &&
         typeof visualizer.drawBeam === 'function'
       ) {
-        await visualizer.drawBeam(leader, event.to, this.color, duration, 'dashed');
+        await visualizer.drawBeam(leader, event.to, this.color, duration, 'dashed', {
+          motion: 'proposal',
+        });
       }
       if (typeof visualizer.setNodeState === 'function') {
         visualizer.setNodeState(event.to, 'stop-send');
       }
+      flashNodeWithMotion(visualizer, event.to, this.color, {
+        motion: 'proposal',
+        resetDelay: duration + 40,
+      });
       scheduleNodeReset(visualizer, event.to, duration + 40);
     }
   },

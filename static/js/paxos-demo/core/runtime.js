@@ -244,6 +244,16 @@ export function createPaxosDemoController({
     },
   });
 
+  context.getPlaybackMetrics = () => {
+    const playbackState = playback.getPlaybackState();
+    return {
+      ...playbackState,
+      backlogBatches: Math.max(0, playbackState.batchCount - (playbackState.cursor + 1)),
+      queueLength: reader.eventQueue.length(),
+      queueProcessing: reader.eventQueue.isProcessing(),
+    };
+  };
+
   function invalidate(options = {}) {
     reader.invalidate();
     if (options.clearHistory) {

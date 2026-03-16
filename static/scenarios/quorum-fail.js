@@ -47,7 +47,10 @@ const scenarioQuorumFail = {
           // Others don't respond - timeout
           for (let i of [4, 5, 6]) {
             visualizer.setNodeState(i, "timeout");
-            visualizer.setNodeColor(i, "#64748b");
+            visualizer.setNodeMuted(i, true, {
+              color: "#64748b",
+              opacity: 0.58,
+            });
             visualizer.pulseNode(i, "#94a3b8", {
               resetDelay: 420,
               glowRadius: 8,

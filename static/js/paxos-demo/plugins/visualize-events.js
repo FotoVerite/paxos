@@ -44,6 +44,9 @@ function createQuietVisualizer(visualizer) {
   return {
     setNodeState: (nodeId, state) => visualizer.setNodeState(nodeId, state),
     activateNode: noop,
+    flashNode: noop,
+    holdNodeActivation: noop,
+    pulseNode: noop,
     resetNodeToRoleColor: noop,
     scheduleNodeReset: noop,
     drawBeam: noopAsync,

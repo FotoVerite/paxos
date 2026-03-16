@@ -1,5 +1,6 @@
 import {
   drawBeamsTo,
+  flashNodeWithMotion,
   formatDecree,
   getBeamDuration,
   getReachableTargets,
@@ -18,7 +19,7 @@ export const CLASSIC_EVENT_VISUALIZERS = {
 
     async visualize(event, visualizer, state, canCommunicate) {
       visualizer.setNodeState(event.id, 'propose');
-      visualizer.activateNode(event.id, this.color);
+      flashNodeWithMotion(visualizer, event.id, this.color, { motion: 'proposal' });
 
       const snapshot = state.snapshot();
       const duration = getBeamDuration(snapshot, 500);
@@ -28,7 +29,7 @@ export const CLASSIC_EVENT_VISUALIZERS = {
         snapshot.cluster?.total_nodes,
         canCommunicate
       );
-      await drawBeamsTo(visualizer, event.id, targets, this.color, duration, 'solid');
+      await drawBeamsTo(visualizer, event.id, targets, this.color, duration, 'solid', { motion: 'proposal' });
 
       scheduleNodeReset(visualizer, event.id, duration + 50);
     }
@@ -44,13 +45,13 @@ export const CLASSIC_EVENT_VISUALIZERS = {
 
     async visualize(event, visualizer, state, canCommunicate) {
       visualizer.setNodeState(event.id, 'promise');
-      visualizer.activateNode(event.id, this.color);
+      flashNodeWithMotion(visualizer, event.id, this.color, { motion: 'reply' });
 
       if (event.from !== undefined && event.from !== event.id) {
         const snapshot = state.snapshot();
         const duration = getBeamDuration(snapshot, 500);
         if (canCommunicate(event.id, event.from)) {
-          await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed');
+          await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dashed', { motion: 'reply' });
         }
         scheduleNodeReset(visualizer, event.id, duration + 50);
       } else {
@@ -69,7 +70,7 @@ export const CLASSIC_EVENT_VISUALIZERS = {
 
     async visualize(event, visualizer, state, canCommunicate) {
       visualizer.setNodeState(event.id, 'accept');
-      visualizer.activateNode(event.id, this.color);
+      flashNodeWithMotion(visualizer, event.id, this.color, { motion: 'proposal' });
 
       const snapshot = state.snapshot();
       const duration = getBeamDuration(snapshot, 500);
@@ -78,7 +79,7 @@ export const CLASSIC_EVENT_VISUALIZERS = {
       const targets = quorum.filter(
         (nodeId) => nodeId !== event.id && canCommunicate(event.id, nodeId)
       );
-      await drawBeamsTo(visualizer, event.id, targets, this.color, duration, 'solid');
+      await drawBeamsTo(visualizer, event.id, targets, this.color, duration, 'solid', { motion: 'proposal' });
 
       scheduleNodeReset(visualizer, event.id, duration + 50);
     }
@@ -94,14 +95,14 @@ export const CLASSIC_EVENT_VISUALIZERS = {
 
    async visualize(event, visualizer, state, canCommunicate) {
      visualizer.setNodeState(event.id, 'voted');
-     visualizer.activateNode(event.id, this.color);
+     flashNodeWithMotion(visualizer, event.id, this.color, { motion: 'reply' });
 
      const snapshot = state.snapshot();
      const duration = getBeamDuration(snapshot, 500);
 
      if (event.from !== undefined && event.from !== event.id) {
        if (canCommunicate(event.id, event.from)) {
-         await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dotted');
+         await visualizer.drawBeam(event.id, event.from, this.color, duration, 'dotted', { motion: 'reply' });
        }
      }
 
@@ -120,7 +121,7 @@ export const CLASSIC_EVENT_VISUALIZERS = {
 
    async visualize(event, visualizer, state, canCommunicate) {
      visualizer.setNodeState(event.id, 'learn');
-     visualizer.activateNode(event.id, this.color);
+     flashNodeWithMotion(visualizer, event.id, this.color, { motion: 'success', resetDelay: 700 });
 
      scheduleNodeReset(visualizer, event.id, 350);
    }
@@ -137,7 +138,7 @@ export const CLASSIC_EVENT_VISUALIZERS = {
 
     async visualize(event, visualizer, state, canCommunicate) {
       visualizer.setNodeState(event.id, 'learn');
-      visualizer.activateNode(event.id, this.color);
+      flashNodeWithMotion(visualizer, event.id, this.color, { motion: 'success', resetDelay: 700 });
 
       scheduleNodeReset(visualizer, event.id, 350);
     }
@@ -213,7 +214,7 @@ export const CLASSIC_EVENT_VISUALIZERS = {
 
    async visualize(event, visualizer, state, canCommunicate) {
      visualizer.setNodeState(event.id, 'success');
-     visualizer.activateNode(event.id, this.color);
+     flashNodeWithMotion(visualizer, event.id, this.color, { motion: 'success', resetDelay: 850 });
 
      const snapshot = state.snapshot();
      if (snapshot.cluster) {
@@ -222,7 +223,7 @@ export const CLASSIC_EVENT_VISUALIZERS = {
          snapshot.cluster.total_nodes,
          canCommunicate
        );
-       await drawBeamsTo(visualizer, event.id, targets, this.color, 350, 'solid');
+       await drawBeamsTo(visualizer, event.id, targets, this.color, 350, 'solid', { motion: 'success' });
        scheduleNodeReset(visualizer, event.id, 400);
      }
    }

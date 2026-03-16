@@ -76,7 +76,8 @@ function renderStats(state, statsContainer, options) {
     const isSelected = selectedNodeId === nodeId;
     const selectClass = isSelected ? 'selected' : '';
     html += `<div class='proposal-stat-item ${selectClass}' data-node-id='${nodeId}'>`;
-    html += `<span class='node-id'>${nodeShortLabel(nodeId, options?.nodeLabels)}:</span> ${decreeCount}`;
+    html += `<span class='node-id'>${nodeShortLabel(nodeId, options?.nodeLabels)}</span>`;
+    html += `<span class='proposal-stat-count'>${decreeCount}</span>`;
     html += `</div>`;
     visibleCount += 1;
   }
@@ -96,7 +97,7 @@ function renderDecreePanel(state, decreePanel, options) {
 
   if (selectedNodeId === null || selectedNodeId === undefined) {
     const hint =
-      options?.emptySelectionHint || `Click a node to view its learned ${options?.itemLabelPlural || 'decrees'}`;
+      options?.emptySelectionHint || `Select a node to inspect its learned ${options?.itemLabelPlural || 'decrees'}.`;
     decreePanel.innerHTML = `<p class='decree-hint'>${hint}</p>`;
     return;
   }
@@ -110,20 +111,23 @@ function renderDecreePanel(state, decreePanel, options) {
     return;
   }
   if (!node || node.decrees.length === 0) {
-    decreePanel.innerHTML = `<p class='decree-hint'>${nodeLabel(selectedNodeId, options?.nodeLabels)} has not learned any ${options?.itemLabelPlural || 'decrees'} yet</p>`;
+    decreePanel.innerHTML = `<p class='decree-hint'>${nodeLabel(selectedNodeId, options?.nodeLabels)} has not learned any ${options?.itemLabelPlural || 'decrees'} yet.</p>`;
     return;
   }
 
   const sortedDecrees = [...node.decrees].sort((a, b) => a.decree_num - b.decree_num);
-  let html = `<div class='decree-content'>`;
+  let html = `<div class='decree-content decree-content-live'>`;
   const countLabel = node.decrees.length === 1
     ? (options?.itemLabelSingular || 'decree')
     : (options?.itemLabelPlural || 'decrees');
-  html += `<div class='decree-node-label'>${nodeLabel(selectedNodeId, options?.nodeLabels)} (${node.decrees.length} ${countLabel})</div>`;
+  html += `<div class='decree-node-label'><span class='decree-node-name'>${nodeLabel(selectedNodeId, options?.nodeLabels)}</span><span class='decree-node-count'>${node.decrees.length} ${countLabel}</span></div>`;
   html += `<div class='decree-list'>`;
 
   for (const decree of sortedDecrees) {
-    html += `<div class='decree-item'><div class='decree-text'>[${options?.itemRenderLabel || 'command'} ${decree.decree_num}] "${decree.decree}"</div></div>`;
+    html += `<div class='decree-item'>`;
+    html += `<div class='decree-item-label'>${options?.itemRenderLabel || 'command'} ${decree.decree_num}</div>`;
+    html += `<div class='decree-text'>${decree.decree}</div>`;
+    html += `</div>`;
   }
 
   html += '</div></div>';
