@@ -16,26 +16,26 @@
             </div>
             
             <div class="role-legend">
-                <div class="legend-title">Node Colors</div>
+                <div class="legend-title">Role Key</div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #3b82f6;"></div>
-                    <span>All Roles (P/A/L)</span>
+                    <span class="role-mark role-mark-all" aria-hidden="true"></span>
+                    <span>All roles</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #f59e0b;"></div>
+                    <span class="role-mark role-mark-acceptor" aria-hidden="true"></span>
                     <span>Acceptor Only</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #8b5cf6;"></div>
+                    <span class="role-mark role-mark-proposer" aria-hidden="true"></span>
                     <span>Proposer Only</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #10b981;"></div>
+                    <span class="role-mark role-mark-learner" aria-hidden="true"></span>
                     <span>Learner Only</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #6b7280;"></div>
-                    <span>Mixed (2 roles)</span>
+                    <span class="role-mark role-mark-mixed" aria-hidden="true"></span>
+                    <span>Two roles</span>
                 </div>
             </div>
         </div>
@@ -56,9 +56,11 @@
             <div class="control-group">
                 <h3>Scenario</h3>
                 <select id="scenarioSelect">
-                    <option value="happy_path_with_leader" selected>Happy Path With Leader</option>
-                    <option value="asymmetric_proposers">Asymmetric Proposers</option>
-                    <option value="network_partition">Reconfiguration & Recovery</option>
+                    <option value="happy_path_with_leader" selected>All Roles Happy Path</option>
+                    <option value="dedicated_acceptors">Dedicated Acceptors</option>
+                    <option value="learners_off_write_path">Learners Off the Write Path</option>
+                    <option value="competing_proposers">Competing Proposers</option>
+                    <option value="partial_roles">Mixed vs Dedicated</option>
                 </select>
             </div>
             <div class="control-group">
@@ -159,6 +161,263 @@
 
 <style>
 /* Demo-specific overrides for partial-roles-demo layout */
+.partial-roles-demo {
+    color: var(--pms-text-primary);
+}
+
+.partial-roles-demo .visualization-main,
+.partial-roles-demo .controls-section,
+.partial-roles-demo .stats-section,
+.partial-roles-demo .event-log-section {
+    background: linear-gradient(180deg, rgba(9, 19, 12, 0.96) 0%, rgba(5, 13, 8, 0.98) 100%);
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.partial-roles-demo .topology-info-panel,
+.partial-roles-demo .floating-decree-viewer,
+.partial-roles-demo .status-info,
+.partial-roles-demo .role-legend,
+.partial-roles-demo .stat-card,
+.partial-roles-demo .event-log-wrapper {
+    background: rgba(9, 19, 12, 0.88);
+    border-color: rgba(34, 197, 94, 0.18);
+    color: var(--pms-text-primary);
+}
+
+.partial-roles-demo .topology-info-panel h3,
+.partial-roles-demo .control-group h3,
+.partial-roles-demo .stats-section h3,
+.partial-roles-demo .event-log-section h3,
+.partial-roles-demo .legend-title,
+.partial-roles-demo #statusDescription,
+.partial-roles-demo .playback-cursor,
+.partial-roles-demo .event-filter-status,
+.partial-roles-demo .event-filter-title,
+.partial-roles-demo .event-time,
+.partial-roles-demo .stat-label,
+.partial-roles-demo .speed-control span {
+    color: var(--pms-text-muted);
+}
+
+.partial-roles-demo .btn-primary {
+    background: var(--pms-primary);
+    color: #03110a;
+}
+
+.partial-roles-demo .btn-primary:hover {
+    background: var(--pms-primary-light);
+}
+
+.partial-roles-demo .btn-secondary,
+.partial-roles-demo .btn-compact,
+.partial-roles-demo .event-filter-toggle {
+    background: rgba(9, 19, 12, 0.9);
+    border: 1px solid rgba(34, 197, 94, 0.18);
+    color: var(--pms-text-primary);
+}
+
+.partial-roles-demo .btn-secondary:hover:not(:disabled),
+.partial-roles-demo .btn-compact:hover,
+.partial-roles-demo .event-filter-toggle:hover {
+    background: rgba(14, 29, 18, 0.96);
+    border-color: rgba(34, 197, 94, 0.34);
+}
+
+.partial-roles-demo .btn-compact.active {
+    background: rgba(34, 197, 94, 0.18);
+    border-color: var(--pms-primary);
+    color: #dcfce7;
+}
+
+.partial-roles-demo .status-info {
+    border-left-color: var(--pms-primary);
+}
+
+.partial-roles-demo #statusTitle {
+    color: var(--pms-primary);
+}
+
+.partial-roles-demo .stat-value {
+    color: var(--pms-primary-light);
+}
+
+.partial-roles-demo .event-log-wrapper {
+    background: rgba(4, 11, 7, 0.96);
+}
+
+.partial-roles-demo .event-filter-bar {
+    background: rgba(6, 14, 9, 0.96);
+    border-bottom-color: rgba(34, 197, 94, 0.16);
+}
+
+.partial-roles-demo .event-filter-chip {
+    border-color: rgba(34, 197, 94, 0.16);
+    background: rgba(10, 20, 13, 0.72);
+    color: var(--pms-text-primary);
+}
+
+.partial-roles-demo .event-filter-chip.active {
+    border-color: var(--pms-primary);
+    background: rgba(34, 197, 94, 0.14);
+}
+
+.partial-roles-demo .event-item {
+    background: rgba(12, 25, 16, 0.9);
+    border-color: rgba(34, 197, 94, 0.14);
+    border-left-color: var(--pms-primary);
+    color: var(--pms-text-primary);
+}
+
+.partial-roles-demo .event-item.active {
+    background: rgba(16, 34, 21, 0.96);
+    border-color: rgba(34, 197, 94, 0.28);
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.12);
+}
+
+.partial-roles-demo #topologyDetails {
+    display: grid;
+    gap: 10px;
+}
+
+.partial-roles-demo .topology-summary {
+    display: grid;
+    gap: 6px;
+}
+
+.partial-roles-demo .topology-summary-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(34, 197, 94, 0.14);
+    background: rgba(7, 16, 10, 0.76);
+    border-radius: 8px;
+}
+
+.partial-roles-demo .topology-summary-chip .k {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pms-text-muted);
+}
+
+.partial-roles-demo .topology-summary-chip .v {
+    font-size: 11px;
+    color: #dcfce7;
+}
+
+.partial-roles-demo .topology-role-list {
+    display: grid;
+    gap: 8px;
+}
+
+.partial-roles-demo .topology-role-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    padding: 9px 10px;
+    border: 1px solid rgba(34, 197, 94, 0.14);
+    background: rgba(6, 14, 9, 0.8);
+    border-radius: 8px;
+}
+
+.partial-roles-demo .topology-role-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 11px;
+    color: #dcfce7;
+}
+
+.partial-roles-demo .topology-node-list {
+    grid-column: 1 / 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.partial-roles-demo .topology-role-count {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    min-width: 24px;
+    padding: 4px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(34, 197, 94, 0.18);
+    background: rgba(34, 197, 94, 0.08);
+    color: var(--pms-primary-light);
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.partial-roles-demo .topology-node-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(12, 25, 16, 0.96);
+    border: 1px solid rgba(34, 197, 94, 0.16);
+    color: #d1fae5;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.partial-roles-demo .role-legend {
+    display: grid;
+    gap: 8px;
+}
+
+.partial-roles-demo .legend-item {
+    gap: 8px;
+}
+
+.partial-roles-demo .role-mark {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+    display: inline-block;
+    border: 1px solid rgba(220, 252, 231, 0.3);
+    background: rgba(34, 197, 94, 0.12);
+}
+
+.partial-roles-demo .role-mark-all {
+    border-radius: 999px;
+    background:
+      linear-gradient(135deg, rgba(74, 222, 128, 0.88) 0%, rgba(16, 185, 129, 0.76) 100%);
+}
+
+.partial-roles-demo .role-mark-acceptor {
+    border-radius: 2px;
+    background: linear-gradient(180deg, rgba(45, 212, 191, 0.9) 0%, rgba(20, 184, 166, 0.74) 100%);
+}
+
+.partial-roles-demo .role-mark-proposer {
+    border-radius: 2px;
+    background: linear-gradient(135deg, rgba(192, 132, 252, 0.9) 0%, rgba(139, 92, 246, 0.74) 100%);
+    transform: rotate(45deg);
+}
+
+.partial-roles-demo .topology-role-label .role-mark-proposer,
+.partial-roles-demo .legend-item .role-mark-proposer {
+    margin-right: 2px;
+}
+
+.partial-roles-demo .role-mark-learner {
+    clip-path: polygon(50% 6%, 94% 88%, 6% 88%);
+    background: linear-gradient(180deg, rgba(110, 231, 183, 0.94) 0%, rgba(16, 185, 129, 0.74) 100%);
+}
+
+.partial-roles-demo .role-mark-mixed {
+    clip-path: polygon(30% 6%, 70% 6%, 94% 30%, 94% 70%, 70% 94%, 30% 94%, 6% 70%, 6% 30%);
+    background: linear-gradient(135deg, rgba(148, 163, 184, 0.88) 0%, rgba(100, 116, 139, 0.74) 100%);
+}
+
 .partial-roles-demo .visualization-main {
     display: grid;
     grid-template-columns: 250px 1fr 250px;

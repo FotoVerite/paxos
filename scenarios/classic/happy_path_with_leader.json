@@ -16,7 +16,7 @@
   "startup": {
     "emit_leader_elected": true
   },
-  "proposal_interval": 25,
+  "proposal_interval": 6,
   "proposals": [
     {
       "author": "Leader",

@@ -14,14 +14,25 @@ import { createPlaybackDelayPlugin } from '/js/paxos-demo/plugins/playback-delay
 import { createNodeCapabilitiesPlugin } from '/js/paxos-demo/plugins/node-capabilities.js';
 
 const FRAME_WINDOW_MICROS = 50;
+const ROLE_ORDER = ['Proposer', 'Acceptor', 'Learner'];
+const ROLE_CODE = {
+  Proposer: 'P',
+  Acceptor: 'A',
+  Learner: 'L',
+};
+const SIGNATURE_PRIORITY = ['PAL', 'PA', 'PL', 'AL', 'P', 'A', 'L'];
 
 const scenarioDescriptions = {
   happy_path_with_leader:
-    'A 5-node cluster with one designated leader. Watch the leader propose commands, all nodes reach consensus, and learners execute them in order.',
-  asymmetric_proposers:
-    'Two dedicated proposer/learner nodes compete against 4 acceptor-only nodes. Proposers simultaneously propose values every iteration, demonstrating consensus with role separation.',
-  network_partition:
-    'A network partition occurs and the cluster recovers. Watch how Paxos maintains safety even with partial connectivity, then resumes consensus.',
+    'Start here. Every node carries every role, so you can see the baseline before the topology gets split apart.',
+  dedicated_acceptors:
+    'One proposer-learner node writes through an acceptor-only quorum while separate learner-only nodes stay downstream.',
+  learners_off_write_path:
+    'The proposer-learner reaches quorum first, then the learner-only tier catches up from the success broadcast.',
+  competing_proposers:
+    'Two proposer-learner nodes compete against the same acceptor-only core while learner-only followers stay separate.',
+  partial_roles:
+    'A mixed cluster combines full-role nodes with dedicated proposers, acceptors, and learners so the topology split is visible in one run.',
 };
 
 let controller = null;
@@ -54,6 +65,28 @@ let filterChips;
 let filterToggle;
 let filterClose;
 let filterStatus;
+
+function getRoleSignature(roles = []) {
+  return ROLE_ORDER.filter((role) => roles.includes(role))
+    .map((role) => ROLE_CODE[role])
+    .join('');
+}
+
+function getRoleBucketMeta(signature) {
+  if (signature === 'PAL') {
+    return { label: 'All roles', markClass: 'role-mark-all' };
+  }
+  if (signature === 'A') {
+    return { label: 'Acceptor only', markClass: 'role-mark-acceptor' };
+  }
+  if (signature === 'P') {
+    return { label: 'Proposer only', markClass: 'role-mark-proposer' };
+  }
+  if (signature === 'L') {
+    return { label: 'Learner only', markClass: 'role-mark-learner' };
+  }
+  return { label: 'Two roles', markClass: 'role-mark-mixed' };
+}
 
 function updatePlaybackControls(playbackState) {
   if (!playbackState) return;
@@ -103,40 +136,72 @@ function updateTopologyPanel() {
   const snapshot = state.snapshot();
   if (!snapshot.cluster || !topologyDetails) return;
 
-  const stats = { P: 0, A: 0, L: 0 };
-  const nodesByRole = { Proposers: [], Acceptors: [], Learners: [] };
+  const buckets = new Map();
 
   for (let i = 0; i < snapshot.cluster.total_nodes; i++) {
     const node = snapshot.nodes.get(i);
     if (!node || !node.role) continue;
 
     const roles = node.role.roles || [];
-    if (roles.includes('Proposer')) {
-      stats.P += 1;
-      nodesByRole.Proposers.push(i);
+    const signature = getRoleSignature(roles);
+    if (!signature) continue;
+    if (!buckets.has(signature)) {
+      buckets.set(signature, []);
     }
-    if (roles.includes('Acceptor')) {
-      stats.A += 1;
-      nodesByRole.Acceptors.push(i);
-    }
-    if (roles.includes('Learner')) {
-      stats.L += 1;
-      nodesByRole.Learners.push(i);
-    }
+    buckets.get(signature).push(i);
   }
 
   const strategyLabel = learningStrategySelect
     ? learningStrategySelect.options[learningStrategySelect.selectedIndex]?.text
     : 'Direct';
 
+  const orderedSignatures = Array.from(buckets.keys()).sort((a, b) => {
+    const indexA = SIGNATURE_PRIORITY.indexOf(a);
+    const indexB = SIGNATURE_PRIORITY.indexOf(b);
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+
+  const roleRows = orderedSignatures
+    .map((signature) => {
+      const nodes = buckets.get(signature) || [];
+      const meta = getRoleBucketMeta(signature);
+      const chips = nodes
+        .map((nodeId) => `<span class="topology-node-chip">${nodeId}</span>`)
+        .join('');
+
+      return `
+        <div class="topology-role-row">
+          <div class="topology-role-label">
+            <span class="role-mark ${meta.markClass}" aria-hidden="true"></span>
+            <span>${meta.label}</span>
+          </div>
+          <div class="topology-node-list">${chips}</div>
+          <div class="topology-role-count">${nodes.length}</div>
+        </div>
+      `;
+    })
+    .join('');
+
   topologyDetails.innerHTML = `
-    <div class="topology-stat-group">
-      <p><strong>Total Nodes:</strong> ${snapshot.cluster.total_nodes}</p>
-      <p><span class="role-tag role-p">P</span> Proposers: ${stats.P} (${nodesByRole.Proposers.join(', ')})</p>
-      <p><span class="role-tag role-a">A</span> Acceptors: ${stats.A} (${nodesByRole.Acceptors.join(', ')})</p>
-      <p><span class="role-tag role-l">L</span> Learners: ${stats.L} (${nodesByRole.Learners.join(', ')})</p>
-      <p><strong>Quorum:</strong> ${snapshot.cluster.quorum_size} Acceptors</p>
-      <p><strong>Strategy:</strong> ${strategyLabel}</p>
+    <div class="topology-summary">
+      <div class="topology-summary-chip">
+        <span class="k">Nodes</span>
+        <span class="v">${snapshot.cluster.total_nodes}</span>
+      </div>
+      <div class="topology-summary-chip">
+        <span class="k">Quorum</span>
+        <span class="v">${snapshot.cluster.quorum_size} A</span>
+      </div>
+      <div class="topology-summary-chip">
+        <span class="k">Learning</span>
+        <span class="v">${strategyLabel}</span>
+      </div>
+    </div>
+    <div class="topology-role-list">
+      ${roleRows}
     </div>
   `;
 }
@@ -282,13 +347,8 @@ async function playScenario() {
   statusTitle.style.color = '#60a5fa';
 
   try {
-    let nodeCount = 9;
-    if (scenarioValue === 'happy_path_with_leader') {
-      nodeCount = 5;
-    }
-
     const payload = {
-      node_count: nodeCount,
+      node_count: 9,
       duration_secs: 60,
       scenario_type: scenarioValue,
       learning_strategy: strategy,
@@ -452,6 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
     nodeRadius: 180,
     nodeCircleRadius: 24,
     layoutMode: 'circle',
+    useRoleShapes: true,
   });
 
   speedSlider.addEventListener('change', (e) => {

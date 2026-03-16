@@ -1,49 +1,57 @@
 {
   "name": "partial_roles",
-  "description": "A 9-node classic cluster with proposer-only, acceptor-only, learner-only, and full-role nodes.",
+  "description": "A mixed cluster combines full-role nodes with dedicated proposers, acceptors, and learners so the topology split is visible in one run.",
   "topology": {
     "groups": [
       {
         "count": 2,
         "roles": {
           "proposer": true,
-          "acceptor": false,
-          "learner": false
-        }
-      },
-      {
-        "count": 3,
-        "roles": {
-          "proposer": false,
           "acceptor": true,
-          "learner": false
-        }
-      },
-      {
-        "count": 2,
-        "roles": {
-          "proposer": false,
-          "acceptor": false,
           "learner": true
         }
       },
       {
         "count": 2,
         "roles": {
-          "proposer": true,
+          "proposer": false,
           "acceptor": true,
+          "learner": false
+        }
+      },
+      {
+        "count": 1,
+        "roles": {
+          "proposer": true,
+          "acceptor": false,
+          "learner": false
+        }
+      },
+      {
+        "count": 2,
+        "roles": {
+          "proposer": false,
+          "acceptor": false,
           "learner": true
         }
       }
     ]
   },
-  "proposal_interval": 30,
+  "start_at": 0,
+  "proposal_interval": 4,
   "proposals": [
     {
-      "author": "Partial Roles User",
+      "author": "Mixed node",
       "selector": {
-        "type": "random_from_indices",
-        "indices": [0, 1, 7, 8]
+        "type": "fixed_index",
+        "index": 0
+      }
+    },
+    {
+      "author": "Dedicated proposer",
+      "selector": {
+        "type": "fixed_index",
+        "index": 4
       }
     }
   ]

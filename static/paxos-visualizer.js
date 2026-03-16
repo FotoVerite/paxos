@@ -19,6 +19,7 @@ class PaxosVisualizer {
         this.clusterInfo = null;
         this.layoutMode = options.layoutMode || 'circle'; // 'circle' or 'role-grouped'
         this.topologyGradientColor = options.topologyGradientColor || '#1e40af'; // Default blue
+        this.useRoleShapes = options.useRoleShapes === true;
         this.nodeLabelFormatter =
             typeof options.nodeLabelFormatter === 'function'
                 ? options.nodeLabelFormatter
@@ -196,6 +197,82 @@ class PaxosVisualizer {
         return '#475569';
     }
 
+    getNodeShapeForRoles(roles) {
+        if (!this.useRoleShapes) return 'circle';
+        const normalized = this.normalizeRoles(roles);
+        if (normalized.length === 3) return 'circle';
+        if (normalized.length === 2) return 'octagon';
+        if (normalized.length === 1) {
+            const role = normalized[0];
+            if (role === 'Leader') return 'diamond';
+            if (role === 'Replica') return 'triangle';
+            if (role === 'Acceptor') return 'square';
+        }
+        return 'circle';
+    }
+
+    createNodeShape(shape, x, y, radius, attrs = {}) {
+        const ns = 'http://www.w3.org/2000/svg';
+        let element;
+
+        if (shape === 'square') {
+            const size = radius * 1.95;
+            element = document.createElementNS(ns, 'rect');
+            element.setAttribute('x', x - size / 2);
+            element.setAttribute('y', y - size / 2);
+            element.setAttribute('width', size);
+            element.setAttribute('height', size);
+            element.setAttribute('rx', Math.max(3, radius * 0.18));
+        } else if (shape === 'diamond') {
+            const size = radius * 1.8;
+            element = document.createElementNS(ns, 'rect');
+            element.setAttribute('x', x - size / 2);
+            element.setAttribute('y', y - size / 2);
+            element.setAttribute('width', size);
+            element.setAttribute('height', size);
+            element.setAttribute('rx', Math.max(2, radius * 0.12));
+            element.setAttribute('transform', `rotate(45 ${x} ${y})`);
+        } else if (shape === 'triangle') {
+            const topY = y - radius * 1.08;
+            const leftX = x - radius * 0.98;
+            const rightX = x + radius * 0.98;
+            const bottomY = y + radius * 0.9;
+            element = document.createElementNS(ns, 'polygon');
+            element.setAttribute(
+                'points',
+                `${x},${topY} ${rightX},${bottomY} ${leftX},${bottomY}`
+            );
+        } else if (shape === 'octagon') {
+            const rx = radius * 1.02;
+            const ry = radius * 0.94;
+            element = document.createElementNS(ns, 'polygon');
+            element.setAttribute(
+                'points',
+                [
+                    `${x - rx * 0.45},${y - ry}`,
+                    `${x + rx * 0.45},${y - ry}`,
+                    `${x + rx},${y - ry * 0.45}`,
+                    `${x + rx},${y + ry * 0.45}`,
+                    `${x + rx * 0.45},${y + ry}`,
+                    `${x - rx * 0.45},${y + ry}`,
+                    `${x - rx},${y + ry * 0.45}`,
+                    `${x - rx},${y - ry * 0.45}`,
+                ].join(' ')
+            );
+        } else {
+            element = document.createElementNS(ns, 'circle');
+            element.setAttribute('cx', x);
+            element.setAttribute('cy', y);
+            element.setAttribute('r', radius);
+        }
+
+        for (const [key, value] of Object.entries(attrs)) {
+            element.setAttribute(key, value);
+        }
+
+        return element;
+    }
+
     /**
      * Render the cluster visualization
      * @param {Object} clusterInfo - Cluster information including total_nodes
@@ -287,29 +364,29 @@ class PaxosVisualizer {
             group.setAttribute('id', `paxos-node-${i}`);
             group.setAttribute('data-node-id', i);
 
+            const roles = this.nodeCapabilities[i]?.roles || [];
+            const roleColor = this.getColorForRoles(roles);
+            const roleStroke = this.getStrokeForRoles(roles);
+            const nodeShape = this.getNodeShapeForRoles(roles);
+
             // Glow ring
-            const glowRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            glowRing.setAttribute('cx', x);
-            glowRing.setAttribute('cy', y);
-            glowRing.setAttribute('r', this.nodeCircleRadius + 8);
-            glowRing.setAttribute('fill', 'none');
-            glowRing.setAttribute('stroke', '#60a5fa');
-            glowRing.setAttribute('stroke-width', '1');
-            glowRing.setAttribute('opacity', '0');
-            glowRing.setAttribute('class', 'paxos-node-glow');
+            const glowRing = this.createNodeShape(nodeShape, x, y, this.nodeCircleRadius + 8, {
+                fill: 'none',
+                stroke: '#60a5fa',
+                'stroke-width': '1',
+                opacity: '0',
+                class: 'paxos-node-glow',
+            });
             group.appendChild(glowRing);
 
-            // Main circle - color by roles
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', x);
-            circle.setAttribute('cy', y);
-            circle.setAttribute('r', this.nodeCircleRadius);
-            const roleColor = this.getColorForRoles(this.nodeCapabilities[i]?.roles);
-            circle.setAttribute('fill', roleColor);
-            circle.setAttribute('stroke', '#1e40af');
-            circle.setAttribute('stroke-width', '2');
-            circle.setAttribute('class', 'paxos-node-circle');
-            circle.setAttribute('data-base-color', roleColor); // Store for later restoration
+            // Main node shape - color by roles
+            const circle = this.createNodeShape(nodeShape, x, y, this.nodeCircleRadius, {
+                fill: roleColor,
+                stroke: roleStroke,
+                'stroke-width': '2',
+                class: 'paxos-node-circle',
+                'data-base-color': roleColor,
+            });
             group.appendChild(circle);
 
             // Node label
@@ -433,21 +510,30 @@ class PaxosVisualizer {
         }
 
         // Color can be overridden by param (used in Grid layout sections)
-        if (color && this.layoutMode === 'role-grouped') {
+        if (color && this.layoutMode === 'role-grouped' && !this.useRoleShapes) {
             nodeFill = color;
             nodeStroke = color;
         }
 
-        // Node circle
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', x);
-        circle.setAttribute('cy', y);
-        circle.setAttribute('r', this.nodeCircleRadius);
-        circle.setAttribute('fill', nodeFill);
-        circle.setAttribute('stroke', nodeStroke);
-        circle.setAttribute('stroke-width', '2');
-        circle.setAttribute('class', 'paxos-node-circle');
-        circle.setAttribute('data-base-color', nodeFill); // Store for later restoration
+        const nodeShape = this.getNodeShapeForRoles(caps?.roles || []);
+
+        const glowRing = this.createNodeShape(nodeShape, x, y, this.nodeCircleRadius + 8, {
+            fill: 'none',
+            stroke: '#60a5fa',
+            'stroke-width': '1',
+            opacity: '0',
+            class: 'paxos-node-glow',
+        });
+        group.appendChild(glowRing);
+
+        // Node shape
+        const circle = this.createNodeShape(nodeShape, x, y, this.nodeCircleRadius, {
+            fill: nodeFill,
+            stroke: nodeStroke,
+            'stroke-width': '2',
+            class: 'paxos-node-circle',
+            'data-base-color': nodeFill,
+        });
         group.appendChild(circle);
 
         // Label

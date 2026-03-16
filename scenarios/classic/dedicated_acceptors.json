@@ -1,10 +1,10 @@
 {
-  "name": "competing_proposers",
-  "description": "Two proposer-learner nodes compete against the same acceptor-only quorum while learner-only nodes stay downstream.",
+  "name": "dedicated_acceptors",
+  "description": "One proposer-learner node writes through an acceptor-only quorum while learner-only nodes stay off the write path.",
   "topology": {
     "groups": [
       {
-        "count": 2,
+        "count": 1,
         "roles": {
           "proposer": true,
           "acceptor": false,
@@ -30,20 +30,13 @@
     ]
   },
   "start_at": 0,
-  "proposal_interval": 3,
+  "proposal_interval": 6,
   "proposals": [
     {
-      "author": "Proposer 0",
+      "author": "Proposer",
       "selector": {
         "type": "fixed_index",
         "index": 0
-      }
-    },
-    {
-      "author": "Proposer 1",
-      "selector": {
-        "type": "fixed_index",
-        "index": 1
       }
     }
   ]

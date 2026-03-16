@@ -27,6 +27,8 @@ impl ClassicScenarioLoader {
     pub fn path_for(scenario_type: ScenarioType) -> Option<PathBuf> {
         let file_name = match scenario_type {
             ScenarioType::HappyPath => "happy_path.json",
+            ScenarioType::DedicatedAcceptors => "dedicated_acceptors.json",
+            ScenarioType::LearnersOffWritePath => "learners_off_write_path.json",
             ScenarioType::CompetingProposers => "competing_proposers.json",
             ScenarioType::AsymmetricProposers => "asymmetric_proposers.json",
             ScenarioType::HappyPathWithLeader => "happy_path_with_leader.json",
@@ -47,6 +49,8 @@ mod tests {
     async fn loads_generic_classic_specs() {
         let scenarios = [
             ScenarioType::HappyPath,
+            ScenarioType::DedicatedAcceptors,
+            ScenarioType::LearnersOffWritePath,
             ScenarioType::CompetingProposers,
             ScenarioType::AsymmetricProposers,
             ScenarioType::HappyPathWithLeader,

@@ -13,6 +13,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScenarioType {
     HappyPath,
+    DedicatedAcceptors,
+    LearnersOffWritePath,
     CompetingProposers,
     AsymmetricProposers,
     NetworkPartition,
@@ -37,6 +39,8 @@ impl ScenarioType {
     pub fn parse(value: &str) -> Self {
         match value {
             "" | "happy_path" => Self::HappyPath,
+            "dedicated_acceptors" => Self::DedicatedAcceptors,
+            "learners_off_write_path" => Self::LearnersOffWritePath,
             "competing_proposers" => Self::CompetingProposers,
             "asymmetric_proposers" => Self::AsymmetricProposers,
             "network_partition" => Self::NetworkPartition,
@@ -62,6 +66,8 @@ impl ScenarioType {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::HappyPath => "happy_path",
+            Self::DedicatedAcceptors => "dedicated_acceptors",
+            Self::LearnersOffWritePath => "learners_off_write_path",
             Self::CompetingProposers => "competing_proposers",
             Self::AsymmetricProposers => "asymmetric_proposers",
             Self::NetworkPartition => "network_partition",
@@ -176,6 +182,9 @@ impl ScenarioType {
 
     pub fn classic_topology_summary(self) -> &'static str {
         match self {
+            Self::DedicatedAcceptors => "1 proposer+learner node, 3 acceptor-only nodes, 2 learner-only nodes",
+            Self::LearnersOffWritePath => "1 proposer+learner node, 3 acceptor-only nodes, 3 learner-only nodes",
+            Self::CompetingProposers => "2 proposer+learner nodes, 3 acceptor-only nodes, 2 learner-only nodes",
             Self::AsymmetricProposers => "2 proposer+learner nodes, 4 acceptor-only nodes",
             Self::PartialRoles => "2 proposers, 3 acceptors, 2 learners, 2 full nodes",
             Self::HappyPathWithLeader => "5 full-role nodes with designated leader event",
