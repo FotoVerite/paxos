@@ -18,13 +18,13 @@ const scenarioQuorumFail = {
           visualizer.clearBeams();
           
           visualizer.setNodeState(0, "propose");
-          visualizer.activateNode(0, colors.nextballot);
+          visualizer.flashNode(0, colors.nextballot, { motion: "proposal" });
           addEvent(
             "[NextBallot] Node 0 sends ballot 101 to all acceptors",
             colors.nextballot
           );
           const acceptors = [1, 2, 3, 4, 5, 6];
-          await visualizer.drawBeamsTo(0, acceptors, colors.nextballot, 500, 'solid', 80);
+          await visualizer.drawBeamsTo(0, acceptors, colors.nextballot, 500, 'solid', 80, { motion: "proposal" });
           eventCounts.nextballot++;
           updateCounts();
           await sleep(300);
@@ -38,16 +38,22 @@ const scenarioQuorumFail = {
           visualizer.clearBeams();
           for (let i of [1, 2, 3]) {
             visualizer.setNodeState(i, "respond");
-            visualizer.activateNode(i, colors.lastvote);
+            visualizer.flashNode(i, colors.lastvote, { motion: "reply" });
             addEvent(`[LastVote] Node ${i} responds`, colors.lastvote);
             eventCounts.lastvote++;
-            visualizer.drawBeam(i, 0, colors.lastvote, 500);
+            visualizer.drawBeam(i, 0, colors.lastvote, 500, "solid", { motion: "reply" });
             await sleep(150);
           }
           // Others don't respond - timeout
           for (let i of [4, 5, 6]) {
             visualizer.setNodeState(i, "timeout");
             visualizer.setNodeColor(i, "#64748b");
+            visualizer.pulseNode(i, "#94a3b8", {
+              resetDelay: 420,
+              glowRadius: 8,
+              glowOpacity: 0.35,
+              strokeWidth: 3,
+            });
             addEvent(`[Timeout] Node ${i} no response`, "#94a3b8");
           }
           updateCounts();
@@ -60,6 +66,12 @@ const scenarioQuorumFail = {
           "Proposer only has 3 LastVote responses, needs quorum of 4 - FAILS",
         action: async () => {
           visualizer.setNodeState(0, "fail");
+          visualizer.flashNode(0, "#ef4444", { motion: "failure", resetDelay: 700 });
+          visualizer.pulseNode(0, "#ef4444", {
+            resetDelay: 520,
+            glowRadius: 12,
+            glowOpacity: 0.8,
+          });
           addEvent(
             "[Failure] Insufficient LastVote responses",
             "#ef4444"

@@ -32,6 +32,10 @@ class PaxosVisualizer {
         this.scheduledResets = new Map();
         this.currentLeaderId = null;
         this.crashedNodes = new Set();
+        this.prefersReducedMotion =
+            typeof window !== 'undefined' &&
+            typeof window.matchMedia === 'function' &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         // Event colors - customizable
         this.eventColors = options.eventColors || {
@@ -529,18 +533,171 @@ class PaxosVisualizer {
      * @param {number} nodeId - Node ID to activate
      * @param {string} color - Color to flash (defaults to blue)
      */
-    activateNode(nodeId, color = '#60a5fa') {
+    getMotionProfile(type = 'default') {
+        const profiles = {
+            default: {
+                beamDuration: 500,
+                beamWidth: 3,
+                beamOpacity: 0.82,
+                lingerMs: 240,
+                fadeStepMs: 42,
+                fadeAmount: 0.11,
+                glowRadius: 12,
+                glowOpacity: 0.8,
+                resetDelay: 520,
+            },
+            proposal: {
+                beamDuration: 420,
+                beamWidth: 3.2,
+                beamOpacity: 0.86,
+                lingerMs: 180,
+                fadeStepMs: 34,
+                fadeAmount: 0.14,
+                glowRadius: 12,
+                glowOpacity: 0.82,
+                resetDelay: 520,
+            },
+            reply: {
+                beamDuration: 320,
+                beamWidth: 2.5,
+                beamOpacity: 0.76,
+                lingerMs: 120,
+                fadeStepMs: 28,
+                fadeAmount: 0.18,
+                glowRadius: 10,
+                glowOpacity: 0.72,
+                resetDelay: 340,
+            },
+            failure: {
+                beamDuration: 180,
+                beamWidth: 3.2,
+                beamOpacity: 0.96,
+                lingerMs: 36,
+                fadeStepMs: 22,
+                fadeAmount: 0.24,
+                glowRadius: 10,
+                glowOpacity: 0.9,
+                resetDelay: 260,
+                abortAt: 0.78,
+            },
+            success: {
+                beamDuration: 560,
+                beamWidth: 4.2,
+                beamOpacity: 0.88,
+                lingerMs: 420,
+                fadeStepMs: 50,
+                fadeAmount: 0.09,
+                glowRadius: 16,
+                glowOpacity: 0.95,
+                resetDelay: 1200,
+            },
+        };
+
+        const profile = profiles[type] || profiles.default;
+        if (!this.prefersReducedMotion) {
+            return profile;
+        }
+
+        return {
+            ...profile,
+            beamDuration: Math.min(profile.beamDuration, 120),
+            lingerMs: 0,
+            fadeStepMs: 16,
+            fadeAmount: 1,
+            resetDelay: Math.min(profile.resetDelay, 120),
+        };
+    }
+
+    applyNodeActivation(nodeId, color = '#60a5fa', options = {}) {
         nodeId = this.#normalizeNodeId(nodeId);
         const element = this.nodeElements[nodeId];
         if (!element) return;
 
         const circle = element.element.querySelector('.paxos-node-circle');
         const glow = element.element.querySelector('.paxos-node-glow');
+        const profile = this.getMotionProfile(options.motion || 'default');
+        const persist = options.persist === true;
+        const resetDelay =
+            typeof options.resetDelay === 'number'
+                ? options.resetDelay
+                : profile.resetDelay;
 
         circle.setAttribute('fill', color);
-        circle.style.filter = `drop-shadow(0 0 12px ${color})`;
+        circle.style.filter = `drop-shadow(0 0 ${profile.glowRadius}px ${color})`;
         glow.setAttribute('stroke', color);
-        glow.setAttribute('opacity', '0.8');
+        glow.setAttribute('opacity', String(profile.glowOpacity));
+
+        if (!persist) {
+            this.scheduleNodeReset(nodeId, resetDelay);
+        }
+    }
+
+    /**
+     * Flash a node briefly, then return it to its semantic/base color.
+     * Use this for transient protocol activity.
+     */
+    flashNode(nodeId, color = '#60a5fa', options = {}) {
+        this.applyNodeActivation(nodeId, color, {
+            ...options,
+            persist: false,
+        });
+    }
+
+    /**
+     * Hold a node activation until some later semantic state clears it.
+     * Use sparingly for persistent states.
+     */
+    holdNodeActivation(nodeId, color = '#60a5fa', options = {}) {
+        this.applyNodeActivation(nodeId, color, {
+            ...options,
+            persist: true,
+        });
+    }
+
+    /**
+     * Backwards-compatible alias. Prefer flashNode() or holdNodeActivation()
+     * so transient vs persistent behavior is explicit at the call site.
+     */
+    activateNode(nodeId, color = '#60a5fa', options = {}) {
+        this.flashNode(nodeId, color, options);
+    }
+
+    /**
+     * Briefly pulse a node's outline/glow to signal refusal, timeout, or other
+     * negative outcomes without changing its semantic fill color permanently.
+     */
+    pulseNode(nodeId, color = '#ef4444', options = {}) {
+        nodeId = this.#normalizeNodeId(nodeId);
+        const element = this.nodeElements[nodeId];
+        if (!element) return;
+
+        const circle = element.element.querySelector('.paxos-node-circle');
+        const glow = element.element.querySelector('.paxos-node-glow');
+        if (!circle || !glow) return;
+
+        const originalStroke = circle.getAttribute('stroke');
+        const originalStrokeWidth = circle.getAttribute('stroke-width');
+        const originalFilter = circle.style.filter;
+        const originalGlowStroke = glow.getAttribute('stroke');
+        const originalGlowOpacity = glow.getAttribute('opacity');
+        const resetDelay = options.resetDelay || 360;
+        const strokeWidth = String(options.strokeWidth || 4);
+        const glowRadius = options.glowRadius || 12;
+        const glowOpacity = options.glowOpacity || 0.75;
+
+        circle.setAttribute('stroke', color);
+        circle.setAttribute('stroke-width', strokeWidth);
+        circle.style.filter = `drop-shadow(0 0 ${glowRadius}px ${color})`;
+        glow.setAttribute('stroke', color);
+        glow.setAttribute('opacity', String(glowOpacity));
+
+        setTimeout(() => {
+            circle.setAttribute('stroke', originalStroke || '#1e40af');
+            circle.setAttribute('stroke-width', originalStrokeWidth || '2');
+            circle.style.filter = originalFilter;
+            glow.setAttribute('stroke', originalGlowStroke || '#60a5fa');
+            glow.setAttribute('opacity', originalGlowOpacity || '0');
+        }, this.prefersReducedMotion ? 120 : resetDelay);
     }
 
     /**
@@ -750,17 +907,17 @@ class PaxosVisualizer {
      * @param {number} staggerMs - Stagger start time between beams in ms (0 for parallel, default 0)
      * @returns {Promise} - Resolves when all beams complete
      */
-    async drawBeamsTo(fromId, toIds, color, duration = 500, pattern = 'solid', staggerMs = 0) {
+    async drawBeamsTo(fromId, toIds, color, duration = 500, pattern = 'solid', staggerMs = 0, options = {}) {
         if (staggerMs === 0) {
             // Draw all in parallel
-            const promises = toIds.map(toId => this.drawBeam(fromId, toId, color, duration, pattern));
+            const promises = toIds.map(toId => this.drawBeam(fromId, toId, color, duration, pattern, options));
             await Promise.all(promises);
         } else {
             // Draw with staggered start times
             const promises = toIds.map((toId, index) => {
                 return new Promise(resolve => {
                     setTimeout(() => {
-                        this.drawBeam(fromId, toId, color, duration, pattern).then(resolve);
+                        this.drawBeam(fromId, toId, color, duration, pattern, options).then(resolve);
                     }, index * staggerMs);
                 });
             });
@@ -778,17 +935,17 @@ class PaxosVisualizer {
      * @param {number} staggerMs - Stagger start time between beams in ms (0 for parallel, default 0)
      * @returns {Promise} - Resolves when all beams complete
      */
-    async drawBeamsFrom(fromIds, toId, color, duration = 500, pattern = 'solid', staggerMs = 0) {
+    async drawBeamsFrom(fromIds, toId, color, duration = 500, pattern = 'solid', staggerMs = 0, options = {}) {
         if (staggerMs === 0) {
             // Draw all in parallel
-            const promises = fromIds.map(fromId => this.drawBeam(fromId, toId, color, duration, pattern));
+            const promises = fromIds.map(fromId => this.drawBeam(fromId, toId, color, duration, pattern, options));
             await Promise.all(promises);
         } else {
             // Draw with staggered start times
             const promises = fromIds.map((fromId, index) => {
                 return new Promise(resolve => {
                     setTimeout(() => {
-                        this.drawBeam(fromId, toId, color, duration, pattern).then(resolve);
+                        this.drawBeam(fromId, toId, color, duration, pattern, options).then(resolve);
                     }, index * staggerMs);
                 });
             });
@@ -805,7 +962,7 @@ class PaxosVisualizer {
      * @param {string} pattern - Line pattern: 'solid', 'dashed', 'dotted' (default 'solid')
      * @returns {Promise} - Resolves when animation completes
      */
-    drawBeam(fromId, toId, color, duration = 500, pattern = 'solid') {
+    drawBeam(fromId, toId, color, duration = 500, pattern = 'solid', options = {}) {
         return new Promise((resolve) => {
             fromId = this.#normalizeNodeId(fromId);
             toId = this.#normalizeNodeId(toId);
@@ -816,6 +973,14 @@ class PaxosVisualizer {
                 resolve();
                 return;
             }
+
+            const profile = this.getMotionProfile(options.motion || 'default');
+            const beamDuration = this.prefersReducedMotion
+                ? profile.beamDuration
+                : Math.min(duration || profile.beamDuration, profile.beamDuration);
+            const targetProgress = typeof profile.abortAt === 'number'
+                ? profile.abortAt
+                : 1;
 
             let beamsLayer = document.getElementById('paxos-beams');
 
@@ -849,8 +1014,8 @@ class PaxosVisualizer {
             // Create animated path (quadratic bezier)
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('stroke', color);
-            path.setAttribute('stroke-width', '3');
-            path.setAttribute('opacity', '0.8');
+            path.setAttribute('stroke-width', String(profile.beamWidth));
+            path.setAttribute('opacity', String(profile.beamOpacity));
             path.setAttribute('stroke-linecap', 'round');
             path.setAttribute('fill', 'none');
 
@@ -875,14 +1040,18 @@ class PaxosVisualizer {
             // Animate beam with duration control
             let progress = 0;
             let timeElapsed = 0;
+            const tickMs = this.prefersReducedMotion ? 16 : 30;
             const animationInterval = setInterval(() => {
-                timeElapsed += 30;
-                progress = Math.min(1, timeElapsed / duration);
+                timeElapsed += tickMs;
+                progress = Math.min(1, timeElapsed / beamDuration);
 
                 if (progress >= 1) {
                     progress = 1;
                     clearInterval(animationInterval);
-                    path.setAttribute('stroke-dashoffset', 0);
+                    path.setAttribute(
+                        'stroke-dashoffset',
+                        pathLength * (1 - targetProgress)
+                    );
 
                     // Apply pattern styling after animation completes
                     if (path.dataset.pattern === 'dashed') {
@@ -894,23 +1063,23 @@ class PaxosVisualizer {
                     // Keep beam visible for a bit longer
                     setTimeout(() => {
                         // Fade out
-                        let opacity = 0.9;
+                        let opacity = profile.beamOpacity;
                         const fadeInterval = setInterval(() => {
-                            opacity -= 0.1;
+                            opacity -= profile.fadeAmount;
                             path.setAttribute('opacity', Math.max(0, opacity));
                             if (opacity <= 0) {
                                 clearInterval(fadeInterval);
                                 path.remove();
                                 resolve();
                             }
-                        }, 40);
-                    }, 300);
+                        }, profile.fadeStepMs);
+                    }, profile.lingerMs);
                 } else {
                     // Animate stroke-dashoffset to reveal the path
                     const dashOffset = pathLength * (1 - progress);
                     path.setAttribute('stroke-dashoffset', dashOffset);
                 }
-            }, 30);
+            }, tickMs);
         });
     }
 

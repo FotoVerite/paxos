@@ -19,13 +19,13 @@ const scenarioSuccess = {
           visualizer.clearBeams();
           
           visualizer.setNodeState(0, "propose");
-          visualizer.activateNode(0, colors.nextballot);
+          visualizer.flashNode(0, colors.nextballot, { motion: "proposal" });
           addEvent(
             "[NextBallot] Node 0 sends ballot 100 to all acceptors",
             colors.nextballot
           );
           const acceptors = [1, 2, 3, 4, 5, 6];
-          await visualizer.drawBeamsTo(0, acceptors, colors.nextballot, 500, 'solid', 80);
+          await visualizer.drawBeamsTo(0, acceptors, colors.nextballot, 500, 'solid', 80, { motion: "proposal" });
           eventCounts.nextballot++;
           updateCounts();
           await sleep(300);
@@ -39,11 +39,11 @@ const scenarioSuccess = {
           const respondents = [1, 2, 3, 4, 5, 6];
           for (let i = 1; i <= 6; i++) {
             visualizer.setNodeState(i, "respond");
-            visualizer.activateNode(i, colors.lastvote);
+            visualizer.flashNode(i, colors.lastvote, { motion: "reply" });
             addEvent(`[LastVote] Node ${i} responds`, colors.lastvote);
             eventCounts.lastvote++;
           }
-          await visualizer.drawBeamsFrom(respondents, 0, colors.lastvote, 500, 'dashed', 150);
+          await visualizer.drawBeamsFrom(respondents, 0, colors.lastvote, 500, 'dashed', 150, { motion: "reply" });
           updateCounts();
           await sleep(300);
         },
@@ -55,7 +55,7 @@ const scenarioSuccess = {
         action: async () => {
           visualizer.clearBeams();
           visualizer.setNodeState(0, "send");
-          visualizer.activateNode(0, colors.beginballot);
+          visualizer.flashNode(0, colors.beginballot, { motion: "proposal" });
           addEvent(
             "[BeginBallot] Node 0 sends decree to quorum",
             colors.beginballot
@@ -64,7 +64,7 @@ const scenarioSuccess = {
           for (const node of quorum) {
             visualizer.setNodeState(node, "wait");
           }
-          await visualizer.drawBeamsTo(0, quorum, colors.beginballot, 500, 'solid', 100);
+          await visualizer.drawBeamsTo(0, quorum, colors.beginballot, 500, 'solid', 100, { motion: "proposal" });
           eventCounts.beginballot++;
           updateCounts();
           await sleep(300);
@@ -78,11 +78,11 @@ const scenarioSuccess = {
           const quorum = [1, 2, 3, 4, 5, 6];
           for (const node of quorum) {
             visualizer.setNodeState(node, "voted");
-            visualizer.activateNode(node, colors.voted);
+            visualizer.flashNode(node, colors.voted, { motion: "reply" });
             addEvent(`[Voted] Node ${node} votes`, colors.voted);
             eventCounts.voted++;
           }
-          await visualizer.drawBeamsFrom(quorum, 0, colors.voted, 500, 'dotted', 150);
+          await visualizer.drawBeamsFrom(quorum, 0, colors.voted, 500, 'dotted', 150, { motion: "reply" });
           updateCounts();
         },
       },
@@ -92,12 +92,15 @@ const scenarioSuccess = {
           "Proposer received quorum of votes, decree is chosen",
         action: async () => {
           visualizer.clearBeams();
-          visualizer.setNodeState(0, "learn");
-          visualizer.activateNode(0, colors.success);
+          visualizer.setNodeState(0, "learned");
+          visualizer.flashNode(0, colors.success, { motion: "success" });
           addEvent("[Success] Decree is chosen!", colors.success);
           // Draw success beams from proposer to all nodes
           const acceptors = [1, 2, 3, 4, 5, 6];
-          await visualizer.drawBeamsTo(0, acceptors, colors.success, 500, 'solid', 80);
+          for (const node of acceptors) {
+            visualizer.setNodeState(node, "learned");
+          }
+          await visualizer.drawBeamsTo(0, acceptors, colors.success, 500, 'solid', 80, { motion: "success" });
           eventCounts.success += acceptors.length;
           eventCounts.learned += acceptors.length;
           updateCounts();
