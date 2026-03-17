@@ -7,7 +7,8 @@ use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
 use super::handlers::{
-    AppState, paxos_handler, paxos_made_simple_handler, scenario::*, websocket::websocket_handler,
+    AppState, paxos_handler, paxos_made_simple_handler, scenario::*, vertical_paxos_handler,
+    websocket::websocket_handler,
 };
 use super::papers;
 
@@ -92,6 +93,15 @@ pub async fn run_web_server() {
             get(|uri, subdomain, state| paxos_made_simple_handler(uri, None, subdomain, state)),
         )
         .route("/paxos-made-simple/*path", get(paxos_made_simple_handler))
+        .route(
+            "/vertical-paxos",
+            get(|uri, subdomain, state| vertical_paxos_handler(uri, None, subdomain, state)),
+        )
+        .route(
+            "/vertical-paxos/",
+            get(|uri, subdomain, state| vertical_paxos_handler(uri, None, subdomain, state)),
+        )
+        .route("/vertical-paxos/*path", get(vertical_paxos_handler))
         // Fallback to Tera Handler for everything else (Pages)
         // This catches /, /overview, /whitepapers, etc.
         .fallback(paxos_handler)

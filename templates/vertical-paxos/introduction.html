@@ -1,0 +1,54 @@
+{% extends "vertical-paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+
+{% block title %}Vertical Paxos - Introduction{% endblock %}
+{% block body_class %}vp-page{% endblock %}
+
+{% block content %}
+<div class="vp-container">
+  <div class="panel">
+    <h1 class="panel-title">Vertical Paxos</h1>
+    <p>
+      This track is for the version of Paxos where membership changes are built into the model
+      instead of being bolted on afterward.
+    </p>
+    <p>
+      The short version is that ordinary Paxos explains how one configuration behaves. Vertical
+      Paxos is about how configurations hand work to each other without losing the plot.
+    </p>
+
+    <div class="vp-note-grid">
+      <section class="vp-note">
+        <h2>What This Track Is For</h2>
+        <p>
+          To explain why configuration management becomes its own protocol problem once the system
+          needs to keep running while the cast changes.
+        </p>
+      </section>
+      <section class="vp-note">
+        <h2>What Makes It Different</h2>
+        <p>
+          The point here is not just ballots and quorums. It is who gets to define the active
+          configuration, who carries state forward, and how one era hands off to the next.
+        </p>
+      </section>
+    </div>
+
+    <section class="vp-reading-note">
+      <h2>Starting Point</h2>
+      <p>
+        This is just the opening shell for now. The next passes can add the actual paper walk,
+        demos, and the more careful treatment of the master and configuration handoff.
+      </p>
+    </section>
+  </div>
+
+  {{ nav::breadcrumb(
+    prev_url="/papers/distributed-design",
+    prev_label="Distributed Design",
+    current_label="Vertical Paxos",
+    next_url="/introduction",
+    next_label="Introduction"
+  ) }}
+</div>
+{% endblock %}

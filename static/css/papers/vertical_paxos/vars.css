@@ -1,0 +1,19 @@
+:root {
+  --vp-bg: #efe5d2;
+  --vp-bg-deep: #ddcfb5;
+  --vp-panel: rgba(247, 239, 226, 0.92);
+  --vp-panel-strong: rgba(252, 247, 239, 0.96);
+  --vp-border: rgba(98, 78, 50, 0.22);
+  --vp-border-strong: rgba(61, 93, 146, 0.42);
+  --vp-text: #30261b;
+  --vp-text-muted: #6f6557;
+  --vp-accent: #3d5d92;
+  --vp-accent-strong: #587bb5;
+  --vp-accent-warm: #9c553d;
+  --vp-accent-stable: #5f7155;
+  --vp-grid: rgba(90, 74, 48, 0.08);
+  --vp-shadow: rgba(60, 42, 20, 0.14);
+  --vp-max-width: 1180px;
+  --vp-padding: clamp(1.25rem, 3vw, 2.5rem);
+  --vp-radius: 12px;
+}

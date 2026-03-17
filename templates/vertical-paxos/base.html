@@ -1,0 +1,23 @@
+{% import "macros/nav.html" as nav %}
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Vertical Paxos{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/papers/base.css" />
+    <link rel="stylesheet" href="/css/papers/vertical_paxos/vars.css" />
+    <link rel="stylesheet" href="/css/papers/vertical_paxos/components.css" />
+    <link rel="stylesheet" href="/css/papers/vertical_paxos/breadcrumb.css" />
+    {% block extra_stylesheets %}{% endblock %}
+  </head>
+
+  <body class="{% block body_class %}{% endblock %}">
+    {% include "vertical-paxos/nav.html" %}
+    <main>{% block content %}{% endblock %}</main>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

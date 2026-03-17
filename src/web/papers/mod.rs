@@ -4,6 +4,7 @@ use axum::{Router, extract::Path, response::Redirect, routing::get};
 pub mod paxos_made_moderately_complex;
 pub mod paxos_made_simple;
 pub mod reconfiguring_a_state_machine;
+pub mod vertical_paxos;
 
 // Redirect trailing slash versions to non-trailing
 async fn redirect_paxos_made_simple_trailing() -> Redirect {
@@ -36,6 +37,10 @@ async fn redirect_reconfiguring_state_machine_no_article_path(
     Path(path): Path<String>,
 ) -> Redirect {
     Redirect::permanent(&format!("/papers/reconfiguring-a-state-machine/{}", path))
+}
+
+async fn redirect_vertical_paxos_trailing() -> Redirect {
+    Redirect::permanent("/papers/vertical-paxos")
 }
 
 /// Main papers router - nests all paper submodules
@@ -86,4 +91,6 @@ pub fn router() -> Router<AppState> {
             "/reconfiguring-state-machine/*path",
             get(redirect_reconfiguring_state_machine_no_article_path),
         )
+        .nest("/vertical-paxos", vertical_paxos::router())
+        .route("/vertical-paxos/", get(redirect_vertical_paxos_trailing))
 }

@@ -1,0 +1,59 @@
+{% extends "vertical-paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+
+{% block title %}Vertical Paxos{% endblock %}
+{% block body_class %}vp-landing-page{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/papers/vertical_paxos/landing.css" />
+{% endblock %}
+
+{% block content %}
+<section class="vp-landing">
+  <div class="vp-landing-copy">
+    <p class="vp-kicker">New Track</p>
+    <div class="vp-title-cartouche">
+      <div class="vp-cartouche-rule vp-cartouche-rule-top"></div>
+      <h1>Vertical Paxos</h1>
+      <p class="vp-dek">
+        A new home for the paper that stops pretending membership changes are a side quest.
+        This pass starts simple: the paper shell, the tone, and the opening frame.
+      </p>
+      <div class="vp-cartouche-rule vp-cartouche-rule-bottom"></div>
+    </div>
+    <div class="vp-landing-actions">
+      <a href="{{ nav::site_url(raw_url="/introduction") }}" class="vp-primary-link">Start with the intro</a>
+    </div>
+  </div>
+  <div class="vp-landing-mark" aria-hidden="true">
+    <div class="vp-mark-compass">
+      <div class="vp-mark-compass-ring"></div>
+      <div class="vp-mark-compass-needle vp-mark-compass-needle-ns"></div>
+      <div class="vp-mark-compass-needle vp-mark-compass-needle-ew"></div>
+      <div class="vp-mark-compass-core"></div>
+    </div>
+    <div class="vp-mark-axis vp-mark-axis-x"></div>
+    <div class="vp-mark-axis vp-mark-axis-y"></div>
+    <div class="vp-mark-column vp-mark-column-left"></div>
+    <div class="vp-mark-column vp-mark-column-center"></div>
+    <div class="vp-mark-column vp-mark-column-right"></div>
+    <div class="vp-mark-plane vp-mark-plane-top"></div>
+    <div class="vp-mark-plane vp-mark-plane-mid"></div>
+    <div class="vp-mark-signal vp-mark-signal-left"></div>
+    <div class="vp-mark-signal vp-mark-signal-right"></div>
+    <div class="vp-mark-node vp-mark-node-master"></div>
+    <div class="vp-mark-node vp-mark-node-read"></div>
+    <div class="vp-mark-node vp-mark-node-write"></div>
+    <div class="vp-mark-node vp-mark-node-stable"></div>
+    <div class="vp-mark-label vp-mark-label-master">master</div>
+    <div class="vp-mark-label vp-mark-label-read">read quorum</div>
+    <div class="vp-mark-label vp-mark-label-write">write quorum</div>
+    <div class="vp-mark-label vp-mark-label-axis-x">instances</div>
+    <div class="vp-mark-label vp-mark-label-axis-y">ballots</div>
+    <div class="vp-mark-scale vp-mark-scale-x"></div>
+    <div class="vp-mark-scale vp-mark-scale-y"></div>
+    <div class="vp-mark-annotation vp-mark-annotation-handoff">configuration handoff</div>
+    <div class="vp-mark-annotation vp-mark-annotation-columns">vertical columns</div>
+  </div>
+</section>
+{% endblock %}

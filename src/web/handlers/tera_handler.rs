@@ -139,6 +139,25 @@ pub async fn reconfiguring_a_state_machine_handler(
     render_template(&state.tera, &template_name, context)
 }
 
+pub async fn vertical_paxos_handler(
+    uri: Uri,
+    path: Option<Path<String>>,
+    Subdomain(subdomain): Subdomain,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let path = path.map(|p| p.0).unwrap_or_else(|| "index".to_string());
+    let path = path.trim_end_matches('/');
+
+    let template_name = if path.is_empty() || path == "index" {
+        "vertical-paxos/index.html".to_string()
+    } else {
+        format!("vertical-paxos/{}.html", path)
+    };
+
+    let context = build_site_context("vertical-paxos", &uri, &subdomain);
+    render_template(&state.tera, &template_name, context)
+}
+
 pub async fn paxos_handler(
     uri: Uri,
     Subdomain(subdomain): Subdomain,
@@ -186,6 +205,16 @@ pub async fn paxos_handler(
                 format!("distributed-design/{}.html", path)
             };
             ("distributed-design", template_name)
+        }
+        "vertical-paxos" => {
+            let template_name = if path.is_empty() || path == "/" {
+                "vertical-paxos/index.html".to_string()
+            } else if path.ends_with('/') {
+                format!("vertical-paxos/{}index.html", path)
+            } else {
+                format!("vertical-paxos/{}.html", path)
+            };
+            ("vertical-paxos", template_name)
         }
         _ => {
             let template_name = if path.is_empty() {

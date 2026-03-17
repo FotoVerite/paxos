@@ -1,0 +1,29 @@
+{% import "macros/nav.html" as nav %}
+<link rel="stylesheet" href="/css/papers/vertical_paxos/nav.css" />
+
+<nav class="vp-navbar">
+  <div class="vp-nav-shell">
+    <a href="{{ nav::site_url(raw_url="/") }}" class="vp-brand">Vertical Paxos</a>
+    <button class="vp-nav-toggle" id="vpNavToggle" type="button" aria-label="Toggle navigation">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <div class="vp-nav-links" id="vpNavLinks">
+      <a href="{{ nav::site_url(raw_url="/") }}" class="vp-nav-link">Overview</a>
+      <a href="{{ nav::site_url(raw_url="/introduction") }}" class="vp-nav-link">Introduction</a>
+    </div>
+  </div>
+</nav>
+
+<script>
+  const vpNavToggle = document.getElementById('vpNavToggle');
+  const vpNavLinks = document.getElementById('vpNavLinks');
+
+  if (vpNavToggle && vpNavLinks) {
+    vpNavToggle.addEventListener('click', () => {
+      vpNavLinks.classList.toggle('active');
+      vpNavToggle.classList.toggle('active');
+    });
+  }
+</script>
