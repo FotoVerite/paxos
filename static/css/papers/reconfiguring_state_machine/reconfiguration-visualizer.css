@@ -1,0 +1,465 @@
+.pmmc-demo .reconfig-primary-controls {
+  grid-template-columns: minmax(0, 1.8fr) minmax(220px, 0.9fr) auto;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.pmmc-demo .visualization {
+  grid-template-columns: 214px minmax(0, 1fr) 250px;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.pmmc-demo .reconfig-topology-rail,
+.pmmc-demo .reconfig-decree-rail {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.pmmc-demo .reconfig-decree-rail {
+  min-height: 0;
+  max-height: 420px;
+}
+
+.pmmc-demo .reconfig-main-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 500px;
+  display: grid;
+  align-items: stretch;
+}
+
+.pmmc-demo #basicProtocolSvg {
+  display: block;
+  width: 100%;
+  min-height: 500px;
+  height: 100%;
+}
+
+.pmmc-demo .reconfig-primary-actions {
+  align-self: end;
+}
+
+.pmmc-demo .reconfig-primary-actions button {
+  min-width: 144px;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 7px;
+  font-weight: 700;
+}
+
+.pmmc-demo .controls-section select,
+.pmmc-demo .controls-section input[type="range"] {
+  min-height: 40px;
+}
+
+.pmmc-demo .reconfig-secondary-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px 14px;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid #273449;
+}
+
+.pmmc-demo .reconfig-secondary-controls[hidden],
+.pmmc-demo .reconfig-playback-tools[hidden],
+.pmmc-demo #decree-viewer[hidden] {
+  display: none;
+}
+
+.pmmc-demo .reconfig-secondary-actions,
+.pmmc-demo .reconfig-playback-tools,
+.pmmc-demo .reconfig-playback-buttons {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pmmc-demo .reconfig-playback-buttons {
+  flex-wrap: nowrap;
+}
+
+.pmmc-demo .reconfig-secondary-actions button,
+.pmmc-demo .reconfig-playback-buttons button {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pmmc-demo #togglePlayBtn {
+  background: linear-gradient(180deg, #3f8cff 0%, #2563eb 100%);
+}
+
+.pmmc-demo #togglePlayBtn:hover {
+  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+}
+
+.pmmc-demo #resetBtn,
+.pmmc-demo #stepBackBtn,
+.pmmc-demo #stepForwardBtn {
+  background: #1a2332;
+  color: #dbe6f3;
+  border: 1px solid #334155;
+}
+
+.pmmc-demo .status-stack {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pmmc-demo .status-info {
+  margin-top: 0;
+}
+
+.pmmc-demo .scenario-description,
+.pmmc-demo .phase-description {
+  display: grid;
+  gap: 4px;
+}
+
+.pmmc-demo .scenario-description p,
+.pmmc-demo .phase-description p {
+  margin: 0;
+}
+
+.pmmc-demo .playback-cursor {
+  margin-top: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #273449;
+  border-radius: 999px;
+  background: #111827;
+}
+
+.pmmc-demo #decree-viewer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+  height: 100%;
+  max-height: 420px;
+  align-self: start;
+}
+
+.pmmc-demo .topology-panel {
+  padding: 10px;
+  gap: 8px;
+}
+
+.pmmc-demo .topology-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.pmmc-demo .topology-title {
+  color: #67e8f9;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pmmc-demo .topology-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pmmc-demo .topology-summary-item {
+  display: grid;
+  gap: 3px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: rgba(17, 24, 39, 0.5);
+  border: 1px solid rgba(31, 41, 55, 0.82);
+  min-height: 48px;
+}
+
+.pmmc-demo .topology-summary-label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #7d96ba;
+  line-height: 1.15;
+}
+
+.pmmc-demo .topology-summary-value {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  color: #e2e8f0;
+}
+
+.pmmc-demo .topology-role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pmmc-demo .topology-role-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 9px;
+  border-radius: 7px;
+  background: rgba(17, 24, 39, 0.9);
+  border: 1px solid #243247;
+}
+
+.pmmc-demo .topology-role-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pmmc-demo .topology-role-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #dbe6f3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pmmc-demo .topology-role-count {
+  font-size: 9px;
+  color: #8ca0ba;
+  white-space: nowrap;
+}
+
+.pmmc-demo .topology-node-list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pmmc-demo .topology-node-chip {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: rgba(11, 18, 32, 0.92);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pmmc-demo .topology-shape {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  border: 1px solid rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.pmmc-demo .topology-shape-circle { border-radius: 999px; }
+.pmmc-demo .topology-shape-square { border-radius: 3px; }
+.pmmc-demo .topology-shape-diamond { transform: rotate(45deg); border-radius: 2px; }
+.pmmc-demo .topology-shape-triangle { width: 13px; height: 12px; clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
+.pmmc-demo .topology-shape-octagon { clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%); }
+.pmmc-demo .topology-tone-all { background: #4f46e5; }
+.pmmc-demo .topology-tone-leader { background: #3b82f6; }
+.pmmc-demo .topology-tone-replica { background: #22c55e; }
+.pmmc-demo .topology-tone-acceptor { background: #14b8a6; }
+.pmmc-demo .topology-tone-mixed { background: #64748b; }
+
+.pmmc-demo .topology-mini-key {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(36, 50, 71, 0.8);
+  color: #7f95b2;
+  font-size: 9px;
+}
+
+.pmmc-demo .topology-mini-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.pmmc-demo #proposalStatsContainer {
+  padding: 8px;
+}
+
+.pmmc-demo .proposal-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pmmc-demo .proposal-stat-item {
+  min-width: 0;
+  flex: none;
+  min-height: 38px;
+  padding: 7px 8px;
+}
+
+.pmmc-demo #decreePanel {
+  min-height: 0;
+  padding: 9px;
+  max-height: 332px;
+}
+
+.pmmc-demo .decree-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pmmc-demo .decree-node-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #111827;
+  padding-bottom: 8px;
+}
+
+.pmmc-demo .decree-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  padding-right: 2px;
+}
+
+.pmmc-demo .slot-tape-section {
+  padding: 14px;
+  gap: 10px;
+}
+
+.pmmc-demo .slot-tape-header {
+  align-items: start;
+}
+
+.pmmc-demo .slot-tape-header h3 {
+  margin: 0;
+}
+
+.pmmc-demo .slot-tape-subtitle {
+  max-width: 38ch;
+}
+
+.pmmc-demo .slot-tape {
+  gap: 10px;
+  min-height: 108px;
+}
+
+.pmmc-demo .slot-tape-card {
+  min-width: 204px;
+  max-width: 204px;
+  padding: 8px;
+}
+
+.pmmc-demo .slot-tape-body {
+  gap: 6px;
+}
+
+.pmmc-demo .slot-stage-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.pmmc-demo .slot-arrow {
+  display: none;
+}
+
+.pmmc-demo .slot-stage {
+  text-align: center;
+  text-transform: lowercase;
+  padding: 3px 0;
+  border-radius: 6px;
+}
+
+.pmmc-demo .slot-stage.stage-propose.on {
+  border-color: rgba(59, 130, 246, 0.8);
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfdbfe;
+}
+
+.pmmc-demo .slot-stage.stage-accept.on {
+  border-color: rgba(245, 158, 11, 0.78);
+  background: rgba(245, 158, 11, 0.16);
+  color: #fde68a;
+}
+
+.pmmc-demo .slot-stage.stage-apply.on {
+  border-color: rgba(34, 197, 94, 0.78);
+  background: rgba(34, 197, 94, 0.16);
+  color: #bbf7d0;
+}
+
+@media (max-width: 900px) {
+  .pmmc-demo .reconfig-primary-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .pmmc-demo .reconfig-primary-actions button {
+    width: 100%;
+  }
+
+  .pmmc-demo .visualization {
+    grid-template-columns: 1fr;
+  }
+
+  .pmmc-demo .reconfig-main-stage {
+    order: 1;
+    min-height: clamp(320px, 68vw, 460px);
+  }
+
+  .pmmc-demo .reconfig-topology-rail {
+    order: 2;
+  }
+
+  .pmmc-demo .reconfig-decree-rail {
+    order: 3;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .pmmc-demo #basicProtocolSvg {
+    min-height: clamp(320px, 68vw, 460px);
+  }
+
+  .pmmc-demo #decree-viewer {
+    min-height: 0;
+    max-height: none;
+  }
+
+  .pmmc-demo #decreePanel {
+    max-height: 260px;
+  }
+
+  .pmmc-demo .proposal-stats {
+    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  }
+
+  .pmmc-demo .topology-head {
+    align-items: start;
+    flex-direction: column;
+  }
+}

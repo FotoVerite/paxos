@@ -179,14 +179,9 @@ export function createSlotTapePlugin({ container, maxSlots = 16 } = {}) {
                 <span class="slot-marker applied ${slot.stopApplied ? 'on' : ''}" title="stop applied"></span>
               </div>
               <div class="slot-stage-flow">
-                <span class="slot-stage ${slot.proposed ? 'on' : 'off'}">propose</span>
-                <span class="slot-arrow">→</span>
-                <span class="slot-stage ${slot.p2bSources.size > 0 ? 'on' : 'off'}">accept</span>
-                <span class="slot-arrow">→</span>
-                <span class="slot-stage ${slot.learned ? 'on' : 'off'}">apply</span>
-              </div>
-              <div class="slot-tape-meta">
-                p2b=${slot.p2bSources.size} · ack=${slot.ackSources.size}
+                <span class="slot-stage stage-propose ${slot.proposed ? 'on' : 'off'}">propose</span>
+                <span class="slot-stage stage-accept ${slot.p2bSources.size > 0 ? 'on' : 'off'}">accept</span>
+                <span class="slot-stage stage-apply ${slot.learned ? 'on' : 'off'}">apply</span>
               </div>
             </div>
           </div>

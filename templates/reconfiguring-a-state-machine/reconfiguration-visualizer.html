@@ -7,43 +7,47 @@
 {% block extra_stylesheets %}
 <link rel="stylesheet" href="/css/demo.css">
 <link rel="stylesheet" href="/css/papers/paxos_made_moderately_complex/demo.css">
+<link rel="stylesheet" href="/css/papers/reconfiguring_state_machine/reconfiguration-visualizer.css">
 {% endblock %}
 
 {% block content %}
 <div class="demo-container">
   <div class="visualization">
-    <div id="client-sidebar">
-      <div class="client-strip-section">
-        <div class="client-strip-title">Clients</div>
-        <div id="clientStrip" class="client-strip"></div>
-        <div id="clientLanes" class="client-lanes"></div>
-        <div id="clientFeed" class="client-feed"></div>
-        <div id="clientSnapshot" class="client-snapshot"></div>
+    <div class="reconfig-topology-rail">
         <div id="topologyPanel" class="topology-panel"></div>
-      </div>
     </div>
-    <svg id="basicProtocolSvg"></svg>
-    <div id="decree-viewer">
-      <div id="proposalStatsContainer"></div>
-      <div id="decreePanel"></div>
+    <div class="reconfig-main-stage">
+      <svg id="basicProtocolSvg"></svg>
+    </div>
+    <div class="reconfig-decree-rail">
+      <div id="decree-viewer" hidden>
+        <div id="proposalStatsContainer"></div>
+        <div id="decreePanel"></div>
+      </div>
     </div>
   </div>
 
   <div class="controls-section">
-    <div class="control-grid">
-      <div class="control-group">
+    <div class="control-grid reconfig-primary-controls">
+      <div class="control-group control-group-scenario">
         <h3>Scenario</h3>
         <select id="scenarioSelect">
           {{ pmmc_scenarios::reconfig_options() }}
         </select>
       </div>
-      <div class="control-group">
-        <h3>Speed</h3>
+      <div class="control-group control-group-speed">
+        <h3>Pace</h3>
         <div class="speed-control">
-          <input type="range" id="speed" value="0.5" min="0.25" max="2" step="0.25" />
-          <span id="speedValue">0.5x</span>
+          <input type="range" id="speed" value="1" min="0.25" max="2" step="0.25" />
+          <span id="speedValue">1x</span>
         </div>
       </div>
+      <div class="button-group reconfig-primary-actions">
+        <button id="togglePlayBtn" class="btn-primary">Play</button>
+      </div>
+    </div>
+
+    <div id="secondaryControls" class="reconfig-secondary-controls" hidden>
       <div class="control-group">
         <h3>Node Labels</h3>
         <select id="nodeLabelMode">
@@ -51,22 +55,33 @@
           <option value="greek">Greek (α, β, γ)</option>
         </select>
       </div>
-      <div class="button-group">
-        <button id="togglePlayBtn">Play</button>
-        <button id="stepBackBtn" disabled>Step Back</button>
-        <button id="stepForwardBtn" disabled>Step Forward</button>
-        <button id="resetBtn">Reset</button>
+      <div class="button-group reconfig-secondary-actions">
+        <button id="resetBtn" class="btn-secondary">Reset</button>
       </div>
-      <div class="playback-cursor" id="playbackCursor">Batch 0/0</div>
+      <div id="playbackTools" class="reconfig-playback-tools" hidden>
+        <div class="button-group reconfig-playback-buttons">
+          <button id="stepBackBtn" class="btn-secondary" disabled>Step Back</button>
+          <button id="stepForwardBtn" class="btn-secondary" disabled>Step Forward</button>
+        </div>
+        <div class="playback-cursor" id="playbackCursor">Batch 0/0</div>
+      </div>
     </div>
 
-    <div class="status-info">
-      <div id="statusTitle">Ready</div>
-      <div id="statusDescription">Click Play to start a PMMC reconfiguration scenario</div>
-    </div>
-    <div class="status-info reconfig-phase-info">
-      <div id="reconfigPhaseTitle">Reconfiguration Idle</div>
-      <div id="reconfigPhaseDescription">Run a reconfiguration scenario to visualize stop boundaries and reboot behavior.</div>
+    <div class="status-stack">
+      <div class="status-info">
+        <div id="statusTitle">Reconfiguration</div>
+        <div id="statusDescription" class="scenario-description">
+          <p id="statusFocus">Start a run and watch how the active machine stops, checkpoints, and hands work to the next configuration.</p>
+          <p id="statusChange"></p>
+          <p id="statusNext"></p>
+        </div>
+      </div>
+      <div class="status-info reconfig-phase-info">
+        <div id="reconfigPhaseTitle">Reconfiguration Idle</div>
+        <div id="reconfigPhaseDescription" class="phase-description">
+          <p>Run a scenario to see when the stop boundary is chosen, applied, and replaced by the new runtime.</p>
+        </div>
+      </div>
     </div>
   </div>
 

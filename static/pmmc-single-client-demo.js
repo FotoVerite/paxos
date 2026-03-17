@@ -348,7 +348,9 @@ function createTopologyPanelPlugin({ container } = {}) {
       .join('');
 
     container.innerHTML = `
-      <div class="topology-title">Topology</div>
+      <div class="topology-head">
+        <div class="topology-title">Topology</div>
+      </div>
       <div class="topology-summary">
         <div class="topology-summary-item">
           <span class="topology-summary-label">Leaders</span>
@@ -368,6 +370,13 @@ function createTopologyPanelPlugin({ container } = {}) {
         </div>
       </div>
       <div class="topology-role-list">${rows}</div>
+      <div class="topology-mini-key">
+        <span class="topology-mini-key-item"><span class="topology-shape topology-shape-circle topology-tone-all"></span><span>full</span></span>
+        <span class="topology-mini-key-item"><span class="topology-shape topology-shape-diamond topology-tone-leader"></span><span>leader</span></span>
+        <span class="topology-mini-key-item"><span class="topology-shape topology-shape-triangle topology-tone-replica"></span><span>replica</span></span>
+        <span class="topology-mini-key-item"><span class="topology-shape topology-shape-square topology-tone-acceptor"></span><span>acceptor</span></span>
+        <span class="topology-mini-key-item"><span class="topology-shape topology-shape-octagon topology-tone-mixed"></span><span>mixed</span></span>
+      </div>
     `;
   }
 
