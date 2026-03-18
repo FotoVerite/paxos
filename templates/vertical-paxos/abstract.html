@@ -1,0 +1,53 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Abstract - Vertical Paxos{% endblock %} {% block body_class
+%}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon">
+      <img
+        src="/svgs/vertical/abstract-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Abstract</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <p>
+          We introduce a class of Paxos algorithms called Vertical Paxos, in
+          which reconfiguration can occur in the middle of reaching agreement on
+          an individual state-machine command. Vertical Paxos algorithms use an
+          auxiliary configuration master that facilitates agreement on
+          reconfiguration. A special case of these algorithms leads to
+          traditional primary-backup protocols. We show how primary-backup
+          systems in current use can be viewed, and shown to be correct, as
+          instances of Vertical Paxos algorithms.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=1"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · page 1</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <p>
+      For people who have read the previous paper deep dives, this quote
+      probably resonates. Lamport likes teaching from invariants without wanting
+      to describe implementation. Luckily this time we finally get a paper that
+      cares about the system around the algorithm too.
+    </p>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/papers/distributed-design",
+  prev_label="Distributed Design", current_label="Abstract",
+  next_url="/introduction", next_label="Introduction" ) }}
+</div>
+{% endblock %}

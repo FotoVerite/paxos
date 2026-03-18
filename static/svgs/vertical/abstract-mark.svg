@@ -1,0 +1,91 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <pattern id="vpPaperGrid" width="4" height="4" patternUnits="userSpaceOnUse">
+      <path d="M4 0H0V4" stroke="#6F6557" stroke-opacity=".18" stroke-width=".28"/>
+    </pattern>
+
+    <pattern id="vpRuleHatch" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(90)">
+      <line x1="0" y1="0" x2="0" y2="3" stroke="#3D5D92" stroke-opacity=".2" stroke-width=".45"/>
+    </pattern>
+
+    <pattern id="vpStipple" width="2" height="2" patternUnits="userSpaceOnUse">
+      <circle cx=".65" cy=".65" r=".18" fill="#9C553D" opacity=".3"/>
+    </pattern>
+
+    <filter id="vpSignalGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation=".6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <mask id="vpPunchMask">
+      <rect width="20" height="40" fill="white"/>
+      <circle cx="2.4" cy="27.8" r="2.15" fill="black"/>
+      <circle cx="17.6" cy="27.8" r="2.15" fill="black"/>
+    </mask>
+
+    <mask id="vpTaperMask">
+      <rect width="20" height="48" fill="white"/>
+      <path d="M2.2 24h15.6l-3 6.1H5.2Z" fill="black"/>
+    </mask>
+
+    <g id="vpFoundation">
+      <path d="M4.2 32.2V65M15.8 32.2V65" stroke="#6F6557" stroke-opacity=".45" stroke-width=".34" stroke-dasharray="1.8 1.1"/>
+      <path d="M0 65h20v4H0z" fill="url(#vpPaperGrid)" stroke="#6F6557" stroke-opacity=".5" stroke-width=".5"/>
+      <path d="M1.2 67h17.6" stroke="#3D5D92" stroke-opacity=".35" stroke-width=".42"/>
+    </g>
+
+    <g id="vpAxisTicks">
+      <path d="M8 20v5M12 20v5" stroke="#6F6557" stroke-opacity=".55" stroke-width=".34"/>
+      <path d="M9.9 18.2v8.6" stroke="#3D5D92" stroke-opacity=".28" stroke-width=".3"/>
+    </g>
+  </defs>
+
+  <g opacity=".66">
+    <path d="M20 16.8H80" stroke="#6F6557" stroke-opacity=".28" stroke-width=".5"/>
+  </g>
+
+  <g transform="translate(40 5)">
+    <rect x="1" y="1" width="18" height="12" rx="2.2" fill="#F6EDDF" stroke="#6F6557" stroke-opacity=".56" stroke-width=".6"/>
+    <rect x="3.2" y="3.2" width="13.6" height="7.6" rx="1.2" fill="url(#vpPaperGrid)" opacity=".7"/>
+    <circle cx="10" cy="7" r="2.8" fill="#F8F1E4" stroke="#9C553D" stroke-opacity=".78" stroke-width=".58"/>
+    <path d="M10 5.15v3.7M8.15 7h3.7" stroke="#9C553D" stroke-width=".68" stroke-linecap="round"/>
+    <path d="M4.6 12.9h10.8" stroke="#3D5D92" stroke-opacity=".34" stroke-width=".46"/>
+  </g>
+
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M50 18.1v9.4" stroke="#9C553D" stroke-opacity=".72" stroke-width=".82"/>
+    <path d="M50 22.6C45.4 24.8 40.4 26 34.1 27.1" stroke="#3D5D92" stroke-opacity=".62" stroke-width=".64"/>
+    <path d="M50 22.6C54.6 24.8 59.6 26 65.9 27.1" stroke="#3D5D92" stroke-opacity=".62" stroke-width=".64"/>
+  </g>
+
+  <g transform="translate(8 0)">
+    <use href="#vpFoundation"/>
+    <use href="#vpAxisTicks"/>
+    <path d="M8.1 29.9h3.8v35.1H8.1z" fill="#E8DCC7" stroke="#6F6557" stroke-opacity=".52" stroke-width=".32"/>
+    <path d="M2.1 24.4h15.8v4.2H2.1z" fill="url(#vpRuleHatch)" stroke="#3D5D92" stroke-opacity=".62" stroke-width=".48"/>
+    <path d="M3 22.9h14" stroke="#3D5D92" stroke-opacity=".42" stroke-width=".42"/>
+    <path d="M3.6 70.8c1.4-1.2 3.1-1.8 5-1.8 2.1 0 3.7.6 5 1.8" stroke="#9C553D" stroke-opacity=".52" stroke-width=".52"/>
+  </g>
+
+  <g transform="translate(40 0)">
+    <use href="#vpFoundation"/>
+    <use href="#vpAxisTicks"/>
+    <path d="M8.1 29.9h3.8v35.1H8.1z" fill="#E8DCC7" stroke="#6F6557" stroke-opacity=".52" stroke-width=".32"/>
+    <rect x="2.1" y="24.4" width="15.8" height="4.2" fill="url(#vpRuleHatch)" stroke="#3D5D92" stroke-opacity=".62" stroke-width=".48" mask="url(#vpPunchMask)"/>
+    <circle cx="2.4" cy="27.8" r=".8" fill="#9C553D" filter="url(#vpSignalGlow)"/>
+    <circle cx="17.6" cy="27.8" r=".8" fill="#9C553D" filter="url(#vpSignalGlow)"/>
+    <circle cx="2.4" cy="27.8" r="2.15" stroke="#6F6557" stroke-opacity=".55" stroke-width=".36"/>
+    <circle cx="17.6" cy="27.8" r="2.15" stroke="#6F6557" stroke-opacity=".55" stroke-width=".36"/>
+    <path d="M10 18.6l1.2 2.7 2.9.2-2.2 1.8.8 2.8-2.7-1.4-2.7 1.4.8-2.8-2.2-1.8 2.9-.2 1.2-2.7Z" fill="#3D5D92" fill-opacity=".78"/>
+  </g>
+
+  <g transform="translate(72 0)">
+    <use href="#vpFoundation"/>
+    <use href="#vpAxisTicks"/>
+    <path d="M8.1 29.9h3.8v35.1H8.1z" fill="#E8DCC7" stroke="#6F6557" stroke-opacity=".52" stroke-width=".32" mask="url(#vpTaperMask)"/>
+    <path d="M2.2 24h15.6l-3 6.1H5.2Z" fill="url(#vpStipple)" stroke="#6F6557" stroke-opacity=".56" stroke-width=".46"/>
+    <path d="M4.1 31.8c1-4 4.4-5.4 5.9-8.4m6 8.4c-1.1-3.8-4.6-6.1-6.4-8.4" stroke="#3D5D92" stroke-opacity=".45" stroke-width=".38"/>
+    <path d="M2.2 23.2h15.6" stroke="#9C553D" stroke-width=".9" filter="url(#vpSignalGlow)"/>
+    <path d="M3.8 69.8c1.2-.8 2.7-1.2 4.5-1.2 2 0 3.6.4 4.8 1.2 1.1-.8 2.5-1.2 4.1-1.2" stroke="#3D5D92" stroke-opacity=".42" stroke-width=".42"/>
+  </g>
+</svg>

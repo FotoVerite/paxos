@@ -3,15 +3,32 @@
 
 <nav class="vp-navbar">
   <div class="vp-nav-shell">
-    <a href="{{ nav::site_url(raw_url="/") }}" class="vp-brand">Vertical Paxos</a>
+    <a href="{{ nav::site_url(raw_url="/") }}" class="vp-brand">
+      <img
+        src="/svgs/vertical/atlas-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-brand-mark"
+      />
+      <span class="vp-brand-copy">
+        <span class="vp-brand-kicker">Atlas Plate I</span>
+        <span class="vp-brand-text">Vertical Paxos</span>
+      </span>
+    </a>
     <button class="vp-nav-toggle" id="vpNavToggle" type="button" aria-label="Toggle navigation">
       <span></span>
       <span></span>
       <span></span>
     </button>
     <div class="vp-nav-links" id="vpNavLinks">
-      <a href="{{ nav::site_url(raw_url="/") }}" class="vp-nav-link">Overview</a>
-      <a href="{{ nav::site_url(raw_url="/introduction") }}" class="vp-nav-link">Introduction</a>
+      <a href="{{ nav::site_url(raw_url="/") }}" class="vp-nav-link">
+        <span class="vp-nav-index">01</span>
+        <span class="vp-nav-label">Overview</span>
+      </a>
+      <a href="{{ nav::site_url(raw_url="/introduction") }}" class="vp-nav-link">
+        <span class="vp-nav-index">02</span>
+        <span class="vp-nav-label">Introduction</span>
+      </a>
     </div>
   </div>
 </nav>

@@ -13,6 +13,8 @@
   --vp-accent-stable: #5f7155;
   --vp-grid: rgba(90, 74, 48, 0.08);
   --vp-shadow: rgba(60, 42, 20, 0.14);
+  --vp-font-body: "Source Sans 3", "Segoe UI", sans-serif;
+  --vp-font-display: "Marcellus", "Times New Roman", serif;
   --vp-max-width: 1180px;
   --vp-padding: clamp(1.25rem, 3vw, 2.5rem);
   --vp-radius: 12px;
