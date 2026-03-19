@@ -28,6 +28,7 @@ body.vp-landing-page main {
 }
 
 .vp-container {
+  position: relative;
   max-width: var(--vp-max-width);
   margin: 0 auto;
   width: 100%;
@@ -88,6 +89,35 @@ body.vp-landing-page main {
   gap: 1rem;
 }
 
+.inscription-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0 0 0.85rem;
+  font-family: var(--vp-font-display);
+  color: var(--vp-accent-warm);
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.inscription-label::before,
+.inscription-label::after {
+  content: "";
+  display: block;
+  height: 1px;
+}
+
+.inscription-label::before {
+  width: 1.9rem;
+  background: linear-gradient(90deg, rgba(156, 85, 61, 0.7), rgba(61, 93, 146, 0.4));
+}
+
+.inscription-label::after {
+  width: 0.7rem;
+  background: rgba(61, 93, 146, 0.32);
+}
+
 .vp-quote-block {
   position: relative;
   margin: 0;
@@ -120,7 +150,6 @@ body.vp-landing-page main {
 
 .vp-quote-text p {
   margin: 0;
-  max-width: 60ch;
   color: #3f3428;
   font-size: clamp(1.06rem, 2vw, 1.18rem);
   line-height: 1.8;
@@ -195,6 +224,14 @@ body.vp-landing-page main {
 }
 
 @media (max-width: 760px) {
+  .vp-page .panel {
+    padding-top: 1rem;
+  }
+
+  .vp-abstract-panel {
+    gap: 0.85rem;
+  }
+
   .vp-page p {
     font-size: 1rem;
   }
@@ -247,7 +284,7 @@ body.vp-landing-page main {
 .header-icon.full {
   width: 100px;
   right: 55px;
-  top: 135px;
+  top: 50px;
 }
 
 .vp-header-icon {
@@ -270,6 +307,7 @@ body.vp-landing-page main {
     right: auto;
     top: auto;
     align-self: flex-end;
-    margin-bottom: 0.2rem;
+    width: 76px;
+    margin-bottom: -0.15rem;
   }
 }

@@ -1,54 +1,64 @@
-{% extends "vertical-paxos/base.html" %}
-{% import "macros/nav.html" as nav %}
-
-{% block title %}Vertical Paxos - Introduction{% endblock %}
-{% block body_class %}vp-page{% endblock %}
-
-{% block content %}
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Introduction - Vertical Paxos{% endblock %} {% block body_class
+%}vp-page{% endblock %} {% block content %}
 <div class="vp-container">
-  <div class="panel">
-    <h1 class="panel-title">Vertical Paxos</h1>
-    <p>
-      This track is for the version of Paxos where membership changes are built into the model
-      instead of being bolted on afterward.
-    </p>
-    <p>
-      The short version is that ordinary Paxos explains how one configuration behaves. Vertical
-      Paxos is about how configurations hand work to each other without losing the plot.
-    </p>
-
-    <div class="vp-note-grid">
-      <section class="vp-note">
-        <h2>What This Track Is For</h2>
-        <p>
-          To explain why configuration management becomes its own protocol problem once the system
-          needs to keep running while the cast changes.
-        </p>
-      </section>
-      <section class="vp-note">
-        <h2>What Makes It Different</h2>
-        <p>
-          The point here is not just ballots and quorums. It is who gets to define the active
-          configuration, who carries state forward, and how one era hands off to the next.
-        </p>
-      </section>
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon">
+      <img
+        src="/svgs/vertical/abstract-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
     </div>
+    <h1 class="panel-title">Introduction</h1>
 
-    <section class="vp-reading-note">
-      <h2>Starting Point</h2>
-      <p>
-        This is just the opening shell for now. The next passes can add the actual paper walk,
-        demos, and the more careful treatment of the master and configuration handoff.
-      </p>
-    </section>
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">The Issue at Stake</span>
+
+        <p>
+          Large-scale distributed storage systems built over failure-prone
+          commodity components are increasingly popular. Failures are the norm
+          in those systems, and replication is often the solution to data
+          reliability. We might expect these systems to adopt well-studied
+          consensus algorithms and the replicated state-machine approach that
+          they enable. While some consensus algorithms, such as Paxos, have
+          started to find their way into those systems, their uses are limited
+          mostly to the maintenance of the global configuration information in
+          the system, not for the actual data replication. A clear gap remains
+          between the well-known consensus algorithms and the practical
+          replication protocols in real systems.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=2"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · page 2</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <p>
+      For practical operations of a large paxos style system, reconfiguration
+      that can happen while commands are in flight are a needed extension. To
+      this end Lamport, Malkhi, and Zhou sketch out a new algorithm that uses a
+      separate <em>Configuration Master</em> to control reconfiguration.
+    </p>
+
+    <p>
+      The paper is also concerned with showing how current primary-backup
+      systems can be viewed as restricted instances of Vertical Paxos, and
+      therefore can be reasoned about as having Paxos-derived safety.
+    </p>
   </div>
 
-  {{ nav::breadcrumb(
-    prev_url="/papers/distributed-design",
-    prev_label="Distributed Design",
-    current_label="Vertical Paxos",
-    next_url="/introduction",
-    next_label="Introduction"
-  ) }}
+  {{ nav::breadcrumb( prev_url="/papers/distributed-design",
+  prev_label="Distributed Design", current_label="Introduction",
+  next_url="/introduction", next_label="Introduction" ) }}
 </div>
 {% endblock %}
