@@ -39,10 +39,16 @@
     </figure>
 
     <p>
-      For people who have read the previous paper deep dives, this quote
-      probably resonates. Lamport likes teaching from invariants without wanting
-      to describe implementation. Luckily this time we finally get a paper that
-      cares about the system around the algorithm too.
+      For practical operations of a large paxos style system, reconfiguration
+      that can happen while commands are in flight are a needed extension. To
+      this end Lamport, Malkhi, and Zhou sketch out a new algorithm that uses a
+      separate <em>Configuration Master</em> to control reconfiguration.
+    </p>
+
+    <p>
+      The paper is also concerned with showing how current primary-backup
+      systems can be viewed as restricted instances of Vertical Paxos, and
+      therefore can be reasoned about as having Paxos-derived safety.
     </p>
   </div>
 
