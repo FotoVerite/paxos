@@ -1,0 +1,49 @@
+<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <pattern id="vpOptGrid" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M8 0H0V8" stroke="#6F6557" stroke-opacity=".12" stroke-width=".5"/>
+    </pattern>
+    <pattern id="vpOptRule" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(90)">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="#3D5D92" stroke-opacity=".18" stroke-width=".5"/>
+    </pattern>
+    <filter id="vpOptGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+  </defs>
+
+  <rect x="1.5" y="1.5" width="237" height="237" rx="18" fill="#fffaf3" fill-opacity=".62" stroke="#6F6557" stroke-opacity=".2"/>
+  <rect x="12" y="12" width="216" height="216" rx="14" fill="url(#vpOptGrid)" opacity=".66"/>
+
+  <g opacity=".62">
+    <path d="M50 60H190" stroke="#6F6557" stroke-opacity=".18" stroke-width="1"/>
+    <path d="M50 180H190" stroke="#6F6557" stroke-opacity=".16" stroke-width="1"/>
+    <path d="M120 34V206" stroke="#6F6557" stroke-opacity=".12" stroke-width="1"/>
+  </g>
+
+  <g transform="translate(86 46)">
+    <rect x="1" y="1" width="68" height="34" rx="8" fill="#F8F1E4" stroke="#6F6557" stroke-opacity=".48" stroke-width="1.2"/>
+    <rect x="10" y="9" width="36" height="10" rx="2.2" fill="url(#vpOptRule)" opacity=".86"/>
+    <path d="M10 25h48" stroke="#3D5D92" stroke-opacity=".34" stroke-width="1" stroke-linecap="round"/>
+    <circle cx="58" cy="10" r="2.1" fill="#9C553D" filter="url(#vpOptGlow)" opacity=".56"/>
+  </g>
+
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M120 80v72" stroke="#3D5D92" stroke-opacity=".84" stroke-width="3.1"/>
+    <path d="M115 144l5 10 5-10" stroke="#3D5D92" stroke-width="2"/>
+    <path d="M120 80c0 0 14 10 24 22 9 11 16 24 16 38 0 13-5 22-15 28" stroke="#9C553D" stroke-opacity=".66" stroke-width="2.1"/>
+    <path d="M138 97c5 6 11 14 15 22" stroke="#9C553D" stroke-opacity=".3" stroke-width="1.1" stroke-dasharray="2 4"/>
+  </g>
+
+  <g opacity=".34" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M120 80c-18 12-34 27-42 45-7 16-6 31 4 45" stroke="#6F6557" stroke-width="1.5" stroke-dasharray="3 5"/>
+    <path d="M120 80c22 8 42 19 55 34 11 12 17 27 16 44" stroke="#6F6557" stroke-width="1.5" stroke-dasharray="3 5"/>
+    <path d="M120 80c-4 14-11 28-22 40-10 12-22 23-36 32" stroke="#6F6557" stroke-width="1.5" stroke-dasharray="3 5"/>
+  </g>
+
+  <g transform="translate(86 142)">
+    <circle cx="34" cy="34" r="28" fill="#F3E7D3" stroke="#6F6557" stroke-opacity=".3" stroke-width="1.2"/>
+    <circle cx="34" cy="34" r="16.5" fill="none" stroke="#6F6557" stroke-opacity=".2" stroke-width="1"/>
+    <path d="M34 15l2.8 6.2 6.8.6-5.1 4.1 1.3 6.7-5.8-3-5.8 3 1.3-6.7-5.1-4.1 6.8-.6L34 15Z" fill="#3D5D92" fill-opacity=".82"/>
+    <circle cx="34" cy="34" r="2.2" fill="#9C553D" filter="url(#vpOptGlow)" opacity=".54"/>
+  </g>
+</svg>

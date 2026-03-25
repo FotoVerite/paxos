@@ -1,0 +1,87 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Primary Backup Case - Optimization {% endblock %} {% block
+body_class %}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--optimizations">
+      <img
+        src="/svgs/vertical/optimizations-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Primary Backup - Optimization</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Optimization</span>
+
+        <p>
+          The optimizations that are possible with traditional primary-backup
+          systems all seem to have corresponding optimizations in Vertical
+          Paxos. One example is the way efficient local reads can be done from
+          the primary while maintaining linearizability. The primary obtains a
+          lease that gives it permission to reply directly to reads from its
+          local state. A new primary cannot be chosen until the lease expires.
+          In a similar way, a Vertical Paxos leader can use a lease to reply
+          immediately to commands that do not change the state. A new leader
+          cannot be chosen until the previous leader’s lease has expired.
+        </p>
+        <hr />
+        <p>
+          Boxwood employs this local reading protocol for Replicated Logical
+          Devices. Boxwood also uses another optimization that applies as well
+          to Vertical Paxos. A Boxwood configuration consists of a primary and a
+          single backup. When either of them fails, the other takes over and
+          continues in a solo configuration. It may start processing new client
+          requests immediately upon the reconfiguration decree by the
+          configuration master. This applies to Vertical Paxos because the solo
+          process is both the leader and a write quorum of the new
+          configuration, as well as a read quorum of the previous (two-acceptor)
+          configuration.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=5"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 6</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        The authors are making the direct case that Vertical Paxos is a
+        mathematical algorithm that explains the safety of Primary Backups.
+      </p>
+
+      <p>
+        The linearizability of the system. Paxos. The ability of leasing for
+        fast read commands, direct consequence of paxos. The ease of
+        reconfiguration in a 2 acceptor system. That's also paxos. It is there
+        to widen the paper’s claim: not just that Vertical Paxos works, but that
+        familiar primary-backup systems and their optimizations can be
+        redescribed as Paxos
+      </p>
+
+      <p>
+        While I agree I also think this is more politically motivated then
+        needed for the paper. It is less about helping the reader understand the
+        mechanism than about extending Paxos’s conceptual territory and
+        asserting ownership over designs that were often treated as something
+        separate.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/overview-vertical-paxos/configuration-master",
+  prev_label="AMC", current_label="Primary Backup - Optimization",
+  next_url="/primary-backup-case/quorums-and-leaders", next_label="Primary
+  Backup - Quorum" ) }}
+</div>
+{% endblock %}
