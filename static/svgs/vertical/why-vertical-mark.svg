@@ -1,0 +1,56 @@
+<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <pattern id="vpWhyGrid" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M8 0H0V8" stroke="#6F6557" stroke-opacity=".12" stroke-width=".5"/>
+    </pattern>
+    <pattern id="vpWhyRule" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(90)">
+      <line x1="0" y1="0" x2="0" y2="4" stroke="#3D5D92" stroke-opacity=".18" stroke-width=".5"/>
+    </pattern>
+    <filter id="vpWhyGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+  </defs>
+
+  <rect x="1.5" y="1.5" width="237" height="237" rx="18" fill="#fffaf3" fill-opacity=".62" stroke="#6F6557" stroke-opacity=".2"/>
+  <rect x="12" y="12" width="216" height="216" rx="14" fill="url(#vpWhyGrid)" opacity=".66"/>
+
+  <g opacity=".68">
+    <path d="M50 120H190" stroke="#6F6557" stroke-opacity=".18" stroke-width="1"/>
+    <path d="M120 40V200" stroke="#6F6557" stroke-opacity=".16" stroke-width="1"/>
+    <path d="M78 58V182M162 58V182" stroke="#6F6557" stroke-opacity=".14" stroke-width="1" stroke-dasharray="3 4"/>
+    <path d="M46 80H194M46 160H194" stroke="#6F6557" stroke-opacity=".12" stroke-width="1"/>
+  </g>
+
+  <g transform="translate(98 54)">
+    <rect x="0.8" y="0.8" width="42.4" height="18.4" rx="4.5" fill="#F6EDDF" stroke="#6F6557" stroke-opacity=".56" stroke-width="1.2"/>
+    <rect x="7" y="5" width="30" height="7" rx="1.8" fill="url(#vpWhyGrid)" opacity=".72"/>
+    <path d="M9 15h26" stroke="#3D5D92" stroke-opacity=".28" stroke-width=".8"/>
+  </g>
+
+  <g opacity=".86" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M70 120H170" stroke="#9C553D" stroke-opacity=".54" stroke-width="2.6" stroke-dasharray="5 5"/>
+    <path d="M163 115l9 5-9 5" stroke="#9C553D" stroke-width="1.9"/>
+  </g>
+
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M120 76v88" stroke="#3D5D92" stroke-opacity=".82" stroke-width="3"/>
+    <path d="M115 156l5 10 5-10" stroke="#3D5D92" stroke-width="2"/>
+  </g>
+
+  <g transform="translate(96 88)">
+    <rect x="0.8" y="0.8" width="46.4" height="32.4" rx="7" fill="#F8F1E4" stroke="#6F6557" stroke-opacity=".4" stroke-width="1.2"/>
+    <rect x="7" y="6" width="34" height="8" rx="2" fill="url(#vpWhyRule)" opacity=".82"/>
+    <path d="M8 20h30M8 25h20" stroke="#3D5D92" stroke-opacity=".34" stroke-width="1" stroke-linecap="round"/>
+    <circle cx="41" cy="7" r="1.8" fill="#9C553D" filter="url(#vpWhyGlow)"/>
+  </g>
+
+  <g transform="translate(102 150)">
+    <circle cx="18" cy="18" r="15" fill="#F3E7D3" stroke="#6F6557" stroke-opacity=".34" stroke-width="1.1"/>
+    <circle cx="18" cy="18" r="9.5" fill="none" stroke="#6F6557" stroke-opacity=".2" stroke-width="1"/>
+    <path d="M18 7l2.3 5.3 5.8.5-4.3 3.4 1.1 5.7L18 19.3l-4.9 2.6 1.1-5.7-4.3-3.4 5.8-.5L18 7Z" fill="#3D5D92" fill-opacity=".82"/>
+    <circle cx="18" cy="18" r="1.9" fill="#9C553D" filter="url(#vpWhyGlow)" opacity=".56"/>
+  </g>
+
+  <path d="M88 108c9-8 18-12 32-12 14 0 23 4 32 12" stroke="#3D5D92" stroke-opacity=".18" stroke-width="1.2" stroke-dasharray="2 4"/>
+  <path d="M104 176c4 2.4 9.2 3.6 16 3.6 6.7 0 12-1.2 16-3.6" stroke="#9C553D" stroke-opacity=".24" stroke-width="1.2" stroke-dasharray="2 4"/>
+</svg>

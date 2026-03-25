@@ -1,0 +1,71 @@
+<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <pattern id="vpWhyDiagGrid" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="M12 0H0V12" stroke="#6F6557" stroke-opacity=".1" stroke-width=".6"/>
+    </pattern>
+  </defs>
+
+  <rect x="1" y="1" width="758" height="298" rx="18" fill="#fffaf3" fill-opacity=".72" stroke="#6F6557" stroke-opacity=".18"/>
+  <rect x="16" y="16" width="728" height="268" rx="14" fill="url(#vpWhyDiagGrid)" opacity=".72"/>
+
+  <g transform="translate(64 36)">
+    <text x="110" y="16" fill="#9C553D" font-size="18" letter-spacing="2.2" text-anchor="middle">HORIZONTAL PAXOS</text>
+    <path d="M48 62V212M108 62V212M168 62V212" stroke="#6F6557" stroke-opacity=".18" stroke-width="1.2" stroke-dasharray="4 5"/>
+    <path d="M24 86H192M24 136H192M24 186H192" stroke="#6F6557" stroke-opacity=".14" stroke-width="1"/>
+
+    <g>
+      <rect x="36" y="74" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#9C553D" stroke-width="1.5"/>
+      <rect x="36" y="124" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#9C553D" stroke-width="1.5"/>
+      <rect x="36" y="174" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#9C553D" stroke-width="1.5"/>
+
+      <rect x="96" y="74" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#3D5D92" stroke-width="1.5"/>
+      <rect x="96" y="124" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#3D5D92" stroke-width="1.5"/>
+      <rect x="96" y="174" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#3D5D92" stroke-width="1.5"/>
+
+      <rect x="156" y="74" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#5F7155" stroke-width="1.5"/>
+      <rect x="156" y="124" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#5F7155" stroke-width="1.5"/>
+      <rect x="156" y="174" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#5F7155" stroke-width="1.5"/>
+    </g>
+
+    <path d="M60 86H92M120 86H152" stroke="#9C553D" stroke-opacity=".72" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M60 136H92M120 136H152" stroke="#3D5D92" stroke-opacity=".72" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M60 186H92M120 186H152" stroke="#5F7155" stroke-opacity=".72" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M147 81l8 5-8 5" stroke="#9C553D" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M147 131l8 5-8 5" stroke="#3D5D92" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M147 181l8 5-8 5" stroke="#5F7155" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <text x="110" y="236" fill="#6F6557" font-size="12" letter-spacing="1.2" text-anchor="middle">SAME COLUMN, SAME CONFIGURATION</text>
+  </g>
+
+  <path d="M380 44V256" stroke="#6F6557" stroke-opacity=".18" stroke-width="1.2"/>
+
+  <g transform="translate(446 36)">
+    <text x="110" y="16" fill="#3D5D92" font-size="18" letter-spacing="2.2" text-anchor="middle">VERTICAL PAXOS</text>
+
+    <path d="M48 62V212M108 62V212M168 62V212" stroke="#6F6557" stroke-opacity=".18" stroke-width="1.2" stroke-dasharray="4 5"/>
+    <path d="M24 86H192M24 136H192M24 186H192" stroke="#6F6557" stroke-opacity=".14" stroke-width="1"/>
+
+    <g>
+      <rect x="36" y="74" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#9C553D" stroke-width="1.5"/>
+      <rect x="36" y="124" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#3D5D92" stroke-width="1.5"/>
+      <rect x="36" y="174" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#5F7155" stroke-width="1.5"/>
+
+      <rect x="96" y="74" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#9C553D" stroke-width="1.5"/>
+      <rect x="96" y="124" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#3D5D92" stroke-width="1.5"/>
+      <rect x="96" y="174" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#5F7155" stroke-width="1.5"/>
+
+      <rect x="156" y="74" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#9C553D" stroke-width="1.5"/>
+      <rect x="156" y="124" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#3D5D92" stroke-width="1.5"/>
+      <rect x="156" y="174" width="24" height="24" rx="6" fill="#F8F1E4" stroke="#5F7155" stroke-width="1.5"/>
+    </g>
+
+    <path d="M48 100V122M48 150V172" stroke="#9C553D" stroke-opacity=".74" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M108 100V122M108 150V172" stroke="#3D5D92" stroke-opacity=".74" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M168 100V122M168 150V172" stroke="#5F7155" stroke-opacity=".74" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M43 165l5 8 5-8" stroke="#9C553D" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M103 165l5 8 5-8" stroke="#3D5D92" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M163 165l5 8 5-8" stroke="#5F7155" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <text x="110" y="236" fill="#6F6557" font-size="12" letter-spacing="1.2" text-anchor="middle">SAME ROW, SAME BALLOT NUMBER</text>
+  </g>
+</svg>

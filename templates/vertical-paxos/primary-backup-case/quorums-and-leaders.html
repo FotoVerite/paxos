@@ -1,0 +1,78 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Primary Backup Case - Quorum and Leadership {% endblock %} {% block
+body_class %}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--primary-backup">
+      <img
+        src="/svgs/vertical/primary-backup-quorum-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Primary Backup - Quorum and Leadership</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Algorithm Vertical Paxos I</span>
+
+        <p>
+          In a Vertical Paxos consensus algorithm, a ballot leader must access a
+          write quorum of its own ballot and read quorums of one or more
+          lower-numbered ballots. Because a reconfiguration is usually performed
+          in response to a failure, processes participating in lower-numbered
+          ballots are more likely to have failed. We therefore want to keep read
+          quorums small. Read and write quorums must intersect, so there is a
+          tradeoff: making read quorums smaller requires making write quorums
+          larger.
+        </p>
+        <hr />
+        <p>
+          We obtain what is probably the most interesting case of Vertical Paxos
+          by letting read quorums be as small as possible—namely, making any
+          single acceptor a read quorum, so the only write quorum is the set of
+          all acceptors. These are the quorums that allow k-fault tolerance with
+          only k +1 acceptors. Suppose that in Vertical Paxos II we also always
+          make the leader one of the acceptors and, upon reconfiguration, always
+          choose the new leader from among the current acceptors. The new leader
+          by itself is a read quorum for the previous ballot. Hence, it can
+          perform the state transfer all by itself, with no messages. (It will
+          still have to interact with the master and may have to exchange
+          messages with acceptors in the new configuration.) If we call the
+          leader the primary and all other acceptors backups, then we have a
+          traditional primary-backup system.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=5"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 6</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        Vertical Paxos II delays activation until the transfer is complete,
+        ensuring the system only depends on the current and immediately previous
+        configuration.
+      </p>
+
+      <p>
+        VP I is engineered for availability, VP 2 for clean reasoning where
+        configuration bottlenecks are not a major concern.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/overview-vertical-paxos/configuration-master",
+  prev_label="AMC", current_label="Primary Backup - Quorum and Leadership",
+  next_url="/primary-backup-case/quorums-and-leaders", next_label="Primary
+  Backup - Quorum" ) }}
+</div>
+{% endblock %}

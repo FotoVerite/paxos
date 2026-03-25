@@ -1,0 +1,66 @@
+<svg viewBox="0 0 260 210" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <pattern id="vpBasicsGrid" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M8 0H0V8" stroke="#6F6557" stroke-opacity=".12" stroke-width=".5"/>
+    </pattern>
+    <linearGradient id="vpBasicsIngress" x1="50" y1="108" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9C553D" stop-opacity=".82"/>
+      <stop offset="1" stop-color="#9C553D" stop-opacity=".58"/>
+    </linearGradient>
+    <linearGradient id="vpBasicsToLeader" x1="126" y1="94" x2="176" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5F7155" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#3D5D92" stop-opacity=".86"/>
+    </linearGradient>
+    <linearGradient id="vpBasicsConsensus" x1="194" y1="80" x2="194" y2="126" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3D5D92" stop-opacity=".82"/>
+      <stop offset="1" stop-color="#4A6D7C" stop-opacity=".62"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="1.5" y="1.5" width="257" height="207" rx="14" fill="#fffaf3" fill-opacity=".58" stroke="#6F6557" stroke-opacity=".22"/>
+  <rect x="12" y="12" width="236" height="186" rx="10" fill="url(#vpBasicsGrid)" opacity=".68"/>
+
+  <path d="M54 42V174" stroke="#6F6557" stroke-opacity=".24" stroke-width="1" stroke-dasharray="3 3"/>
+  <path d="M124 34V182" stroke="#6F6557" stroke-opacity=".18" stroke-width="1"/>
+  <path d="M194 24V176" stroke="#6F6557" stroke-opacity=".2" stroke-width="1"/>
+
+  <path d="M68 108H101" stroke="url(#vpBasicsIngress)" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M136 93L176 65" stroke="url(#vpBasicsToLeader)" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M174 73L140 95" stroke="#3D5D92" stroke-opacity=".58" stroke-width="2.1" stroke-linecap="round" stroke-dasharray="2 2"/>
+  <path d="M194 82V110" stroke="url(#vpBasicsConsensus)" stroke-width="2.9" stroke-linecap="round"/>
+  <path d="M124 142c0 22-12 35-36 40" stroke="#6F6557" stroke-opacity=".34" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="3 3"/>
+
+  <path d="M97 104l7 4-7 4" stroke="#9C553D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M170 64l8 2-4 7" stroke="#3D5D92" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M190 108l4 8 4-8" stroke="#3D5D92" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M190 84l4-8 4 8" stroke="#3D5D92" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M88 178l-8 4 8 4" stroke="#9C553D" stroke-opacity=".82" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <circle cx="54" cy="108" r="15" fill="#F8F1E4" stroke="#9C553D" stroke-width="1.9"/>
+  <path d="M54 95v26M41 108h26" stroke="#9C553D" stroke-width="1.6" stroke-linecap="round"/>
+
+  <rect x="106" y="87" width="36" height="42" rx="8" fill="#F8F1E4" stroke="#5F7155" stroke-width="1.9"/>
+  <rect x="111" y="92" width="36" height="42" rx="8" fill="none" stroke="#5F7155" stroke-opacity=".34" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <path d="M115 98h14v10h-14z" fill="#5F7155" fill-opacity=".12" stroke="#5F7155" stroke-width="1.15"/>
+  <path d="M129 103h10" stroke="#5F7155" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M115 118h18" stroke="#5F7155" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M115 123h12" stroke="#5F7155" stroke-width="1.2" stroke-linecap="round"/>
+
+  <circle cx="194" cy="62" r="16" fill="#F8F1E4" stroke="#3D5D92" stroke-width="1.9"/>
+  <path d="M194 55l6 10.4h-12L194 55Z" fill="#3D5D92" fill-opacity=".88"/>
+
+  <rect x="174" y="112" width="40" height="36" rx="6" fill="#F8F1E4" stroke="#4A6D7C" stroke-width="1.9"/>
+  <rect x="181" y="120" width="9" height="20" rx="2" fill="#4A6D7C" fill-opacity=".14" stroke="#4A6D7C" stroke-width="1.1"/>
+  <rect x="190" y="120" width="9" height="20" rx="2" fill="#4A6D7C" fill-opacity=".2" stroke="#4A6D7C" stroke-width="1.1"/>
+  <rect x="199" y="120" width="9" height="20" rx="2" fill="#4A6D7C" fill-opacity=".14" stroke="#4A6D7C" stroke-width="1.1"/>
+
+  <path d="M54 82V68" stroke="#9C553D" stroke-opacity=".42" stroke-width="1.1"/>
+  <path d="M124 84V68" stroke="#5F7155" stroke-opacity=".32" stroke-width="1.1"/>
+  <path d="M194 46V22" stroke="#3D5D92" stroke-opacity=".42" stroke-width="1.1"/>
+  <path d="M194 154v18" stroke="#4A6D7C" stroke-opacity=".42" stroke-width="1.1"/>
+
+  <text x="54" y="63" fill="#9C553D" font-size="11" letter-spacing="1.9" text-anchor="middle">CLIENT</text>
+  <text x="124" y="62" fill="#5F7155" font-size="11" letter-spacing="1.7" text-anchor="middle">LEARNER</text>
+  <text x="194" y="19" fill="#3D5D92" font-size="11" letter-spacing="1.9" text-anchor="middle">LEADER</text>
+  <text x="194" y="186" fill="#4A6D7C" font-size="11" letter-spacing="1.9" text-anchor="middle">ACCEPTORS</text>
+</svg>

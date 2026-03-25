@@ -1,0 +1,88 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Overview - Vertical Paxos - ACM {% endblock %} {% block
+body_class %}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--acm">
+      <img
+        src="/svgs/vertical/acm-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Vertical Paxos Overview - ACM</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Auxiliary Configuration Master</span>
+
+        <p>
+          Although it is possible to let the state machine reconfigure itself,
+          in practical settings, a separate configuration master often makes
+          reconfigurations decisions. Vertical Paxos makes use of an auxiliary
+          master to allow the set of acceptors to change within each individual
+          consensus instance. The master determines the set of acceptors and the
+          leader for every configuration. The use of a configuration master
+          allows a more efficient implementation of the individual state
+          machines. In particular, a master allows a state-machine
+          implementation to tolerate k failures using only k + 1 processors
+          instead of the 2k + 1 processors required without it.
+        </p>
+        <hr />
+        <p>
+          The configuration master need be called upon by the processors
+          executing an individual state machine only for reconfiguration—that
+          is, for changing the set of processors that are executing the state
+          machine. Since reconfiguration is infrequent—usually in response to a
+          processor failure—executing the master requires little processing
+          power. It is therefore practical to implement a very reliable master
+          by using a sufficient number of different processors that spend most
+          of their time doing other things.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=3"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 4</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        While it's possible to design a system that can reconfigure itself, in
+        practice it is often cleaner to have configuration controlled by a
+        separate process outside of the Paxos instance. This Auxiliary
+        Configuration Master determines the set of acceptors and selects a
+        leader for each configuration, rather than relying on the system to
+        converge on leadership through ballots.
+      </p>
+
+      <p>
+        This is a marked difference from earlier Paxos formulations, where
+        leadership emerges from within the protocol itself. Here, leadership and
+        configuration are assigned externally.
+      </p>
+      <p>
+        This change of centralization allows more robust tolerance of failures.
+        Since arbitrary overlap of quorum is no longer a requirement.
+      </p>
+
+      <p>
+        Because the master is only involved during reconfiguration—which is
+        relatively infrequent—it can be implemented as a highly reliable
+        component without becoming a performance bottleneck.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/overview-vertical-paxos/quorum", prev_label="Quorum",
+  current_label="Overview - ACM",
+  next_url="/overview-vertical-paxos/the-vertical-in-vertical", next_label="Why Vertical" ) }}
+</div>
+{% endblock %}
