@@ -1,0 +1,97 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Overview - Vertical Paxos - The Vertical in Vertical {%
+endblock %} {% block body_class %}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--why-vertical">
+      <img
+        src="/svgs/vertical/why-vertical-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Why Vertical</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">The Vertical in Vertical Paxos</span>
+
+        <p>
+          Vertical Paxos integrates these two key ingredients by changing the
+          configuration of acceptors within individual consensus instances. A
+          Paxos consensus algorithm performs a sequence of numbered ballots,
+          each with a unique leader. (In normal operation, only a single ballot
+          is performed in each consensus instance until that ballot’s leader
+          fails and a new leader is chosen.) Think of the ballots as arranged in
+          a two-dimensional array, each vertical column consisting of all the
+          ballots within a single instance arranged according to their number.
+          In standard “horizontal” Paxos algorithms, configurations can change
+          only as we move horizontally; they are unchanged when we move
+          vertically (within a single instance). In Vertical Paxos,
+          configurations change when we move vertically, but remain the same as
+          we move horizontally from a ballot in one instance to the ballot with
+          the same number in any other instance.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=3"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 4</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        The authors are using horizontal as shorthand for the old way of doing
+        reconfiguration in Paxos. The idea is that configuration changes happen
+        as you move across the sequence of instances, not as you move down
+        through ballots inside one instance. That means you have to reason about
+        configuration changes in the same place you are already reasoning about
+        the log, leadership and application to state.
+      </p>
+
+      <p>
+        The annoying part is quorum intersection. If the acceptor set changes
+        across configurations, you still need the new setup to overlap with the
+        old one in the right way, or safety falls apart. In the older framing,
+        that coupling lives across the horizontal progression of the protocol.
+        Or was removed by fully stopping and starting a new instance with a
+        checkpoint. <em>Vertical Paxos</em> moves that coupling into the
+        ballot/leadership entirely.
+      </p>
+
+      <p>
+        With <em>Vertical Paxos</em> this is no longer the case. Each ballot is tied to one configuration and one set of acceptors. That is the whole trick. You are no longer pretending one fixed acceptor set owns the whole story while the system changes around it. The relevant acceptor set is attached to the ballot/configuration you are in.
+      </p>
+
+      <p>
+        So the name is not about “vertical integration” or any other grand idea. It is literally Lamport naming the thing after the direction in his array picture. Slightly silly, yes, but at least this time the silly name points at a real structural change.
+      </p>
+    </div>
+
+    <figure class="vp-diagram-block">
+      <img
+        src="/svgs/vertical/why-vertical-diagram.svg"
+        alt="Diagram comparing horizontal Paxos, where configurations change across instances, with Vertical Paxos, where configurations change within a single instance as ballots move downward"
+        class="vp-diagram-image"
+      />
+      <figcaption class="vp-diagram-caption">
+        The left side changes configuration as you move across instances. The
+        right side changes configuration as you move down within one instance.
+        That is the whole naming gimmick.
+      </figcaption>
+    </figure>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/basics", prev_label="Basics",
+  current_label="Overview - Why Vertical",
+  next_url="/overview-vertical-paxos/configuration-master", next_label="Overview
+  - Configuration Master" ) }}
+</div>
+{% endblock %}

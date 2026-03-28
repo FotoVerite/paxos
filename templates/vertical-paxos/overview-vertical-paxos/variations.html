@@ -1,0 +1,105 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Overview - Vertical Paxos - Variations {% endblock %} {% block
+body_class %}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--variations">
+      <img
+        src="/svgs/vertical/variations-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Vertical Paxos Overview - Variations</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Algorithm Vertical Paxos I</span>
+
+        <p>
+          Algorithm Vertical Paxos I uses the following procedure to eliminate
+          the dependence on acceptors from lower-numbered ballots. When a
+          configuration changes in Vertical Paxos, the new configuration becomes
+          active right away. The previous configuration remains active only for
+          storing old information, the new one also accepts new commands. When
+          the state of the previous configuration has been transferred to the
+          new configuration, the new leader informs the master that this has
+          happened. The master will then tell all future leaders that they need
+          not access that old configuration.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=4"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 5</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        In Vertical Paxos I, a new configuration becomes active immediately and
+        begins accepting commands, while the previous configuration is still
+        needed to supply any missing state. If multiple leaders fail before
+        completing this transfer, a chain of configurations can accumulate.
+      </p>
+    </div>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Algorithm Vertical Paxos II</span>
+
+        <p>
+          Suppose a new ballot b + 1 is begun, but its leader fails before the
+          state transfer from the ballot b configuration is complete. A new
+          ballot b+2 then begins, but its leader could also fail before any
+          state transfer occurs. This could continue happening until ballot b +
+          42 begins, and its leader must communicate with acceptors from ballots
+          b through b + 42. Algorithm Vertical Paxos II avoids the dependence on
+          so many configurations by having a new configuration initially
+          inactive. The new leader notifies the master when the state transfer
+          from the previous configuration is complete, and the master then
+          activates the new configuration. The leader communicates only with
+          acceptors from the new configuration and the previous active
+          configuration. However, a number of new ballots could be started, but
+          remain forever inactive because their leaders failed, before a new
+          configuration becomes active and starts accepting new commands.
+          Vertical Paxos II is especially useful for primary-backup replication.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=4"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 5</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        Vertical Paxos II delays activation until the transfer is complete,
+        ensuring the system only depends on the current and immediately previous
+        configuration.
+      </p>
+
+      <p>
+        VP I is engineered for availability, VP 2 for clean reasoning where
+        configuration bottlenecks are not a major concern.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/overview-vertical-paxos/configuration-master", prev_label="AMC",
+  current_label="Overview - Variations",
+  next_url="/primary-backup-case/quorums-and-leaders", next_label="Primary Backup - Quorum" ) }}
+</div>
+{% endblock %}

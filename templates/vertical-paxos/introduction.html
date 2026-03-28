@@ -1,54 +1,153 @@
-{% extends "vertical-paxos/base.html" %}
-{% import "macros/nav.html" as nav %}
-
-{% block title %}Vertical Paxos - Introduction{% endblock %}
-{% block body_class %}vp-page{% endblock %}
-
-{% block content %}
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Introduction - Vertical Paxos{% endblock %} {% block body_class
+%}vp-page{% endblock %} {% block content %}
 <div class="vp-container">
-  <div class="panel">
-    <h1 class="panel-title">Vertical Paxos</h1>
-    <p>
-      This track is for the version of Paxos where membership changes are built into the model
-      instead of being bolted on afterward.
-    </p>
-    <p>
-      The short version is that ordinary Paxos explains how one configuration behaves. Vertical
-      Paxos is about how configurations hand work to each other without losing the plot.
-    </p>
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon">
+      <img
+        src="/svgs/vertical/abstract-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Introduction</h1>
 
-    <div class="vp-note-grid">
-      <section class="vp-note">
-        <h2>What This Track Is For</h2>
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">The Issue at Stake</span>
+
         <p>
-          To explain why configuration management becomes its own protocol problem once the system
-          needs to keep running while the cast changes.
+          Large-scale distributed storage systems built over failure-prone
+          commodity components are increasingly popular. Failures are the norm
+          in those systems, and replication is often the solution to data
+          reliability. We might expect these systems to adopt well-studied
+          consensus algorithms and the replicated state-machine approach that
+          they enable. While some consensus algorithms, such as Paxos, have
+          started to find their way into those systems, their uses are limited
+          mostly to the maintenance of the global configuration information in
+          the system, not for the actual data replication. A clear gap remains
+          between the well-known consensus algorithms and the practical
+          replication protocols in real systems.
         </p>
-      </section>
-      <section class="vp-note">
-        <h2>What Makes It Different</h2>
+
+        <hr />
+
         <p>
-          The point here is not just ballots and quorums. It is who gets to define the active
-          configuration, who carries state forward, and how one era hands off to the next.
+          The gap is not accidental; the abstract models for defining the
+          classic consensus algorithms do not fully capture the requirements
+          from those distributed systems. The classic consensus problem is
+          defined on a single fixed set of n processes as a replica group with
+          each process as a replica, where at most <code>f</code> of the
+          <code>n</code> processes can fail. In practice, a distributed system
+          consists of a large number of overlapping replica groups, each
+          responsible for maintaining a subset of the system’s data. When
+          replicas fail, the system must replace the failed replicas with new
+          ones through reconfiguration, before more replica failures lead to
+          permanent data loss. For practical replication protocols, the global
+          resilience, the system throughput, and the cost of reconfiguration
+          tend to be more important than the fault-tolerance of a single replica
+          group or the number of message rounds.
         </p>
-      </section>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=2"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · page 1</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        The authors are putting forth that while Paxos is a robust way of
+        dealing with failure prone systems there's a disconnect with how it's
+        being used in the wider world. Paxos is mostly being used for
+        configuration management, not actual data replication, which is where
+        real systems diverge from theory
+      </p>
+
+      <p>
+        The authors including Lamport state that the abstract models (which he
+        defined himself) did not fully capture the requirements of real
+        systems. In particular, the original formulation assumes a fixed
+        replica set, whereas real systems require continuous reconfiguration
+        and system-wide resilience. I would argue that even here the focus
+        remains largely on the mathematical model, and a significant amount of
+        additional work is required to translate these ideas into real systems
+        with real code.
+      </p>
     </div>
 
-    <section class="vp-reading-note">
-      <h2>Starting Point</h2>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Bridging the Gap</span>
+
+        <p>
+          Vertical Paxos not only provides a solid theoretical foundation for
+          existing primary-backup replication protocols, but also offers a new
+          way to look at primary-backup replication, leading to further
+          improvements that address issues arising in practical systems. For
+          example, when new processes are to replace failed replicas to restore
+          the desirable level of fault tolerance, state transfer to the new
+          processes is necessary before the reconfiguration can take place. In a
+          distributed storage system, state transfer usually involves copying
+          data across machines—an often costly operation. The system therefore
+          faces the difficult decision of either allowing the replica group to
+          continue with a reduced level of resilience or disrupting the service
+          during state transfer. Our first algorithm, Vertical Paxos I addresses
+          this issue by allowing a replica group to operate with the restored
+          resilience, while enabling state transfer concurrently.
+        </p>
+        <hr />
+        <p>
+          Vertical Paxos is also significant from a theoretical perspective. Its
+          value goes beyond the special case of primary-backup replication,
+          offering a different way of reconfiguring state machines from the one
+          described in the original Paxos paper. In Vertical Paxos,
+          reconfiguration relies on an external master, itself implemented as a
+          replicated state machine. This corresponds to an attractive system
+          architecture in which the external master manages the global system
+          state, participates in the reconfiguration of any replica group in the
+          system, and helps achieve the global optimal resilience
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=2"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · page 2</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
       <p>
-        This is just the opening shell for now. The next passes can add the actual paper walk,
-        demos, and the more careful treatment of the master and configuration handoff.
+        For the authors Vertical Paxos provides mathematical foundations for
+        existing primary-backup replication protocols found in the wild,
+        allowing those systems to be analyzed and their tradeoffs made explicit
+        rather than treated as ad-hoc.
       </p>
-    </section>
+
+      <p>
+        Vertical Paxos also allows reconfiguration to happen concurrently with
+        requests being processed by the system, avoiding the usual tradeoff
+        between reduced fault tolerance and service disruption during state
+        transfer.
+      </p>
+    </div>
   </div>
 
-  {{ nav::breadcrumb(
-    prev_url="/papers/distributed-design",
-    prev_label="Distributed Design",
-    current_label="Vertical Paxos",
-    next_url="/introduction",
-    next_label="Introduction"
-  ) }}
+  {{ nav::breadcrumb( prev_url="/papers/distributed-design",
+  prev_label="Distributed Design", current_label="Introduction",
+  next_url="/overview-vertical-paxos/basics", next_label="Overview - Basics" ) }}
 </div>
 {% endblock %}

@@ -1,0 +1,57 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Overview - Vertical Paxos - Quorum {% endblock %} {% block
+body_class %}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--quorum">
+      <img
+        src="/svgs/vertical/quorum-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Vertical Paxos Overview - Quorum</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Read Write Quorum</span>
+
+        <p>
+          Practical protocols use primary-backup structure for better
+          system-wide resilience. Vertical Paxos achieves this structure by
+          distinguishing between read and write quorums. It has been observed
+          before that Paxos can be generalized by utilizing these two kinds of
+          quorums, but this offered little practical benefit in earlier versions
+          of Paxos
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=3"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 3</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        In earlier implementations of Paxos, distinctions between quorums for
+        read and write were not emphasized, and the protocol did not treat reads
+        as a separate class of operation.
+      </p>
+      <p>
+        In Vertical Paxos, the authors make this distinction explicit and explore how separating read and write quorums effects system behavior while still maintaining safety guarantees.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/basics", prev_label="Basics",
+  current_label="Overview - Quorum", next_url="/overview-vertical-paxos/configuration-master",
+  next_label="Overview - Configuration Master" ) }}
+</div>
+{% endblock %}

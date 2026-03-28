@@ -1,0 +1,95 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Overview - Vertical Paxos - Basics {% endblock %} {% block
+body_class %}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon">
+      <img
+        src="/svgs/vertical/basics-role-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Vertical Paxos Overview - Basics</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Term Definitions</span>
+
+        <p>
+          Paxos implements a state machine by executing a sequence of logically
+          separate instances of the Paxos consensus algorithm, instance i
+          choosing the i th state machine command. The consensus algorithm is
+          executed by four conceptually separate but not necessarily disjoint
+          sets of processes: <em>clients</em>, <em>leaders</em>,
+          <em>acceptors</em>, and <em>learners.</em>
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=3"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 3</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-role-atlas">
+      <div class="vp-role-atlas-figure">
+        <img
+          src="/svgs/vertical/basics-role-map.svg"
+          alt="Schematic showing the client entering through a replica, the replica handing work to the leader, the leader driving the acceptors, and the learned result returning through that same replica edge"
+        />
+      </div>
+
+      <div class="vp-role-grid">
+        <section class="vp-role-note">
+          <h2>Client</h2>
+          <p>
+            Usually the user-controlled way into the system. It sends an RPC to
+            the replica side and waits for an answer.
+          </p>
+        </section>
+
+        <section class="vp-role-note">
+          <h2>Leader</h2>
+          <p>
+            The leader drives the round. Its job is to keep proposals moving and
+            get the system to settle on one value instead of several conflicting
+            ones.
+          </p>
+        </section>
+
+        <section class="vp-role-note">
+          <h2>Acceptors</h2>
+          <p>
+          Acceptors act as the filter on proposals and enforce the rules that keep the whole system safe.
+          </p>
+        </section>
+
+        <section class="vp-role-note">
+          <h2>Learner / Replica</h2>
+          <p>
+            This process what turns won commands into state, and sends the result back to the client.
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <div class="vp-commentary-block">
+
+      <p>
+        Vertical Paxos algorithm is virtually the same as ones proposed in Paxos Made Simple except in two very important ways.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/introduction", prev_label="Introduction",
+  current_label="Overview - Basics", next_url="/overview-vertical-paxos/quorum",
+  next_label="Overview - Quorum" ) }}
+</div>
+{% endblock %}
