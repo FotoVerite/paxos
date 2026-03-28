@@ -159,7 +159,7 @@ async fn cleanup_removes_cluster_persistence_root() {
     .expect("cluster persistence root should exist before cleanup");
 
     fixture
-        .cluster()
+        .cluster_mut()
         .cleanup()
         .await
         .expect("cleanup should succeed");

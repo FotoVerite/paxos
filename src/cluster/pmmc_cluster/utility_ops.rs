@@ -75,7 +75,8 @@ impl PmmcCluster {
         self.cleanup_on_drop = enabled;
     }
 
-    pub async fn cleanup(&self) -> anyhow::Result<()> {
+    pub async fn cleanup(&mut self) -> anyhow::Result<()> {
+        self.runtime_registry.reset().await;
         self.persistence.purge_cluster_dir().await?;
         Ok(())
     }

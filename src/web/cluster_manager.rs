@@ -258,7 +258,7 @@ impl ClusterManager {
                 Ok(true)
             }
             Some(ActiveCluster::Pmmc(cluster_arc)) => {
-                let cluster = cluster_arc.lock().await;
+                let mut cluster = cluster_arc.lock().await;
                 cluster.cleanup().await?;
                 Ok(true)
             }
