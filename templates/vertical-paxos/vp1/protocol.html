@@ -1,0 +1,133 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Vertical Paxos I - Protocol {% endblock %} {% block body_class
+%}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--protocol">
+      <img
+        src="/svgs/vertical/protocol-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">VP I - Protocol</h1>
+
+    <div class="vp-commentary-block">
+      <p>
+        VP I still looks like Paxos on the surface: phase 1 asks what older
+        ballots still matter, and phase 2 pushes one value through. The
+        difference is that leadership and configuration are assigned externally
+        by the ACM, and the recovery step cannot assume one fixed acceptor set
+        stretching forever into the past. That is why FindSafe has to become
+        VFindSafe
+      </p>
+    </div>
+
+    <section class="vp-protocol-stack" aria-labelledby="vp-protocol-steps">
+      <div class="vp-protocol-stack__heading">
+        <span class="inscription-label" id="vp-protocol-steps">Steps</span>
+      </div>
+
+      <article class="vp-protocol-step">
+        <div class="vp-protocol-step__marker" aria-hidden="true">1a</div>
+        <div class="vp-protocol-step__body">
+          <div class="vp-protocol-step__card">
+            <h2>1a</h2>
+            <p>
+              Request each acceptor <em>a</em> to set
+              <code>maxBallot[a]</code> to <code>m.bal</code> and report the
+              value of <code>vote[a][m.prevBal]</code>.
+            </p>
+            <p>
+              Acceptor <em>a</em> ignores the message if
+              <code>m.bal &lt; maxBallot[a]</code>.
+            </p>
+          </div>
+          <div class="vp-protocol-step__commentary">
+            <p>
+              The leader starts by asking acceptors to move up to this ballot
+              and report what they already know about the earlier one. The
+              message will be ignored if acceptors have seen a ballot greater
+              than this ballot.
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <article class="vp-protocol-step">
+        <div class="vp-protocol-step__marker" aria-hidden="true">1b</div>
+        <div class="vp-protocol-step__body">
+          <div class="vp-protocol-step__card">
+            <h2>1b</h2>
+            <p>
+              Assert that <code>maxBallot[m.acc] ≥ m.bal</code> and
+              <code>vote[m.acc][m.voteBal] = m.val</code>.
+            </p>
+          </div>
+          <div class="vp-protocol-step__commentary">
+            <p>
+              The notation here is doing something annoying. It writes the reply
+              in terms of the acceptor's state variables, which makes it sound
+              like the message and the state are the same thing. They are not.
+              1b is just the acceptor reporting back what it currently knows
+              about the earlier ballot the leader asked about.
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <article class="vp-protocol-step">
+        <div class="vp-protocol-step__marker" aria-hidden="true">2a</div>
+        <div class="vp-protocol-step__body">
+          <div class="vp-protocol-step__card">
+            <h2>2a</h2>
+            <p>
+              Request each acceptor <em>a</em> to set
+              <code>vote[a][m.bal]</code> to <code>m.val</code>.
+            </p>
+            <p>
+              Acceptor <em>a</em> ignores the message if
+              <code>m.bal &lt; maxBallot[a]</code>.
+            </p>
+          </div>
+          <div class="vp-protocol-step__commentary">
+            <p>
+              This is the point where the leader stops asking questions and
+              starts trying to make one value stick. That value is either the
+              safe value recovered from phase 1 or, if phase 1 came back
+              `AllSafe`, a fresh client value. If acceptors have already moved
+              on, they ignore it.
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <article class="vp-protocol-step">
+        <div class="vp-protocol-step__marker" aria-hidden="true">2b</div>
+        <div class="vp-protocol-step__body">
+          <div class="vp-protocol-step__card">
+            <h2>2b</h2>
+            <p>
+              Report that acceptor <code>m.acc</code> has voted for
+              <code>m.val</code> in ballot <code>m.bal</code>.
+            </p>
+          </div>
+          <div class="vp-protocol-step__commentary">
+            <p>
+              2b is the acceptor saying it voted for this value in this ballot.
+              That is how the leader learns phase 2 actually took. If too many
+              acceptors have already moved on, those replies stop materializing,
+              which is also its own answer.
+            </p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    {{ nav::breadcrumb( prev_url="/vp1/acm-and-leadership", prev_label="ACM and
+    Leadership", current_label="VP1 - Protocol",
+    next_url="/preliminaries/quorums", next_label="Quorums" ) }}
+  </div>
+</div>
+{% endblock %}

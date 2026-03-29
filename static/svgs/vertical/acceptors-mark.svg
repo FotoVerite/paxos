@@ -1,0 +1,100 @@
+<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <defs>
+    <pattern id="vpAcceptorsGrid" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M8 0H0V8" stroke="#6F6557" stroke-opacity=".12" stroke-width=".5"/>
+    </pattern>
+    <linearGradient id="vpAcceptorsFlow" x1="44" y1="120" x2="196" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5E87C6" stop-opacity=".14"/>
+      <stop offset=".55" stop-color="#D8B58A" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#9C553D" stop-opacity=".08"/>
+    </linearGradient>
+    <filter id="vpAcceptorsGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+  </defs>
+
+  <rect x="1.5" y="1.5" width="237" height="237" rx="18" fill="#fffaf3" fill-opacity=".62" stroke="#6F6557" stroke-opacity=".2"/>
+  <rect x="12" y="12" width="216" height="216" rx="14" fill="url(#vpAcceptorsGrid)" opacity=".66"/>
+
+  <g opacity=".66">
+    <path d="M44 56H196" stroke="#6F6557" stroke-opacity=".18" stroke-width="1"/>
+    <path d="M44 184H196" stroke="#6F6557" stroke-opacity=".18" stroke-width="1"/>
+    <path d="M72 44V196M120 44V196M168 44V196" stroke="#6F6557" stroke-opacity=".12" stroke-width="1"/>
+  </g>
+
+  <path
+    d="M52 88
+       C78 88 90 92 106 104
+       C112 108 116 113 120 120
+       C124 127 128 132 134 136
+       C150 148 162 152 188 152"
+    stroke="url(#vpAcceptorsFlow)"
+    stroke-width="24"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity=".95"
+  />
+  <path
+    d="M52 120
+       C82 120 96 120 110 120
+       C114 120 117 120 120 120
+       C123 120 126 120 130 120
+       C144 120 158 120 188 120"
+    stroke="url(#vpAcceptorsFlow)"
+    stroke-width="24"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity=".95"
+  />
+  <path
+    d="M52 152
+       C78 152 90 148 106 136
+       C112 132 116 127 120 120
+       C124 113 128 108 134 104
+       C150 92 162 88 188 88"
+    stroke="url(#vpAcceptorsFlow)"
+    stroke-width="24"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity=".95"
+  />
+
+  <path
+    d="M56 88C84 88 98 95 112 109C116 113 118 116 120 120C122 124 124 127 128 131C142 145 156 152 184 152"
+    stroke="#4F78BA"
+    stroke-opacity=".52"
+    stroke-width="2.1"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M56 120H184"
+    stroke="#6F6557"
+    stroke-opacity=".3"
+    stroke-width="2"
+    stroke-dasharray="3 5"
+    stroke-linecap="round"
+  />
+  <path
+    d="M56 152C84 152 98 145 112 131C116 127 118 124 120 120C122 116 124 113 128 109C142 95 156 88 184 88"
+    stroke="#8E523D"
+    stroke-opacity=".56"
+    stroke-width="2.1"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <circle cx="64" cy="88" r="8" fill="#FFF8EE" stroke="#4F78BA" stroke-width="1.8"/>
+  <circle cx="64" cy="120" r="8" fill="#FFF8EE" stroke="#6F6557" stroke-opacity=".48" stroke-width="1.8"/>
+  <circle cx="64" cy="152" r="8" fill="#FFF8EE" stroke="#8E523D" stroke-width="1.8"/>
+
+  <g transform="translate(120 120)">
+    <circle r="10" fill="#FFF8EE" stroke="#6F6557" stroke-opacity=".46" stroke-width="1.6"/>
+    <path d="M-5 0H5" stroke="#6F6557" stroke-opacity=".34" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M0 -5V5" stroke="#6F6557" stroke-opacity=".34" stroke-width="1.2" stroke-linecap="round"/>
+  </g>
+
+  <path d="M176 120H192" stroke="#9C553D" stroke-opacity=".74" stroke-width="2.1" stroke-linecap="round"/>
+  <circle cx="188" cy="120" r="4.2" fill="#9C553D" filter="url(#vpAcceptorsGlow)" opacity=".5"/>
+  <path d="M180 104C186 108 190 112 194 120C190 128 186 132 180 136" stroke="#9C553D" stroke-opacity=".26" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

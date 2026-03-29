@@ -1,0 +1,229 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Preliminaries - FindSafe {% endblock %} {% block body_class
+%}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--find-safe">
+      <img
+        src="/svgs/vertical/findsafe-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Preliminaries - FindSafe</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">FindSafe</span>
+
+        <div class="vp-katex-algorithm" aria-label="Algorithm FindSafe">
+          <div class="vp-katex-algorithm__line">
+            <span class="vp-katex-algorithm__stmt"
+              >$ \texttt{safeVal} := \texttt{AllSafe} ; $</span
+            >
+          </div>
+          <div class="vp-katex-algorithm__line">
+            <span class="vp-katex-algorithm__stmt"
+              >$ c := \operatorname{Prev}(b) ; $</span
+            >
+          </div>
+          <div class="vp-katex-algorithm__line">
+            <span class="vp-katex-algorithm__stmt"
+              >$ \mathbf{while}\ ((\texttt{safeVal} = \texttt{AllSafe}) \land (c
+              \ge 0))\ \{ $</span
+            >
+          </div>
+          <div
+            class="vp-katex-algorithm__line vp-katex-algorithm__line--indent-1"
+          >
+            <span class="vp-katex-algorithm__stmt"
+              >$ \mathbf{either}\ \mathbf{with}\ (acc \in \{ a \in
+              \mathrm{Acceptors} : \mathit{vote}[a][c] \ne \mathrm{None}\})\ \{
+              $</span
+            >
+          </div>
+          <div
+            class="vp-katex-algorithm__line vp-katex-algorithm__line--indent-2"
+          >
+            <span class="vp-katex-algorithm__stmt"
+              >$ \texttt{safeVal} := \mathit{vote}[acc][c] $</span
+            >
+          </div>
+          <div
+            class="vp-katex-algorithm__line vp-katex-algorithm__line--indent-1"
+          >
+            <span class="vp-katex-algorithm__stmt">$ \} $</span>
+          </div>
+          <div
+            class="vp-katex-algorithm__line vp-katex-algorithm__line--indent-1"
+          >
+            <span class="vp-katex-algorithm__stmt"
+              >$ \mathbf{or}\ \mathbf{await}\ \exists Q \in \mathit{RQuorums}(c)
+              : \forall a \in Q : $</span
+            >
+          </div>
+          <div
+            class="vp-katex-algorithm__line vp-katex-algorithm__line--indent-2"
+          >
+            <span class="vp-katex-algorithm__stmt"
+              >$ (\mathit{maxBallot}[a] > c) \land (\mathit{vote}[a][c] =
+              \mathrm{None}) ; $</span
+            >
+          </div>
+          <div
+            class="vp-katex-algorithm__line vp-katex-algorithm__line--indent-1"
+          >
+            <span class="vp-katex-algorithm__stmt"
+              >$ c := \operatorname{Prev}(c) $</span
+            >
+          </div>
+          <div class="vp-katex-algorithm__line">
+            <span class="vp-katex-algorithm__stmt">$ \} $</span>
+          </div>
+        </div>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=9"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 8</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        This loop runs while <code>safeVal</code> is still the default safe
+        value and the current ballot has not hit the sentinel. It walks
+        backward through earlier ballots until it either finds a value that
+        still matters or proves a ballot can be skipped.
+      </p>
+
+      <p>First it checks whether ballot <code>c</code> already contains a vote:</p>
+
+      <div class="vp-commentary-condition" aria-label="Existing vote condition">
+        <div class="vp-katex-algorithm__line vp-katex-algorithm__line--indent-1">
+          <span class="vp-katex-algorithm__stmt"
+            >$ acc \in \{ a \in \mathrm{Acceptors} : \mathit{vote}[a][c] \ne
+            \mathrm{None} \} $</span
+          >
+        </div>
+      </div>
+
+      <p>
+        If some acceptor already has a non-<code>None</code> vote in ballot
+        <code>c</code>, the search is over. Set <code>safeVal</code> to that
+        value and return.
+      </p>
+
+      <p>
+        Otherwise it waits for enough evidence that ballot <code>c</code> is
+        dead:
+      </p>
+
+      <div class="vp-commentary-condition" aria-label="Dead ballot condition">
+        <div class="vp-katex-algorithm__line vp-katex-algorithm__line--indent-1">
+          <span class="vp-katex-algorithm__stmt"
+            >$ \exists Q \in \mathit{RQuorums}(c) : \forall a \in Q : $</span
+          >
+        </div>
+        <div class="vp-katex-algorithm__line vp-katex-algorithm__line--indent-2">
+          <span class="vp-katex-algorithm__stmt"
+            >$ (\mathit{maxBallot}[a] > c) \land (\mathit{vote}[a][c] =
+            \mathrm{None}) $</span
+          >
+        </div>
+      </div>
+
+      <p>
+        Wait until there exists some read quorum <code>Q</code> for ballot
+        <code>c</code> where every acceptor in <code>Q</code> has already moved
+        past <code>c</code> and none of them voted in <code>c</code>. Once you
+        have that, ballot <code>c</code> can be treated as empty for this slot,
+        so the search moves on to the previous ballot.
+      </p>
+
+      <p>
+        The entire point of <code>FindSafe</code> is to find the most recent
+        earlier ballot whose value still matters for this slot. Either it finds
+        a real vote and returns it, or it proves a ballot is empty and keeps
+        backtracking until a value is found or the sentinel is reached.
+      </p>
+    </div>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Values</span>
+
+        <p>
+          Algorithm <em>FindSafe</em> is used in ordinary (horizontal) Paxos.
+          However, it may require knowing the votes of acceptors in c-quorums
+          for every <em>c</em> ≤ <em>b</em>. This is unacceptable in Vertical
+          Paxos, where acceptors that participated in lower-numbered ballots may
+          have been reconfigured out of the system. To solve this problem, we
+          first define ballot b to be complete if a value has been chosen in
+          <em>b</em> or all values are safe at <em>b</em>. We can modify
+          algorithm FindSafe so it stops at a complete ballot rather than at
+          ballot 0. That is, if ballot number <em>d</em> is complete, we can
+          replace the condition <em>c</em> ≥ 0 by c ≥ <em>d</em> in the while
+          test. We call the modified algorithm VFindSafe.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=8"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 7</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        For Vertical Paxos, FindSafe has to be patched so it only worries about
+        ballots the system can still actually verify. Once a ballot is complete,
+        there is nothing left there that can surprise the new leader, so the
+        search can stop instead of digging forever through acceptors that may
+        not even be in the system anymore
+      </p>
+    </div>
+
+    <aside class="vp-highlight-note" aria-label="Main takeaway">
+      <p>
+        This is the main trick of the paper. Vertical Paxos needs a
+        place where the search is allowed to stop. That is what a complete
+        ballot is: the point where older history can no longer change what value
+        is safe. VP I introduces that idea. VP II mostly cleans it up and
+        reduces the search to one previous activated ballot.
+      </p>
+    </aside>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/preliminaries/values", prev_label="Values",
+  current_label="Preliminaries - FindSafe", next_url="/vp1/acm-and-leadership",
+  next_label="ACM and leadership" ) }}
+</div>
+{% endblock %} {% block scripts %}
+
+<script>
+  // Render KaTeX math when DOM is ready
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ],
+      });
+    }
+  });
+</script>
+
+{% endblock %}

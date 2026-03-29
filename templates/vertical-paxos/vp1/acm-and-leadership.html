@@ -1,0 +1,95 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Vertical Paxos I - ACM and Leadership {% endblock %} {% block
+body_class %}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--acm-leadership">
+      <img
+        src="/svgs/vertical/acm-leadership-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">VP I - ACM and Leadership</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">ACM</span>
+
+        <p>
+          In ordinary Paxos, the leader of a ballot decides for itself when to
+          begin execution. Our Vertical Paxos algorithms assume a reliable
+          service that does this. We represent the service as a single Master
+          process. The master will actually be implemented by a network of
+          processors running a reliable state-machine implementation, such as
+          (horizontal) Paxos.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=10"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 9</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        In Vertical Paxos, leadership is assigned by the ACM. For reliability it
+        would make sense for the service to be its own paxos system but that is
+        not strictly true nor needed for the proof.
+      </p>
+    </div>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Leader Reconfiguration</span>
+
+        <p>
+          The ballot <em>b</em> leader process first waits until it receives a
+          <code>newBallot</code> message msg (one with msg.type equal to the
+          string “newBallot”) with <code>msg.bal</code> = <em>b</em>, which is
+          sent by the master. (The master will send this message in response to
+          some request that does not concern us.) The value of
+          <code>msg.completeBal</code> is the largest ballot number that the
+          master knows to be complete.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=10"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 9</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        Leadership is given by the master service sending a message with a
+        matching ballot to potential leader node. If that ballot matches its
+        next ballot it will assume leadership. Along with the message will be
+        the parameter completeBal which is the last known ballot with all values
+        settled.
+      </p>
+
+      <p>
+        The paper does not really spell out how old leaders learn they are done. In practice, they would eventually see it from the acceptors, most likely through a p2b response showing that the system has already moved on to a higher ballot
+      </p>
+    </div>
+
+    {{ nav::breadcrumb(
+    prev_url="/preliminaries/find-safe",
+    prev_label="FindSafe", current_label="VP1 - AMC and Leadership",
+    next_url="/vp1/protocol", next_label="VPI - Protocol" ) }}
+  </div>
+  {% endblock %}
+</div>

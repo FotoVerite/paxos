@@ -1,0 +1,116 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Preliminaries - Acceptors {% endblock %} {% block body_class
+%}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--acceptors">
+      <img
+        src="/svgs/vertical/acceptors-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Preliminaries - Acceptors</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Acceptors</span>
+
+        <p>
+          Each acceptor <em>a</em> maintains a value <em>vote[a][b]</em> for
+          each ballot number <em>b</em>. Its value is initially equal to a
+          non-proposable value None and can be set by the acceptor to a
+          proposable value <em>v</em> in an action that we call a voting for
+          <em>v</em> in ballot <em>b</em>. An acceptor cannot change its vote.
+          In an implementation, acceptor a does not need to remember the value
+          <em>vote[a][b]</em> for all ballot numbers <em>b</em>, but it is
+          easiest to explain the algorithm in terms of the complete array
+          <em>vote[a]</em>.
+        </p>
+
+        <hr />
+        <p>
+          A proposable value v is chosen in ballot b iff all acceptors in a
+          write bquorum have voted for v in ballot b; and v is chosen iff it is
+          chosen in some ballot.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=7"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 6</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        Each <em>Acceptor</em> is in charge of storing it vote per slot per
+        ballot.
+      </p>
+    </div>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">maxBallot</span>
+
+        <p>
+          Acceptor a also maintains a ballot number <em>xmaxBallot[a]</em>,
+          initially 0, that never decreases. The acceptor will not vote in a
+          ballot whose number is less than maxBallot[a]. We say that a value
+          <em>v</em> is choosable in ballot <em>b</em> iff <em>v</em> is chosen
+          in <em>b</em> or could become chosen in <em>b</em> by some acceptors
+          (with <em>maxBallot[a]</em> ≤ <em>b</em>) voting for <em>v</em> in
+          ballot <em>b</em>. We define a proposable value <em>v</em> to be safe
+          at ballot number <em>b</em> iff no proposable value other than
+          <em>v</em> is choosable in any ballot numbered less than b. (Thus, all
+          values are safe at 0.) The fundamental invariant maintained by a Paxos
+          consensus algorithm is that an acceptor votes in any ballot
+          <em>b</em> only for a proposable value safe at <em>b</em>. It can be
+          shown that this implies that two different values cannot be chosen.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=8"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 7</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        Acceptors reject messages with ballots less than the currently known
+        largest ballot.
+      </p>
+
+      <hr />
+
+      <p>
+        Stripped of the notation, an acceptor maintains two pieces of state: the
+        highest ballot it has seen, and the values it has already voted for.
+      </p>
+
+      <p>
+        The rest of the formalism around <code>vote[a][b]</code>, “choosable”,
+        and “safe” values is there to make the proof work. In practice, the
+        system only needs to track the latest accepted value and enforce
+        monotonic ballots.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/preliminaries/quorums", prev_label="Quorums",
+  current_label="Preliminaries - Acceptors", next_url="/preliminaries/values",
+  next_label="Values" ) }}
+</div>
+{% endblock %}

@@ -2,45 +2,162 @@
 <link rel="stylesheet" href="/css/papers/vertical_paxos/nav.css" />
 
 <nav class="vp-navbar">
-  <div class="vp-nav-shell">
-    <a href="{{ nav::site_url(raw_url="/") }}" class="vp-brand">
-      <img
-        src="/svgs/vertical/atlas-mark.svg"
-        alt=""
-        aria-hidden="true"
-        class="vp-brand-mark"
-      />
-      <span class="vp-brand-copy">
-        <span class="vp-brand-kicker">Atlas Plate I</span>
-        <span class="vp-brand-text">Vertical Paxos</span>
-      </span>
-    </a>
-    <button class="vp-nav-toggle" id="vpNavToggle" type="button" aria-label="Toggle navigation">
-      <span></span>
-      <span></span>
-      <span></span>
+  <div class="nav-container">
+    <div class="nav-brand">
+      <a href="{{ nav::site_url(raw_url="/") }}" class="brand-link">
+        <img
+          src="/svgs/vertical/atlas-mark.svg"
+          alt=""
+          aria-hidden="true"
+          class="vp-brand-mark"
+        />
+        <span class="brand-copy">
+          <span class="brand-kicker">Atlas Plate I</span>
+          <span class="brand-text">Vertical Paxos</span>
+        </span>
+      </a>
+    </div>
+
+    <button class="hamburger-menu" id="hamburgerBtn" type="button" aria-label="Toggle navigation">
+      <span></span><span></span><span></span>
     </button>
-    <div class="vp-nav-links" id="vpNavLinks">
-      <a href="{{ nav::site_url(raw_url="/") }}" class="vp-nav-link">
-        <span class="vp-nav-index">01</span>
-        <span class="vp-nav-label">Overview</span>
-      </a>
-      <a href="{{ nav::site_url(raw_url="/introduction") }}" class="vp-nav-link">
-        <span class="vp-nav-index">02</span>
-        <span class="vp-nav-label">Introduction</span>
-      </a>
+
+    <div class="nav-menu" id="navMenu">
+      <div class="nav-item">
+        <a href="{{ nav::site_url(raw_url="/abstract") }}" class="nav-link">Abstract</a>
+      </div>
+      <div class="nav-item">
+        <a href="{{ nav::site_url(raw_url="/introduction") }}" class="nav-link">Introduction</a>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-group-toggle" data-group="overview" type="button">
+          <span class="nav-group-text">Overview</span>
+          <span class="nav-group-arrow">›</span>
+        </button>
+        <div class="nav-submenu" id="overview-menu">
+          <a href="{{ nav::site_url(raw_url="/overview-vertical-paxos/basics") }}" class="nav-link nav-sublink">Basics</a>
+          <a href="{{ nav::site_url(raw_url="/overview-vertical-paxos/quorum") }}" class="nav-link nav-sublink">Quorum</a>
+          <a href="{{ nav::site_url(raw_url="/overview-vertical-paxos/configuration-master") }}" class="nav-link nav-sublink">ACM</a>
+          <a href="{{ nav::site_url(raw_url="/overview-vertical-paxos/the-vertical-in-vertical") }}" class="nav-link nav-sublink">Why Vertical</a>
+          <a href="{{ nav::site_url(raw_url="/overview-vertical-paxos/variations") }}" class="nav-link nav-sublink">Variations</a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-group-toggle" data-group="primary-backup-case" type="button">
+          <span class="nav-group-text">Primary Backup Case</span>
+          <span class="nav-group-arrow">›</span>
+        </button>
+        <div class="nav-submenu" id="primary-backup-case-menu">
+          <a href="{{ nav::site_url(raw_url="/primary-backup-case/quorums-and-leaders") }}" class="nav-link nav-sublink">Quorum and Leadership</a>
+          <a href="{{ nav::site_url(raw_url="/primary-backup-case/optimizations") }}" class="nav-link nav-sublink">Optimizations</a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-group-toggle" data-group="preliminaries" type="button">
+          <span class="nav-group-text">Preliminaries</span>
+          <span class="nav-group-arrow">›</span>
+        </button>
+        <div class="nav-submenu" id="preliminaries-menu">
+          <a href="{{ nav::site_url(raw_url="/preliminaries/ballots") }}" class="nav-link nav-sublink">Ballots</a>
+          <a href="{{ nav::site_url(raw_url="/preliminaries/quorums") }}" class="nav-link nav-sublink">Quorums</a>
+          <a href="{{ nav::site_url(raw_url="/preliminaries/acceptors") }}" class="nav-link nav-sublink">Acceptors</a>
+          <a href="{{ nav::site_url(raw_url="/preliminaries/values") }}" class="nav-link nav-sublink">Values</a>
+          <a href="{{ nav::site_url(raw_url="/preliminaries/find-safe") }}" class="nav-link nav-sublink">FindSafe</a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-group-toggle" data-group="vp1" type="button">
+          <span class="nav-group-text">VP I</span>
+          <span class="nav-group-arrow">›</span>
+        </button>
+        <div class="nav-submenu" id="vp1-menu">
+          <a href="{{ nav::site_url(raw_url="/vp1/acm-and-leadership") }}" class="nav-link nav-sublink">ACM and Leadership</a>
+          <a href="{{ nav::site_url(raw_url="/vp1/protocol") }}" class="nav-link nav-sublink">Protocol</a>
+        </div>
+      </div>
     </div>
   </div>
 </nav>
 
 <script>
-  const vpNavToggle = document.getElementById('vpNavToggle');
-  const vpNavLinks = document.getElementById('vpNavLinks');
+  const hamburger = document.getElementById('hamburgerBtn');
+  const navMenu = document.getElementById('navMenu');
+  const vpNavbar = document.querySelector('.vp-navbar');
+  const navGroupToggles = document.querySelectorAll('.nav-group-toggle');
+  const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+  const closeAllSubmenus = () => {
+    document.querySelectorAll('.nav-submenu.active').forEach((menu) => {
+      menu.classList.remove('active');
+    });
+    document.querySelectorAll('.nav-group-toggle.active').forEach((toggle) => {
+      toggle.classList.remove('active');
+    });
+  };
 
-  if (vpNavToggle && vpNavLinks) {
-    vpNavToggle.addEventListener('click', () => {
-      vpNavLinks.classList.toggle('active');
-      vpNavToggle.classList.toggle('active');
+  if (hamburger && navMenu) {
+    hamburger.addEventListener('click', () => {
+      navMenu.classList.toggle('active');
+      hamburger.classList.toggle('active');
     });
   }
+
+  document.querySelectorAll('.nav-sublink, .nav-item .nav-link').forEach((link) => {
+    const linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+    if (linkPath === currentPath) {
+      link.classList.add('active');
+
+      const submenu = link.closest('.nav-submenu');
+      if (submenu) {
+        const toggle = submenu.parentElement?.querySelector('.nav-group-toggle');
+        if (toggle) toggle.classList.add('is-current');
+      }
+    }
+  });
+
+  navGroupToggles.forEach((toggle) => {
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      const group = toggle.dataset.group;
+      const submenu = document.getElementById(`${group}-menu`);
+      if (!submenu) return;
+
+      const isActive = submenu.classList.contains('active');
+
+      document.querySelectorAll('.nav-submenu.active').forEach((menu) => {
+        if (menu !== submenu) {
+          menu.classList.remove('active');
+          menu.parentElement?.querySelector('.nav-group-toggle')?.classList.remove('active');
+        }
+      });
+
+      submenu.classList.toggle('active', !isActive);
+      toggle.classList.toggle('active', !isActive);
+    });
+  });
+
+  document.querySelectorAll('.nav-link').forEach((link) => {
+    link.addEventListener('click', () => {
+      closeAllSubmenus();
+      if (!navMenu || !hamburger) return;
+      navMenu.classList.remove('active');
+      hamburger.classList.remove('active');
+    });
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!vpNavbar || vpNavbar.contains(event.target)) return;
+    closeAllSubmenus();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    closeAllSubmenus();
+    if (!navMenu || !hamburger) return;
+    navMenu.classList.remove('active');
+    hamburger.classList.remove('active');
+  });
 </script>

@@ -79,9 +79,8 @@ body_class %}vp-page{% endblock %} {% block content %}
     </div>
   </div>
 
-  {{ nav::breadcrumb( prev_url="/overview-vertical-paxos/configuration-master",
-  prev_label="AMC", current_label="Primary Backup - Optimization",
-  next_url="/primary-backup-case/quorums-and-leaders", next_label="Primary
-  Backup - Quorum" ) }}
+  {{ nav::breadcrumb( prev_url="/primary-backup-case/quorums-and-leaders",
+  prev_label="Quorum and Leadership", current_label="Primary Backup - Optimization",
+  next_url="/preliminaries/ballots", next_label="Ballots" ) }}
 </div>
 {% endblock %}

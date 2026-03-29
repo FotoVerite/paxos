@@ -1,0 +1,111 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Preliminaries - Ballots {% endblock %} {% block body_class
+%}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--ballots">
+      <img
+        src="/svgs/vertical/ballots-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Preliminaries - Ballots</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Ballots</span>
+
+        <p>
+          A Paxos consensus algorithm uses a sequence of ballots, with numbers
+          belonging to an infinite set Ballots sequentially ordered by &lt; and
+          having minimal element 0. In Vertical Paxos I, Ballots is the set Nat
+          of natural numbers. In Vertical Paxos II, the numbers of ballots that
+          are started but never activated are not considered to be in Ballots,
+          so Ballots is a subset of Nat. For any non-zero b in Ballots, let
+          <em>Prev(b)</em> be the next lower element of Ballots, and let
+          <em>Prev(0)</em> be a value less than 0 that is not a ballot number.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=7"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 6</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        In practice, <code>Prev</code> is a function tracking the last active
+        configuration rather than computing a predecessor over an abstract set,
+        with <code>Prev(0)</code> acting as a simple sentinel.
+      </p>
+
+      <p>
+        This is a case where the paper leans heavily into formalism without
+        improving the reader’s understanding of how the system would actually be
+        built. The definition of ballots as a subset of natural numbers with an
+        explicit predecessor function is mathematically clean, but it obscures
+        what is operationally happening.
+      </p>
+
+      <p>
+        Calling ballots a subset of natural numbers is proof language, not
+        system language. In a real implementation, a ballot is whatever ordered
+        identifier the system can compare and reason about cleanly. In modern
+        systems this is some variant of snowflake id or composite of
+        configuration epoch, ballot-id, and node-id.
+      </p>
+
+      <p>
+        The real issue is not mysterious. Some ballots get started and go
+        nowhere. The system still needs to know which earlier ballot actually
+        matters. That is a fair thing to model. The annoying part is how much
+        machinery the paper spends dressing up what is basically predecessor
+        bookkeeping.
+      </p>
+    </div>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Invariant</span>
+
+        <p>
+          In Paxos, the invariant that two different acceptors do not vote for
+          different values in the same ballot is maintained by letting each
+          ballot have a unique leader process that tells acceptors what value
+          they can vote for in that ballot. The same physical processor can
+          execute the leader process for infinitely many ballots.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=10"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 9</span>
+        </a>
+      </figcaption>
+    </figure>
+    <div class="vp-commentary-block">
+      <p>
+        Because each ballot is tied to a single leader that determines the value
+        acceptors may vote for, we don’t need to worry about divergent values
+        within that ballot.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/primary-backup-case/optimizations",
+  prev_label="Optimizations", current_label="Preliminaries - Ballots",
+  next_url="/preliminaries/quorums", next_label="Quorums" ) }}
+</div>
+{% endblock %}

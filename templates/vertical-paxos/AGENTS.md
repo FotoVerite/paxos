@@ -4,6 +4,9 @@
 - Direct, technical, and slightly skeptical.
 - Do not oversell the paper as elegant if the mechanism is awkward.
 - Keep the writing plain. This track should sound like someone finally naming the real moving parts.
+- A little snark is fine when the paper is being pompous, evasive, or needlessly formal.
+- Keep the bite aimed at the paper or the mechanism, not at the reader.
+- Use it sparingly. The point is to cut through dryness, not turn the whole section into a bit.
 
 ### Visual Direction
 - Distinct from the other Paxos tracks, but still editorial.

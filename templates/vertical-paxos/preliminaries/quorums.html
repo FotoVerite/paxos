@@ -1,0 +1,104 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Preliminaries - Quorum {% endblock %} {% block body_class
+%}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--quorum">
+      <img
+        src="/svgs/vertical/quorum-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Preliminaries - Quorum</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Quorum</span>
+
+        <p>
+          For each ballot number b, there are two sets of processes: the sets
+          <em>RQuorums(b)</em> and <em>WQuorums(b)</em> of read and write
+          b-quorums. They satisfy the property that every write b-quorum has a
+          non-empty intersection with every read b-quorum and every write
+          b-quorum. An acceptor is a process that is in a read or write
+          b-quorum, for some ballot number b.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=7"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 6</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        In practice, <code>RQuorums(b)</code> is a function tracking the active
+        acceptors in the read quorum and <code>WQuorums(b)</code> the active
+        acceptors in the write quorum. Such acceptors should follow the formula
+        below to assure the invariant as laid out above.
+      </p>
+
+      <div class="vp-formula-block" aria-label="Read write quorum formula">
+        <div class="vp-formula-equation">w + r &gt; N</div>
+        <div class="vp-formula-legend">
+          <span><em>w</em> = write set</span>
+          <span><em>r</em> = read set</span>
+          <span><em>N</em> = total set</span>
+        </div>
+      </div>
+    </div>
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <p>
+          In the original (horizontal) Paxos consensus algorithm, Ballots is the
+          set of natural numbers, the sets of read and write b-quorums are the
+          same, and the sets of b-acceptors and b-quorums are independent of b.
+          In Vertical Paxos, the master computes the read and write b-quorums in
+          reaction to changes in the system; and in Vertical Paxos II it
+          dynamically adds elements to Ballots. The master may wait to choose if
+          b is in Ballots and what the b-quorums are until it needs to know, but
+          once made its choice is fixed. For simplicity, we assume that Ballots
+          and the read and write quorums are constant, fixed in advance by an
+          oracle that predicts what the master will do. (Formally, the oracle is
+          a prophecy variable.)
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=7"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 6</span>
+        </a>
+      </figcaption>
+    </figure>
+    <div class="vp-commentary-block">
+      <p>
+        The authors here are repeating what has already been setup in the
+        premise. In <em>Vertical paxos</em> the ACM computes the r and w quorums
+        in reaction to the system. In <em>Vertical Paxos II</em> the ACM can
+        delay configuration till it is valid and remove Ballots where
+        configuration failed. The whole oracle move is fucking nonsense. The
+        point is just that the proof should hold for whatever valid ballot and
+        quorum choices the master ends up making. So instead of modeling those
+        decisions as they happen, The authors freeze them up front and calls it
+        an oracle. Mathematically fine. Explanatorily terrible.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/preliminaries/ballots", prev_label="Ballots",
+  current_label="Preliminaries - Quorums", next_url="/preliminaries/acceptors",
+  next_label="Acceptors" ) }}
+</div>
+{% endblock %}

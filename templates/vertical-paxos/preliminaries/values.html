@@ -1,0 +1,85 @@
+{% extends "vertical-paxos/base.html" %} {% import "macros/nav.html" as nav %}
+{% block title %}Preliminaries - Values {% endblock %} {% block body_class
+%}vp-page{% endblock %} {% block content %}
+<div class="vp-container">
+  <div class="panel vp-abstract-panel">
+    <div class="header-icon full vp-header-icon vp-header-icon--values">
+      <img
+        src="/svgs/vertical/values-mark.svg"
+        alt=""
+        aria-hidden="true"
+        class="vp-header-logo"
+      />
+    </div>
+    <h1 class="panel-title">Preliminaries - Values</h1>
+
+    <figure class="vp-quote-block">
+      <blockquote class="vp-quote-text">
+        <span class="inscription-label">Values</span>
+
+        <p>
+          A proposable value <em>v</em> is chosen in ballot <em>b</em> iff all
+          acceptors in a write b-quorum have voted for <em>v</em> in ballot
+          <em>b</em>; and <em>v</em> is chosen iff it is chosen in some ballot.
+        </p>
+
+        <div class="vp-quote-omission" aria-label="Intervening proof omitted">
+          <span>intervening copy omitted</span>
+        </div>
+
+        <p>
+          To get a value <em>v</em> chosen, we just have to choose a ballot
+          number <em>b</em> and get a write b-quorum <em>Q</em> of acceptors to
+          vote for <em>v</em> in ballot <em>b</em>. We can do this by choosing
+          <em>Q</em> so that <em>vote[a][b]</em> = None and <em>b</em> ≥
+          <em>MaxBallot[a]</em> for every <em>a</em> in <em>Q</em>. However, we
+          must choose <em>v</em> so it is safe at b. We now show how such a v is
+          chosen.
+        </p>
+
+        <hr />
+        <p>
+          First we observe that because read and write b-quorums have non-empty
+          intersection, no value is choosable in a ballot b if there is a read
+          b-quorum <em>Q</em> such that <em>maxBallot[a]</em> > <em>b</em> and
+          <em>vote[a][b]</em> = None for every acceptor a in <em>Q</em>.
+          Vertical Paxos maintains the invariant that different acceptors cannot
+          vote for different values in the same ballot.
+        </p>
+      </blockquote>
+      <figcaption class="vp-quote-source">
+        <cite>Vertical Paxos and Primary-Backup Replication</cite>
+        <a
+          href="https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf#page=8"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span>Lamport, Malkhi, Zhou · pdf page 7</span>
+        </a>
+      </figcaption>
+    </figure>
+
+    <div class="vp-commentary-block">
+      <p>
+        A value is chosen when a majority of the current write quorum votes in a
+        ballot.
+      </p>
+
+      <p>
+        Read and write quorums must overlap, so any value that could have been
+        chosen in a previous ballot cannot be ignored by a new one.
+      </p>
+
+      <p>
+        If a read quorum reports that all of its acceptors have moved to ballots
+        higher than b and none of them voted in b, then no value could have been
+        chosen in ballot b.
+      </p>
+    </div>
+  </div>
+
+  {{ nav::breadcrumb( prev_url="/preliminaries/acceptors", prev_label="Acceptors",
+  current_label="Preliminaries - Values", next_url="/preliminaries/find-safe",
+  next_label="FindSafe" ) }}
+</div>
+{% endblock %}
