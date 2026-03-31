@@ -62,6 +62,7 @@ fn padding_rewrites_post_stop_proposals_to_noop() {
     let node = Uuid::new_v4();
     let mut durable = ReplicaDurable::default();
     durable.set_strategy(ConfigurationStrategy::Padding);
+    durable.set_alpha(1);
     let stop = PaxosCommand::STOP.with_client(node, 1);
     let _ = durable.add_decision(PValue::new(0, Ballot::new(1, node), stop));
 
@@ -114,6 +115,34 @@ fn padding_requires_drain_before_stop_is_considered_drained() {
     assert!(durable.is_stop_drained());
 
     let _ = durable.add_proposal(PaxosCommand::NOOP.with_client(node, 2));
+    assert!(durable.is_stop_drained());
+}
+
+#[test]
+fn joint_consensus_stop_drains_immediately_after_stop_applied() {
+    let node = Uuid::new_v4();
+    let mut durable = ReplicaDurable::default();
+    durable.set_strategy(ConfigurationStrategy::JointConsensus);
+    durable.set_alpha(5);
+    let stop = PaxosCommand::STOP.with_client(node, 1);
+    let _ = durable.add_decision(PValue::new(0, Ballot::new(1, node), stop));
+
+    assert!(!durable.is_stop_drained());
+    durable.increment_decisions();
+    assert!(durable.is_stop_drained());
+}
+
+#[test]
+fn stop_sign_drains_immediately_after_stop_applied() {
+    let node = Uuid::new_v4();
+    let mut durable = ReplicaDurable::default();
+    durable.set_strategy(ConfigurationStrategy::StopSign);
+    durable.set_alpha(5);
+    let stop = PaxosCommand::STOP.with_client(node, 1);
+    let _ = durable.add_decision(PValue::new(0, Ballot::new(1, node), stop));
+
+    assert!(!durable.is_stop_drained());
+    durable.increment_decisions();
     assert!(durable.is_stop_drained());
 }
 

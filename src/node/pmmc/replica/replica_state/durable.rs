@@ -144,14 +144,9 @@ impl ReplicaDurable {
     }
 
     pub fn is_stop_drained(&self) -> bool {
-        let Some(stop_slot) = self.stop_slot else {
-            return false;
-        };
         if !self.is_stop_applied() {
             return false;
         }
-        if matches!(self.strategy, ConfigurationStrategy::BrickWall) {
-            return true;
         }
         let target = match self.strategy {
             ConfigurationStrategy::JointConsensus | ConfigurationStrategy::StopSign => stop_slot,
@@ -160,8 +155,14 @@ impl ReplicaDurable {
             }
             ConfigurationStrategy::Padding => stop_slot.saturating_add(self.padding_slots()),
             ConfigurationStrategy::BrickWall => stop_slot,
-        };
-        self.execution_slot() > target
+            ReconfigurationStrategyInEffect::Padding => {
+                let Some(stop_slot) = self.stop_slot else {
+                    return false;
+                };
+                let target = stop_slot.saturating_add(self.alpha_max_inflight);
+                self.execution_slot() > target
+            }
+        }
     }
 
     pub fn proposal_policy(&self) -> ProposalPolicy {
