@@ -147,14 +147,12 @@ impl ReplicaDurable {
         if !self.is_stop_applied() {
             return false;
         }
-        }
-        let target = match self.strategy {
-            ConfigurationStrategy::JointConsensus | ConfigurationStrategy::StopSign => stop_slot,
-            ConfigurationStrategy::DelayedStopSign => {
-                stop_slot.saturating_add(self.delayed_stop_slots())
+        match self.reconfiguration_strategy_in_effect() {
+            ReconfigurationStrategyInEffect::None => false,
+            ReconfigurationStrategyInEffect::BrickWall => true,
+            ReconfigurationStrategyInEffect::StopSign { slot, delayed } => {
+                self.execution_slot() > slot.saturating_add(delayed)
             }
-            ConfigurationStrategy::Padding => stop_slot.saturating_add(self.padding_slots()),
-            ConfigurationStrategy::BrickWall => stop_slot,
             ReconfigurationStrategyInEffect::Padding => {
                 let Some(stop_slot) = self.stop_slot else {
                     return false;
