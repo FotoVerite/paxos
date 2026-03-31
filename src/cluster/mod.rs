@@ -1,9 +1,9 @@
-pub mod classic_cluster;
-pub mod cluster_configuration;
-pub mod configuration_handler;
-pub mod network_fabric;
-pub mod network_handle;
-pub mod pmmc_cluster;
-pub mod runtime_member;
-pub mod runtime_registry;
-pub mod runtime_state;
+//! Cluster-level orchestration.
+//!
+//! `runtime` stays generic. Protocol-specific orchestration lives under
+//! `classic`, `pmmc`, and `vertical`.
+
+pub mod classic;
+pub mod pmmc;
+pub mod runtime;
+pub mod vertical;
