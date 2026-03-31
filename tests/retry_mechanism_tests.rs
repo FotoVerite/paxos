@@ -3,12 +3,12 @@
 /// These tests verify that the retry mechanism (spawn_retry) correctly
 /// retries proposals with exponential backoff when incomplete quorum is reached
 /// due to network failures.
-mod test_helpers;
+mod support;
 
-use paxos::{cluster::classic_cluster::ClassicCluster, paxos_command::PaxosCommand};
+use paxos::{cluster::classic::ClassicCluster, paxos_command::PaxosCommand};
 use std::net::IpAddr;
 use std::sync::Arc;
-use test_helpers::{RecordingObserver, start_classic_cluster_ready};
+use support::{RecordingObserver, start_classic_cluster_ready};
 use tokio::time::{Duration, sleep};
 
 #[tokio::test]

@@ -7,9 +7,9 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_handle::NetworkHandle,
     common::message_hub::{HubInbound, MessageHub},
-    message::{ClientMessage, Message},
+    message::ClientMessage,
+    node::pmmc::{message::PmmcMessage, transport::PmmcHandle},
     paxos_command::PaxosCommand,
     rsm::kv_store::ReplyOutcome,
     rsm::types::{ClerkResponseError, KVVersion},
@@ -31,7 +31,7 @@ impl From<HubInbound<ClientMessage>> for ClerkInbound {
 pub struct Clerk {
     client_id: Uuid,
     request_id: Mutex<u64>,
-    peers: Arc<NetworkHandle>,
+    peers: Arc<PmmcHandle>,
     inflight: Mutex<HashMap<u64, InflightRequest>>,
     kv_cache: Mutex<HashMap<String, KVVersion>>,
     hub: Arc<MessageHub<ClientMessage, ClerkInbound>>,
@@ -45,7 +45,7 @@ struct InflightRequest {
 }
 
 impl Clerk {
-    pub fn new(client_id: Uuid, peers: Arc<NetworkHandle>) -> Arc<Self> {
+    pub fn new(client_id: Uuid, peers: Arc<PmmcHandle>) -> Arc<Self> {
         let (hub_tx, hub_rx) = mpsc::channel(1024);
         Arc::new(Self {
             client_id,
@@ -92,7 +92,7 @@ impl Clerk {
 
         // Initial broadcast
         self.peers
-            .broadcast(Message::PROPOSE {
+            .broadcast(PmmcMessage::PROPOSE {
                 from: self.client_id,
                 slot: 0,
                 cmd: cmd.clone(),
@@ -120,7 +120,7 @@ impl Clerk {
                             token.cancel();
                             break;
                         }
-                        peers.broadcast(Message::PROPOSE {
+                        peers.broadcast(PmmcMessage::PROPOSE {
                             from,
                             slot: 0,
                             cmd: cmd.clone(),

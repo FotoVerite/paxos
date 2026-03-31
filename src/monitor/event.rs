@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use uuid::Uuid;
 
-use crate::cluster::cluster_configuration::ConfigurationStrategy;
+use crate::cluster::pmmc::reconfiguration::ConfigurationStrategy;
 use crate::common::ballot::Ballot;
 use crate::node::pvalue::PValue;
 use crate::{common::types::DecreeId, paxos_command::PaxosCommand};
@@ -11,6 +11,7 @@ use crate::{common::types::DecreeId, paxos_command::PaxosCommand};
 pub enum EventProtocol {
     Classic,
     Pmmc,
+    Vertical,
     System,
 }
 
@@ -175,6 +176,56 @@ pub enum Event {
         slot: usize,
         created_at: u64,
     },
+    VerticalConfigurationInstalled {
+        configuration_id: Uuid,
+        leader: Uuid,
+        replicas: Vec<Uuid>,
+        acceptors: Vec<Uuid>,
+        created_at: u64,
+    },
+    VerticalActivationStarted {
+        configuration_id: Uuid,
+        leader: Uuid,
+        ballot: Ballot,
+        created_at: u64,
+    },
+    VerticalActivationReady {
+        configuration_id: Uuid,
+        leader: Uuid,
+        ballot: Ballot,
+        created_at: u64,
+    },
+    VerticalActivationSuperseded {
+        configuration_id: Uuid,
+        leader: Uuid,
+        ballot: Ballot,
+        superseded_by: Ballot,
+        created_at: u64,
+    },
+    VerticalReplicaSetActivated {
+        configuration_id: Uuid,
+        replicas: Vec<Uuid>,
+        created_at: u64,
+    },
+    VerticalReplicaSetDecommissioned {
+        configuration_id: Uuid,
+        replicas: Vec<Uuid>,
+        created_at: u64,
+    },
+    VerticalReplicaRedirected {
+        from_replica: Uuid,
+        active_configuration_id: Uuid,
+        leader: Uuid,
+        replicas: Vec<Uuid>,
+        created_at: u64,
+    },
+    VerticalReplicaApplied {
+        id: Uuid,
+        configuration_id: Option<Uuid>,
+        slot: usize,
+        value: PaxosCommand,
+        created_at: u64,
+    },
     PartitionCreated {
         partition_a: Vec<Uuid>,
         partition_b: Vec<Uuid>,
@@ -303,6 +354,15 @@ impl Event {
             | Event::PmmcPreempted { .. }
             | Event::PmmcHeartbeat { .. }
             | Event::PmmcAck { .. } => EventProtocol::Pmmc,
+
+            Event::VerticalConfigurationInstalled { .. }
+            | Event::VerticalActivationStarted { .. }
+            | Event::VerticalActivationReady { .. }
+            | Event::VerticalActivationSuperseded { .. }
+            | Event::VerticalReplicaSetActivated { .. }
+            | Event::VerticalReplicaSetDecommissioned { .. }
+            | Event::VerticalReplicaRedirected { .. }
+            | Event::VerticalReplicaApplied { .. } => EventProtocol::Vertical,
 
             Event::NodeCapabilities { .. }
             | Event::MessageSent { .. }

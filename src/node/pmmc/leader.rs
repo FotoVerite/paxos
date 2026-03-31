@@ -4,7 +4,7 @@ use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::{
-    cluster::cluster_configuration::ClusterConfiguration,
+    cluster::pmmc::reconfiguration::ClusterConfiguration,
     common::ballot::Ballot,
     common::persistence::NodePersistence,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
@@ -156,11 +156,7 @@ impl Leader {
         self.state.shutdown().await;
     }
 
-    pub async fn handle_message<M>(&self, msg: M) -> Option<PmmcMessage>
-    where
-        M: TryInto<PmmcMessage>,
-    {
-        let msg = msg.try_into().ok()?;
+    pub async fn handle_message(&self, msg: PmmcMessage) -> Option<PmmcMessage> {
         match msg {
             PmmcMessage::ADOPTED { ballot, .. } => {
                 self.become_active(ballot).await;
@@ -200,9 +196,8 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        cluster::cluster_configuration::ClusterConfiguration,
+        cluster::pmmc::reconfiguration::ClusterConfiguration,
         common::ballot::Ballot,
-        message::Message,
         monitor::{NoOpObserver, PaxosObserver},
         node::{
             config::PmmcNodeConfig,
@@ -213,6 +208,8 @@ mod tests {
     };
 
     use super::{Leader, LeaderDurable, LeaderState};
+
+    type Message = PmmcMessage;
 
     fn cleanup_leader_files(root: &crate::common::persistence::NodePersistence) {
         let _ = fs::remove_file(root.dir().join("leader.bin"));
@@ -289,7 +286,7 @@ mod tests {
         assert!(!leader.is_leader().await);
 
         let _ = leader
-            .handle_message(Message::ADOPTED {
+            .handle_message(PmmcMessage::ADOPTED {
                 from: Uuid::new_v4(),
                 to: leader.uuid,
                 ballot,
@@ -306,7 +303,7 @@ mod tests {
         assert!(!leader.is_leader().await);
 
         let _ = leader
-            .handle_message(Message::ADOPTED {
+            .handle_message(PmmcMessage::ADOPTED {
                 from: Uuid::new_v4(),
                 to: leader.uuid,
                 ballot: Ballot::new(1, Uuid::new_v4()),

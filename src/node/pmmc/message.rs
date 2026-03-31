@@ -1,6 +1,7 @@
 use uuid::Uuid;
 
 use crate::common::ballot::Ballot;
+use crate::monitor::{MessageProtocol, ObservedMessage, TraceableMessage};
 use crate::node::pvalue::PValue;
 use crate::paxos_command::PaxosCommand;
 
@@ -58,94 +59,7 @@ pub enum PmmcMessage {
     },
 }
 
-impl TryFrom<&crate::message::Message> for PmmcMessage {
-    type Error = ();
-
-    fn try_from(value: &crate::message::Message) -> Result<Self, Self::Error> {
-        match value {
-            crate::message::Message::ACK { from, to, slot } => Ok(Self::ACK {
-                from: *from,
-                to: *to,
-                slot: *slot,
-            }),
-            crate::message::Message::ACCEPTED { from, pvalue } => Ok(Self::ACCEPTED {
-                from: *from,
-                pvalue: pvalue.clone(),
-            }),
-            crate::message::Message::ADOPTED {
-                from,
-                to,
-                ballot,
-                pvalues,
-            } => Ok(Self::ADOPTED {
-                from: *from,
-                to: *to,
-                ballot: *ballot,
-                pvalues: pvalues.clone(),
-            }),
-            crate::message::Message::HEARTBEAT { from, ballot } => Ok(Self::HEARTBEAT {
-                from: *from,
-                ballot: *ballot,
-            }),
-            crate::message::Message::PROPOSE { from, slot, cmd } => Ok(Self::PROPOSE {
-                from: *from,
-                slot: *slot,
-                cmd: cmd.clone(),
-            }),
-            crate::message::Message::PREEMPT { from, to, ballot } => Ok(Self::PREEMPT {
-                from: *from,
-                to: *to,
-                ballot: *ballot,
-            }),
-            crate::message::Message::P1A {
-                from,
-                ballot,
-                start_index,
-            } => Ok(Self::P1A {
-                from: *from,
-                ballot: *ballot,
-                start_index: *start_index,
-            }),
-            crate::message::Message::P1B {
-                from,
-                to,
-                ballot,
-                pvalues,
-            } => Ok(Self::P1B {
-                from: *from,
-                to: *to,
-                ballot: *ballot,
-                pvalues: pvalues.clone(),
-            }),
-            crate::message::Message::P2A { from, pvalue } => Ok(Self::P2A {
-                from: *from,
-                pvalue: pvalue.clone(),
-            }),
-            crate::message::Message::P2B {
-                from,
-                to,
-                ballot,
-                pvalue,
-            } => Ok(Self::P2B {
-                from: *from,
-                to: *to,
-                ballot: *ballot,
-                pvalue: pvalue.clone(),
-            }),
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryFrom<crate::message::Message> for PmmcMessage {
-    type Error = ();
-
-    fn try_from(value: crate::message::Message) -> Result<Self, Self::Error> {
-        Self::try_from(&value)
-    }
-}
-
-impl From<PmmcMessage> for crate::message::Message {
+impl From<PmmcMessage> for ObservedMessage {
     fn from(value: PmmcMessage) -> Self {
         match value {
             PmmcMessage::ACK { from, to, slot } => Self::ACK { from, to, slot },
@@ -197,5 +111,21 @@ impl From<PmmcMessage> for crate::message::Message {
                 pvalue,
             },
         }
+    }
+}
+
+impl From<&PmmcMessage> for ObservedMessage {
+    fn from(value: &PmmcMessage) -> Self {
+        value.clone().into()
+    }
+}
+
+impl TraceableMessage for PmmcMessage {
+    fn protocol(&self) -> MessageProtocol {
+        MessageProtocol::Pmmc
+    }
+
+    fn to_observed_message(&self) -> ObservedMessage {
+        self.into()
     }
 }

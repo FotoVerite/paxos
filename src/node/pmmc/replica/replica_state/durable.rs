@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
 use crate::{
-    cluster::cluster_configuration::ConfigurationStrategy,
+    cluster::pmmc::reconfiguration::ConfigurationStrategy,
     node::{pmmc::proposal::ProposalsStore, pvalue::PValue},
     paxos_command::{ClientId, PaxosCommand, RequestId},
     rsm::kv_store::ReplyOutcome,
@@ -107,6 +107,10 @@ impl ReplicaDurable {
         }
     }
 
+    fn padding_slots(&self) -> usize {
+        self.alpha_max_inflight.max(1)
+    }
+
     pub fn stop_observation(&self) -> StopObservation {
         match self.reconfiguration_strategy_in_effect() {
             ReconfigurationStrategyInEffect::None => StopObservation {
@@ -149,7 +153,14 @@ impl ReplicaDurable {
         if matches!(self.strategy, ConfigurationStrategy::BrickWall) {
             return true;
         }
-        let target = stop_slot.saturating_add(self.alpha_max_inflight);
+        let target = match self.strategy {
+            ConfigurationStrategy::JointConsensus | ConfigurationStrategy::StopSign => stop_slot,
+            ConfigurationStrategy::DelayedStopSign => {
+                stop_slot.saturating_add(self.delayed_stop_slots())
+            }
+            ConfigurationStrategy::Padding => stop_slot.saturating_add(self.padding_slots()),
+            ConfigurationStrategy::BrickWall => stop_slot,
+        };
         self.execution_slot() > target
     }
 
@@ -164,7 +175,7 @@ impl ReplicaDurable {
                 let Some(stop_slot) = stop.stop_slot else {
                     return ProposalPolicy::Admit;
                 };
-                let alpha_limit = stop_slot.saturating_add(self.alpha_max_inflight);
+                let alpha_limit = stop_slot.saturating_add(self.padding_slots());
                 if self.proposal_slot() > alpha_limit {
                     ProposalPolicy::RejectStopped
                 } else {

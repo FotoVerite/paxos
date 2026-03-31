@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rand::Rng;
 use tokio::sync::Mutex;
 
-use crate::cluster::classic_cluster::ClassicCluster;
+use crate::cluster::classic::ClassicCluster;
 use crate::decree_generator::DecreeGenerator;
 use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::paxos_command::PaxosCommand;

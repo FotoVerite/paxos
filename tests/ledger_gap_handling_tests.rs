@@ -1,7 +1,7 @@
 use paxos::{common::types::DecreeId, paxos_command::PaxosCommand};
 
-mod test_helpers;
-use test_helpers::{cleanup_persisted_state, create_ledger};
+mod support;
+use support::{cleanup_persisted_state, create_ledger};
 
 // ============================================================================
 // LEDGER GAP HANDLING TESTS

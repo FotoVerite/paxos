@@ -22,6 +22,14 @@ const NODE_STATE_LABELS = {
   PmmcPreempted: 'preempt',
   PmmcHeartbeat: 'heart',
   PmmcAck: 'ack',
+  VerticalConfigurationInstalled: 'install',
+  VerticalActivationStarted: 'sync',
+  VerticalActivationReady: 'active',
+  VerticalActivationSuperseded: 'preempt',
+  VerticalReplicaSetActivated: 'active',
+  VerticalReplicaSetDecommissioned: 'redirect',
+  VerticalReplicaRedirected: 'redirect',
+  VerticalReplicaApplied: 'apply',
   LeaderSteppedDown: 'passive',
   NodeCrashed: 'crash',
   ReconfigurationRequested: 'reconfig',
@@ -70,7 +78,9 @@ export function createVisualizeEventsPlugin({ skip = new Set() } = {}) {
         const stateNodeId =
           eventData?.id ??
           eventData?.from ??
-          eventData?.to;
+          eventData?.to ??
+          eventData?.leader ??
+          eventData?.from_replica;
         if (stateNodeId !== undefined && stateNodeId !== null) {
           ctx.state.setNodeState(stateNodeId, stateLabel);
           if (ctx.visualizer && typeof ctx.visualizer.setNodeState === 'function') {

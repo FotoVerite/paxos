@@ -4,13 +4,13 @@ use uuid::Uuid;
 use tokio::{sync::mpsc::Receiver, time::sleep};
 
 use crate::{
-    cluster::network_handle::NetworkHandle,
     common::persistence::NodePersistence,
     common::types::DecreeId,
-    message::Message,
     monitor::PaxosObserver,
     node::{
+        classic_paxos::message::ClassicMessage,
         classic_paxos::paxos_state::PaxosState,
+        classic_paxos::transport::ClassicHandle,
         config::ClassicNodeConfig,
         inflight_proposals::{InflightProposal, InflightProposals},
     },
@@ -19,7 +19,7 @@ use crate::{
 
 pub struct PaxosNode {
     pub uuid: Uuid,
-    rx: Option<Receiver<Message>>,
+    rx: Option<Receiver<ClassicMessage>>,
     _inflight_proposals: Arc<InflightProposals>,
     state: Arc<PaxosState>,
 }
@@ -27,9 +27,9 @@ pub struct PaxosNode {
 impl PaxosNode {
     pub async fn new(
         uuid: Uuid,
-        rx: Receiver<Message>,
+        rx: Receiver<ClassicMessage>,
         observer: Arc<dyn PaxosObserver>,
-        peers: Arc<NetworkHandle>,
+        peers: Arc<ClassicHandle>,
         persistence: NodePersistence,
         quorum: usize,
         config: ClassicNodeConfig,

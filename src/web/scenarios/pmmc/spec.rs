@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::cluster::cluster_configuration::ConfigurationStrategy;
+use crate::cluster::pmmc::reconfiguration::ConfigurationStrategy;
 
 use super::reconfiguration::PmmcReconfigurationSpec;
 

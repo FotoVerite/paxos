@@ -1,4 +1,4 @@
-use crate::cluster::classic_cluster::ClassicCluster;
+use crate::cluster::classic::ClassicCluster;
 use crate::common::persistence::Persistence;
 use crate::common::types::DecreeId;
 use crate::node::classic_paxos::acceptor::Acceptor;

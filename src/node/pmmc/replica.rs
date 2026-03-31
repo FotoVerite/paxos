@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::cluster::cluster_configuration::ClusterConfiguration;
+use crate::cluster::pmmc::reconfiguration::ClusterConfiguration;
 use crate::common::persistence::NodePersistence;
 use crate::common::types::DecreeId;
 use crate::message::ClientMessage;
@@ -309,7 +309,7 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        cluster::cluster_configuration::ClusterConfiguration,
+        cluster::pmmc::reconfiguration::ClusterConfiguration,
         common::ballot::Ballot,
         message::ClientMessage,
         monitor::{NoOpObserver, PaxosObserver},

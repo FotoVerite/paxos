@@ -1,10 +1,9 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use uuid::Uuid;
-
-use crate::message::{Message, MessageTrace};
 mod event;
+mod message_trace;
 pub use event::{Event, EventProtocol, ReconfigurationPhase, ReconfigurationProposalOutcome};
+pub use message_trace::{MessageProtocol, MessageTrace, ObservedMessage, TraceableMessage};
 
 pub fn current_timestamp_millis() -> u64 {
     SystemTime::now()
@@ -17,10 +16,6 @@ pub trait PaxosObserver: Send + Sync {
     fn on_event(&self, event: Event);
 
     fn on_message_trace(&self, trace: MessageTrace);
-
-    fn on_message(&self, indexes: &[Uuid], message: Message) {
-        self.on_message_trace(MessageTrace::from_legacy(indexes, &message));
-    }
 }
 
 pub struct NoOpObserver;

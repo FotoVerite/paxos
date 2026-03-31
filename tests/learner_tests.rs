@@ -1,11 +1,14 @@
-mod test_helpers;
+mod support;
+mod test_helpers {
+    pub use super::support::*;
+}
 
 use paxos::{
     common::ballot::Ballot, common::types::DecreeId, monitor::Event,
     node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::sync::Arc;
-use test_helpers::{NodeBuilder, RecordingObserver, cleanup_persisted_state, create_ledger}; // Added Arc import
+use support::{NodeBuilder, RecordingObserver, cleanup_persisted_state, create_ledger}; // Added Arc import
 
 // ============================================================================
 // LEARNER TESTS

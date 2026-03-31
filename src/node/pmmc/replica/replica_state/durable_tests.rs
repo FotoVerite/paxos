@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::{
-    cluster::cluster_configuration::ConfigurationStrategy, common::ballot::Ballot,
+    cluster::pmmc::reconfiguration::ConfigurationStrategy, common::ballot::Ballot,
     node::pvalue::PValue, paxos_command::PaxosCommand, rsm::kv_store::ReplyOutcome,
 };
 

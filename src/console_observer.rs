@@ -1,6 +1,5 @@
 use crate::{
-    message::MessageTrace,
-    monitor::{Event, PaxosObserver},
+    monitor::{Event, MessageTrace, PaxosObserver},
 };
 use colored::*;
 use std::{
@@ -631,6 +630,139 @@ impl ConsoleObserver {
             _ => unreachable!("pmmc event dispatcher received non-pmmc event"),
         }
     }
+
+    fn handle_vertical_event(&self, event: Event) {
+        match event {
+            Event::VerticalConfigurationInstalled {
+                configuration_id,
+                leader,
+                replicas,
+                acceptors,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[VERTICAL] config {} installed leader={} replicas={} acceptors={}",
+                        configuration_id,
+                        node_label(leader),
+                        node_list(&replicas),
+                        node_list(&acceptors)
+                    )
+                    .blue()
+                );
+            }
+            Event::VerticalActivationStarted {
+                configuration_id,
+                leader,
+                ballot,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[VERTICAL] activation started config={} leader={} ballot={}",
+                        configuration_id,
+                        node_label(leader),
+                        ballot
+                    )
+                    .yellow()
+                );
+            }
+            Event::VerticalActivationReady {
+                configuration_id,
+                leader,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[VERTICAL] activation ready config={} leader={}",
+                        configuration_id,
+                        node_label(leader)
+                    )
+                    .green()
+                );
+            }
+            Event::VerticalActivationSuperseded {
+                configuration_id,
+                leader,
+                superseded_by,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[VERTICAL] activation superseded config={} leader={} by={}",
+                        configuration_id,
+                        node_label(leader),
+                        superseded_by
+                    )
+                    .red()
+                );
+            }
+            Event::VerticalReplicaSetActivated {
+                configuration_id,
+                replicas,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[VERTICAL] replica set active config={} replicas={}",
+                        configuration_id,
+                        node_list(&replicas)
+                    )
+                    .green()
+                );
+            }
+            Event::VerticalReplicaSetDecommissioned {
+                configuration_id,
+                replicas,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[VERTICAL] replica set redirecting config={} replicas={}",
+                        configuration_id,
+                        node_list(&replicas)
+                    )
+                    .red()
+                );
+            }
+            Event::VerticalReplicaRedirected {
+                from_replica,
+                active_configuration_id,
+                leader,
+                ..
+            } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[VERTICAL] replica {} redirected client to config={} leader={}",
+                        node_label(from_replica),
+                        active_configuration_id,
+                        node_label(leader)
+                    )
+                    .cyan()
+                );
+            }
+            Event::VerticalReplicaApplied { id, slot, value, .. } => {
+                println!(
+                    "{}",
+                    format!(
+                        "[VERTICAL] replica {} applied slot {} -> {}",
+                        node_label(id),
+                        slot,
+                        value
+                    )
+                    .green()
+                );
+            }
+            _ => unreachable!("vertical event dispatcher received non-vertical event"),
+        }
+    }
 }
 
 impl PaxosObserver for ConsoleObserver {
@@ -642,6 +774,7 @@ impl PaxosObserver for ConsoleObserver {
         match event.protocol() {
             crate::monitor::EventProtocol::Classic => self.handle_classic_event(event),
             crate::monitor::EventProtocol::Pmmc => self.handle_pmmc_event(event),
+            crate::monitor::EventProtocol::Vertical => self.handle_vertical_event(event),
             crate::monitor::EventProtocol::System => self.handle_system_event(event),
         }
     }

@@ -3,19 +3,19 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    cluster::network_handle::NetworkHandle,
     common::persistence::NodePersistence,
     common::types::DecreeId,
-    message::Message,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
         classic_paxos::{
             acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, ledger::Ledger,
             message::ClassicMessage, proposer::proposer::Proposer,
+            router::{ClassicComponent, ClassicRouter},
+            transport::ClassicHandle,
         },
         config::ClassicNodeConfig,
         inflight_proposals::{InflightProposal, InflightProposals},
-        message_router::{MessageRouter, RoutingDecision},
+        routing::{LocalRoutingDecision, ProtocolInboxRouter, ProtocolRouter, RoutingDecision},
     },
     paxos_command::PaxosCommand,
 };
@@ -26,9 +26,9 @@ pub struct PaxosState {
     acceptor: Option<Acceptor>,
     learner: Option<Learner>,
     ledger: Ledger,
-    peers: Arc<NetworkHandle>,
+    peers: Arc<ClassicHandle>,
     inflight_proposals: Arc<InflightProposals>,
-    router: MessageRouter,
+    router: ClassicRouter,
     observer: Arc<dyn PaxosObserver>,
 }
 
@@ -36,7 +36,7 @@ impl PaxosState {
     pub async fn init(
         uuid: Uuid,
         quorum: usize,
-        peers: Arc<NetworkHandle>,
+        peers: Arc<ClassicHandle>,
         persistence: NodePersistence,
         inflight_proposals: Arc<InflightProposals>,
         observer: Arc<dyn PaxosObserver>,
@@ -100,9 +100,7 @@ impl PaxosState {
             learning_strategy: format!("{:?}", config.learning_strategy),
         });
 
-        // Create message router
-        use crate::node::message_router::MessageRouter;
-        let router = MessageRouter::new(config.learning_strategy.clone(), topology);
+        let router = ClassicRouter::new(config.learning_strategy.clone(), topology);
 
         let state = Self {
             uuid,
@@ -131,9 +129,7 @@ impl PaxosState {
 
         if let Some(proposer) = &self.proposer {
             let msg = proposer.propose(num, cmd.clone()).await;
-            // Use dispatch to route Prepare messages through the MessageRouter
-            // This ensures Prepare messages only go to acceptors
-            self.dispatch(&msg, self.uuid).await;
+            self.route_and_send(&msg, self.uuid).await;
             self.inflight_proposals.insert(num, cmd.clone()).await
         } else {
             tracing::warn!(
@@ -151,7 +147,7 @@ impl PaxosState {
             let msg = proposer
                 .propose(inflight.decree_num, inflight.cmd.clone())
                 .await;
-            self.dispatch(&msg, self.uuid).await;
+            self.route_and_send(&msg, self.uuid).await;
         }
     }
 
@@ -163,22 +159,26 @@ impl PaxosState {
         self.ledger.next_gap().await
     }
 
-    pub async fn handle_message(&self, msg: Message) {
-        let Ok(classic_msg) = ClassicMessage::try_from(&msg) else {
-            tracing::debug!("[Node {}] Ignoring non-classic message", self.uuid);
-            return;
+    pub async fn handle_message(&self, classic_msg: ClassicMessage) {
+        let from = match &classic_msg {
+            ClassicMessage::Prepare { from, .. }
+            | ClassicMessage::Promise { from, .. }
+            | ClassicMessage::Accept { from, .. }
+            | ClassicMessage::Accepted { from, .. }
+            | ClassicMessage::Success { from, .. }
+            | ClassicMessage::PrepareBatch { from, .. } => *from,
         };
 
-        match &classic_msg {
-            ClassicMessage::Promise { from, .. } => {
+        match self.router.classify(&classic_msg, &()) {
+            LocalRoutingDecision::DeliverTo(ClassicComponent::Proposer) => {
                 if let Some(proposer) = &self.proposer {
                     tracing::debug!("[Node {}] Handling Promise message", self.uuid);
                     if let Some(reply) = proposer.handle_message(classic_msg.clone()).await {
-                        self.dispatch(&reply, *from).await;
+                        self.route_and_send(&reply, from).await;
                     }
                 }
             }
-            ClassicMessage::Prepare { from, .. } | ClassicMessage::Accept { from, .. } => {
+            LocalRoutingDecision::DeliverTo(ClassicComponent::Acceptor) => {
                 if let Some(acceptor) = &self.acceptor {
                     tracing::debug!(
                         "[Node {}] Handling Prepare/Accept from node {}",
@@ -186,54 +186,58 @@ impl PaxosState {
                         from
                     );
                     if let Some(reply) = acceptor.handle_message(classic_msg.clone()).await {
-                        self.dispatch(&reply, *from).await;
+                        self.route_and_send(&reply, from).await;
                     }
                 }
             }
-            ClassicMessage::Accepted { from, .. } => {
+            LocalRoutingDecision::DeliverTo(ClassicComponent::Learner) => {
                 if let Some(learner) = &self.learner {
-                    tracing::debug!("[Node {}] Handling Accepted message", self.uuid);
-                    let reply = learner
-                        .handle_message(classic_msg.clone(), &self.ledger)
-                        .await;
-                    if let Some(reply @ ClassicMessage::Success { .. }) = reply {
-                        tracing::debug!(
-                            "[Node {}] Learner reached quorum, broadcasting Success",
-                            self.uuid
-                        );
-                        self.dispatch(&reply, *from).await;
+                    match &classic_msg {
+                        ClassicMessage::Accepted { .. } => {
+                            tracing::debug!("[Node {}] Handling Accepted message", self.uuid);
+                            let reply = learner
+                                .handle_message(classic_msg.clone(), &self.ledger)
+                                .await;
+                            if let Some(reply @ ClassicMessage::Success { .. }) = reply {
+                                tracing::debug!(
+                                    "[Node {}] Learner reached quorum, broadcasting Success",
+                                    self.uuid
+                                );
+                                self.route_and_send(&reply, from).await;
+                            }
+                        }
+                        ClassicMessage::Success { .. } => {
+                            tracing::debug!("[Node {}] Handling Success message", self.uuid);
+                            learner
+                                .learn_decree(classic_msg.clone(), &self.ledger)
+                                .await;
+                        }
+                        _ => {}
                     }
                 }
             }
-            ClassicMessage::Success { decree_num, .. } => {
-                if let Some(learner) = &self.learner {
-                    tracing::debug!("[Node {}] Handling Success message", self.uuid);
-                    learner
-                        .learn_decree(classic_msg.clone(), &self.ledger)
-                        .await;
-                }
-                // Proposers also need to clean up inflight proposals
-                self.inflight_proposals.cancel(*decree_num).await
-            }
-            _ => {
+            LocalRoutingDecision::Drop => {
                 tracing::debug!("[Node {}] Ignoring unhandled message type", self.uuid);
             }
         }
+
+        if let ClassicMessage::Success { decree_num, .. } = &classic_msg {
+            self.inflight_proposals.cancel(*decree_num).await;
+        }
     }
 
-    async fn dispatch(&self, msg: &ClassicMessage, from: Uuid) {
-        let decision = self.router.route_classic(msg, from);
-        let wire_msg: Message = msg.clone().into();
+    async fn route_and_send(&self, msg: &ClassicMessage, from: Uuid) {
+        let decision = self.router.route(msg, &from);
         match decision {
             RoutingDecision::Broadcast => {
-                self.peers.broadcast(wire_msg.clone()).await;
+                self.peers.broadcast(msg.clone()).await;
             }
             RoutingDecision::SendTo(to) => {
-                self.peers.send(to, wire_msg.clone()).await;
+                self.peers.send(to, msg.clone()).await;
             }
             RoutingDecision::SendToMany(nodes) => {
                 for node in nodes {
-                    self.peers.send(node, wire_msg.clone()).await;
+                    self.peers.send(node, msg.clone()).await;
                 }
             }
             RoutingDecision::Drop => {}

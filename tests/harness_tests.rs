@@ -1,7 +1,10 @@
-mod test_helpers;
+mod support;
+mod test_helpers {
+    pub use super::support::*;
+}
 
 use paxos::{
-    cluster::classic_cluster::ClassicCluster,
+    cluster::classic::ClassicCluster,
     common::types::DecreeId,
     console_observer::ConsoleObserver,
     monitor::{Event, PaxosObserver},
@@ -9,7 +12,7 @@ use paxos::{
 };
 use std::net::IpAddr;
 use std::sync::Arc;
-use test_helpers::{
+use support::{
     EventBarrier, NodeBuilder, QuorumCalc, RecordingObserver, ScenarioBuilder, apply_partitions,
     heal_partitions, star_edges, start_classic_cluster_ready,
 };

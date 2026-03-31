@@ -4,7 +4,7 @@ use tokio::sync::{Mutex, Notify};
 use uuid::Uuid;
 
 use crate::{
-    cluster::cluster_configuration::ClusterConfiguration,
+    cluster::pmmc::reconfiguration::ClusterConfiguration,
     node::{
         pmmc::{
             proposal::ProposalsStore,

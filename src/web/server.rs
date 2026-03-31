@@ -8,6 +8,7 @@ use tracing::info;
 
 use super::handlers::{
     AppState, paxos_handler, paxos_made_simple_handler, scenario::*, vertical_paxos_handler,
+    vertical_demo::{reset_vertical_demo_handler, run_vertical_demo_handler},
     websocket::websocket_handler,
 };
 use super::papers;
@@ -27,6 +28,8 @@ pub async fn run_web_server() {
         .route("/api/start-scenario", post(start_scenario_handler))
         .route("/api/stop-scenario", post(stop_scenario_handler))
         .route("/api/propose", post(propose_handler))
+        .route("/api/vertical/run", post(run_vertical_demo_handler))
+        .route("/api/vertical/reset", post(reset_vertical_demo_handler))
         .route("/ws", get(websocket_handler))
         // Papers Sub-router
         .nest("/papers", papers::router())

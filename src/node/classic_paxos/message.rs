@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use uuid::Uuid;
 
 use crate::common::{ballot::Ballot, types::DecreeId};
+use crate::monitor::{MessageProtocol, ObservedMessage, TraceableMessage};
 use crate::paxos_command::PaxosCommand;
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
@@ -45,83 +46,7 @@ pub enum ClassicMessage {
     },
 }
 
-impl TryFrom<&crate::message::Message> for ClassicMessage {
-    type Error = ();
-
-    fn try_from(value: &crate::message::Message) -> Result<Self, Self::Error> {
-        match value {
-            crate::message::Message::Prepare {
-                from,
-                decree_num,
-                ballot,
-            } => Ok(Self::Prepare {
-                from: *from,
-                decree_num: *decree_num,
-                ballot: *ballot,
-            }),
-            crate::message::Message::Promise {
-                from,
-                decree_num,
-                ballot,
-                accepted_ballot,
-                accepted_value,
-            } => Ok(Self::Promise {
-                from: *from,
-                decree_num: *decree_num,
-                ballot: *ballot,
-                accepted_ballot: *accepted_ballot,
-                accepted_value: accepted_value.clone(),
-            }),
-            crate::message::Message::Accept {
-                from,
-                decree_num,
-                ballot,
-                value,
-                quorum,
-            } => Ok(Self::Accept {
-                from: *from,
-                decree_num: *decree_num,
-                ballot: *ballot,
-                value: value.clone(),
-                quorum: quorum.clone(),
-            }),
-            crate::message::Message::Accepted {
-                from,
-                decree_num,
-                ballot,
-                value,
-            } => Ok(Self::Accepted {
-                from: *from,
-                decree_num: *decree_num,
-                ballot: *ballot,
-                value: value.clone(),
-            }),
-            crate::message::Message::Success {
-                from,
-                decree_num,
-                value,
-                ballot_proposer,
-            } => Ok(Self::Success {
-                from: *from,
-                decree_num: *decree_num,
-                value: value.clone(),
-                ballot_proposer: *ballot_proposer,
-            }),
-            crate::message::Message::PrepareBatch {
-                from,
-                decrees_to,
-                ballot,
-            } => Ok(Self::PrepareBatch {
-                from: *from,
-                decrees_to: *decrees_to,
-                ballot: *ballot,
-            }),
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<ClassicMessage> for crate::message::Message {
+impl From<ClassicMessage> for ObservedMessage {
     fn from(value: ClassicMessage) -> Self {
         match value {
             ClassicMessage::Prepare {
@@ -191,5 +116,21 @@ impl From<ClassicMessage> for crate::message::Message {
                 ballot,
             },
         }
+    }
+}
+
+impl From<&ClassicMessage> for ObservedMessage {
+    fn from(value: &ClassicMessage) -> Self {
+        value.clone().into()
+    }
+}
+
+impl TraceableMessage for ClassicMessage {
+    fn protocol(&self) -> MessageProtocol {
+        MessageProtocol::Classic
+    }
+
+    fn to_observed_message(&self) -> ObservedMessage {
+        self.into()
     }
 }

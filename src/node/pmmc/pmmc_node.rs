@@ -1,8 +1,9 @@
 use std::{future::pending, sync::Arc, time::Duration};
 
+use async_trait::async_trait;
 use tokio::{
     select,
-    sync::mpsc::{self, Receiver},
+    sync::mpsc::{self, Receiver, Sender},
     task::JoinHandle,
     time::{self, Instant, MissedTickBehavior, sleep_until},
 };
@@ -10,8 +11,8 @@ use uuid::Uuid;
 
 use crate::{
     cluster::{
-        cluster_configuration::ClusterConfiguration,
-        configuration_handler::types::ConfigurationHandlerMessage,
+        pmmc::{control::types::ConfigurationHandlerMessage, reconfiguration::ClusterConfiguration},
+        runtime::RuntimeNode,
     },
     common::persistence::NodePersistence,
     message::ClientMessage,
@@ -21,7 +22,7 @@ use crate::{
         pmmc::{
             admin::NodeAdmin,
             message::PmmcMessage,
-            node_state::NodeState,
+            node_state::PmmcNodeState,
             transport::{PmmcFabric, PmmcHandle},
         },
     },
@@ -29,7 +30,7 @@ use crate::{
 
 pub struct PmmcNode {
     pub uuid: Uuid,
-    state: Arc<NodeState>,
+    state: Arc<PmmcNodeState>,
     admin: Arc<NodeAdmin>,
 }
 
@@ -44,7 +45,7 @@ impl PmmcNode {
         configuration: Arc<ClusterConfiguration>,
     ) -> anyhow::Result<Self> {
         let state = Arc::new(
-            NodeState::init(
+            PmmcNodeState::init(
                 uuid,
                 fabric,
                 handle,
@@ -97,7 +98,11 @@ impl PmmcNode {
         self.state.shutdown().await;
     }
 
-    pub fn start(&self, mut rx: Receiver<PmmcMessage>) -> JoinHandle<()> {
+    pub fn start(&self, rx: Receiver<PmmcMessage>) -> JoinHandle<()> {
+        self.spawn_runtime(rx)
+    }
+
+    fn spawn_runtime(&self, mut rx: Receiver<PmmcMessage>) -> JoinHandle<()> {
         let state = Arc::clone(&self.state);
         let mut hb = time::interval_at(
             Instant::now() + Duration::from_millis(150),
@@ -131,6 +136,30 @@ impl PmmcNode {
     }
 }
 
+#[async_trait]
+impl RuntimeNode<PmmcMessage> for PmmcNode {
+    fn id(&self) -> Uuid {
+        self.uuid
+    }
+
+    async fn start(&self, inbox: Receiver<PmmcMessage>) -> JoinHandle<()> {
+        self.start_admin().await;
+        self.spawn_runtime(inbox)
+    }
+
+    async fn shutdown(&self) {
+        PmmcNode::shutdown(self).await;
+        self.stop_admin().await;
+    }
+
+    async fn connect_client(
+        &self,
+        client_id: Uuid,
+    ) -> Option<(Sender<ClientMessage>, Receiver<ClientMessage>)> {
+        PmmcNode::connect_client(self, client_id).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{sync::Arc, time::Duration};
@@ -142,7 +171,7 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        cluster::cluster_configuration::ClusterConfiguration,
+        cluster::pmmc::reconfiguration::ClusterConfiguration,
         common::ballot::Ballot,
         monitor::{NoOpObserver, PaxosObserver},
         node::{

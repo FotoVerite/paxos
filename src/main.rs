@@ -1,5 +1,5 @@
 use paxos::{
-    cluster::{classic_cluster::ClassicCluster, pmmc_cluster::PmmcCluster},
+    cluster::{classic::ClassicCluster, pmmc::PmmcCluster},
     console_observer::ConsoleObserver,
     node::config::{PmmcNodeConfig, Roles},
     paxos_command::PaxosCommand,

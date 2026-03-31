@@ -8,8 +8,8 @@ use tokio::time::{Duration, sleep};
 use tracing::{info, warn};
 use uuid::Uuid;
 
-use crate::cluster::cluster_configuration::reconfig_patch::ReconfigPatch;
-use crate::cluster::pmmc_cluster::PmmcCluster;
+use crate::cluster::pmmc::PmmcCluster;
+use crate::cluster::pmmc::reconfiguration::reconfig_patch::ReconfigPatch;
 use crate::message::ClientMessage;
 use crate::monitor::{Event, PaxosObserver, ReconfigurationPhase, current_timestamp_millis};
 use crate::paxos_command::PaxosCommand;
@@ -35,7 +35,7 @@ enum AwaitOutcome {
 }
 
 struct ReconfigurationTaskResult {
-    strategy: crate::cluster::cluster_configuration::ConfigurationStrategy,
+    strategy: crate::cluster::pmmc::reconfiguration::ConfigurationStrategy,
     leader_index: usize,
     checkpoint_last_applied_slot: Option<usize>,
     active_nodes: Vec<Uuid>,
@@ -103,7 +103,7 @@ impl PmmcScenarioExecution {
             JoinHandle<anyhow::Result<ReconfigurationTaskResult>>,
         > = None;
         let mut reconfiguration_strategy_inflight: Option<
-            crate::cluster::cluster_configuration::ConfigurationStrategy,
+            crate::cluster::pmmc::reconfiguration::ConfigurationStrategy,
         > = None;
 
         if self.pool.is_empty() {
@@ -331,7 +331,7 @@ impl PmmcScenarioExecution {
     async fn begin_reconfiguration_task(
         &self,
     ) -> anyhow::Result<(
-        crate::cluster::cluster_configuration::ConfigurationStrategy,
+        crate::cluster::pmmc::reconfiguration::ConfigurationStrategy,
         JoinHandle<anyhow::Result<ReconfigurationTaskResult>>,
     )> {
         let Some(spec) = self.context.spec.reconfiguration.clone() else {

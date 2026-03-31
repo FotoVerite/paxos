@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::cluster::cluster_configuration::ClusterConfiguration;
+use crate::cluster::pmmc::reconfiguration::ClusterConfiguration;
 
 /// Topology information about which peers have which roles.
 /// This is built by the Cluster and passed to each node.

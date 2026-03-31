@@ -1,11 +1,14 @@
-mod test_helpers;
+mod support;
+mod test_helpers {
+    pub use super::support::*;
+}
 
 use paxos::{
     common::ballot::Ballot, common::types::DecreeId,
     node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::collections::HashSet;
-use test_helpers::{NodeBuilder, RecordingObserver, cleanup_persisted_state};
+use support::{NodeBuilder, RecordingObserver, cleanup_persisted_state};
 
 // ============================================================================
 // EDGE CASE TESTS

@@ -1,11 +1,14 @@
-mod test_helpers;
+mod support;
+mod test_helpers {
+    pub use super::support::*;
+}
 
 use paxos::{
     common::ballot::Ballot, common::types::DecreeId,
     node::classic_paxos::message::ClassicMessage as Message, paxos_command::PaxosCommand,
 };
 use std::collections::HashSet;
-use test_helpers::NodeBuilder;
+use support::NodeBuilder;
 
 // ============================================================================
 // TIE-BREAKING TESTS
@@ -89,7 +92,7 @@ async fn ballot_ordering_complete_comparisons() {
 
 #[tokio::test]
 async fn proposer_ballot_ordering_from_proposer_perspective() {
-    use test_helpers::cleanup_persisted_state;
+    use support::cleanup_persisted_state;
     cleanup_persisted_state();
 
     let builder1 = NodeBuilder::new();

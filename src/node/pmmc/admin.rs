@@ -7,12 +7,12 @@ use tokio::time::{Duration, Instant, timeout};
 use uuid::Uuid;
 
 use crate::{
-    cluster::configuration_handler::types::{
+    cluster::pmmc::control::types::{
         ConfigurationCommand, ConfigurationHandlerError, ConfigurationHandlerMessage,
         ConfigurationReplyOutcome,
     },
     message::ClientMessage,
-    node::pmmc::{node_state::NodeState, replica::Replica},
+    node::pmmc::{node_state::PmmcNodeState, replica::Replica},
     paxos_command::PaxosCommand,
 };
 
@@ -21,7 +21,7 @@ const STOP_TIMEOUT: Duration = Duration::from_secs(5);
 pub struct NodeAdmin {
     client_id: Uuid,
     request_id: AtomicU64,
-    state: Arc<NodeState>,
+    state: Arc<PmmcNodeState>,
     runtime: Mutex<AdminRuntimeState>,
 }
 
@@ -33,7 +33,7 @@ struct AdminRuntimeState {
 }
 
 impl NodeAdmin {
-    pub fn new(node_id: Uuid, state: Arc<NodeState>) -> Self {
+    pub fn new(node_id: Uuid, state: Arc<PmmcNodeState>) -> Self {
         Self {
             client_id: Uuid::new_v5(
                 &Uuid::NAMESPACE_OID,

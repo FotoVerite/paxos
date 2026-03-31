@@ -8,6 +8,7 @@ const DECREE_EVENTS = new Set([
   'InitialDecree',
   'BatchInitialDecrees',
   'LedgerDump',
+  'VerticalReplicaApplied',
 ]);
 
 function formatCommand(value, decreeNum) {
@@ -204,6 +205,13 @@ export function createDecreePanelPlugin({
         ctx.state.addDecree(eventData.id, {
           decree_num: eventData.decree_num,
           decree: formatCommand(eventData.value, eventData.decree_num),
+          timestamp: Date.now(),
+        });
+      }
+      if (eventType === 'VerticalReplicaApplied' && eventData?.slot !== undefined) {
+        ctx.state.addDecree(eventData.id, {
+          decree_num: eventData.slot,
+          decree: formatCommand(eventData.value, eventData.slot),
           timestamp: Date.now(),
         });
       }

@@ -85,11 +85,7 @@ impl Acceptor {
         Ok(())
     }
 
-    pub async fn handle_message<M>(&self, msg: M) -> Option<PmmcMessage>
-    where
-        M: TryInto<PmmcMessage>,
-    {
-        let msg = msg.try_into().ok()?;
+    pub async fn handle_message(&self, msg: PmmcMessage) -> Option<PmmcMessage> {
         match msg {
             PmmcMessage::P1A {
                 ballot,
@@ -110,13 +106,14 @@ mod tests {
 
     use crate::{
         common::ballot::Ballot,
-        message::Message,
         monitor::NoOpObserver,
         node::{pmmc::message::PmmcMessage, pvalue::PValue},
         paxos_command::PaxosCommand,
     };
 
     use super::Acceptor;
+
+    type Message = PmmcMessage;
 
     async fn new_acceptor() -> Acceptor {
         let uuid = Uuid::new_v4();
@@ -146,7 +143,7 @@ mod tests {
         let b3 = Ballot::new(3, acceptor_id);
 
         let first = acceptor
-            .handle_message(Message::P1A {
+            .handle_message(PmmcMessage::P1A {
                 from: leader,
                 ballot: b5,
                 start_index: 0,
@@ -164,7 +161,7 @@ mod tests {
         ));
 
         let second = acceptor
-            .handle_message(Message::P1A {
+            .handle_message(PmmcMessage::P1A {
                 from: acceptor_id,
                 ballot: b3,
                 start_index: 0,
@@ -189,7 +186,7 @@ mod tests {
         let v8 = PValue::new(3, b8, cmd(8));
 
         let _ = acceptor
-            .handle_message(Message::P1A {
+            .handle_message(PmmcMessage::P1A {
                 from: leader,
                 ballot: b7,
                 start_index: 0,
@@ -197,19 +194,19 @@ mod tests {
             .await;
 
         let _ = acceptor
-            .handle_message(Message::P2A {
+            .handle_message(PmmcMessage::P2A {
                 from: leader,
                 pvalue: v7.clone(),
             })
             .await;
         let _ = acceptor
-            .handle_message(Message::P2A {
+            .handle_message(PmmcMessage::P2A {
                 from: leader,
                 pvalue: v6,
             })
             .await;
         let high = acceptor
-            .handle_message(Message::P2A {
+            .handle_message(PmmcMessage::P2A {
                 from: leader,
                 pvalue: v8.clone(),
             })
@@ -222,7 +219,7 @@ mod tests {
         );
 
         let check = acceptor
-            .handle_message(Message::P1A {
+            .handle_message(PmmcMessage::P1A {
                 from: leader,
                 ballot: b7,
                 start_index: 0,

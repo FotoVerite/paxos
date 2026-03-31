@@ -6,12 +6,12 @@
 /// - Consensus liveness tests
 ///
 /// These tests verify the end-to-end correctness of the Paxos implementation.
-mod test_helpers;
+mod support;
 
-use paxos::{cluster::classic_cluster::ClassicCluster, paxos_command::PaxosCommand};
+use paxos::{cluster::classic::ClassicCluster, paxos_command::PaxosCommand};
 use std::net::IpAddr;
 use std::sync::Arc;
-use test_helpers::{
+use support::{
     RecordingObserver, ScenarioBuilder, apply_partitions, bipartite_edges, heal_partitions,
     propose_and_wait, star_edges, start_classic_cluster_ready,
 };

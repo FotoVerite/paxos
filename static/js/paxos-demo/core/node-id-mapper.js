@@ -37,6 +37,7 @@ const ID_FIELDS = new Set([
   'id',
   'from',
   'to',
+  'from_replica',
   'leader',
   'leader_id',
   'ballot_proposer',
@@ -49,6 +50,7 @@ const ID_LIST_FIELDS = new Set([
   'partition_a',
   'partition_b',
   'acceptors',
+  'replicas',
   'learners',
   'indexes',
 ]);

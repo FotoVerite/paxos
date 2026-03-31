@@ -4,8 +4,7 @@ use tokio::sync::{RwLock, broadcast};
 use tracing::debug;
 use uuid::Uuid;
 
-use crate::message::{Message, MessageProtocol, MessageTrace};
-use crate::monitor::{Event, EventProtocol, PaxosObserver};
+use crate::monitor::{Event, EventProtocol, MessageProtocol, MessageTrace, ObservedMessage, PaxosObserver};
 use crate::web::{ClusterInfo, VisualizerMessage};
 
 /// A PaxosObserver that broadcasts events to all connected WebSocket clients.
@@ -17,7 +16,7 @@ pub struct WebSocketObserver {
 #[derive(Serialize)]
 struct IndexedMessage<'a> {
     indexes: &'a [Uuid],
-    message: &'a Message,
+    message: &'a ObservedMessage,
 }
 
 impl WebSocketObserver {
@@ -102,14 +101,23 @@ impl WebSocketObserver {
         self.broadcast_event(event, EventProtocol::Pmmc);
     }
 
+    fn handle_vertical_event(&self, event: Event) {
+        self.broadcast_event(event, EventProtocol::Vertical);
+    }
+
     fn handle_system_event(&self, event: Event) {
         self.broadcast_event(event, EventProtocol::System);
     }
 
-    fn broadcast_message(&self, indexes: &[Uuid], message: Message, protocol: MessageProtocol) {
+    fn broadcast_message(
+        &self,
+        indexes: &[Uuid],
+        message: &ObservedMessage,
+        protocol: MessageProtocol,
+    ) {
         let payload = IndexedMessage {
             indexes,
-            message: &message,
+            message,
         };
         let debug = format!("{:?}", message);
 
@@ -133,15 +141,19 @@ impl WebSocketObserver {
         }
     }
 
-    fn handle_classic_message(&self, indexes: &[Uuid], message: Message) {
+    fn handle_classic_message(&self, indexes: &[Uuid], message: &ObservedMessage) {
         self.broadcast_message(indexes, message, MessageProtocol::Classic);
     }
 
-    fn handle_pmmc_message(&self, indexes: &[Uuid], message: Message) {
+    fn handle_pmmc_message(&self, indexes: &[Uuid], message: &ObservedMessage) {
         self.broadcast_message(indexes, message, MessageProtocol::Pmmc);
     }
 
-    fn handle_system_message(&self, indexes: &[Uuid], message: Message) {
+    fn handle_vertical_message(&self, indexes: &[Uuid], message: &ObservedMessage) {
+        self.broadcast_message(indexes, message, MessageProtocol::Vertical);
+    }
+
+    fn handle_system_message(&self, indexes: &[Uuid], message: &ObservedMessage) {
         if !message.should_broadcast_to_visualizer() {
             return;
         }
@@ -156,17 +168,19 @@ impl PaxosObserver for WebSocketObserver {
         match event.protocol() {
             EventProtocol::Classic => self.handle_classic_event(event),
             EventProtocol::Pmmc => self.handle_pmmc_event(event),
+            EventProtocol::Vertical => self.handle_vertical_event(event),
             EventProtocol::System => self.handle_system_event(event),
         }
     }
 
     fn on_message_trace(&self, trace: MessageTrace) {
-        let indexes = trace.indexes().to_vec();
-        let message = trace.to_legacy_message();
         match trace.protocol() {
-            MessageProtocol::Classic => self.handle_classic_message(&indexes, message),
-            MessageProtocol::Pmmc => self.handle_pmmc_message(&indexes, message),
-            MessageProtocol::System => self.handle_system_message(&indexes, message),
+            MessageProtocol::Classic => self.handle_classic_message(trace.indexes(), trace.message()),
+            MessageProtocol::Pmmc => self.handle_pmmc_message(trace.indexes(), trace.message()),
+            MessageProtocol::Vertical => {
+                self.handle_vertical_message(trace.indexes(), trace.message())
+            }
+            MessageProtocol::System => self.handle_system_message(trace.indexes(), trace.message()),
         }
     }
 }
@@ -188,11 +202,10 @@ mod tests {
     use uuid::Uuid;
 
     use super::WebSocketObserver;
-    use crate::cluster::cluster_configuration::ConfigurationStrategy;
+    use crate::cluster::pmmc::reconfiguration::ConfigurationStrategy;
     use crate::common::ballot::Ballot;
     use crate::common::types::DecreeId;
-    use crate::message::Message;
-    use crate::monitor::{Event, PaxosObserver};
+    use crate::monitor::{Event, MessageTrace, ObservedMessage, PaxosObserver};
     use crate::paxos_command::PaxosCommand;
 
     async fn recv_json(receiver: &mut broadcast::Receiver<String>) -> serde_json::Value {
@@ -237,14 +250,14 @@ mod tests {
         let from = Uuid::from_u128(11);
         let to = Uuid::from_u128(22);
 
-        observer.on_message(
+        observer.on_message_trace(MessageTrace::from_message(
             &[from, to],
-            Message::P1A {
+            &ObservedMessage::P1A {
                 from,
                 ballot: Ballot::with_epoch(3, from, 9),
                 start_index: 5,
             },
-        );
+        ));
 
         let got = recv_json(&mut receiver).await;
         let expected = json!({
@@ -295,6 +308,81 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn vertical_event_payload_contract_is_stable() {
+        let observer = WebSocketObserver::new(8);
+        let mut receiver = observer.subscribe().await;
+        let configuration_id = Uuid::from_u128(301);
+        let leader = Uuid::from_u128(302);
+
+        observer.on_event(Event::VerticalActivationReady {
+            configuration_id,
+            leader,
+            ballot: Ballot::with_epoch(4, leader, 2),
+            created_at: 88,
+        });
+
+        let got = recv_json(&mut receiver).await;
+        let expected = json!({
+            "Event": {
+                "VerticalActivationReady": {
+                    "configuration_id": configuration_id,
+                    "leader": leader,
+                    "ballot": {
+                        "epoch": 2,
+                        "number": 4,
+                        "node_id": leader
+                    },
+                    "created_at": 88
+                }
+            }
+        });
+        assert_eq!(got, expected);
+    }
+
+    #[tokio::test]
+    async fn vertical_message_payload_contract_is_stable() {
+        let observer = WebSocketObserver::new(8);
+        let mut receiver = observer.subscribe().await;
+        let from = Uuid::from_u128(401);
+        let to = Uuid::from_u128(402);
+
+        observer.on_message_trace(MessageTrace::new(
+            vec![to],
+            crate::monitor::MessageProtocol::Vertical,
+            ObservedMessage::PROPOSE {
+                from,
+                slot: 3,
+                cmd: PaxosCommand::PUT {
+                    key: "olive".to_string(),
+                    version: 0,
+                    value: 1,
+                },
+            },
+        ));
+
+        let got = recv_json(&mut receiver).await;
+        let expected = json!({
+            "Message": {
+                "indexes": [to],
+                "message": {
+                    "PROPOSE": {
+                        "from": from,
+                        "slot": 3,
+                        "cmd": {
+                            "PUT": {
+                                "key": "olive",
+                                "version": 0,
+                                "value": 1
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        assert_eq!(got, expected);
+    }
+
+    #[tokio::test]
     async fn cluster_initialized_payload_contract_is_stable() {
         let observer = WebSocketObserver::new(8);
         let mut receiver = observer.subscribe().await;
@@ -320,7 +408,10 @@ mod tests {
         let observer = WebSocketObserver::new(8);
         let mut receiver = observer.subscribe().await;
 
-        observer.on_message(&[Uuid::from_u128(44)], Message::NACK);
+        observer.on_message_trace(MessageTrace::from_message(
+            &[Uuid::from_u128(44)],
+            &ObservedMessage::NACK,
+        ));
 
         let result = timeout(Duration::from_millis(100), receiver.recv()).await;
         assert!(result.is_err(), "unexpected websocket payload for NACK");

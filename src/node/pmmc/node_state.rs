@@ -7,20 +7,23 @@ use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::{
-    cluster::cluster_configuration::ClusterConfiguration,
+    cluster::pmmc::reconfiguration::ClusterConfiguration,
     common::persistence::NodePersistence,
     message::ClientMessage,
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
-        config::{LearningStrategy, Roles},
-        message_router::{MessageRouter, RoutingDecision},
+        config::Roles,
         peer_topology::PeerTopology,
         pmmc::{
             acceptor::Acceptor,
             leader::Leader,
             message::PmmcMessage,
             replica::{ClientReplySink, Replica},
+            router::{PmmcComponent, PmmcRouter},
             transport::{PmmcFabric, PmmcHandle},
+        },
+        routing::{
+            LocalRoutingDecision, ProtocolInboxRouter, ProtocolRouter, RoutingDecision,
         },
     },
 };
@@ -50,18 +53,18 @@ impl ClientReplySink for NodeClientSink {
     }
 }
 
-pub struct NodeState {
+pub struct PmmcNodeState {
     uuid: Uuid,
     acceptor: Option<Acceptor>,
     fabric: Arc<PmmcFabric>,
     leader: Option<Leader>,
     replica: Option<Arc<Replica>>,
     client_sink: Arc<NodeClientSink>,
-    router: MessageRouter,
+    router: PmmcRouter,
     observer: Arc<dyn PaxosObserver>,
 }
 
-impl NodeState {
+impl PmmcNodeState {
     pub async fn init(
         uuid: Uuid,
         fabric: Arc<PmmcFabric>,
@@ -121,7 +124,7 @@ impl NodeState {
             learning_strategy: "NONE".to_string(),
         });
 
-        let router = MessageRouter::new(LearningStrategy::default(), topology);
+        let router = PmmcRouter::new(topology);
         Ok(Self {
             uuid,
             acceptor,
@@ -220,14 +223,21 @@ impl NodeState {
     }
 
     pub async fn handle_message(&self, pmsg: PmmcMessage) {
-        match pmsg {
-            pmsg @ PmmcMessage::ACK { from, .. }
-            | pmsg @ PmmcMessage::ADOPTED { from, .. }
-            | pmsg @ PmmcMessage::HEARTBEAT { from, .. }
-            | pmsg @ PmmcMessage::P1B { from, .. }
-            | pmsg @ PmmcMessage::P2B { from, .. }
-            | pmsg @ PmmcMessage::PROPOSE { from, .. }
-            | pmsg @ PmmcMessage::PREEMPT { from, .. } => {
+        let from = match &pmsg {
+            PmmcMessage::ACK { from, .. }
+            | PmmcMessage::ACCEPTED { from, .. }
+            | PmmcMessage::ADOPTED { from, .. }
+            | PmmcMessage::HEARTBEAT { from, .. }
+            | PmmcMessage::PROPOSE { from, .. }
+            | PmmcMessage::PREEMPT { from, .. }
+            | PmmcMessage::P1A { from, .. }
+            | PmmcMessage::P1B { from, .. }
+            | PmmcMessage::P2A { from, .. }
+            | PmmcMessage::P2B { from, .. } => *from,
+        };
+
+        match self.router.classify(&pmsg, &()) {
+            LocalRoutingDecision::DeliverTo(PmmcComponent::Leader) => {
                 if let Some(leader) = &self.leader {
                     tracing::debug!(
                         "[Node {}] Routing message from node {} to Leader component",
@@ -235,11 +245,11 @@ impl NodeState {
                         from
                     );
                     if let Some(reply) = leader.handle_message(pmsg).await {
-                        self.dispatch(&reply).await;
+                        self.route_and_send(&reply).await;
                     }
                 }
             }
-            pmsg @ PmmcMessage::P1A { from, .. } | pmsg @ PmmcMessage::P2A { from, .. } => {
+            LocalRoutingDecision::DeliverTo(PmmcComponent::Acceptor) => {
                 if let Some(acceptor) = &self.acceptor {
                     tracing::debug!(
                         "[Node {}] Routing message from node {} to Acceptor component",
@@ -247,11 +257,11 @@ impl NodeState {
                         from
                     );
                     if let Some(reply) = acceptor.handle_message(pmsg).await {
-                        self.dispatch(&reply).await;
+                        self.route_and_send(&reply).await;
                     }
                 }
             }
-            pmsg @ PmmcMessage::ACCEPTED { from, .. } => {
+            LocalRoutingDecision::DeliverTo(PmmcComponent::Replica) => {
                 if let Some(replica) = &self.replica {
                     tracing::debug!(
                         "[Node {}] Routing message from node {} to Replica component",
@@ -259,15 +269,16 @@ impl NodeState {
                         from
                     );
                     if let Some(reply) = replica.handle_message(pmsg).await {
-                        self.dispatch(&reply).await;
+                        self.route_and_send(&reply).await;
                     }
                 }
             }
+            LocalRoutingDecision::Drop => {}
         }
     }
 
-    async fn dispatch(&self, pmsg: &PmmcMessage) {
-        let decision = self.router.route_pmmc(pmsg);
+    async fn route_and_send(&self, pmsg: &PmmcMessage) {
+        let decision = self.router.route(pmsg, &());
         match decision {
             RoutingDecision::Broadcast => {
                 self.fabric.broadcast(self.uuid, pmsg.clone()).await;
@@ -355,7 +366,7 @@ mod tests {
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
-        cluster::cluster_configuration::ClusterConfiguration,
+        cluster::pmmc::reconfiguration::ClusterConfiguration,
         common::ballot::Ballot,
         monitor::{NoOpObserver, PaxosObserver},
         node::{
@@ -366,7 +377,7 @@ mod tests {
         paxos_command::PaxosCommand,
     };
 
-    use super::NodeState;
+    use super::PmmcNodeState;
 
     fn cmd(value: usize) -> PaxosCommand {
         PaxosCommand::PUT {
@@ -397,7 +408,7 @@ mod tests {
             Arc::clone(&fabric),
         ));
 
-        let state = NodeState::init(
+        let state = PmmcNodeState::init(
             node_id,
             fabric,
             handle,
@@ -482,7 +493,7 @@ mod tests {
             Arc::clone(&fabric),
         ));
 
-        let state = NodeState::init(
+        let state = PmmcNodeState::init(
             leader_only,
             fabric,
             handle,

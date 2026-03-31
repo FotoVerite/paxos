@@ -1,4 +1,7 @@
-mod test_helpers;
+mod support;
+mod test_helpers {
+    pub use super::support::*;
+}
 
 use paxos::{
     common::ballot::Ballot, common::types::DecreeId, monitor::Event,
@@ -6,7 +9,7 @@ use paxos::{
 };
 use std::collections::HashSet;
 use std::sync::Arc;
-use test_helpers::{NodeBuilder, RecordingObserver}; // Added Arc import
+use support::{NodeBuilder, RecordingObserver}; // Added Arc import
 
 // ============================================================================
 // INTEGRATION TESTS
@@ -69,7 +72,7 @@ async fn basic_proposer_acceptor_interaction() {
 
 #[tokio::test]
 async fn ballot_comparison_ensures_safety() {
-    use test_helpers::cleanup_persisted_state;
+    use support::cleanup_persisted_state;
     cleanup_persisted_state();
 
     // Create separate builders so proposers don't share state

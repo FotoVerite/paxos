@@ -6,7 +6,7 @@ use tokio::time::{Duration, sleep};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::cluster::pmmc_cluster::PmmcCluster;
+use crate::cluster::pmmc::PmmcCluster;
 use crate::monitor::{Event, PaxosObserver, current_timestamp_millis};
 use crate::web::websocket_observer::WebSocketObserver;
 

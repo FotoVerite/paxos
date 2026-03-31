@@ -1,0 +1,190 @@
+{% extends "vertical-paxos/base.html" %}
+{% import "macros/nav.html" as nav %}
+
+{% block title %}Vertical Paxos Demo{% endblock %}
+{% block body_class %}vp-demo-page{% endblock %}
+
+{% block extra_stylesheets %}
+<link rel="stylesheet" href="/css/demo.css" />
+<link rel="stylesheet" href="/css/papers/vertical_paxos/demo.css" />
+{% endblock %}
+
+{% block content %}
+<section class="vp-demo-shell">
+  <header class="vp-demo-hero">
+    <div class="vp-demo-copy">
+      <p id="verticalStatusEyebrow" class="vp-demo-kicker">Idle</p>
+      <h1 id="verticalStatusTitle">Ready for a new run</h1>
+      <p id="verticalStatusText" class="vp-demo-dek">
+        This walkthrough shows configuration installation, activation, replica ingress, redirect on the old configuration, and a second decision after handoff.
+      </p>
+    </div>
+    <div class="vp-demo-actions">
+      <button id="verticalRunBtn" class="btn-primary">Run walkthrough</button>
+      <button id="verticalResetBtn" class="btn-secondary">Reset</button>
+    </div>
+  </header>
+
+  <section class="vp-demo-overview">
+    <article class="vp-demo-reading-order">
+      <p class="vp-demo-section-label">How To Read It</p>
+      <ol class="vp-demo-reading-steps">
+        <li>
+          <strong>Configuration first.</strong>
+          Watch which replicas and acceptors belong to each configuration and which leader owns it.
+        </li>
+        <li>
+          <strong>Activation second.</strong>
+          The leader does not become real just because the config exists. It has to prove safety first.
+        </li>
+        <li>
+          <strong>Replica ingress last.</strong>
+          Clients talk to replicas. Old replicas redirect. Active replicas feed the leader.
+        </li>
+      </ol>
+    </article>
+
+    <section class="vp-demo-configuration-board">
+      <div class="vp-demo-configuration-head">
+        <div>
+          <p class="vp-demo-section-label">Configuration Ledger</p>
+          <h2>What changed, and who owns it now</h2>
+        </div>
+        <div id="verticalPhaseChip" class="vp-demo-phase-chip">Waiting</div>
+      </div>
+
+      <div class="vp-demo-config-grid">
+        <article class="vp-config-card" id="verticalConfigPrimary">
+          <div class="vp-config-card-head">
+            <span class="vp-config-card-slot">A</span>
+            <span class="vp-config-card-state" id="verticalConfigPrimaryState">Not installed</span>
+          </div>
+          <div class="vp-config-card-body">
+            <h3 id="verticalConfigPrimaryTitle">Configuration A</h3>
+            <dl class="vp-config-card-meta">
+              <div>
+                <dt>Leader</dt>
+                <dd id="verticalConfigPrimaryLeader">--</dd>
+              </div>
+              <div>
+                <dt>Replicas</dt>
+                <dd id="verticalConfigPrimaryReplicas">--</dd>
+              </div>
+              <div>
+                <dt>Acceptors</dt>
+                <dd id="verticalConfigPrimaryAcceptors">--</dd>
+              </div>
+            </dl>
+          </div>
+        </article>
+
+        <article class="vp-config-card vp-config-card-secondary" id="verticalConfigSecondary">
+          <div class="vp-config-card-head">
+            <span class="vp-config-card-slot">B</span>
+            <span class="vp-config-card-state" id="verticalConfigSecondaryState">Queued</span>
+          </div>
+          <div class="vp-config-card-body">
+            <h3 id="verticalConfigSecondaryTitle">Configuration B</h3>
+            <dl class="vp-config-card-meta">
+              <div>
+                <dt>Leader</dt>
+                <dd id="verticalConfigSecondaryLeader">--</dd>
+              </div>
+              <div>
+                <dt>Replicas</dt>
+                <dd id="verticalConfigSecondaryReplicas">--</dd>
+              </div>
+              <div>
+                <dt>Acceptors</dt>
+                <dd id="verticalConfigSecondaryAcceptors">--</dd>
+              </div>
+            </dl>
+          </div>
+        </article>
+      </div>
+    </section>
+  </section>
+
+  <section class="vp-demo-stage">
+    <div class="vp-demo-visual">
+      <div class="vp-demo-stage-head">
+        <div>
+          <p class="vp-demo-section-label">Live Stage</p>
+          <h2>Protocol traffic and ownership</h2>
+        </div>
+        <div class="vp-demo-stage-note">Watch the active leader and replica set change as the configuration master hands the system over.</div>
+      </div>
+      <svg id="verticalDemoSvg"></svg>
+      <div class="vp-demo-playback">
+        <div class="vp-demo-playback-controls">
+          <button id="verticalPauseBtn" class="btn-secondary">Pause</button>
+          <button id="verticalStepBackBtn" class="btn-secondary" disabled>Step back</button>
+          <button id="verticalStepForwardBtn" class="btn-secondary" disabled>Step forward</button>
+        </div>
+        <div id="verticalPlaybackCursor" class="vp-demo-playback-cursor">Batch 0/0</div>
+      </div>
+    </div>
+
+    <aside class="vp-demo-sidebar">
+      <section class="vp-demo-panel">
+        <div class="vp-demo-panel-head">
+          <h2>What to watch right now</h2>
+          <p id="verticalWatchHint">Run the walkthrough. The first important change is not client traffic. It is the moment configuration A becomes active.</p>
+        </div>
+        <ul class="vp-demo-watch-list" id="verticalWatchList">
+          <li>Configuration A gets installed on the nodes.</li>
+          <li>The leader syncs before replicas are allowed to accept work.</li>
+          <li>The old replica redirects when configuration B takes over.</li>
+        </ul>
+      </section>
+    </aside>
+  </section>
+
+  <section class="vp-demo-evidence">
+    <section class="vp-demo-panel">
+      <div class="vp-demo-panel-head">
+        <h2>Replica ledger</h2>
+        <p>Pick a replica and inspect the commands it actually applied after a decision made it all the way through.</p>
+      </div>
+      <div id="verticalReplicaStats" class="vp-demo-replica-stats"></div>
+      <div id="verticalReplicaPanel" class="vp-demo-replica-panel"></div>
+    </section>
+
+    <section class="vp-demo-panel vp-demo-panel-log">
+      <div class="event-log-header">
+        <div>
+          <h2>Event log</h2>
+          <p class="vp-demo-log-subtitle">Use this as supporting evidence, not the main story.</p>
+        </div>
+        <div class="event-log-actions">
+          <span id="verticalEventFilterStatus" class="event-filter-status">Activation only</span>
+          <button type="button" id="verticalEventFilterToggle" class="event-filter-toggle">Filters</button>
+          <button type="button" id="verticalEventCopyBtn" class="event-copy-all">Copy logs</button>
+        </div>
+      </div>
+      <div class="event-log-wrapper">
+        <div id="verticalEventFilterBar" class="event-filter-bar">
+          <div class="event-filter-title">Filter</div>
+          <div id="verticalEventFilterChips" class="event-filter-chips"></div>
+          <button type="button" id="verticalEventFilterClose" class="event-filter-close">Close</button>
+        </div>
+        <div id="verticalEventLog"></div>
+      </div>
+    </section>
+  </section>
+
+  {{ nav::breadcrumb(
+    prev_url="/vp1/protocol",
+    prev_label="Protocol",
+    current_label="Vertical Demo",
+    next_url="/overview-vertical-paxos/configuration-master",
+    next_label="Configuration Master"
+  ) }}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/websocket-helper.js"></script>
+<script src="/paxos-visualizer.js"></script>
+<script type="module" src="/js/papers/vertical_paxos/demo.js"></script>
+{% endblock %}

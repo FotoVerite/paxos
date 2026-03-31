@@ -1,4 +1,7 @@
-mod test_helpers;
+mod support;
+mod test_helpers {
+    pub use super::support::*;
+}
 
 use paxos::{
     common::ballot::Ballot, common::types::DecreeId,
@@ -6,7 +9,7 @@ use paxos::{
 };
 use std::collections::HashSet;
 use std::sync::Arc;
-use test_helpers::{NodeBuilder, RecordingObserver, cleanup_persisted_state, create_ledger};
+use support::{NodeBuilder, RecordingObserver, cleanup_persisted_state, create_ledger};
 
 // ============================================================================
 // CONCURRENT DECREES TESTS

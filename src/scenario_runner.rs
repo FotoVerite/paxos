@@ -1,4 +1,4 @@
-use crate::cluster::classic_cluster::ClassicCluster;
+use crate::cluster::classic::ClassicCluster;
 use crate::scenario::{Scenario, ScenarioStep};
 use tokio::time::sleep;
 

@@ -1,14 +1,16 @@
 import { CLASSIC_EVENT_VISUALIZERS } from '/js/paxos-demo/visualizers/classic.js';
 import { PMMC_EVENT_VISUALIZERS } from '/js/paxos-demo/visualizers/pmmc.js';
 import { SYSTEM_EVENT_VISUALIZERS } from '/js/paxos-demo/visualizers/system.js';
+import { VERTICAL_EVENT_VISUALIZERS } from '/js/paxos-demo/visualizers/vertical.js';
 
 const REGISTRIES = {
   classic: CLASSIC_EVENT_VISUALIZERS,
   system: SYSTEM_EVENT_VISUALIZERS,
-  pmmc: PMMC_EVENT_VISUALIZERS
+  pmmc: PMMC_EVENT_VISUALIZERS,
+  vertical: VERTICAL_EVENT_VISUALIZERS
 };
 
-const PROTOCOL_ORDER = ['classic', 'system', 'pmmc'];
+const PROTOCOL_ORDER = ['classic', 'system', 'pmmc', 'vertical'];
 
 function mergeRegistries() {
   const merged = {};
@@ -48,6 +50,9 @@ export function resolveVisualizerProtocol(eventType) {
   }
   if (Object.prototype.hasOwnProperty.call(PMMC_EVENT_VISUALIZERS, eventType)) {
     return 'pmmc';
+  }
+  if (Object.prototype.hasOwnProperty.call(VERTICAL_EVENT_VISUALIZERS, eventType)) {
+    return 'vertical';
   }
   return null;
 }
