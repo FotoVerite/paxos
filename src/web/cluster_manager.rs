@@ -1,22 +1,16 @@
 use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
-use tokio::time::{Duration, Instant, sleep};
+use tokio::time::{Duration, sleep};
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::cluster::{
     classic::ClassicCluster,
     pmmc::{PmmcCluster, reconfiguration::ClusterConfiguration},
-    vertical::{
-        activation::PredecessorChain,
-        configuration::{VerticalClusterConfiguration, VerticalPaxosVariant},
-        master::ActivationStatus,
-        quorum::Quorum,
-        system::VerticalSystem,
-    },
+    vertical::system::VerticalSystem,
 };
-use crate::common::{ballot::Ballot, persistence::Persistence};
+use crate::common::persistence::Persistence;
 use crate::console_observer::ConsoleObserver;
 use crate::decree_generator::DecreeGenerator;
 use crate::monitor::{MessageTrace, PaxosObserver};
@@ -24,6 +18,7 @@ use crate::node::config::{ClassicNodeConfig, LearningStrategy, Roles};
 use crate::paxos_command::PaxosCommand;
 use crate::web::scenarios::{
     CatchUpScenario, ClassicScenarioExecution, ClassicScenarioLoader, ScenarioType,
+    VerticalScenarioKey, VerticalScenarioRunner, VerticalScenarioSpec,
     pmmc::{PmmcScenarioExecution, PmmcScenarioLoader},
 };
 use crate::web::websocket_observer::WebSocketObserver;
@@ -203,58 +198,6 @@ impl ClusterManager {
             .collect()
     }
 
-    fn vertical_demo_configurations(
-        ids: &[Uuid],
-    ) -> anyhow::Result<(
-        Arc<VerticalClusterConfiguration>,
-        Arc<VerticalClusterConfiguration>,
-    )> {
-        anyhow::ensure!(
-            ids.len() >= 4,
-            "vertical demo requires at least 4 members, got {}",
-            ids.len()
-        );
-        let map_config_err = |err| anyhow::anyhow!("invalid vertical demo configuration: {err:?}");
-
-        let config_a_acceptors = vec![ids[0], ids[1], ids[2]];
-        let config_a_replicas = vec![ids[0], ids[3]];
-        let config_a_read = Quorum::new(vec![ids[0], ids[1]]).map_err(map_config_err)?;
-        let config_a_write = Quorum::new(vec![ids[0], ids[2]]).map_err(map_config_err)?;
-        let config_a = Arc::new(VerticalClusterConfiguration::new(
-            Uuid::new_v4(),
-            ids[0],
-            VerticalPaxosVariant::V1,
-            Ballot::new(1, ids[0]),
-            0,
-            config_a_acceptors,
-            config_a_replicas,
-            config_a_read,
-            config_a_write,
-            None,
-        )
-        .map_err(map_config_err)?);
-
-        let config_b_acceptors = vec![ids[1], ids[2], ids[3]];
-        let config_b_replicas = vec![ids[2], ids[3]];
-        let config_b_read = Quorum::new(vec![ids[1], ids[3]]).map_err(map_config_err)?;
-        let config_b_write = Quorum::new(vec![ids[2], ids[3]]).map_err(map_config_err)?;
-        let config_b = Arc::new(VerticalClusterConfiguration::new(
-            Uuid::new_v4(),
-            ids[3],
-            VerticalPaxosVariant::V2,
-            Ballot::new(2, ids[3]),
-            1,
-            config_b_acceptors,
-            config_b_replicas,
-            config_b_read,
-            config_b_write,
-            Some(config_a.ballot()),
-        )
-        .map_err(map_config_err)?);
-
-        Ok((config_a, config_b))
-    }
-
     fn classic_configuration_for_scenario(
         ip: IpAddr,
         scenario_type: ScenarioType,
@@ -328,7 +271,7 @@ impl ClusterManager {
                 Ok(true)
             }
             Some(ActiveCluster::Pmmc(cluster_arc)) => {
-                let mut cluster = cluster_arc.lock().await;
+                let cluster = cluster_arc.lock().await;
                 cluster.cleanup().await?;
                 Ok(true)
             }
@@ -552,159 +495,11 @@ impl ClusterManager {
         Ok(())
     }
 
-    async fn sleep_or_stop(
-        stop_rx: &mut broadcast::Receiver<()>,
-        duration: Duration,
-    ) -> bool {
-        tokio::select! {
-            _ = sleep(duration) => true,
-            result = stop_rx.recv() => {
-                !matches!(
-                    result,
-                    Ok(_) | Err(broadcast::error::RecvError::Closed)
-                )
-            }
-        }
-    }
-
-    async fn wait_for_vertical_activation(
-        system: &VerticalSystem,
-        configuration_id: Uuid,
-        stop_rx: &mut broadcast::Receiver<()>,
-        timeout_duration: Duration,
-    ) -> anyhow::Result<bool> {
-        let deadline = Instant::now() + timeout_duration;
-        loop {
-            if system
-                .master()
-                .activation(configuration_id)
-                .await
-                .is_some_and(|record| record.status() == &ActivationStatus::Ready)
-            {
-                return Ok(true);
-            }
-
-            let now = Instant::now();
-            if now >= deadline {
-                anyhow::bail!(
-                    "timed out waiting for vertical activation {} to become ready",
-                    configuration_id
-                );
-            }
-
-            let sleep_for = (deadline - now).min(Duration::from_millis(25));
-            tokio::select! {
-                _ = sleep(sleep_for) => {}
-                result = stop_rx.recv() => {
-                    match result {
-                        Ok(_) | Err(broadcast::error::RecvError::Closed) => return Ok(false),
-                        Err(broadcast::error::RecvError::Lagged(_)) => {}
-                    }
-                }
-            }
-        }
-    }
-
-    async fn run_vertical_demo_script(
-        system: Arc<VerticalSystem>,
-        config_a: Arc<VerticalClusterConfiguration>,
-        config_b: Arc<VerticalClusterConfiguration>,
-        mut stop_rx: broadcast::Receiver<()>,
+    pub async fn start_vertical_demo(
+        &self,
+        ip: IpAddr,
+        scenario_key: VerticalScenarioKey,
     ) -> anyhow::Result<()> {
-        system.install_configuration(Arc::clone(&config_a)).await?;
-        if !Self::sleep_or_stop(&mut stop_rx, Duration::from_millis(180)).await {
-            return Ok(());
-        }
-
-        system
-            .start_activation(config_a.id(), Arc::new(PredecessorChain::default()))
-            .await?;
-        if !Self::wait_for_vertical_activation(
-            &system,
-            config_a.id(),
-            &mut stop_rx,
-            Duration::from_secs(2),
-        )
-        .await?
-        {
-            return Ok(());
-        }
-        if !Self::sleep_or_stop(&mut stop_rx, Duration::from_millis(240)).await {
-            return Ok(());
-        }
-
-        let _ = system
-            .submit_client_request(
-                config_a.replicas()[1],
-                PaxosCommand::PUT {
-                    key: "olive".to_string(),
-                    version: 0,
-                    value: 1,
-                }
-                .with_client(Uuid::new_v4(), 1),
-            )
-            .await?;
-        if !Self::sleep_or_stop(&mut stop_rx, Duration::from_millis(420)).await {
-            return Ok(());
-        }
-
-        system.install_configuration(Arc::clone(&config_b)).await?;
-        if !Self::sleep_or_stop(&mut stop_rx, Duration::from_millis(180)).await {
-            return Ok(());
-        }
-
-        system
-            .start_activation(
-                config_b.id(),
-                Arc::new(PredecessorChain::new(vec![Arc::clone(&config_a)])),
-            )
-            .await?;
-        if !Self::wait_for_vertical_activation(
-            &system,
-            config_b.id(),
-            &mut stop_rx,
-            Duration::from_secs(2),
-        )
-        .await?
-        {
-            return Ok(());
-        }
-        if !Self::sleep_or_stop(&mut stop_rx, Duration::from_millis(220)).await {
-            return Ok(());
-        }
-
-        let _ = system
-            .submit_client_request(
-                config_a.replicas()[0],
-                PaxosCommand::PUT {
-                    key: "citadel".to_string(),
-                    version: 0,
-                    value: 2,
-                }
-                .with_client(Uuid::new_v4(), 2),
-            )
-            .await?;
-        if !Self::sleep_or_stop(&mut stop_rx, Duration::from_millis(260)).await {
-            return Ok(());
-        }
-
-        let _ = system
-            .submit_client_request(
-                config_b.replicas()[0],
-                PaxosCommand::PUT {
-                    key: "citadel".to_string(),
-                    version: 0,
-                    value: 2,
-                }
-                .with_client(Uuid::new_v4(), 3),
-            )
-            .await?;
-        let _ = Self::sleep_or_stop(&mut stop_rx, Duration::from_millis(500)).await;
-
-        Ok(())
-    }
-
-    pub async fn start_vertical_demo(&self, ip: IpAddr) -> anyhow::Result<()> {
         self.signal_stop().await;
         let cleaned = self.cleanup_active_cluster().await?;
 
@@ -721,7 +516,13 @@ impl ClusterManager {
         self.observer.clear().await;
         let stop_tx = self.replace_stop_channel().await;
         let member_ids = Self::vertical_demo_member_ids(ip);
-        let (config_a, config_b) = Self::vertical_demo_configurations(&member_ids)?;
+        let spec = VerticalScenarioSpec::for_key(scenario_key);
+        anyhow::ensure!(
+            member_ids.len() >= spec.node_count,
+            "vertical demo requires at least {} members, got {}",
+            spec.node_count,
+            member_ids.len()
+        );
 
         let scenario_observer: Arc<dyn PaxosObserver> = Arc::new(ScenarioObserver {
             websocket: self.observer.clone(),
@@ -745,7 +546,7 @@ impl ClusterManager {
 
         tokio::spawn(async move {
             if let Err(err) =
-                Self::run_vertical_demo_script(system, config_a, config_b, stop_tx.subscribe()).await
+                VerticalScenarioRunner::run(system, &spec, &member_ids, stop_tx.subscribe()).await
             {
                 warn!(error = %err, "Vertical demo run failed");
             }

@@ -1,23 +1,36 @@
-use axum::{extract::ConnectInfo, extract::State, http::HeaderMap, response::IntoResponse};
+use axum::{
+    extract::{ConnectInfo, Query, State},
+    http::HeaderMap,
+    response::IntoResponse,
+};
+use serde::Deserialize;
 use std::net::SocketAddr;
 use tracing::{Instrument, error, info, info_span};
 
 use super::utils::{AppState, get_client_ip, get_cm};
+use crate::web::scenarios::VerticalScenarioKey;
+
+#[derive(Debug, Deserialize)]
+pub struct VerticalDemoRunParams {
+    scenario: Option<String>,
+}
 
 pub async fn run_vertical_demo_handler(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Query(params): Query<VerticalDemoRunParams>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
     let ip = get_client_ip(&headers, addr);
     let span = info_span!("run_vertical_demo", client_ip = %ip);
+    let scenario_key = VerticalScenarioKey::parse(params.scenario.as_deref().unwrap_or_default());
 
     async move {
-        info!("Starting vertical demo");
+        info!(scenario = scenario_key.as_str(), "Starting vertical demo");
 
         let cm = get_cm(state, addr, headers).await;
         let cm = cm.lock().await;
-        match cm.start_vertical_demo(ip).await {
+        match cm.start_vertical_demo(ip, scenario_key).await {
             Ok(_) => (
                 axum::http::StatusCode::OK,
                 "Vertical demo started".to_string(),

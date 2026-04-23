@@ -7,7 +7,34 @@ import { createVerticalMessagePlugin } from '/js/paxos-demo/plugins/vertical-mes
 import { createDecreePanelPlugin } from '/js/paxos-demo/plugins/decree-panel.js';
 import { createPlaybackDelayPlugin } from '/js/paxos-demo/plugins/playback-delay.js';
 
-const FRAME_WINDOW_MICROS = 50;
+const FRAME_WINDOW_MICROS = 12;
+const VERTICAL_SCENARIOS = {
+  reconfiguration_only: {
+    title: 'Reconfiguration',
+    description: 'One clean handoff from configuration A to B.',
+    initialHint: 'Run the walkthrough. Watch configuration A become active, then watch B take over cleanly.',
+  },
+  activation_only: {
+    title: 'Activation only',
+    description: 'Show that installed does not mean active yet.',
+    initialHint: 'Run the walkthrough. The whole point here is the gap between install and active.',
+  },
+  redirect_after_handoff: {
+    title: 'Redirect after handoff',
+    description: 'Old replicas reject new work once the successor takes over.',
+    initialHint: 'Run the walkthrough. The key moment is the stale replica redirecting the client.',
+  },
+  vp1_recovery_cost: {
+    title: 'VP1 recovery cost',
+    description: 'Build history, then show the successor recovering from the full prefix again.',
+    initialHint: 'Run the walkthrough. Watch how much work the successor has to do before it can become active.',
+  },
+  vp2_bounded_recovery: {
+    title: 'VP2 bounded recovery',
+    description: 'Show the same handoff with a bounded recovery window instead of replaying the full prefix.',
+    initialHint: 'Run the walkthrough. The point is that the successor should have less recovery work to do.',
+  },
+};
 const VERTICAL_LOG_PRESETS = [
   { key: 'all', label: 'All', types: null },
   {
@@ -33,13 +60,12 @@ let controller = null;
 let visualizer = null;
 let runBtn;
 let resetBtn;
+let scenarioButtons = [];
+let scenarioDescription;
 let pauseBtn;
 let stepBackBtn;
 let stepForwardBtn;
 let playbackCursor;
-let statusEyebrow;
-let statusTitle;
-let statusText;
 let phaseChip;
 let watchHint;
 let eventLog;
@@ -63,6 +89,7 @@ let configSecondaryTitle;
 let configSecondaryLeader;
 let configSecondaryReplicas;
 let configSecondaryAcceptors;
+let selectedScenario = 'reconfiguration_only';
 
 const configurationSlots = new Map();
 
@@ -118,6 +145,29 @@ function setPhaseChip(value) {
   const label = phaseLabel(value);
   phaseChip.textContent = label;
   phaseChip.dataset.phase = label.toLowerCase();
+}
+
+function currentScenarioMeta() {
+  return VERTICAL_SCENARIOS[selectedScenario] || VERTICAL_SCENARIOS.reconfiguration_only;
+}
+
+function syncScenarioUi() {
+  const meta = currentScenarioMeta();
+  for (const button of scenarioButtons) {
+    button.classList.toggle('is-active', button.dataset.scenario === selectedScenario);
+  }
+  if (scenarioDescription) {
+    scenarioDescription.textContent = meta.description;
+  }
+  if (watchHint) {
+    watchHint.textContent = meta.initialHint;
+  }
+}
+
+function setSelectedScenario(nextScenario) {
+  if (!VERTICAL_SCENARIOS[nextScenario]) return;
+  selectedScenario = nextScenario;
+  syncScenarioUi();
 }
 
 function updateConfigurationCard(slot, eventData, stateLabel) {
@@ -188,11 +238,7 @@ function canCommunicate(from, to) {
   return fromNode.partitioned === toNode.partitioned;
 }
 
-function setStatus(eyebrow, title, text) {
-  if (statusEyebrow) statusEyebrow.textContent = eyebrow;
-  if (statusTitle) statusTitle.textContent = title;
-  if (statusText) statusText.textContent = text;
-}
+function setStatus(_eyebrow, _title, _text) {}
 
 function buildController() {
   const configurationBoardPlugin = {
@@ -249,55 +295,55 @@ function buildController() {
           setStatus(
             'Installed',
             'Configuration loaded',
-            'The master has written a configuration onto the nodes. Nothing is active yet.'
+            'The master wrote a configuration. Nothing is live yet.'
           );
           if (watchHint) {
             watchHint.textContent =
-              'Watch the leader for configuration A. It still has to prove safety before replicas are allowed to take client traffic.';
+              'Watch configuration A. The leader still has to prove safety before replicas can accept work.';
           }
           break;
         case 'VerticalActivationStarted':
           setStatus(
             'Synchronizing',
             'Leader is proving it is safe',
-            'The designated leader is collecting predecessor state before the replica set is allowed to take work.'
+            'The designated leader is collecting predecessor state before the replica set can take work.'
           );
           if (watchHint) {
             watchHint.textContent =
-              'Stay on the stage. This is the important quiet part: the leader is syncing history, not serving clients yet.';
+              'Stay on the leader. This is the quiet part: history sync, not client work.';
           }
           break;
         case 'VerticalActivationReady':
           setStatus(
             'Active',
             'Replica set is now live',
-            'Client traffic can enter through the active replicas. The leader is ready to drive phase 2.'
+            'Clients can enter through the active replicas now.'
           );
           if (watchHint) {
             watchHint.textContent =
-              'Configuration A is live now. The next useful thing to notice is replica ingress, not just message motion.';
+              'Configuration A is active. Now watch a replica feed the leader.';
           }
           break;
         case 'VerticalReplicaRedirected':
           setStatus(
             'Redirect',
             'Old replica is refusing new work',
-            'That replica belongs to the old configuration now. It points the client at the active set instead of pretending the handoff never happened.'
+            'That replica belongs to the old configuration now. It points the client at the active set.'
           );
           if (watchHint) {
             watchHint.textContent =
-              'This redirect is the teaching moment. The old replica knows it is stale and tells the client where the active configuration lives.';
+              'This is the handoff. The old replica knows it is stale and redirects the client.';
           }
           break;
         case 'VerticalReplicaApplied':
           setStatus(
             'Applied',
             `Replica applied slot ${eventData.slot}`,
-            'A decided value reached the replica state machine and was applied in slot order.'
+            'A decided value reached the replica state machine and applied in slot order.'
           );
           if (watchHint) {
             watchHint.textContent =
-              'Use the replica ledger now. That is where you can verify the command actually made it through the protocol.';
+              'Use the replica ledger now. That is the proof the protocol finished.';
           }
           break;
         default:
@@ -345,7 +391,7 @@ function buildController() {
         itemRenderLabel: 'slot',
         emptySelectionHint: 'Select a replica to inspect the commands it has applied.',
       }),
-      createPlaybackDelayPlugin(),
+      createPlaybackDelayPlugin({ minDelay: 320, baseDelay: 760 }),
     ],
   });
 }
@@ -375,16 +421,15 @@ async function runDemo() {
   controller.setCaptureEnabled(true);
   await controller.resume();
 
-  const response = await fetch('/api/vertical/run', { method: 'POST' });
+  const response = await fetch(`/api/vertical/run?scenario=${encodeURIComponent(selectedScenario)}`, {
+    method: 'POST',
+  });
   if (!response.ok) {
     throw new Error(await response.text());
   }
 
-  setStatus(
-    'Queued',
-    'Demo run started',
-    'The walkthrough is now streaming from the backend. Watch the leader sync before the first replica is allowed to take client work.'
-  );
+  const meta = currentScenarioMeta();
+  setStatus('Queued', 'Demo run started', meta.description);
 }
 
 async function resetDemo() {
@@ -403,12 +448,9 @@ async function resetDemo() {
   setStatus(
     'Idle',
     'Ready for a new run',
-    'This walkthrough shows configuration installation, activation, replica ingress, redirect on the old configuration, and a second decision after handoff.'
+    'Watch configuration ownership move, then watch the replicas obey it.'
   );
-  if (watchHint) {
-    watchHint.textContent =
-      'Run the walkthrough. The first important change is not client traffic. It is the moment configuration A becomes active.';
-  }
+  syncScenarioUi();
   setPhaseChip('Waiting');
 }
 
@@ -422,6 +464,13 @@ async function togglePause() {
 }
 
 function wireControls() {
+  for (const button of scenarioButtons) {
+    button.addEventListener('click', () => {
+      if (runBtn?.disabled || resetBtn?.disabled) return;
+      setSelectedScenario(button.dataset.scenario);
+    });
+  }
+
   runBtn?.addEventListener('click', async () => {
     runBtn.disabled = true;
     try {
@@ -466,13 +515,12 @@ function wireControls() {
 function init() {
   runBtn = document.getElementById('verticalRunBtn');
   resetBtn = document.getElementById('verticalResetBtn');
+  scenarioButtons = Array.from(document.querySelectorAll('[data-scenario]'));
+  scenarioDescription = document.getElementById('verticalScenarioDescription');
   pauseBtn = document.getElementById('verticalPauseBtn');
   stepBackBtn = document.getElementById('verticalStepBackBtn');
   stepForwardBtn = document.getElementById('verticalStepForwardBtn');
   playbackCursor = document.getElementById('verticalPlaybackCursor');
-  statusEyebrow = document.getElementById('verticalStatusEyebrow');
-  statusTitle = document.getElementById('verticalStatusTitle');
-  statusText = document.getElementById('verticalStatusText');
   eventLog = document.getElementById('verticalEventLog');
   filterBar = document.getElementById('verticalEventFilterBar');
   filterChips = document.getElementById('verticalEventFilterChips');
@@ -496,6 +544,8 @@ function init() {
   configSecondaryLeader = document.getElementById('verticalConfigSecondaryLeader');
   configSecondaryReplicas = document.getElementById('verticalConfigSecondaryReplicas');
   configSecondaryAcceptors = document.getElementById('verticalConfigSecondaryAcceptors');
+  const params = new URLSearchParams(window.location.search);
+  setSelectedScenario(params.get('scenario') || selectedScenario);
 
   visualizer = new PaxosVisualizer('verticalDemoSvg', {
     layoutMode: 'circle',
@@ -513,10 +563,11 @@ function init() {
   setStatus(
     'Idle',
     'Ready for a new run',
-    'This walkthrough shows configuration installation, activation, replica ingress, redirect on the old configuration, and a second decision after handoff.'
+    'Watch configuration ownership move, then watch the replicas obey it.'
   );
   resetConfigurationBoard();
   setPhaseChip('Waiting');
+  syncScenarioUi();
 }
 
 window.addEventListener('DOMContentLoaded', init);

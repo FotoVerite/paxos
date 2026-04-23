@@ -79,6 +79,12 @@ impl ScenarioRunner {
                 println!("  [DISABLE_FAILURES]");
                 cluster.disable_failures().await;
             }
+            ScenarioStep::VerticalInstallConfiguration { .. }
+            | ScenarioStep::VerticalStartActivation { .. }
+            | ScenarioStep::VerticalWaitActivationReady { .. }
+            | ScenarioStep::VerticalSubmitClientRequest { .. } => {
+                anyhow::bail!("classic scenario runner does not support vertical steps");
+            }
         }
         Ok(())
     }

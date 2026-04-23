@@ -2,6 +2,14 @@ use crate::paxos_command::PaxosCommand;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum VerticalClientExpectation {
+    Accepted,
+    Pending,
+    Redirect,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum ScenarioStep {
@@ -35,6 +43,29 @@ pub enum ScenarioStep {
     EnableFailures,
     #[serde(rename = "disable_failures")]
     DisableFailures,
+    #[serde(rename = "vertical_install_configuration")]
+    VerticalInstallConfiguration {
+        configuration_key: String,
+    },
+    #[serde(rename = "vertical_start_activation")]
+    VerticalStartActivation {
+        configuration_key: String,
+        #[serde(default)]
+        predecessors: Vec<String>,
+    },
+    #[serde(rename = "vertical_wait_activation_ready")]
+    VerticalWaitActivationReady {
+        configuration_key: String,
+        #[serde(with = "duration_serde")]
+        timeout: Duration,
+    },
+    #[serde(rename = "vertical_submit_client_request")]
+    VerticalSubmitClientRequest {
+        replica_index: usize,
+        command: PaxosCommand,
+        #[serde(default)]
+        expect: Option<VerticalClientExpectation>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -173,6 +204,70 @@ impl ScenarioBuilder {
         self
     }
 
+    pub fn vertical_install_configuration(mut self, configuration_key: &str) -> Self {
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
+        phase.steps.push(ScenarioStep::VerticalInstallConfiguration {
+            configuration_key: configuration_key.to_string(),
+        });
+        self
+    }
+
+    pub fn vertical_start_activation(
+        mut self,
+        configuration_key: &str,
+        predecessors: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> Self {
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
+        phase.steps.push(ScenarioStep::VerticalStartActivation {
+            configuration_key: configuration_key.to_string(),
+            predecessors: predecessors
+                .into_iter()
+                .map(|value| value.as_ref().to_string())
+                .collect(),
+        });
+        self
+    }
+
+    pub fn vertical_wait_activation_ready(
+        mut self,
+        configuration_key: &str,
+        timeout: Duration,
+    ) -> Self {
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
+        phase.steps.push(ScenarioStep::VerticalWaitActivationReady {
+            configuration_key: configuration_key.to_string(),
+            timeout,
+        });
+        self
+    }
+
+    pub fn vertical_submit_client_request(
+        mut self,
+        replica_index: usize,
+        command: PaxosCommand,
+        expect: Option<VerticalClientExpectation>,
+    ) -> Self {
+        let phase = self.current_phase.get_or_insert_with(|| ScenarioPhase {
+            name: "default".to_string(),
+            steps: Vec::new(),
+        });
+        phase.steps.push(ScenarioStep::VerticalSubmitClientRequest {
+            replica_index,
+            command,
+            expect,
+        });
+        self
+    }
+
     pub fn build(mut self) -> Scenario {
         if let Some(phase) = self.current_phase.take() {
             self.phases.push(phase);
@@ -230,6 +325,25 @@ mod tests {
         assert_eq!(scenario.phases.len(), 2);
         assert_eq!(scenario.phases[0].name, "normal");
         assert_eq!(scenario.phases[1].name, "with_partition");
+    }
+
+    #[test]
+    fn test_vertical_scenario_builder_steps() {
+        let scenario = ScenarioBuilder::new("vertical", 4)
+            .description("A vertical test scenario")
+            .phase("handoff")
+            .vertical_install_configuration("A")
+            .vertical_start_activation("A", std::iter::empty::<&str>())
+            .vertical_wait_activation_ready("A", Duration::from_secs(2))
+            .vertical_submit_client_request(
+                3,
+                PaxosCommand::NOOP,
+                Some(VerticalClientExpectation::Accepted),
+            )
+            .build();
+
+        assert_eq!(scenario.phases.len(), 1);
+        assert_eq!(scenario.phases[0].steps.len(), 4);
     }
 
     #[test]
