@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Synod</title>
+    <link rel="stylesheet" href="/css/synod.css">
+    <script src="/js/synod-mobile.js" defer></script>
+  </head>
+  <body class="synod-page synod-mobile">
+    <main class="phone-shell">
+      <section class="panel hero-panel">
+        <div>
+          <p class="eyebrow">synod / main</p>
+          <h1 id="clientName">Joining...</h1>
+        </div>
+        <div class="badge" id="activeNodes">0</div>
+      </section>
+
+      <section class="panel machine-panel">
+        <div class="panel-title">
+          <span>command generator</span>
+          <strong id="poolSize">0 in pool</strong>
+        </div>
+        <div class="die-stage" aria-live="polite">
+          <div class="die" id="emojiDie">🦀</div>
+        </div>
+        <button class="submit-button" id="submitButton" type="button">submit pull</button>
+        <p class="status-line" id="statusLine">Waiting for room assignment.</p>
+      </section>
+    </main>
+  </body>
+</html>

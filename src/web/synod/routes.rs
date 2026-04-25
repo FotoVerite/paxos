@@ -2,8 +2,7 @@ use axum::{
     Json, Router,
     extract::State,
     http::StatusCode,
-    response::Response,
-    response::{Html, IntoResponse},
+    response::{Html, IntoResponse, Response},
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
@@ -65,12 +64,12 @@ pub fn router() -> Router<AppState> {
         .route("/ws", get(ws_placeholder))
 }
 
-async fn mobile_page() -> Html<&'static str> {
-    Html("<!doctype html><title>Synod</title><h1>Synod</h1>")
+async fn mobile_page(State(state): State<AppState>) -> Response {
+    render_synod_template(&state, "synod/mobile.html")
 }
 
-async fn dashboard_page() -> Html<&'static str> {
-    Html("<!doctype html><title>Synod Dashboard</title><h1>Synod Dashboard</h1>")
+async fn dashboard_page(State(state): State<AppState>) -> Response {
+    render_synod_template(&state, "synod/dashboard.html")
 }
 
 async fn join(State(state): State<AppState>, Json(request): Json<JoinRequest>) -> Response {
@@ -156,4 +155,15 @@ async fn ws_placeholder() -> impl IntoResponse {
         StatusCode::NOT_IMPLEMENTED,
         "Synod websocket will be wired after the room API is in place",
     )
+}
+
+fn render_synod_template(state: &AppState, template_name: &str) -> Response {
+    match state.tera.render(template_name, &tera::Context::new()) {
+        Ok(html) => Html(html).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("failed to render {template_name}: {err}"),
+        )
+            .into_response(),
+    }
 }

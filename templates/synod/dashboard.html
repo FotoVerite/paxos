@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Synod Dashboard</title>
+    <link rel="stylesheet" href="/css/synod.css">
+    <script src="/js/synod-dashboard.js" defer></script>
+  </head>
+  <body class="synod-page dashboard-page">
+    <main class="dashboard-shell">
+      <header class="dashboard-header">
+        <div>
+          <p class="eyebrow">synod / main</p>
+          <h1>Dashboard</h1>
+        </div>
+        <div class="tab-row" role="tablist" aria-label="Dashboard sections">
+          <button class="tab is-active" type="button" data-tab="live">Live</button>
+          <button class="tab" type="button" data-tab="controller">Controller</button>
+          <button class="tab" type="button" data-tab="events">Events</button>
+        </div>
+      </header>
+
+      <section class="dashboard-grid" id="livePanel">
+        <article class="panel">
+          <p class="eyebrow">membership</p>
+          <div class="metric" id="activeNodes">0</div>
+          <p class="status-line">active server-owned nodes</p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">configuration</p>
+          <div class="metric small" id="configId">none</div>
+          <p class="status-line" id="leaderId">leader pending</p>
+        </article>
+      </section>
+
+      <section class="panel hidden" id="controllerPanel">
+        <p class="eyebrow">controller</p>
+        <p class="status-line">Controls land after reset/pause semantics are wired.</p>
+      </section>
+
+      <section class="panel hidden" id="eventsPanel">
+        <p class="eyebrow">events</p>
+        <p class="status-line">Event feed lands with the Synod websocket projection.</p>
+      </section>
+    </main>
+  </body>
+</html>
