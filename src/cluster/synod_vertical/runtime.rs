@@ -91,6 +91,10 @@ impl SynodVerticalRuntime {
         self.node_registry.stop_process(id).await;
     }
 
+    pub async fn stop_and_remove_node(&self, id: Uuid) {
+        self.node_registry.stop_and_remove(id).await;
+    }
+
     pub async fn spawn_node(&self, id: Uuid) -> anyhow::Result<()> {
         self.node_registry.spawn_process(id).await
     }

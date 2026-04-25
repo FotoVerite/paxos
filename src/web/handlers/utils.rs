@@ -2,11 +2,12 @@ use axum::http::HeaderMap;
 use dashmap::DashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 
 use super::super::cluster_manager::ClusterManager;
 use crate::{
-    cluster::synod::SynodCluster,
+    cluster::synod::{SYNOD_CLIENT_TTL, SynodCluster},
     common::persistence::ClusterPersistence,
     monitor::{NoOpObserver, PaxosObserver},
 };
@@ -39,13 +40,28 @@ impl AppState {
             synod_observer,
         )
         .await?;
+        let synod = Arc::new(Mutex::new(synod));
+        spawn_synod_liveness_sweeper(Arc::clone(&synod));
 
         Ok(Self {
             clusters: Arc::new(DashMap::new()),
-            synod: Arc::new(Mutex::new(synod)),
+            synod,
             tera: Arc::new(tera),
         })
     }
+}
+
+fn spawn_synod_liveness_sweeper(synod: Arc<Mutex<SynodCluster>>) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(10));
+        loop {
+            interval.tick().await;
+            let mut synod = synod.lock().await;
+            if let Err(err) = synod.decommission_idle_clients(SYNOD_CLIENT_TTL).await {
+                tracing::warn!("failed to decommission idle synod clients: {err}");
+            }
+        }
+    });
 }
 
 /// Extract or create a ClusterManager for a given client IP

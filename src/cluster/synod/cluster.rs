@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use uuid::Uuid;
 
@@ -18,11 +22,16 @@ use super::{
     emoji_increment_command, is_valid_rust_emoji,
 };
 
+pub const SYNOD_CLIENT_TTL: Duration = Duration::from_secs(60);
+
 pub struct SynodCluster {
     assignments: HashMap<ClientId, ClientAssignment>,
+    last_seen: HashMap<ClientId, Instant>,
     assignment_order: Vec<ClientId>,
     system: SynodVerticalSystem,
     read_model: SynodReadModel,
+    persistence: Arc<ClusterPersistence>,
+    observer: Arc<dyn PaxosObserver>,
 }
 
 struct PreparedEmojiProposal {
@@ -39,16 +48,32 @@ impl SynodCluster {
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
         let read_model = SynodReadModel::default();
-        let observer = Arc::new(SynodReadModelObserver::new(read_model.clone(), observer));
-        let system = SynodVerticalSystem::new(Vec::new(), persistence, observer).await?;
+        let system = Self::build_system(
+            Arc::clone(&persistence),
+            Arc::clone(&observer),
+            read_model.clone(),
+        )
+        .await?;
         system.start().await;
 
         Ok(Self {
             assignments: HashMap::new(),
+            last_seen: HashMap::new(),
             assignment_order: Vec::new(),
             system,
             read_model,
+            persistence,
+            observer,
         })
+    }
+
+    async fn build_system(
+        persistence: Arc<ClusterPersistence>,
+        observer: Arc<dyn PaxosObserver>,
+        read_model: SynodReadModel,
+    ) -> anyhow::Result<SynodVerticalSystem> {
+        let observer = Arc::new(SynodReadModelObserver::new(read_model, observer));
+        SynodVerticalSystem::new(Vec::new(), persistence, observer).await
     }
 
     pub async fn assign_client(
@@ -57,6 +82,7 @@ impl SynodCluster {
     ) -> anyhow::Result<ClientAssignment> {
         if let Some(client_id) = client_id {
             if let Some(assignment) = self.assignments.get(&client_id) {
+                self.last_seen.insert(client_id, Instant::now());
                 return Ok(assignment.clone());
             }
         }
@@ -70,9 +96,27 @@ impl SynodCluster {
         self.assignment_order.push(assignment.client_id.clone());
         self.assignments
             .insert(assignment.client_id.clone(), assignment.clone());
+        self.last_seen
+            .insert(assignment.client_id.clone(), Instant::now());
         self.reconfigure_current_membership().await?;
 
         Ok(assignment)
+    }
+
+    pub fn heartbeat_client(&mut self, client_id: &ClientId) -> Option<ClientAssignment> {
+        let assignment = self.assignments.get(client_id)?.clone();
+        self.last_seen.insert(client_id.clone(), Instant::now());
+        Some(assignment)
+    }
+
+    pub async fn decommission_idle_clients(
+        &mut self,
+        idle_for: Duration,
+    ) -> anyhow::Result<Vec<ClientAssignment>> {
+        let cutoff = Instant::now()
+            .checked_sub(idle_for)
+            .unwrap_or_else(Instant::now);
+        self.decommission_clients_last_seen_before(cutoff).await
     }
 
     pub fn assignment_for(&self, client_id: &ClientId) -> Option<&ClientAssignment> {
@@ -241,7 +285,16 @@ impl SynodCluster {
     }
 
     async fn reconfigure_current_membership(&mut self) -> anyhow::Result<()> {
-        let member_ids = self.server_node_ids().await;
+        let member_ids = self
+            .assignment_order
+            .iter()
+            .filter_map(|client_id| self.assignments.get(client_id))
+            .map(|assignment| assignment.node_id)
+            .collect::<Vec<_>>();
+        self.reconfigure_member_ids(member_ids).await
+    }
+
+    async fn reconfigure_member_ids(&mut self, member_ids: Vec<Uuid>) -> anyhow::Result<()> {
         if member_ids.is_empty() {
             return Ok(());
         }
@@ -254,6 +307,64 @@ impl SynodCluster {
             )
             .await?;
         Ok(())
+    }
+
+    async fn decommission_clients_last_seen_before(
+        &mut self,
+        cutoff: Instant,
+    ) -> anyhow::Result<Vec<ClientAssignment>> {
+        let expired_client_ids = self
+            .assignment_order
+            .iter()
+            .filter(|client_id| {
+                self.last_seen
+                    .get(*client_id)
+                    .is_some_and(|last_seen| *last_seen < cutoff)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        if expired_client_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut expired = Vec::new();
+        for client_id in &expired_client_ids {
+            self.last_seen.remove(client_id);
+            if let Some(assignment) = self.assignments.remove(client_id) {
+                expired.push(assignment);
+            }
+        }
+        self.assignment_order
+            .retain(|client_id| !expired_client_ids.contains(client_id));
+
+        let remaining_node_ids = self
+            .assignment_order
+            .iter()
+            .filter_map(|client_id| self.assignments.get(client_id))
+            .map(|assignment| assignment.node_id)
+            .collect::<Vec<_>>();
+
+        if remaining_node_ids.is_empty() {
+            self.system.cleanup().await?;
+            self.system = Self::build_system(
+                Arc::clone(&self.persistence),
+                Arc::clone(&self.observer),
+                self.read_model.clone(),
+            )
+            .await?;
+            self.system.start().await;
+        } else {
+            self.reconfigure_member_ids(remaining_node_ids).await?;
+            for assignment in &expired {
+                self.system
+                    .runtime()
+                    .stop_and_remove_node(assignment.node_id)
+                    .await;
+            }
+        }
+
+        Ok(expired)
     }
 }
 
@@ -369,6 +480,96 @@ mod tests {
         assert_eq!(membership.assignments, vec![first.clone(), second]);
         assert_eq!(membership.bootstrap_node, Some(first.node_id));
         assert_eq!(membership.node_count(), 2);
+        cluster.cleanup().await.expect("cleanup should work");
+    }
+
+    #[tokio::test]
+    async fn heartbeat_refreshes_client_liveness() {
+        let mut cluster = test_cluster("synod_heartbeat").await;
+        let assignment = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
+        cluster.last_seen.insert(
+            assignment.client_id.clone(),
+            Instant::now() - Duration::from_secs(120),
+        );
+
+        let heartbeat = cluster
+            .heartbeat_client(&assignment.client_id)
+            .expect("known client should heartbeat");
+        let expired = cluster
+            .decommission_clients_last_seen_before(Instant::now() - Duration::from_secs(60))
+            .await
+            .expect("decommission should work");
+
+        assert_eq!(heartbeat, assignment);
+        assert!(expired.is_empty());
+        assert_eq!(cluster.assignment_count(), 1);
+        cluster.cleanup().await.expect("cleanup should work");
+    }
+
+    #[tokio::test]
+    async fn idle_client_is_decommissioned_from_active_membership() {
+        let mut cluster = test_cluster("synod_decommission_idle").await;
+        let expired = cluster
+            .assign_client(None)
+            .await
+            .expect("first assignment should work");
+        let active = cluster
+            .assign_client(None)
+            .await
+            .expect("second assignment should work");
+        cluster.last_seen.insert(
+            expired.client_id.clone(),
+            Instant::now() - Duration::from_secs(120),
+        );
+
+        let removed = cluster
+            .decommission_clients_last_seen_before(Instant::now() - Duration::from_secs(60))
+            .await
+            .expect("decommission should work");
+        let active_config = cluster
+            .active_configuration()
+            .await
+            .expect("remaining membership should have active config");
+
+        assert_eq!(removed, vec![expired.clone()]);
+        assert_eq!(cluster.assignment_count(), 1);
+        assert_eq!(cluster.assignment_for(&expired.client_id), None);
+        assert_eq!(cluster.assignment_for(&active.client_id), Some(&active));
+        assert_eq!(cluster.server_node_ids().await, vec![active.node_id]);
+        assert_eq!(active_config.replicas(), &[active.node_id]);
+        cluster.cleanup().await.expect("cleanup should work");
+    }
+
+    #[tokio::test]
+    async fn decommissioning_last_client_resets_to_empty_cluster() {
+        let mut cluster = test_cluster("synod_decommission_last").await;
+        let expired = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
+        cluster.last_seen.insert(
+            expired.client_id.clone(),
+            Instant::now() - Duration::from_secs(120),
+        );
+
+        let removed = cluster
+            .decommission_clients_last_seen_before(Instant::now() - Duration::from_secs(60))
+            .await
+            .expect("decommission should work");
+
+        assert_eq!(removed, vec![expired]);
+        assert_eq!(cluster.assignment_count(), 0);
+        assert!(cluster.server_node_ids().await.is_empty());
+        assert!(cluster.active_configuration_id().await.is_none());
+
+        let fresh = cluster
+            .assign_client(None)
+            .await
+            .expect("fresh assignment should work after reset");
+        assert_eq!(cluster.server_node_ids().await, vec![fresh.node_id]);
         cluster.cleanup().await.expect("cleanup should work");
     }
 

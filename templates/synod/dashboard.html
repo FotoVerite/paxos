@@ -32,6 +32,15 @@
           <div class="metric small" id="configId">none</div>
           <p class="status-line" id="leaderId">leader pending</p>
         </article>
+        <article class="panel">
+          <p class="eyebrow">rsm</p>
+          <div class="metric" id="lastApplied">0</div>
+          <p class="status-line" id="clusterSlot">cluster slot 0</p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">heat</p>
+          <div class="dashboard-heat" id="heatRow"></div>
+        </article>
       </section>
 
       <section class="panel hidden" id="controllerPanel">
@@ -40,8 +49,16 @@
       </section>
 
       <section class="panel hidden" id="eventsPanel">
-        <p class="eyebrow">events</p>
-        <p class="status-line">Event feed lands with the Synod websocket projection.</p>
+        <div class="dashboard-list-header">
+          <p class="eyebrow">requests</p>
+          <span>client lifecycle</span>
+        </div>
+        <div class="request-list" id="requestList"></div>
+        <div class="dashboard-list-header">
+          <p class="eyebrow">ledger</p>
+          <span>applied slots</span>
+        </div>
+        <div class="ledger-list" id="ledgerList"></div>
       </section>
     </main>
   </body>

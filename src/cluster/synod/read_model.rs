@@ -35,6 +35,8 @@ pub struct SynodRequestStatus {
     pub stage: SynodRequestStage,
     pub assigned_node: Uuid,
     pub slot: Option<usize>,
+    pub proposed_slot: Option<usize>,
+    pub applied_slot: Option<usize>,
     pub configuration_id: Option<Uuid>,
     pub error: Option<String>,
 }
@@ -62,6 +64,7 @@ pub struct SynodRoomState {
     pub last_applied: usize,
     pub heat: Vec<SynodHeatItem>,
     pub recent: Vec<SynodAppliedEmoji>,
+    pub requests: Vec<SynodRequestStatus>,
 }
 
 #[derive(Default)]
@@ -100,6 +103,8 @@ impl SynodReadModel {
             stage: SynodRequestStage::Proposed,
             assigned_node,
             slot: None,
+            proposed_slot: None,
+            applied_slot: None,
             configuration_id: None,
             error: None,
         };
@@ -121,6 +126,7 @@ impl SynodReadModel {
                     status.stage = SynodRequestStage::Accepted;
                     status.configuration_id = Some(*configuration_id);
                     status.slot = Some(*slot);
+                    status.proposed_slot = Some(*slot);
                 }
                 VerticalClientReply::Pending { configuration_id } => {
                     status.stage = SynodRequestStage::Pending;
@@ -157,6 +163,8 @@ impl SynodReadModel {
             stage: SynodRequestStage::Failed,
             assigned_node: assigned_node.unwrap_or_else(Uuid::nil),
             slot: None,
+            proposed_slot: None,
+            applied_slot: None,
             configuration_id: None,
             error: Some(error.into()),
         };
@@ -194,6 +202,15 @@ impl SynodReadModel {
             last_applied: state.last_applied,
             heat,
             recent: state.recent.iter().cloned().collect(),
+            requests: {
+                let mut requests = state.requests.values().cloned().collect::<Vec<_>>();
+                requests.sort_by(|a, b| {
+                    b.request_id
+                        .cmp(&a.request_id)
+                        .then_with(|| a.client_id.cmp(&b.client_id))
+                });
+                requests
+            },
         }
     }
 
@@ -220,11 +237,14 @@ impl SynodReadModel {
                     stage: SynodRequestStage::Pending,
                     assigned_node: id,
                     slot: None,
+                    proposed_slot: None,
+                    applied_slot: None,
                     configuration_id: None,
                     error: None,
                 });
             status.stage = SynodRequestStage::Applied;
             status.slot = Some(slot);
+            status.applied_slot = Some(slot);
         }
 
         if !state.applied_slots.insert(slot) {

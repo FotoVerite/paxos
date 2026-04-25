@@ -8,7 +8,7 @@ pub mod read_model;
 
 pub use client_assignment::ClientAssignment;
 pub use client_id::ClientId;
-pub use cluster::SynodCluster;
+pub use cluster::{SYNOD_CLIENT_TTL, SynodCluster};
 pub use emoji::{RUST_EMOJI_POOL, is_valid_rust_emoji};
 pub use membership::SynodMembership;
 pub use proposal::{

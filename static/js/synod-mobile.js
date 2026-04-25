@@ -1,6 +1,7 @@
 const CLIENT_KEY = "synod.main.client_id";
 const REQUEST_KEY = "synod.main.request_id";
 const NAME_KEY = "synod.main.character_name";
+const HEARTBEAT_MS = 15000;
 
 const fallbackEmojiPool = ["🦀", "📦", "🔒", "🧵", "⚙️", "🧪"];
 const names = [
@@ -40,6 +41,8 @@ let session = null;
 let emojiPool = fallbackEmojiPool;
 let spin = 0;
 let lastSeenSequence = 0;
+let heartbeatTimer = null;
+let roomSocket = null;
 
 function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
@@ -149,7 +152,7 @@ async function waitForRequest(requestId) {
     if (response.ok) {
       const request = await response.json();
       if (request.stage === "applied") {
-        statusLine.textContent = `${request.emoji} applied at slot ${request.slot}.`;
+        statusLine.textContent = `${request.emoji} applied at slot ${request.applied_slot ?? request.slot}.`;
         await refreshStatus();
         return;
       }
@@ -186,6 +189,107 @@ async function joinRoom() {
   rollTo(emojiPool[0] || "🦀");
   renderRoomState(session.state, { animateRecent: false });
   statusLine.textContent = "Ready.";
+  connectRoomSocket();
+}
+
+async function sendHeartbeat() {
+  if (!session) return;
+  const response = await fetch("/synod/api/heartbeat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ client_id: session.client_id }),
+  });
+
+  if (response.status === 404) {
+    localStorage.removeItem(CLIENT_KEY);
+    session = null;
+    statusLine.textContent = "Room session expired. Rejoining.";
+    await joinRoom();
+    return;
+  }
+
+  if (!response.ok) return;
+  const heartbeat = await response.json();
+  activeNodes.textContent = heartbeat.active_nodes;
+}
+
+function startHeartbeat() {
+  if (heartbeatTimer) {
+    window.clearInterval(heartbeatTimer);
+  }
+  sendHeartbeat().catch(() => {});
+  heartbeatTimer = window.setInterval(() => {
+    sendHeartbeat().catch(() => {});
+  }, HEARTBEAT_MS);
+}
+
+function socketUrl() {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const params = new URLSearchParams();
+  if (session?.client_id) {
+    params.set("client_id", session.client_id);
+  }
+  return `${protocol}//${window.location.host}/synod/ws?${params}`;
+}
+
+function connectRoomSocket() {
+  if (!window.WebSocket || !session) {
+    startHeartbeat();
+    return;
+  }
+  if (heartbeatTimer) {
+    window.clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+  if (roomSocket) {
+    roomSocket.close();
+  }
+
+  roomSocket = new WebSocket(socketUrl());
+  roomSocket.addEventListener("message", (event) => {
+    const message = JSON.parse(event.data);
+    if (message.type === "joined") {
+      session = message.session;
+      localStorage.setItem(CLIENT_KEY, session.client_id);
+      emojiPool = session.emoji_pool.length ? session.emoji_pool : fallbackEmojiPool;
+      nodeLine.textContent = `node ${session.assigned_node.slice(0, 8)} · client ${session.client_id.slice(0, 8)}`;
+      activeNodes.textContent = session.active_nodes;
+      renderRoomState(session.state, { animateRecent: false });
+      return;
+    }
+    if (message.type === "heartbeat") {
+      const heartbeat = message.heartbeat;
+      activeNodes.textContent = heartbeat.active_nodes;
+      return;
+    }
+    if (message.type === "room_state") {
+      const status = message.status;
+      activeNodes.textContent = status.active_nodes;
+      renderNewRoomEvents(status.state);
+      return;
+    }
+    if (message.type === "error") {
+      statusLine.textContent = message.message || message.Error?.message || "socket error";
+    }
+  });
+
+  roomSocket.addEventListener("open", () => {
+    heartbeatTimer = window.setInterval(() => {
+      if (roomSocket?.readyState === WebSocket.OPEN) {
+        roomSocket.send(JSON.stringify({ type: "heartbeat" }));
+      }
+    }, HEARTBEAT_MS);
+  });
+
+  roomSocket.addEventListener("close", () => {
+    if (heartbeatTimer) {
+      window.clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+    window.setTimeout(() => {
+      if (session) connectRoomSocket();
+    }, 2000);
+  });
 }
 
 async function submitPull() {
