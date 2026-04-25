@@ -8,10 +8,13 @@ use crate::{
     },
     common::persistence::ClusterPersistence,
     monitor::PaxosObserver,
+    node::vertical_paxos::replica::VerticalClientReply,
+    paxos_command::PaxosCommand,
 };
 
 use super::{
     ClientAssignment, ClientId, SynodMembership, SynodProposalError, SynodProposalReceipt,
+    SynodReadModel, SynodReadModelObserver, SynodRequestStatus, SynodRoomState,
     emoji_increment_command, is_valid_rust_emoji,
 };
 
@@ -19,6 +22,15 @@ pub struct SynodCluster {
     assignments: HashMap<ClientId, ClientAssignment>,
     assignment_order: Vec<ClientId>,
     system: SynodVerticalSystem,
+    read_model: SynodReadModel,
+}
+
+struct PreparedEmojiProposal {
+    client_id: ClientId,
+    request_id: u64,
+    emoji: String,
+    assignment: ClientAssignment,
+    command: PaxosCommand,
 }
 
 impl SynodCluster {
@@ -26,6 +38,8 @@ impl SynodCluster {
         persistence: Arc<ClusterPersistence>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
+        let read_model = SynodReadModel::default();
+        let observer = Arc::new(SynodReadModelObserver::new(read_model.clone(), observer));
         let system = SynodVerticalSystem::new(Vec::new(), persistence, observer).await?;
         system.start().await;
 
@@ -33,6 +47,7 @@ impl SynodCluster {
             assignments: HashMap::new(),
             assignment_order: Vec::new(),
             system,
+            read_model,
         })
     }
 
@@ -70,28 +85,118 @@ impl SynodCluster {
         request_id: u64,
         emoji: String,
     ) -> Result<SynodProposalReceipt, SynodProposalError> {
+        let proposal = self.prepare_emoji_proposal(client_id, request_id, emoji)?;
+        self.record_proposal_started(&proposal);
+
+        let reply = self.submit_rsm_increment(&proposal).await.map_err(|err| {
+            self.record_proposal_failed(&proposal, err.to_string());
+            SynodProposalError::Submit(err)
+        })?;
+        self.record_proposal_reply(&proposal, &reply);
+
+        Ok(self.receipt_for(proposal, reply))
+    }
+
+    fn prepare_emoji_proposal(
+        &self,
+        client_id: ClientId,
+        request_id: u64,
+        emoji: String,
+    ) -> Result<PreparedEmojiProposal, SynodProposalError> {
         if !is_valid_rust_emoji(&emoji) {
+            self.read_model.record_failed(
+                &client_id,
+                request_id,
+                &emoji,
+                None,
+                "emoji is not in the synod room pool",
+            );
             return Err(SynodProposalError::InvalidEmoji(emoji));
         }
 
-        let assignment = self
-            .assignment_for(&client_id)
-            .cloned()
-            .ok_or_else(|| SynodProposalError::UnknownClient(client_id.clone()))?;
-        let cmd = emoji_increment_command(&emoji).with_client(client_id.stable_uuid(), request_id);
+        let assignment = self.assignment_for(&client_id).cloned().ok_or_else(|| {
+            self.read_model.record_failed(
+                &client_id,
+                request_id,
+                &emoji,
+                None,
+                "client has not joined the synod room",
+            );
+            SynodProposalError::UnknownClient(client_id.clone())
+        })?;
 
-        let reply = self
-            .system
-            .submit_client_request(assignment.node_id, cmd)
-            .await?;
-
-        Ok(SynodProposalReceipt {
+        Ok(PreparedEmojiProposal {
+            command: emoji_increment_command(&emoji)
+                .with_client(client_id.stable_uuid(), request_id),
             client_id,
             request_id,
             emoji,
-            assigned_node: assignment.node_id,
-            reply,
+            assignment,
         })
+    }
+
+    fn record_proposal_started(&self, proposal: &PreparedEmojiProposal) {
+        self.read_model.record_proposed(
+            &proposal.client_id,
+            proposal.request_id,
+            &proposal.emoji,
+            proposal.assignment.node_id,
+        );
+    }
+
+    async fn submit_rsm_increment(
+        &self,
+        proposal: &PreparedEmojiProposal,
+    ) -> anyhow::Result<VerticalClientReply> {
+        self.system
+            .submit_client_request(proposal.assignment.node_id, proposal.command.clone())
+            .await
+    }
+
+    fn record_proposal_reply(&self, proposal: &PreparedEmojiProposal, reply: &VerticalClientReply) {
+        self.read_model
+            .record_reply(&proposal.client_id, proposal.request_id, reply);
+    }
+
+    fn record_proposal_failed(&self, proposal: &PreparedEmojiProposal, error: String) {
+        self.read_model.record_failed(
+            &proposal.client_id,
+            proposal.request_id,
+            &proposal.emoji,
+            Some(proposal.assignment.node_id),
+            error,
+        );
+    }
+
+    fn receipt_for(
+        &self,
+        proposal: PreparedEmojiProposal,
+        reply: VerticalClientReply,
+    ) -> SynodProposalReceipt {
+        let status = self
+            .request_status(&proposal.client_id, proposal.request_id)
+            .expect("submitted request should have read-model status");
+
+        SynodProposalReceipt {
+            client_id: proposal.client_id,
+            request_id: proposal.request_id,
+            emoji: proposal.emoji,
+            assigned_node: proposal.assignment.node_id,
+            reply,
+            status,
+        }
+    }
+
+    pub fn request_status(
+        &self,
+        client_id: &ClientId,
+        request_id: u64,
+    ) -> Option<SynodRequestStatus> {
+        self.read_model.request_status(client_id, request_id)
+    }
+
+    pub fn room_state(&self) -> SynodRoomState {
+        self.read_model.room_state()
     }
 
     pub fn assignment_count(&self) -> usize {

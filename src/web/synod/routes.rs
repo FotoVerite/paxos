@@ -1,6 +1,6 @@
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{Html, IntoResponse, Response},
     routing::{get, post},
@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    cluster::synod::{ClientId, RUST_EMOJI_POOL, SynodProposalError},
+    cluster::synod::{
+        ClientId, RUST_EMOJI_POOL, SynodProposalError, SynodRequestStatus, SynodRoomState,
+    },
     web::handlers::AppState,
 };
 
@@ -27,6 +29,7 @@ pub struct JoinResponse {
     pub assigned_node: String,
     pub active_nodes: usize,
     pub emoji_pool: Vec<&'static str>,
+    pub state: SynodRoomState,
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,6 +46,12 @@ pub struct StatusResponse {
     pub bootstrap_node: Option<Uuid>,
     pub active_configuration: Option<ConfigurationStatus>,
     pub emoji_pool: Vec<&'static str>,
+    pub state: SynodRoomState,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RequestStatusQuery {
+    pub client_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -60,6 +69,7 @@ pub fn router() -> Router<AppState> {
         .route("/dashboard", get(dashboard_page))
         .route("/api/join", post(join))
         .route("/api/status", get(status))
+        .route("/api/requests/:request_id", get(request_status))
         .route("/api/proposals", post(propose))
         .route("/ws", get(ws_placeholder))
 }
@@ -93,6 +103,7 @@ async fn join(State(state): State<AppState>, Json(request): Json<JoinRequest>) -
         assigned_node: assignment.node_id.to_string(),
         active_nodes: membership.node_count(),
         emoji_pool: RUST_EMOJI_POOL.to_vec(),
+        state: synod.room_state(),
     })
     .into_response()
 }
@@ -147,7 +158,20 @@ async fn status(State(state): State<AppState>) -> impl IntoResponse {
         bootstrap_node: membership.bootstrap_node,
         active_configuration,
         emoji_pool: RUST_EMOJI_POOL.to_vec(),
+        state: synod.room_state(),
     })
+}
+
+async fn request_status(
+    State(state): State<AppState>,
+    Path(request_id): Path<u64>,
+    Query(query): Query<RequestStatusQuery>,
+) -> Response {
+    let synod = state.synod.lock().await;
+    match synod.request_status(&ClientId::from_existing(query.client_id), request_id) {
+        Some(status) => Json::<SynodRequestStatus>(status).into_response(),
+        None => (StatusCode::NOT_FOUND, "unknown synod request").into_response(),
+    }
 }
 
 async fn ws_placeholder() -> impl IntoResponse {

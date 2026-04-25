@@ -13,20 +13,48 @@
         <div>
           <p class="eyebrow">synod / main</p>
           <h1 id="clientName">Joining...</h1>
+          <p class="node-line" id="nodeLine">room assignment pending</p>
         </div>
-        <div class="badge" id="activeNodes">0</div>
+        <div class="badge" id="clientBadge">--</div>
+      </section>
+
+      <section class="panel slot-panel">
+        <div class="slot-meta">
+          <span>cluster slot <strong id="clusterSlot">0</strong></span>
+          <span>last applied <strong id="lastApplied">0</strong></span>
+          <span>nodes <strong id="activeNodes">0</strong></span>
+        </div>
       </section>
 
       <section class="panel machine-panel">
         <div class="panel-title">
-          <span>command generator</span>
+          <div>
+            <p class="eyebrow">command generator</p>
+            <h2>Pull a value</h2>
+          </div>
           <strong id="poolSize">0 in pool</strong>
         </div>
-        <div class="die-stage" aria-live="polite">
-          <div class="die" id="emojiDie">🦀</div>
+        <div class="dice-stage" aria-live="polite">
+          <div class="cube" id="emojiCube">
+            <div class="face face-front">🦀</div>
+            <div class="face face-back">📦</div>
+            <div class="face face-right">🔒</div>
+            <div class="face face-left">🧵</div>
+            <div class="face face-top">⚙️</div>
+            <div class="face face-bottom">🧪</div>
+          </div>
         </div>
         <button class="submit-button" id="submitButton" type="button">submit pull</button>
         <p class="status-line" id="statusLine">Waiting for room assignment.</p>
+      </section>
+
+      <section class="panel stream-panel">
+        <div class="panel-title compact">
+          <p class="eyebrow">room stream</p>
+          <span>heat is global</span>
+        </div>
+        <div class="stream-stage" id="streamStage"></div>
+        <div class="heat-row" id="heatRow"></div>
       </section>
     </main>
   </body>

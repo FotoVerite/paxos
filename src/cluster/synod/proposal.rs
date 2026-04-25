@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::{node::vertical_paxos::replica::VerticalClientReply, paxos_command::PaxosCommand};
 
-use super::ClientId;
+use super::{ClientId, SynodRequestStatus};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SynodProposalReceipt {
@@ -12,6 +12,7 @@ pub struct SynodProposalReceipt {
     pub emoji: String,
     pub assigned_node: Uuid,
     pub reply: VerticalClientReply,
+    pub status: SynodRequestStatus,
 }
 
 #[derive(Debug, Error)]
