@@ -105,7 +105,7 @@ impl SynodVerticalMaster {
             .write()
             .await
             .insert(configuration.id(), Arc::clone(&configuration));
-        for node_id in self.runtime.member_ids().iter().copied() {
+        for node_id in self.runtime.member_ids().await {
             let mut roles = Vec::new();
             if configuration.leader() == node_id {
                 roles.push("Leader".to_string());

@@ -87,6 +87,64 @@ fn configuration(cluster_ids: &[Uuid], leader: Uuid) -> Arc<VerticalClusterConfi
     )
 }
 
+fn single_member_configuration(member_id: Uuid) -> Arc<VerticalClusterConfiguration> {
+    Arc::new(
+        VerticalClusterConfiguration::new(
+            Uuid::new_v4(),
+            member_id,
+            VerticalPaxosVariant::V1,
+            Ballot::new(1, member_id),
+            0,
+            vec![member_id],
+            vec![member_id],
+            Quorum::new(vec![member_id]).expect("read quorum should build"),
+            Quorum::new(vec![member_id]).expect("write quorum should build"),
+            None,
+        )
+        .expect("configuration should build"),
+    )
+}
+
+#[tokio::test]
+async fn zero_node_system_can_spawn_member_and_install_configuration() {
+    let member_id = Uuid::new_v4();
+    let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+    let system = SynodVerticalSystem::new(
+        Vec::new(),
+        Arc::new(ClusterPersistence::for_test("synod_vertical_zero_node")),
+        observer,
+    )
+    .await
+    .expect("zero node system should build");
+    system.start().await;
+
+    assert!(system.runtime().member_ids().await.is_empty());
+
+    system
+        .runtime()
+        .spawn_node(member_id)
+        .await
+        .expect("spawned member should start");
+
+    assert_eq!(system.runtime().member_ids().await, vec![member_id]);
+
+    let config = single_member_configuration(member_id);
+    system
+        .install_configuration(Arc::clone(&config))
+        .await
+        .expect("spawned member should receive configuration");
+
+    let snapshot = system
+        .snapshot(member_id)
+        .await
+        .expect("spawned member should have node snapshot");
+    assert!(snapshot.installed_roles.designated_leader());
+    assert!(snapshot.installed_roles.member_of_acceptor_set());
+    assert!(snapshot.installed_roles.member_of_replica_set());
+
+    system.cleanup().await.expect("cleanup should work");
+}
+
 #[tokio::test]
 async fn master_install_reaches_all_nodes_through_system() {
     let ids = vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];

@@ -24,7 +24,6 @@ use crate::{
 };
 
 pub struct SynodVerticalRuntime {
-    member_ids: Vec<Uuid>,
     node_factory: Arc<VerticalNodeFactory>,
     node_registry: NodeRegistry<VerticalPaxosMessage>,
     fabric: Arc<VerticalPaxosFabric>,
@@ -54,7 +53,6 @@ impl SynodVerticalRuntime {
         .await?;
 
         Ok(Self {
-            member_ids,
             node_factory,
             node_registry,
             fabric,
@@ -63,8 +61,8 @@ impl SynodVerticalRuntime {
         })
     }
 
-    pub fn member_ids(&self) -> &[Uuid] {
-        &self.member_ids
+    pub async fn member_ids(&self) -> Vec<Uuid> {
+        self.node_registry.member_ids().await
     }
 
     pub fn fabric(&self) -> Arc<VerticalPaxosFabric> {
@@ -84,7 +82,7 @@ impl SynodVerticalRuntime {
     }
 
     pub async fn stop(&self) {
-        for id in self.member_ids.iter().copied() {
+        for id in self.member_ids().await {
             self.node_registry.stop_process(id).await;
         }
     }
@@ -109,7 +107,7 @@ impl SynodVerticalRuntime {
         &self,
         configuration: Arc<VerticalClusterConfiguration>,
     ) -> anyhow::Result<()> {
-        for node_id in self.member_ids.iter().copied() {
+        for node_id in self.member_ids().await {
             let node = self
                 .node(node_id)
                 .await
