@@ -18,6 +18,10 @@ impl ClientId {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    pub fn stable_uuid(&self) -> Uuid {
+        Uuid::new_v5(&Uuid::NAMESPACE_URL, self.0.as_bytes())
+    }
 }
 
 impl Default for ClientId {

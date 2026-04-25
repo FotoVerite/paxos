@@ -81,6 +81,7 @@ impl KVStore {
                 .add(key, KVValue(*value), KVVersion(*version))
                 .await
                 .map(|v| ReplyOutcome::WriteOk { version: v }),
+            PaxosCommand::INCREMENT { key, value } => self.increment(key, KVValue(*value)).await,
             _ => Ok(ReplyOutcome::Ok),
         }
     }
@@ -127,6 +128,20 @@ impl KVStore {
         };
         let _ = self.save().await;
         Ok(entry_version)
+    }
+
+    pub async fn increment(&self, key: &str, value: KVValue) -> KVResult<ReplyOutcome> {
+        let entry_version = {
+            let mut data = self.data.lock().await;
+            let entry = data.entry(key.to_string()).or_insert_with(KVEntry::default);
+            entry.value += value;
+            entry.version.next();
+            entry.version
+        };
+        let _ = self.save().await;
+        Ok(ReplyOutcome::WriteOk {
+            version: entry_version,
+        })
     }
 
     pub async fn delete(&self, key: &str) -> KVResult<()> {

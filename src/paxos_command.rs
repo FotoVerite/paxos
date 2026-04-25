@@ -40,6 +40,10 @@ pub enum PaxosCommand {
         version: usize,
         value: usize,
     },
+    INCREMENT {
+        key: String,
+        value: usize,
+    },
     BLANK,
     STOP,
 }
@@ -136,6 +140,7 @@ impl fmt::Display for PaxosCommand {
                 version,
                 value,
             } => write!(f, "ADD {} val{} v{}", key, value, version),
+            PaxosCommand::INCREMENT { key, value } => write!(f, "INCREMENT {} by {}", key, value),
             PaxosCommand::STOP => write!(f, "STOP"),
             PaxosCommand::BLANK => write!(f, "BLANK"),
         }

@@ -8,10 +8,12 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{cluster::synod::ClientId, web::handlers::AppState};
+use crate::{
+    cluster::synod::{ClientId, RUST_EMOJI_POOL, SynodProposalError},
+    web::handlers::AppState,
+};
 
 const DEFAULT_ROOM: &str = "main";
-const EMOJI_POOL: &[&str] = &["🦀", "📦", "🔒", "🧵", "⚙️", "🧪"];
 
 #[derive(Debug, Deserialize)]
 pub struct JoinRequest {
@@ -27,11 +29,19 @@ pub struct JoinResponse {
     pub emoji_pool: Vec<&'static str>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ProposalRequest {
+    pub client_id: String,
+    pub request_id: u64,
+    pub emoji: String,
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(mobile_page))
         .route("/dashboard", get(dashboard_page))
         .route("/api/join", post(join))
+        .route("/api/proposals", post(propose))
         .route("/ws", get(ws_placeholder))
 }
 
@@ -63,9 +73,38 @@ async fn join(State(state): State<AppState>, Json(request): Json<JoinRequest>) -
         client_id: assignment.client_id.to_string(),
         assigned_node: assignment.node_id.to_string(),
         active_nodes: membership.node_count(),
-        emoji_pool: EMOJI_POOL.to_vec(),
+        emoji_pool: RUST_EMOJI_POOL.to_vec(),
     })
     .into_response()
+}
+
+async fn propose(State(state): State<AppState>, Json(request): Json<ProposalRequest>) -> Response {
+    let synod = state.synod.lock().await;
+    match synod
+        .propose_emoji(
+            ClientId::from_existing(request.client_id),
+            request.request_id,
+            request.emoji,
+        )
+        .await
+    {
+        Ok(receipt) => Json(receipt).into_response(),
+        Err(SynodProposalError::InvalidEmoji(err)) => (
+            StatusCode::BAD_REQUEST,
+            format!("invalid synod emoji: {err}"),
+        )
+            .into_response(),
+        Err(SynodProposalError::UnknownClient(err)) => (
+            StatusCode::NOT_FOUND,
+            format!("unknown synod client: {err}"),
+        )
+            .into_response(),
+        Err(SynodProposalError::Submit(err)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("failed to submit synod proposal: {err}"),
+        )
+            .into_response(),
+    }
 }
 
 async fn ws_placeholder() -> impl IntoResponse {

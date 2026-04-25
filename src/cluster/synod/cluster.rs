@@ -10,7 +10,10 @@ use crate::{
     monitor::PaxosObserver,
 };
 
-use super::{ClientAssignment, ClientId, SynodMembership};
+use super::{
+    ClientAssignment, ClientId, SynodMembership, SynodProposalError, SynodProposalReceipt,
+    emoji_increment_command, is_valid_rust_emoji,
+};
 
 pub struct SynodCluster {
     assignments: HashMap<ClientId, ClientAssignment>,
@@ -59,6 +62,36 @@ impl SynodCluster {
 
     pub fn assignment_for(&self, client_id: &ClientId) -> Option<&ClientAssignment> {
         self.assignments.get(client_id)
+    }
+
+    pub async fn propose_emoji(
+        &self,
+        client_id: ClientId,
+        request_id: u64,
+        emoji: String,
+    ) -> Result<SynodProposalReceipt, SynodProposalError> {
+        if !is_valid_rust_emoji(&emoji) {
+            return Err(SynodProposalError::InvalidEmoji(emoji));
+        }
+
+        let assignment = self
+            .assignment_for(&client_id)
+            .cloned()
+            .ok_or_else(|| SynodProposalError::UnknownClient(client_id.clone()))?;
+        let cmd = emoji_increment_command(&emoji).with_client(client_id.stable_uuid(), request_id);
+
+        let reply = self
+            .system
+            .submit_client_request(assignment.node_id, cmd)
+            .await?;
+
+        Ok(SynodProposalReceipt {
+            client_id,
+            request_id,
+            emoji,
+            assigned_node: assignment.node_id,
+            reply,
+        })
     }
 
     pub fn assignment_count(&self) -> usize {
@@ -232,6 +265,73 @@ mod tests {
         assert_eq!(membership.bootstrap_node, Some(first.node_id));
         assert_eq!(membership.node_count(), 2);
         cluster.cleanup().await.expect("cleanup should work");
+    }
+
+    #[tokio::test]
+    async fn joined_client_can_propose_rust_emoji() {
+        let mut cluster = test_cluster("synod_propose_emoji").await;
+        let assignment = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
+
+        let receipt = cluster
+            .propose_emoji(assignment.client_id.clone(), 1, "🦀".to_string())
+            .await
+            .expect("proposal should submit");
+
+        assert_eq!(receipt.client_id, assignment.client_id);
+        assert_eq!(receipt.request_id, 1);
+        assert_eq!(receipt.emoji, "🦀");
+        assert_eq!(receipt.assigned_node, assignment.node_id);
+        assert!(matches!(
+            receipt.reply,
+            crate::node::vertical_paxos::replica::VerticalClientReply::Accepted { slot: 0, .. }
+        ));
+        cluster.cleanup().await.expect("cleanup should work");
+    }
+
+    #[tokio::test]
+    async fn proposal_rejects_unknown_client() {
+        let cluster = test_cluster("synod_propose_unknown").await;
+
+        let err = cluster
+            .propose_emoji(ClientId::from_existing("c_missing"), 1, "🦀".to_string())
+            .await
+            .expect_err("unknown client should reject");
+
+        assert!(matches!(err, SynodProposalError::UnknownClient(_)));
+        cluster.cleanup().await.expect("cleanup should work");
+    }
+
+    #[tokio::test]
+    async fn proposal_rejects_non_pool_emoji() {
+        let mut cluster = test_cluster("synod_propose_invalid").await;
+        let assignment = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
+
+        let err = cluster
+            .propose_emoji(assignment.client_id, 1, "🍒".to_string())
+            .await
+            .expect_err("invalid emoji should reject");
+
+        assert!(matches!(err, SynodProposalError::InvalidEmoji(_)));
+        cluster.cleanup().await.expect("cleanup should work");
+    }
+
+    #[test]
+    fn emoji_proposal_uses_rsm_increment_command() {
+        let cmd = emoji_increment_command("🦀");
+
+        assert_eq!(
+            cmd,
+            crate::paxos_command::PaxosCommand::INCREMENT {
+                key: "synod:emoji:🦀".to_string(),
+                value: 1,
+            }
+        );
     }
 
     #[tokio::test]
