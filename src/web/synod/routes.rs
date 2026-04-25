@@ -7,6 +7,7 @@ use axum::{
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::{
     cluster::synod::{ClientId, RUST_EMOJI_POOL, SynodProposalError},
@@ -36,11 +37,30 @@ pub struct ProposalRequest {
     pub emoji: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct StatusResponse {
+    pub room: &'static str,
+    pub active_nodes: usize,
+    pub bootstrap_node: Option<Uuid>,
+    pub active_configuration: Option<ConfigurationStatus>,
+    pub emoji_pool: Vec<&'static str>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ConfigurationStatus {
+    pub configuration_id: Uuid,
+    pub leader: Uuid,
+    pub acceptors: Vec<Uuid>,
+    pub replicas: Vec<Uuid>,
+    pub start_index: usize,
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(mobile_page))
         .route("/dashboard", get(dashboard_page))
         .route("/api/join", post(join))
+        .route("/api/status", get(status))
         .route("/api/proposals", post(propose))
         .route("/ws", get(ws_placeholder))
 }
@@ -105,6 +125,30 @@ async fn propose(State(state): State<AppState>, Json(request): Json<ProposalRequ
         )
             .into_response(),
     }
+}
+
+async fn status(State(state): State<AppState>) -> impl IntoResponse {
+    let synod = state.synod.lock().await;
+    let membership = synod.membership();
+    let active_configuration =
+        synod
+            .active_configuration()
+            .await
+            .map(|configuration| ConfigurationStatus {
+                configuration_id: configuration.id(),
+                leader: configuration.leader(),
+                acceptors: configuration.acceptors().to_vec(),
+                replicas: configuration.replicas().to_vec(),
+                start_index: configuration.start_index(),
+            });
+
+    Json(StatusResponse {
+        room: DEFAULT_ROOM,
+        active_nodes: membership.node_count(),
+        bootstrap_node: membership.bootstrap_node,
+        active_configuration,
+        emoji_pool: RUST_EMOJI_POOL.to_vec(),
+    })
 }
 
 async fn ws_placeholder() -> impl IntoResponse {
