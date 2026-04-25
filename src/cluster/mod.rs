@@ -7,4 +7,5 @@ pub mod classic;
 pub mod pmmc;
 pub mod runtime;
 pub mod synod;
+pub mod synod_vertical;
 pub mod vertical;
