@@ -1,6 +1,7 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Context;
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
@@ -8,22 +9,32 @@ use crate::{
         runtime::{ControlPlaneRegistry, RuntimeNode},
         vertical::{
             activation::{ActivationSnapshot, PredecessorChain},
-            configuration::VerticalClusterConfiguration,
+            configuration::{VerticalClusterConfiguration, VerticalPaxosVariant},
             master::VerticalMasterEvent,
+            quorum::Quorum,
         },
     },
-    common::persistence::ClusterPersistence,
+    common::{ballot::Ballot, persistence::ClusterPersistence},
     monitor::PaxosObserver,
     node::vertical_paxos::replica::VerticalClientReply,
     paxos_command::PaxosCommand,
 };
 
-use super::{master::SynodVerticalMaster, runtime::SynodVerticalRuntime};
+use super::{
+    master::{ActivationStatus, SynodVerticalMaster},
+    runtime::SynodVerticalRuntime,
+};
 
 pub struct SynodVerticalSystem {
     runtime: Arc<SynodVerticalRuntime>,
     master: Arc<SynodVerticalMaster>,
     control_plane: Arc<ControlPlaneRegistry<VerticalMasterEvent>>,
+    configuration_sequence: Mutex<ConfigurationSequence>,
+}
+
+struct ConfigurationSequence {
+    next_ballot_number: usize,
+    next_start_index: usize,
 }
 
 impl SynodVerticalSystem {
@@ -50,6 +61,10 @@ impl SynodVerticalSystem {
             runtime,
             master,
             control_plane,
+            configuration_sequence: Mutex::new(ConfigurationSequence {
+                next_ballot_number: 1,
+                next_start_index: 0,
+            }),
         })
     }
 
@@ -71,6 +86,62 @@ impl SynodVerticalSystem {
         configuration: Arc<VerticalClusterConfiguration>,
     ) -> anyhow::Result<()> {
         self.master.install_configuration(configuration).await
+    }
+
+    pub async fn active_configuration(&self) -> Option<Arc<VerticalClusterConfiguration>> {
+        let active_id = self.master.active_configuration_id().await?;
+        self.master.configuration(active_id).await
+    }
+
+    pub async fn reconfigure_members(
+        &self,
+        member_ids: Vec<Uuid>,
+        leader: Uuid,
+    ) -> anyhow::Result<Arc<VerticalClusterConfiguration>> {
+        if member_ids.is_empty() {
+            anyhow::bail!("cannot configure empty synod vertical membership");
+        }
+        if !member_ids.contains(&leader) {
+            anyhow::bail!("leader {leader} is not in synod vertical membership");
+        }
+
+        let mut sequence = self.configuration_sequence.lock().await;
+        let previous_configuration = self.active_configuration().await;
+        let quorum = majority_quorum(&member_ids);
+        let configuration = Arc::new(
+            VerticalClusterConfiguration::new(
+                Uuid::new_v4(),
+                leader,
+                VerticalPaxosVariant::V1,
+                Ballot::new(sequence.next_ballot_number, leader),
+                sequence.next_start_index,
+                member_ids.clone(),
+                member_ids,
+                Quorum::new(quorum.clone())
+                    .map_err(|err| anyhow::anyhow!("read quorum should build: {err:?}"))?,
+                Quorum::new(quorum)
+                    .map_err(|err| anyhow::anyhow!("write quorum should build: {err:?}"))?,
+                previous_configuration
+                    .as_ref()
+                    .map(|configuration| configuration.ballot()),
+            )
+            .map_err(|err| anyhow::anyhow!("vertical configuration should build: {err:?}"))?,
+        );
+        let configuration_id = configuration.id();
+        let predecessor_chain = previous_configuration.into_iter().collect::<Vec<_>>();
+
+        self.install_configuration(Arc::clone(&configuration))
+            .await?;
+        self.start_activation(
+            configuration_id,
+            Arc::new(PredecessorChain::new(predecessor_chain)),
+        )
+        .await?;
+        self.wait_for_activation_ready(configuration_id).await?;
+
+        sequence.next_ballot_number += 1;
+        sequence.next_start_index += 1;
+        Ok(configuration)
     }
 
     pub async fn start_activation(
@@ -107,6 +178,29 @@ impl SynodVerticalSystem {
         self.runtime.persistence().purge_cluster_dir().await?;
         Ok(())
     }
+
+    async fn wait_for_activation_ready(&self, configuration_id: Uuid) -> anyhow::Result<()> {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if self
+                    .master()
+                    .activation(configuration_id)
+                    .await
+                    .is_some_and(|record| record.status() == &ActivationStatus::Ready)
+                {
+                    return;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .map_err(|_| anyhow::anyhow!("timed out activating synod config {configuration_id}"))
+    }
+}
+
+fn majority_quorum(member_ids: &[Uuid]) -> Vec<Uuid> {
+    let majority = (member_ids.len() / 2) + 1;
+    member_ids.iter().copied().take(majority).collect()
 }
 
 #[cfg(test)]

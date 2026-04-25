@@ -3,7 +3,10 @@ use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 use crate::{
-    cluster::synod_vertical::SynodVerticalSystem, common::persistence::ClusterPersistence,
+    cluster::{
+        synod_vertical::SynodVerticalSystem, vertical::configuration::VerticalClusterConfiguration,
+    },
+    common::persistence::ClusterPersistence,
     monitor::PaxosObserver,
 };
 
@@ -49,6 +52,7 @@ impl SynodCluster {
         self.assignment_order.push(assignment.client_id.clone());
         self.assignments
             .insert(assignment.client_id.clone(), assignment.clone());
+        self.reconfigure_current_membership().await?;
 
         Ok(assignment)
     }
@@ -63,6 +67,14 @@ impl SynodCluster {
 
     pub async fn server_node_ids(&self) -> Vec<Uuid> {
         self.system.runtime().member_ids().await
+    }
+
+    pub async fn active_configuration_id(&self) -> Option<Uuid> {
+        self.system.master().active_configuration_id().await
+    }
+
+    pub async fn active_configuration(&self) -> Option<Arc<VerticalClusterConfiguration>> {
+        self.system.active_configuration().await
     }
 
     pub fn membership(&self) -> SynodMembership {
@@ -88,6 +100,22 @@ impl SynodCluster {
 
     pub async fn cleanup(&self) -> anyhow::Result<()> {
         self.system.cleanup().await
+    }
+
+    async fn reconfigure_current_membership(&mut self) -> anyhow::Result<()> {
+        let member_ids = self.server_node_ids().await;
+        if member_ids.is_empty() {
+            return Ok(());
+        }
+
+        self.system
+            .reconfigure_members(
+                member_ids,
+                self.bootstrap_node()
+                    .expect("non-empty membership should have bootstrap node"),
+            )
+            .await?;
+        Ok(())
     }
 }
 
@@ -123,6 +151,7 @@ mod tests {
             Some(&assignment)
         );
         assert_eq!(cluster.server_node_ids().await, vec![assignment.node_id]);
+        assert!(cluster.active_configuration_id().await.is_some());
         cluster.cleanup().await.expect("cleanup should work");
     }
 
@@ -142,6 +171,14 @@ mod tests {
         assert_eq!(second, first);
         assert_eq!(cluster.assignment_count(), 1);
         assert_eq!(cluster.server_node_ids().await, vec![first.node_id]);
+        assert_eq!(
+            cluster
+                .active_configuration()
+                .await
+                .expect("config should exist")
+                .replicas(),
+            &[first.node_id]
+        );
         cluster.cleanup().await.expect("cleanup should work");
     }
 
@@ -157,6 +194,7 @@ mod tests {
         assert_ne!(assignment.client_id.as_str(), "c_missing");
         assert_eq!(cluster.assignment_count(), 1);
         assert_eq!(cluster.server_node_ids().await, vec![assignment.node_id]);
+        assert!(cluster.active_configuration_id().await.is_some());
         cluster.cleanup().await.expect("cleanup should work");
     }
 
@@ -193,6 +231,47 @@ mod tests {
         assert_eq!(membership.assignments, vec![first.clone(), second]);
         assert_eq!(membership.bootstrap_node, Some(first.node_id));
         assert_eq!(membership.node_count(), 2);
+        cluster.cleanup().await.expect("cleanup should work");
+    }
+
+    #[tokio::test]
+    async fn new_client_join_reconfigures_active_membership() {
+        let mut cluster = test_cluster("synod_reconfigure_membership").await;
+        let first = cluster
+            .assign_client(None)
+            .await
+            .expect("first assignment should work");
+        let first_config = cluster
+            .active_configuration()
+            .await
+            .expect("first config should exist");
+
+        let second = cluster
+            .assign_client(None)
+            .await
+            .expect("second assignment should work");
+        let second_config = cluster
+            .active_configuration()
+            .await
+            .expect("second config should exist");
+
+        assert_ne!(first_config.id(), second_config.id());
+        assert_eq!(second_config.leader(), first.node_id);
+        assert_eq!(second_config.acceptors(), &[first.node_id, second.node_id]);
+        assert_eq!(second_config.replicas(), &[first.node_id, second.node_id]);
+        assert_eq!(
+            second_config.read_quorum().members(),
+            &[first.node_id, second.node_id]
+        );
+        assert_eq!(
+            second_config.write_quorum().members(),
+            &[first.node_id, second.node_id]
+        );
+        assert_eq!(second_config.complete_bal(), Some(first_config.ballot()));
+        assert_eq!(
+            cluster.active_configuration_id().await,
+            Some(second_config.id())
+        );
         cluster.cleanup().await.expect("cleanup should work");
     }
 }
