@@ -122,7 +122,10 @@ where
         self.stop_process(id).await;
         self.members.write().await.remove(&id);
         self.fabric.unregister(id).await;
-        self.member_ids.write().await.retain(|member_id| *member_id != id);
+        self.member_ids
+            .write()
+            .await
+            .retain(|member_id| *member_id != id);
     }
 
     pub async fn get(&self, id: Uuid) -> Option<SharedRuntimeMember<TMsg>> {

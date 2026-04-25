@@ -22,9 +22,7 @@ use crate::{
             router::{PmmcComponent, PmmcRouter},
             transport::{PmmcFabric, PmmcHandle},
         },
-        routing::{
-            LocalRoutingDecision, ProtocolInboxRouter, ProtocolRouter, RoutingDecision,
-        },
+        routing::{LocalRoutingDecision, ProtocolInboxRouter, ProtocolRouter, RoutingDecision},
     },
 };
 

@@ -21,7 +21,10 @@ use crate::{
     monitor::PaxosObserver,
     node::{
         config::PmmcNodeConfig,
-        pmmc::{pmmc_node::PmmcNode, transport::{PmmcFabric, new_pmmc_fabric}},
+        pmmc::{
+            pmmc_node::PmmcNode,
+            transport::{PmmcFabric, new_pmmc_fabric},
+        },
     },
     paxos_command::PaxosCommand,
     rsm::kv_store::ReplyOutcome,

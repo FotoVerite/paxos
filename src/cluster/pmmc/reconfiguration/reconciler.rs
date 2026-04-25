@@ -5,16 +5,14 @@ use tokio::time::{Instant, sleep};
 use uuid::Uuid;
 
 use crate::{
-    cluster::{
-        pmmc::{
-            control::types::{
-                ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
-            },
-            process_manager::PmmcProcessManager,
-            reconfiguration::{
-                ClusterConfiguration, ConfigurationStrategy, reconfig_patch::ReconfigPatch,
-                types::ReconcileError,
-            },
+    cluster::pmmc::{
+        control::types::{
+            ConfigurationCommand, ConfigurationHandlerError, ConfigurationReplyOutcome,
+        },
+        process_manager::PmmcProcessManager,
+        reconfiguration::{
+            ClusterConfiguration, ConfigurationStrategy, reconfig_patch::ReconfigPatch,
+            types::ReconcileError,
         },
     },
     monitor::{Event, current_timestamp_millis},

@@ -1,9 +1,8 @@
+use super::{
+    paxos_made_moderately_complex, paxos_made_simple, reconfiguring_a_state_machine, vertical_paxos,
+};
 use crate::web::handlers::AppState;
 use axum::{Router, extract::Path, response::Redirect, routing::get};
-use super::{
-    paxos_made_moderately_complex, paxos_made_simple, reconfiguring_a_state_machine,
-    vertical_paxos,
-};
 
 // Redirect trailing slash versions to non-trailing
 async fn redirect_paxos_made_simple_trailing() -> Redirect {

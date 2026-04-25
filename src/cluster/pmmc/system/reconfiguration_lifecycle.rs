@@ -4,9 +4,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use tokio::time::{Instant, sleep, timeout};
 
-use crate::cluster::pmmc::control::types::{
-    ConfigurationCommand, ConfigurationReplyOutcome,
-};
+use crate::cluster::pmmc::control::types::{ConfigurationCommand, ConfigurationReplyOutcome};
 use crate::cluster::pmmc::process_manager::PmmcProcessManager;
 use crate::cluster::pmmc::reconfiguration::reconciler::ClusterReconciler;
 use crate::cluster::pmmc::reconfiguration::reconfig_patch::ReconfigPatch;

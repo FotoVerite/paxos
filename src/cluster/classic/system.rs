@@ -6,17 +6,15 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use uuid::Uuid;
 
 use crate::{
-    cluster::{
-        pmmc::reconfiguration::ClusterConfiguration,
-    },
-    common::persistence::{ClusterPersistence, Persistence},
+    cluster::pmmc::reconfiguration::ClusterConfiguration,
     common::network_fabric::NetworkFailure,
+    common::persistence::{ClusterPersistence, Persistence},
     common::types::DecreeId,
     monitor::PaxosObserver,
     node::{
-        config::{ClassicNodeConfig, LearningStrategy},
         classic_paxos::message::ClassicMessage,
         classic_paxos::transport::{ClassicHandle, new_classic_fabric},
+        config::{ClassicNodeConfig, LearningStrategy},
         paxos_node::PaxosNode,
     },
     paxos_command::PaxosCommand,

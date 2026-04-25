@@ -65,7 +65,9 @@ impl ProtocolInboxRouter<ClassicMessage> for ClassicRouter {
         _context: &Self::Context,
     ) -> LocalRoutingDecision<Self::Target> {
         match msg {
-            ClassicMessage::Promise { .. } => LocalRoutingDecision::DeliverTo(ClassicComponent::Proposer),
+            ClassicMessage::Promise { .. } => {
+                LocalRoutingDecision::DeliverTo(ClassicComponent::Proposer)
+            }
             ClassicMessage::Prepare { .. }
             | ClassicMessage::PrepareBatch { .. }
             | ClassicMessage::Accept { .. } => {

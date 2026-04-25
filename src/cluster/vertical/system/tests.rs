@@ -16,8 +16,8 @@ use crate::{
     monitor::{Event, MessageTrace, NoOpObserver, PaxosObserver},
     node::vertical_paxos::{
         message::VerticalPaxosMessage,
-        replica::VerticalClientReply,
         node_state::{LeaderLifecycle, ReplicaLifecycle},
+        replica::VerticalClientReply,
     },
     paxos_command::PaxosCommand,
 };
@@ -294,7 +294,12 @@ async fn active_replica_can_drive_decision_and_apply_flow() {
 
 #[tokio::test]
 async fn decommissioned_replica_redirects_to_active_configuration() {
-    let ids = vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
+    let ids = vec![
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+    ];
     let observer = Arc::new(RecordingObserver::default());
     let system = VerticalSystem::new(
         ids.clone(),

@@ -2,7 +2,11 @@ mod support;
 
 use std::time::Duration;
 
-use paxos::{common::types::DecreeId, monitor::{Event, PaxosObserver}, paxos_command::PaxosCommand};
+use paxos::{
+    common::types::DecreeId,
+    monitor::{Event, PaxosObserver},
+    paxos_command::PaxosCommand,
+};
 use uuid::Uuid;
 
 use support::{EventBarrier, RecordingObserver, test_uuid};

@@ -11,7 +11,9 @@ use uuid::Uuid;
 
 use crate::{
     cluster::{
-        pmmc::{control::types::ConfigurationHandlerMessage, reconfiguration::ClusterConfiguration},
+        pmmc::{
+            control::types::ConfigurationHandlerMessage, reconfiguration::ClusterConfiguration,
+        },
         runtime::RuntimeNode,
     },
     common::persistence::NodePersistence,

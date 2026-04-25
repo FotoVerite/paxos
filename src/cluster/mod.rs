@@ -6,4 +6,5 @@
 pub mod classic;
 pub mod pmmc;
 pub mod runtime;
+pub mod synod;
 pub mod vertical;

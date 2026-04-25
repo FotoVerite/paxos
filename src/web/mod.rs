@@ -4,6 +4,7 @@ pub mod papers;
 pub mod scenarios;
 pub mod server;
 pub mod subdomain;
+pub mod synod;
 mod types;
 pub mod websocket_observer;
 

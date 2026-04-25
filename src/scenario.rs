@@ -44,9 +44,7 @@ pub enum ScenarioStep {
     #[serde(rename = "disable_failures")]
     DisableFailures,
     #[serde(rename = "vertical_install_configuration")]
-    VerticalInstallConfiguration {
-        configuration_key: String,
-    },
+    VerticalInstallConfiguration { configuration_key: String },
     #[serde(rename = "vertical_start_activation")]
     VerticalStartActivation {
         configuration_key: String,
@@ -209,9 +207,11 @@ impl ScenarioBuilder {
             name: "default".to_string(),
             steps: Vec::new(),
         });
-        phase.steps.push(ScenarioStep::VerticalInstallConfiguration {
-            configuration_key: configuration_key.to_string(),
-        });
+        phase
+            .steps
+            .push(ScenarioStep::VerticalInstallConfiguration {
+                configuration_key: configuration_key.to_string(),
+            });
         self
     }
 

@@ -4,7 +4,9 @@ use tokio::sync::{RwLock, broadcast};
 use tracing::debug;
 use uuid::Uuid;
 
-use crate::monitor::{Event, EventProtocol, MessageProtocol, MessageTrace, ObservedMessage, PaxosObserver};
+use crate::monitor::{
+    Event, EventProtocol, MessageProtocol, MessageTrace, ObservedMessage, PaxosObserver,
+};
 use crate::web::{ClusterInfo, VisualizerMessage};
 
 /// A PaxosObserver that broadcasts events to all connected WebSocket clients.
@@ -115,10 +117,7 @@ impl WebSocketObserver {
         message: &ObservedMessage,
         protocol: MessageProtocol,
     ) {
-        let payload = IndexedMessage {
-            indexes,
-            message,
-        };
+        let payload = IndexedMessage { indexes, message };
         let debug = format!("{:?}", message);
 
         let message_json =
@@ -175,7 +174,9 @@ impl PaxosObserver for WebSocketObserver {
 
     fn on_message_trace(&self, trace: MessageTrace) {
         match trace.protocol() {
-            MessageProtocol::Classic => self.handle_classic_message(trace.indexes(), trace.message()),
+            MessageProtocol::Classic => {
+                self.handle_classic_message(trace.indexes(), trace.message())
+            }
             MessageProtocol::Pmmc => self.handle_pmmc_message(trace.indexes(), trace.message()),
             MessageProtocol::Vertical => {
                 self.handle_vertical_message(trace.indexes(), trace.message())

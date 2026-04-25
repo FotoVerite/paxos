@@ -18,9 +18,9 @@ use crate::{
             master::VerticalMasterEvent,
         },
     },
-    paxos_command::PaxosCommand,
     common::{ballot::Ballot, persistence::NodePersistence},
     monitor::PaxosObserver,
+    node::routing::{LocalRoutingDecision, ProtocolInboxRouter, ProtocolRouter, RoutingDecision},
     node::vertical_paxos::{
         acceptor::Acceptor,
         leader::{Leader, LeaderCallbacks},
@@ -32,9 +32,7 @@ use crate::{
         router::{VerticalInboxContext, VerticalPaxosComponent, VerticalPaxosRouter},
         transport::{VerticalPaxosFabric, VerticalPaxosHandle},
     },
-    node::routing::{
-        LocalRoutingDecision, ProtocolInboxRouter, ProtocolRouter, RoutingDecision,
-    },
+    paxos_command::PaxosCommand,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -149,7 +147,9 @@ impl VerticalNode {
 
     pub async fn install_configuration(&self, configuration: Arc<VerticalClusterConfiguration>) {
         self.leader.reset().await;
-        self.replica.install_configuration(Arc::clone(&configuration)).await;
+        self.replica
+            .install_configuration(Arc::clone(&configuration))
+            .await;
         let mut state = self.state.lock().await;
         state.install_configuration(configuration);
     }
@@ -205,9 +205,8 @@ impl VerticalNode {
     async fn send_reply(&self, msg: VerticalPaxosMessage) {
         match self.router.route(&msg, &()) {
             RoutingDecision::SendTo(to) => self.handle.send(to, msg).await,
-            RoutingDecision::Broadcast
-            | RoutingDecision::SendToMany(_)
-            | RoutingDecision::Drop => {}
+            RoutingDecision::Broadcast | RoutingDecision::SendToMany(_) | RoutingDecision::Drop => {
+            }
         }
     }
 

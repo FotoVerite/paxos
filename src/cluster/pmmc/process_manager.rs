@@ -7,7 +7,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{mpsc, mpsc::{Receiver, Sender}};
+use tokio::sync::{
+    mpsc,
+    mpsc::{Receiver, Sender},
+};
 use tokio::task::JoinSet;
 use uuid::Uuid;
 
@@ -15,13 +18,13 @@ use crate::{
     cluster::{
         pmmc::{
             control::{
-            endpoint::ConfigurationEndpoint,
-            ConfigurationHandler,
-            types::{
-                ConfigurationCommand, ConfigurationHandlerError, ConfigurationOperationId,
-                ConfigurationOperationStatus, ConfigurationReplyOutcome,
+                ConfigurationHandler,
+                endpoint::ConfigurationEndpoint,
+                types::{
+                    ConfigurationCommand, ConfigurationHandlerError, ConfigurationOperationId,
+                    ConfigurationOperationStatus, ConfigurationReplyOutcome,
+                },
             },
-        },
             reconfiguration::ClusterConfiguration,
         },
         runtime::{NodeRegistry, RuntimeState},
@@ -32,9 +35,7 @@ use crate::{
     node::{
         config::PmmcNodeConfig,
         pmmc::{
-            message::PmmcMessage,
-            node_factory::PmmcNodeFactory,
-            pmmc_node::PmmcNode,
+            message::PmmcMessage, node_factory::PmmcNodeFactory, pmmc_node::PmmcNode,
             transport::PmmcFabric,
         },
     },
@@ -208,7 +209,9 @@ impl PmmcProcessManager {
         expected: RuntimeState,
         next: RuntimeState,
     ) -> bool {
-        self.node_registry.transition_state(uuid, expected, next).await
+        self.node_registry
+            .transition_state(uuid, expected, next)
+            .await
     }
 
     pub async fn isolate_node(&self, uuid: Uuid) -> bool {

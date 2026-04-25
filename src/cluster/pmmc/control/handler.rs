@@ -10,13 +10,13 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use uuid::Uuid;
 
+use crate::cluster::pmmc::control::endpoint::ConfigurationEndpoint;
+use crate::cluster::pmmc::control::operation_record::OperationRecord;
 use crate::cluster::pmmc::control::types::{
     ConfigurationCommand, ConfigurationHandlerError, ConfigurationHandlerMessage,
     ConfigurationOperationId, ConfigurationOperationStatus, ConfigurationReplyOutcome,
 };
 use crate::common::message_hub::{HubInbound, MessageHub};
-use crate::cluster::pmmc::control::endpoint::ConfigurationEndpoint;
-use crate::cluster::pmmc::control::operation_record::OperationRecord;
 
 type OperationResult = Result<ConfigurationReplyOutcome, ConfigurationHandlerError>;
 

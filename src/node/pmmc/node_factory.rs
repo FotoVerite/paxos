@@ -5,12 +5,19 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::{
-    cluster::{pmmc::reconfiguration::ClusterConfiguration, runtime::{RuntimeNode, RuntimeNodeFactory}},
+    cluster::{
+        pmmc::reconfiguration::ClusterConfiguration,
+        runtime::{RuntimeNode, RuntimeNodeFactory},
+    },
     common::persistence::ClusterPersistence,
     monitor::PaxosObserver,
     node::{
         config::Roles,
-        pmmc::{message::PmmcMessage, pmmc_node::PmmcNode, transport::{PmmcFabric, PmmcHandle}},
+        pmmc::{
+            message::PmmcMessage,
+            pmmc_node::PmmcNode,
+            transport::{PmmcFabric, PmmcHandle},
+        },
     },
 };
 
@@ -53,9 +60,11 @@ impl PmmcNodeFactory {
 #[async_trait]
 impl RuntimeNodeFactory<PmmcMessage> for PmmcNodeFactory {
     async fn build(&self, id: Uuid) -> anyhow::Result<Arc<dyn RuntimeNode<PmmcMessage>>> {
-        let roles = self.roles.get(&id).cloned().ok_or_else(|| {
-            anyhow::anyhow!("missing PMMC roles for node {id}")
-        })?;
+        let roles = self
+            .roles
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("missing PMMC roles for node {id}"))?;
         let handle = Arc::new(PmmcHandle::from_fabric(id, Arc::clone(&self.fabric)));
         let node = Arc::new(
             PmmcNode::new(

@@ -74,10 +74,8 @@ impl LeaderState {
             if synchronizer.is_in_progress() {
                 synchronizer.handle_message(msg).await;
                 if synchronizer.is_ready() {
-                    commander_inputs = Some((
-                        Arc::clone(synchronizer.snapshot()),
-                        synchronizer.peers(),
-                    ));
+                    commander_inputs =
+                        Some((Arc::clone(synchronizer.snapshot()), synchronizer.peers()));
                 }
                 let progress = LeaderProgress::from_synchronizer(synchronizer);
                 if state.commander.is_none() {

@@ -8,8 +8,12 @@ use crate::{
     monitor::{Event, PaxosObserver, current_timestamp_millis},
     node::{
         classic_paxos::{
-            acceptor::Acceptor, decree_notes::DecreeNotes, learner::Learner, ledger::Ledger,
-            message::ClassicMessage, proposer::proposer::Proposer,
+            acceptor::Acceptor,
+            decree_notes::DecreeNotes,
+            learner::Learner,
+            ledger::Ledger,
+            message::ClassicMessage,
+            proposer::proposer::Proposer,
             router::{ClassicComponent, ClassicRouter},
             transport::ClassicHandle,
         },

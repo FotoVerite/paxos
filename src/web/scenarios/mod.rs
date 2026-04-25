@@ -1,8 +1,8 @@
 pub mod catch_up;
 pub mod classic;
 pub mod pmmc;
-pub mod vertical;
 mod scenario_type;
+pub mod vertical;
 
 pub use catch_up::CatchUpScenario;
 pub use classic::{ClassicScenarioExecution, ClassicScenarioLoader};

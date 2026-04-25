@@ -14,8 +14,8 @@ use tokio::{
 use uuid::Uuid;
 
 use crate::{
-    cluster::{
-        runtime::{ControlPlaneRegistry, NodeRegistry, RuntimeNode, RuntimeNodeFactory, RuntimeState},
+    cluster::runtime::{
+        ControlPlaneRegistry, NodeRegistry, RuntimeNode, RuntimeNodeFactory, RuntimeState,
     },
     common::network_fabric::NetworkFabric,
 };

@@ -237,25 +237,27 @@ impl VerticalMaster {
                         .await
                         .is_ok()
                     {
-                        self.runtime
-                            .observer()
-                            .on_event(crate::monitor::Event::VerticalActivationReady {
+                        self.runtime.observer().on_event(
+                            crate::monitor::Event::VerticalActivationReady {
                                 configuration_id,
                                 leader: leader_id,
                                 ballot,
                                 created_at: crate::monitor::current_timestamp_millis(),
-                            });
-                        self.runtime
-                            .observer()
-                            .on_event(crate::monitor::Event::VerticalReplicaSetActivated {
+                            },
+                        );
+                        self.runtime.observer().on_event(
+                            crate::monitor::Event::VerticalReplicaSetActivated {
                                 configuration_id,
                                 replicas: configuration.replicas().to_vec(),
                                 created_at: crate::monitor::current_timestamp_millis(),
-                            });
+                            },
+                        );
                         *self.active_configuration_id.write().await = Some(configuration_id);
 
                         if let Some(previous_id) = previous.filter(|id| *id != configuration_id) {
-                            if let Some(previous_configuration) = self.configuration(previous_id).await {
+                            if let Some(previous_configuration) =
+                                self.configuration(previous_id).await
+                            {
                                 if self
                                     .runtime
                                     .decommission_replica_set(

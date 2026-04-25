@@ -79,9 +79,15 @@ pub enum LeaderLifecycle {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReplicaLifecycle {
     Inactive,
-    Assigned { configuration_id: Uuid },
-    Syncing { configuration_id: Uuid },
-    Active { configuration_id: Uuid },
+    Assigned {
+        configuration_id: Uuid,
+    },
+    Syncing {
+        configuration_id: Uuid,
+    },
+    Active {
+        configuration_id: Uuid,
+    },
     Redirecting {
         installed_configuration_id: Uuid,
         active_configuration_id: Uuid,

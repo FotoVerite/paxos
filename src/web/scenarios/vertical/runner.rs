@@ -7,11 +7,8 @@ use tokio::time::sleep;
 use uuid::Uuid;
 
 use crate::cluster::vertical::{
-    activation::{PredecessorChain},
-    configuration::VerticalClusterConfiguration,
-    master::ActivationStatus,
-    quorum::Quorum,
-    system::VerticalSystem,
+    activation::PredecessorChain, configuration::VerticalClusterConfiguration,
+    master::ActivationStatus, quorum::Quorum, system::VerticalSystem,
 };
 use crate::common::ballot::Ballot;
 use crate::node::vertical_paxos::replica::VerticalClientReply;
@@ -32,14 +29,9 @@ impl VerticalScenarioRunner {
 
         for phase in &spec.scenario.phases {
             for step in &phase.steps {
-                let should_continue = Self::execute_step(
-                    &system,
-                    &configurations,
-                    member_ids,
-                    step,
-                    &mut stop_rx,
-                )
-                .await?;
+                let should_continue =
+                    Self::execute_step(&system, &configurations, member_ids, step, &mut stop_rx)
+                        .await?;
                 if !should_continue {
                     return Ok(());
                 }
@@ -92,7 +84,9 @@ impl VerticalScenarioRunner {
                 expect,
             } => {
                 let replica_id = Self::member_id(member_ids, *replica_index)?;
-                let reply = system.submit_client_request(replica_id, command.clone()).await?;
+                let reply = system
+                    .submit_client_request(replica_id, command.clone())
+                    .await?;
                 if let Some(expectation) = expect {
                     Self::validate_reply(*expectation, &reply)?;
                 }
@@ -155,7 +149,10 @@ impl VerticalScenarioRunner {
         Ok(built)
     }
 
-    fn stable_configuration_id(spec: &VerticalScenarioSpec, plan: &VerticalConfigurationPlan) -> Uuid {
+    fn stable_configuration_id(
+        spec: &VerticalScenarioSpec,
+        plan: &VerticalConfigurationPlan,
+    ) -> Uuid {
         Uuid::new_v5(
             &Uuid::NAMESPACE_DNS,
             format!("vertical-scenario:{}:{}", spec.key, plan.key).as_bytes(),
@@ -173,10 +170,9 @@ impl VerticalScenarioRunner {
     }
 
     fn member_id(member_ids: &[Uuid], index: usize) -> anyhow::Result<Uuid> {
-        member_ids
-            .get(index)
-            .copied()
-            .ok_or_else(|| anyhow::anyhow!("vertical scenario referenced missing member index {index}"))
+        member_ids.get(index).copied().ok_or_else(|| {
+            anyhow::anyhow!("vertical scenario referenced missing member index {index}")
+        })
     }
 
     fn resolve_members(member_ids: &[Uuid], indexes: &[usize]) -> anyhow::Result<Vec<Uuid>> {
@@ -192,9 +188,16 @@ impl VerticalScenarioRunner {
     ) -> anyhow::Result<()> {
         let matches = matches!(
             (expectation, reply),
-            (VerticalClientExpectation::Accepted, VerticalClientReply::Accepted { .. })
-                | (VerticalClientExpectation::Pending, VerticalClientReply::Pending { .. })
-                | (VerticalClientExpectation::Redirect, VerticalClientReply::Redirect { .. })
+            (
+                VerticalClientExpectation::Accepted,
+                VerticalClientReply::Accepted { .. }
+            ) | (
+                VerticalClientExpectation::Pending,
+                VerticalClientReply::Pending { .. }
+            ) | (
+                VerticalClientExpectation::Redirect,
+                VerticalClientReply::Redirect { .. }
+            )
         );
 
         if matches {

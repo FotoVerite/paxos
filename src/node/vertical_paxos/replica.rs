@@ -136,8 +136,7 @@ impl Replica {
 
             let slot = data.next_slot;
             data.next_slot += 1;
-            data.proposals
-                .insert(slot, cmd.clone());
+            data.proposals.insert(slot, cmd.clone());
 
             let proposal = PendingClientRequest { cmd };
             (active_configuration, slot, proposal)
@@ -238,7 +237,9 @@ impl Replica {
             };
 
             let response = self.store.apply(cmd.clone()).await.ok();
-            if let (Some((client_id, request_id)), Some(response)) = (cmd.client_identity(), response.clone()) {
+            if let (Some((client_id, request_id)), Some(response)) =
+                (cmd.client_identity(), response.clone())
+            {
                 self.data
                     .lock()
                     .await

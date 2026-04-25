@@ -10,7 +10,9 @@ use uuid::Uuid;
 use crate::cluster::runtime::{
     member::RuntimeMember,
     state::RuntimeState,
-    types::{ProvisionedInbox, ProvisionedInboxes, RuntimeMemberIds, RuntimeMembers, SharedRuntimeNode},
+    types::{
+        ProvisionedInbox, ProvisionedInboxes, RuntimeMemberIds, RuntimeMembers, SharedRuntimeNode,
+    },
 };
 
 pub struct ControlPlaneRegistry<TMsg>
@@ -78,11 +80,7 @@ where
         Ok(inbox_rx)
     }
 
-    pub async fn spawn_actor(
-        &self,
-        id: Uuid,
-        node: SharedRuntimeNode<TMsg>,
-    ) -> anyhow::Result<()> {
+    pub async fn spawn_actor(&self, id: Uuid, node: SharedRuntimeNode<TMsg>) -> anyhow::Result<()> {
         if !self.senders.read().await.contains_key(&id) {
             self.provision_endpoint(id).await;
         }

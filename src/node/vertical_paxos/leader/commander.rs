@@ -8,7 +8,9 @@ use crate::{
     common::ballot::Ballot,
     node::{
         pvalue::PValue,
-        vertical_paxos::{message::VerticalPaxosMessage, proposal::ProposalsStore, transport::VerticalPaxosHandle},
+        vertical_paxos::{
+            message::VerticalPaxosMessage, proposal::ProposalsStore, transport::VerticalPaxosHandle,
+        },
     },
     paxos_command::PaxosCommand,
 };

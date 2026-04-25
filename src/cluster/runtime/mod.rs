@@ -11,8 +11,8 @@ pub use node::{RuntimeNode, RuntimeNodeFactory};
 pub use node_registry::NodeRegistry;
 pub use state::RuntimeState;
 pub use types::{
-    ProvisionedInbox, ProvisionedInboxes, RuntimeMemberIds, RuntimeMembers,
-    SharedRuntimeFactory, SharedRuntimeMember, SharedRuntimeNode,
+    ProvisionedInbox, ProvisionedInboxes, RuntimeMemberIds, RuntimeMembers, SharedRuntimeFactory,
+    SharedRuntimeMember, SharedRuntimeNode,
 };
 
 #[cfg(test)]

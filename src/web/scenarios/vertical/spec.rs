@@ -103,7 +103,9 @@ fn activation_only() -> VerticalScenarioSpec {
     VerticalScenarioSpec {
         key: VerticalScenarioKey::ActivationOnly.as_str().to_string(),
         name: "Activation Only".to_string(),
-        description: "Shows that a configuration being installed is not the same thing as it being active.".to_string(),
+        description:
+            "Shows that a configuration being installed is not the same thing as it being active."
+                .to_string(),
         node_count: 4,
         configurations: vec![config_plan(
             "A",
@@ -144,9 +146,12 @@ fn reconfiguration_only() -> VerticalScenarioSpec {
         .build();
 
     VerticalScenarioSpec {
-        key: VerticalScenarioKey::ReconfigurationOnly.as_str().to_string(),
+        key: VerticalScenarioKey::ReconfigurationOnly
+            .as_str()
+            .to_string(),
         name: "Reconfiguration Only".to_string(),
-        description: "Shows the successor leader taking over after a clean activation handoff.".to_string(),
+        description: "Shows the successor leader taking over after a clean activation handoff."
+            .to_string(),
         node_count: 4,
         configurations: base_reconfiguration_plans(VerticalPaxosVariant::V2, 1, Some("A")),
         scenario,
@@ -155,7 +160,9 @@ fn reconfiguration_only() -> VerticalScenarioSpec {
 
 fn redirect_after_handoff() -> VerticalScenarioSpec {
     let scenario = ScenarioBuilder::new("vertical_redirect_after_handoff", 4)
-        .description("Show a stale replica rejecting new work and redirecting the client to the active set.")
+        .description(
+            "Show a stale replica rejecting new work and redirecting the client to the active set.",
+        )
         .phase("bring_up_a")
         .vertical_install_configuration("A")
         .wait(Duration::from_millis(700))
@@ -188,9 +195,13 @@ fn redirect_after_handoff() -> VerticalScenarioSpec {
         .build();
 
     VerticalScenarioSpec {
-        key: VerticalScenarioKey::RedirectAfterHandoff.as_str().to_string(),
+        key: VerticalScenarioKey::RedirectAfterHandoff
+            .as_str()
+            .to_string(),
         name: "Redirect After Handoff".to_string(),
-        description: "Shows the old configuration refusing new work after the successor becomes active.".to_string(),
+        description:
+            "Shows the old configuration refusing new work after the successor becomes active."
+                .to_string(),
         node_count: 4,
         configurations: base_reconfiguration_plans(VerticalPaxosVariant::V2, 1, Some("A")),
         scenario,
@@ -199,7 +210,9 @@ fn redirect_after_handoff() -> VerticalScenarioSpec {
 
 fn vp1_recovery_cost() -> VerticalScenarioSpec {
     let scenario = ScenarioBuilder::new("vertical_vp1_recovery_cost", 4)
-        .description("Build some history, then show a VP1 successor recovering from the full prefix again.")
+        .description(
+            "Build some history, then show a VP1 successor recovering from the full prefix again.",
+        )
         .phase("history_on_a")
         .vertical_install_configuration("A")
         .wait(Duration::from_millis(700))
@@ -237,7 +250,9 @@ fn vp1_recovery_cost() -> VerticalScenarioSpec {
 
 fn vp2_bounded_recovery() -> VerticalScenarioSpec {
     let scenario = ScenarioBuilder::new("vertical_vp2_bounded_recovery", 4)
-        .description("Build the same history, then show a VP2 successor with a bounded recovery window.")
+        .description(
+            "Build the same history, then show a VP2 successor with a bounded recovery window.",
+        )
         .phase("history_on_a")
         .vertical_install_configuration("A")
         .wait(Duration::from_millis(700))

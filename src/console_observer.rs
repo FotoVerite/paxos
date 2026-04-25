@@ -1,6 +1,4 @@
-use crate::{
-    monitor::{Event, MessageTrace, PaxosObserver},
-};
+use crate::monitor::{Event, MessageTrace, PaxosObserver};
 use colored::*;
 use std::{
     collections::HashMap,
@@ -748,7 +746,9 @@ impl ConsoleObserver {
                     .cyan()
                 );
             }
-            Event::VerticalReplicaApplied { id, slot, value, .. } => {
+            Event::VerticalReplicaApplied {
+                id, slot, value, ..
+            } => {
                 println!(
                     "{}",
                     format!(

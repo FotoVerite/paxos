@@ -31,10 +31,14 @@ impl VerticalSystem {
         let control_plane = Arc::new(ControlPlaneRegistry::new());
         let master_id = Uuid::nil();
         let master_tx = control_plane.provision_endpoint(master_id).await;
-        let runtime = Arc::new(VerticalRuntime::new(member_ids, persistence, observer, master_tx).await?);
+        let runtime =
+            Arc::new(VerticalRuntime::new(member_ids, persistence, observer, master_tx).await?);
         let master = Arc::new(VerticalMaster::new(Arc::clone(&runtime)));
         control_plane
-            .spawn_actor(master_id, master.clone() as Arc<dyn RuntimeNode<VerticalMasterEvent>>)
+            .spawn_actor(
+                master_id,
+                master.clone() as Arc<dyn RuntimeNode<VerticalMasterEvent>>,
+            )
             .await?;
 
         Ok(Self {

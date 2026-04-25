@@ -7,8 +7,10 @@ use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
 use super::handlers::{
-    AppState, paxos_handler, paxos_made_simple_handler, scenario::*, vertical_paxos_handler,
+    AppState, paxos_handler, paxos_made_simple_handler,
+    scenario::*,
     vertical_demo::{reset_vertical_demo_handler, run_vertical_demo_handler},
+    vertical_paxos_handler,
     websocket::websocket_handler,
 };
 use super::papers;
@@ -33,6 +35,7 @@ pub async fn run_web_server() {
         .route("/ws", get(websocket_handler))
         // Papers Sub-router
         .nest("/papers", papers::router())
+        .nest("/synod", super::synod::router())
         // Static Files (Explicit Priority)
         .nest_service("/css", ServeDir::new("static/css"))
         .nest_service("/js", ServeDir::new("static/js"))
