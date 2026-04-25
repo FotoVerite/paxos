@@ -2,6 +2,7 @@ use axum::{
     Json, Router,
     extract::State,
     http::StatusCode,
+    response::Response,
     response::{Html, IntoResponse},
     routing::{get, post},
 };
@@ -42,13 +43,19 @@ async fn dashboard_page() -> Html<&'static str> {
     Html("<!doctype html><title>Synod Dashboard</title><h1>Synod Dashboard</h1>")
 }
 
-async fn join(
-    State(state): State<AppState>,
-    Json(request): Json<JoinRequest>,
-) -> impl IntoResponse {
+async fn join(State(state): State<AppState>, Json(request): Json<JoinRequest>) -> Response {
     let client_id = request.client_id.map(ClientId::from_existing);
     let mut synod = state.synod.lock().await;
-    let assignment = synod.assign_client(client_id);
+    let assignment = match synod.assign_client(client_id).await {
+        Ok(assignment) => assignment,
+        Err(err) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("failed to assign synod client: {err}"),
+            )
+                .into_response();
+        }
+    };
     let membership = synod.membership();
 
     Json(JoinResponse {
@@ -58,6 +65,7 @@ async fn join(
         active_nodes: membership.node_count(),
         emoji_pool: EMOJI_POOL.to_vec(),
     })
+    .into_response()
 }
 
 async fn ws_placeholder() -> impl IntoResponse {

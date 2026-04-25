@@ -1,27 +1,42 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use uuid::Uuid;
 
+use crate::{
+    cluster::synod_vertical::SynodVerticalSystem, common::persistence::ClusterPersistence,
+    monitor::PaxosObserver,
+};
+
 use super::{ClientAssignment, ClientId, SynodMembership};
 
-#[derive(Debug)]
 pub struct SynodCluster {
     assignments: HashMap<ClientId, ClientAssignment>,
     assignment_order: Vec<ClientId>,
+    system: SynodVerticalSystem,
 }
 
 impl SynodCluster {
-    pub fn new() -> Self {
-        Self {
+    pub async fn new(
+        persistence: Arc<ClusterPersistence>,
+        observer: Arc<dyn PaxosObserver>,
+    ) -> anyhow::Result<Self> {
+        let system = SynodVerticalSystem::new(Vec::new(), persistence, observer).await?;
+        system.start().await;
+
+        Ok(Self {
             assignments: HashMap::new(),
             assignment_order: Vec::new(),
-        }
+            system,
+        })
     }
 
-    pub fn assign_client(&mut self, client_id: Option<ClientId>) -> ClientAssignment {
+    pub async fn assign_client(
+        &mut self,
+        client_id: Option<ClientId>,
+    ) -> anyhow::Result<ClientAssignment> {
         if let Some(client_id) = client_id {
             if let Some(assignment) = self.assignments.get(&client_id) {
-                return assignment.clone();
+                return Ok(assignment.clone());
             }
         }
 
@@ -30,11 +45,12 @@ impl SynodCluster {
             node_id: Uuid::new_v4(),
         };
 
+        self.system.runtime().spawn_node(assignment.node_id).await?;
         self.assignment_order.push(assignment.client_id.clone());
         self.assignments
             .insert(assignment.client_id.clone(), assignment.clone());
 
-        assignment
+        Ok(assignment)
     }
 
     pub fn assignment_for(&self, client_id: &ClientId) -> Option<&ClientAssignment> {
@@ -43,6 +59,10 @@ impl SynodCluster {
 
     pub fn assignment_count(&self) -> usize {
         self.assignments.len()
+    }
+
+    pub async fn server_node_ids(&self) -> Vec<Uuid> {
+        self.system.runtime().member_ids().await
     }
 
     pub fn membership(&self) -> SynodMembership {
@@ -65,23 +85,36 @@ impl SynodCluster {
             .and_then(|client_id| self.assignments.get(client_id))
             .map(|assignment| assignment.node_id)
     }
-}
 
-impl Default for SynodCluster {
-    fn default() -> Self {
-        Self::new()
+    pub async fn cleanup(&self) -> anyhow::Result<()> {
+        self.system.cleanup().await
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        common::persistence::ClusterPersistence,
+        monitor::{NoOpObserver, PaxosObserver},
+    };
+
     use super::*;
 
-    #[test]
-    fn assigns_new_client_to_server_owned_node() {
-        let mut cluster = SynodCluster::new();
+    async fn test_cluster(name: &str) -> SynodCluster {
+        let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        SynodCluster::new(Arc::new(ClusterPersistence::for_test(name)), observer)
+            .await
+            .expect("synod cluster should build")
+    }
 
-        let assignment = cluster.assign_client(None);
+    #[tokio::test]
+    async fn assigns_new_client_to_server_owned_node() {
+        let mut cluster = test_cluster("synod_assign_new_client").await;
+
+        let assignment = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
 
         assert!(assignment.client_id.as_str().starts_with("c_"));
         assert_eq!(cluster.assignment_count(), 1);
@@ -89,48 +122,77 @@ mod tests {
             cluster.assignment_for(&assignment.client_id),
             Some(&assignment)
         );
+        assert_eq!(cluster.server_node_ids().await, vec![assignment.node_id]);
+        cluster.cleanup().await.expect("cleanup should work");
     }
 
-    #[test]
-    fn reuses_known_client_assignment() {
-        let mut cluster = SynodCluster::new();
-        let first = cluster.assign_client(None);
+    #[tokio::test]
+    async fn reuses_known_client_assignment() {
+        let mut cluster = test_cluster("synod_reuse_known_client").await;
+        let first = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
 
-        let second = cluster.assign_client(Some(first.client_id.clone()));
+        let second = cluster
+            .assign_client(Some(first.client_id.clone()))
+            .await
+            .expect("rejoin should work");
 
         assert_eq!(second, first);
         assert_eq!(cluster.assignment_count(), 1);
+        assert_eq!(cluster.server_node_ids().await, vec![first.node_id]);
+        cluster.cleanup().await.expect("cleanup should work");
     }
 
-    #[test]
-    fn unknown_client_gets_fresh_assignment() {
-        let mut cluster = SynodCluster::new();
+    #[tokio::test]
+    async fn unknown_client_gets_fresh_assignment() {
+        let mut cluster = test_cluster("synod_unknown_client").await;
 
-        let assignment = cluster.assign_client(Some(ClientId::from_existing("c_missing")));
+        let assignment = cluster
+            .assign_client(Some(ClientId::from_existing("c_missing")))
+            .await
+            .expect("assignment should work");
 
         assert_ne!(assignment.client_id.as_str(), "c_missing");
         assert_eq!(cluster.assignment_count(), 1);
+        assert_eq!(cluster.server_node_ids().await, vec![assignment.node_id]);
+        cluster.cleanup().await.expect("cleanup should work");
     }
 
-    #[test]
-    fn first_assignment_is_bootstrap_node() {
-        let mut cluster = SynodCluster::new();
-        let first = cluster.assign_client(None);
-        let _second = cluster.assign_client(None);
+    #[tokio::test]
+    async fn first_assignment_is_bootstrap_node() {
+        let mut cluster = test_cluster("synod_bootstrap_node").await;
+        let first = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
+        let _second = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
 
         assert_eq!(cluster.bootstrap_node(), Some(first.node_id));
+        cluster.cleanup().await.expect("cleanup should work");
     }
 
-    #[test]
-    fn membership_reports_client_node_assignments() {
-        let mut cluster = SynodCluster::new();
-        let first = cluster.assign_client(None);
-        let second = cluster.assign_client(None);
+    #[tokio::test]
+    async fn membership_reports_client_node_assignments() {
+        let mut cluster = test_cluster("synod_membership").await;
+        let first = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
+        let second = cluster
+            .assign_client(None)
+            .await
+            .expect("assignment should work");
 
         let membership = cluster.membership();
 
         assert_eq!(membership.assignments, vec![first.clone(), second]);
         assert_eq!(membership.bootstrap_node, Some(first.node_id));
         assert_eq!(membership.node_count(), 2);
+        cluster.cleanup().await.expect("cleanup should work");
     }
 }

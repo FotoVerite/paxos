@@ -5,7 +5,11 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::super::cluster_manager::ClusterManager;
-use crate::cluster::synod::SynodCluster;
+use crate::{
+    cluster::synod::SynodCluster,
+    common::persistence::ClusterPersistence,
+    monitor::{NoOpObserver, PaxosObserver},
+};
 
 use tera::Tera;
 
@@ -18,7 +22,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub async fn new() -> anyhow::Result<Self> {
         // Load templates from the templates directory
         // This will find all .html files in templates/ and subdirectories
         let tera = match Tera::new("templates/**/*.html") {
@@ -29,11 +33,18 @@ impl AppState {
             }
         };
 
-        Self {
+        let synod_observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        let synod = SynodCluster::new(
+            Arc::new(ClusterPersistence::for_test("synod-main")),
+            synod_observer,
+        )
+        .await?;
+
+        Ok(Self {
             clusters: Arc::new(DashMap::new()),
-            synod: Arc::new(Mutex::new(SynodCluster::new())),
+            synod: Arc::new(Mutex::new(synod)),
             tera: Arc::new(tera),
-        }
+        })
     }
 }
 

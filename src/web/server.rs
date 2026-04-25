@@ -22,7 +22,9 @@ use super::papers;
 
 /// Run the web server on 0.0.0.0:3001
 pub async fn run_web_server() {
-    let app_state = AppState::new();
+    let app_state = AppState::new()
+        .await
+        .expect("web app state should initialize");
 
     // Main app router
     let app = Router::new()
