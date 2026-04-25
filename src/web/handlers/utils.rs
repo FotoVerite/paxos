@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::super::cluster_manager::ClusterManager;
+use crate::cluster::synod::SynodCluster;
 
 use tera::Tera;
 
@@ -12,6 +13,7 @@ use tera::Tera;
 #[derive(Clone)]
 pub struct AppState {
     pub clusters: Arc<DashMap<IpAddr, Arc<Mutex<ClusterManager>>>>,
+    pub synod: Arc<Mutex<SynodCluster>>,
     pub tera: Arc<Tera>,
 }
 
@@ -29,6 +31,7 @@ impl AppState {
 
         Self {
             clusters: Arc::new(DashMap::new()),
+            synod: Arc::new(Mutex::new(SynodCluster::new())),
             tera: Arc::new(tera),
         }
     }
