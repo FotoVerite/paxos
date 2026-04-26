@@ -21,6 +21,7 @@ use crate::{
         replica::VerticalClientReply,
         transport::{VerticalPaxosFabric, new_vertical_paxos_fabric},
     },
+    rsm::checkpoint::RsmCheckpoint,
 };
 
 pub struct SynodVerticalRuntime {
@@ -105,6 +106,10 @@ impl SynodVerticalRuntime {
 
     pub async fn snapshot(&self, id: Uuid) -> Option<VerticalNodeSnapshot> {
         Some(self.node(id).await?.snapshot().await)
+    }
+
+    pub async fn replica_checkpoint(&self, id: Uuid) -> Option<RsmCheckpoint> {
+        Some(self.node(id).await?.replica_checkpoint().await)
     }
 
     pub async fn install_configuration_on_nodes(

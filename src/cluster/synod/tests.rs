@@ -1,5 +1,5 @@
 use crate::{
-    cluster::synod::cluster::SynodCluster,
+    cluster::synod::{SynodRequestStage, cluster::SynodCluster, emoji_counter_key},
     common::persistence::ClusterPersistence,
     monitor::{NoOpObserver, PaxosObserver},
     node::vertical_paxos::replica::VerticalClientReply,
@@ -7,7 +7,7 @@ use crate::{
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use super::{ClientId, SynodRequestStage};
+use super::ClientId;
 
 async fn test_cluster(name: &str) -> SynodCluster {
     let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
@@ -203,6 +203,56 @@ async fn joined_client_can_propose_rust_emoji() {
 }
 
 #[tokio::test]
+async fn late_joining_node_installs_current_rsm_checkpoint() {
+    let mut cluster = test_cluster("synod_late_join_checkpoint").await;
+    let first = cluster
+        .assign_client(None)
+        .await
+        .expect("first assignment should work");
+
+    for request_id in 1..=2 {
+        cluster
+            .propose_emoji(first.client_id.clone(), request_id, "🦀".to_string())
+            .await
+            .expect("proposal should submit");
+    }
+    wait_for_applied(&cluster, &first.client_id, 2).await;
+
+    let second = cluster
+        .assign_client(None)
+        .await
+        .expect("late join should work");
+    let active_config = cluster
+        .active_configuration()
+        .await
+        .expect("active config should exist after join");
+    let checkpoint = active_config
+        .checkpoint()
+        .expect("new active config should carry checkpoint");
+
+    assert_eq!(active_config.start_index(), 2);
+    assert_eq!(checkpoint.manifest().last_applied_slot(), Some(1));
+    assert_eq!(
+        checkpoint
+            .state()
+            .kv_store()
+            .get(&emoji_counter_key("🦀"))
+            .map(|entry| entry.value.0),
+        Some(2)
+    );
+
+    let receipt = cluster
+        .propose_emoji(second.client_id.clone(), 1, "📦".to_string())
+        .await
+        .expect("late client proposal should submit");
+    assert!(matches!(
+        receipt.reply,
+        VerticalClientReply::Accepted { slot: 2, .. }
+    ));
+    cluster.cleanup().await.expect("cleanup should work");
+}
+
+#[tokio::test]
 async fn proposal_rejects_unknown_client() {
     let cluster = test_cluster("synod_propose_unknown").await;
 
@@ -243,6 +293,19 @@ fn emoji_proposal_uses_rsm_increment_command() {
             value: 1,
         }
     );
+}
+
+async fn wait_for_applied(cluster: &SynodCluster, client_id: &ClientId, request_id: u64) {
+    for _ in 0..20 {
+        if cluster
+            .request_status(client_id, request_id)
+            .is_some_and(|status| status.stage == SynodRequestStage::Applied)
+        {
+            return;
+        }
+        tokio::task::yield_now().await;
+    }
+    panic!("request {request_id} was not applied");
 }
 
 // ========== Reconfiguration Module ==========
@@ -456,7 +519,10 @@ async fn three_clients_can_propose_and_apply() {
         .expect("c3 assignment should work");
 
     let active_cfg = cluster.active_configuration().await;
-    println!("Active config leader: {:?}", active_cfg.as_ref().map(|cfg| cfg.leader()));
+    println!(
+        "Active config leader: {:?}",
+        active_cfg.as_ref().map(|cfg| cfg.leader())
+    );
     println!("C1 assigned to: {}", c1.node_id);
     println!("C2 assigned to: {}", c2.node_id);
     println!("C3 assigned to: {}", c3.node_id);

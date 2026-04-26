@@ -14,11 +14,12 @@ use crate::{
     monitor::PaxosObserver,
     node::vertical_paxos::replica::VerticalClientReply,
     paxos_command::PaxosCommand,
+    rsm::checkpoint::RsmCheckpoint,
 };
 
 use super::{
     ClientAssignment, ClientId, SynodMembership, SynodProposalError, SynodProposalReceipt,
-    SynodReadModel, SynodReadModelObserver, SynodRequestStage, SynodRequestStatus, SynodRoomState,
+    SynodReadModel, SynodReadModelObserver, SynodRequestStatus, SynodRoomState,
     emoji_increment_command, is_valid_rust_emoji,
 };
 
@@ -123,6 +124,16 @@ impl SynodCluster {
         self.assignments.get(client_id)
     }
 
+    async fn current_replica_checkpoint(&self) -> anyhow::Result<Option<RsmCheckpoint>> {
+        let Some(source_node_id) = self.bootstrap_node() else {
+            return Ok(None);
+        };
+        self.system
+            .replica_checkpoint(source_node_id)
+            .await
+            .map(Some)
+    }
+
     pub async fn propose_emoji(
         &self,
         client_id: ClientId,
@@ -132,7 +143,7 @@ impl SynodCluster {
         // Validate the proposal early (client must exist, emoji must be valid).
         // This allows early rejection without waiting for cluster readiness.
         let proposal = self.prepare_emoji_proposal(client_id.clone(), request_id, emoji)?;
-        
+
         // Wait until the cluster has an active configuration before allowing proposals.
         // This ensures all nodes have been activated and are ready to accept client requests.
         self.wait_for_active_configuration().await?;
@@ -255,24 +266,27 @@ impl SynodCluster {
     }
 
     async fn wait_for_active_configuration(&self) -> Result<(), SynodProposalError> {
-        tokio::time::timeout(
-            Duration::from_secs(5),
-            async {
-                loop {
-                    // Wait for the master to have an active_configuration_id set.
-                    // This indicates that activate_replica_set() has been called and replicas
-                    // should have their active_configuration set.
-                    if self.system.master().active_configuration_id().await.is_some() {
-                        return;
-                    }
-                    tokio::task::yield_now().await;
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                // Wait for the master to have an active_configuration_id set.
+                // This indicates that activate_replica_set() has been called and replicas
+                // should have their active_configuration set.
+                if self
+                    .system
+                    .master()
+                    .active_configuration_id()
+                    .await
+                    .is_some()
+                {
+                    return;
                 }
-            },
-        )
+                tokio::task::yield_now().await;
+            }
+        })
         .await
-        .map_err(|_| SynodProposalError::Submit(anyhow::anyhow!(
-            "timed out waiting for cluster to be ready"
-        )))
+        .map_err(|_| {
+            SynodProposalError::Submit(anyhow::anyhow!("timed out waiting for cluster to be ready"))
+        })
     }
 
     pub fn assignment_count(&self) -> usize {
@@ -327,19 +341,25 @@ impl SynodCluster {
             .filter_map(|client_id| self.assignments.get(client_id))
             .map(|assignment| assignment.node_id)
             .collect::<Vec<_>>();
-        self.reconfigure_member_ids(member_ids).await
+        let checkpoint = self.current_replica_checkpoint().await?;
+        self.reconfigure_member_ids(member_ids, checkpoint).await
     }
 
-    async fn reconfigure_member_ids(&mut self, member_ids: Vec<Uuid>) -> anyhow::Result<()> {
+    async fn reconfigure_member_ids(
+        &mut self,
+        member_ids: Vec<Uuid>,
+        checkpoint: Option<RsmCheckpoint>,
+    ) -> anyhow::Result<()> {
         if member_ids.is_empty() {
             return Ok(());
         }
 
         self.system
-            .reconfigure_members(
+            .reconfigure_members_with_checkpoint(
                 member_ids,
                 self.bootstrap_node()
                     .expect("non-empty membership should have bootstrap node"),
+                checkpoint,
             )
             .await?;
         Ok(())
@@ -391,7 +411,9 @@ impl SynodCluster {
             .await?;
             self.system.start().await;
         } else {
-            self.reconfigure_member_ids(remaining_node_ids).await?;
+            let checkpoint = self.current_replica_checkpoint().await?;
+            self.reconfigure_member_ids(remaining_node_ids, checkpoint)
+                .await?;
             for assignment in &expired {
                 self.system
                     .runtime()

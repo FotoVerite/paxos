@@ -33,6 +33,7 @@ use crate::{
         transport::{VerticalPaxosFabric, VerticalPaxosHandle},
     },
     paxos_command::PaxosCommand,
+    rsm::checkpoint::RsmCheckpoint,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -190,6 +191,10 @@ impl VerticalNode {
 
     pub async fn submit_client_request(&self, cmd: PaxosCommand) -> VerticalClientReply {
         self.replica.submit_client_request(cmd).await
+    }
+
+    pub async fn replica_checkpoint(&self) -> RsmCheckpoint {
+        self.replica.checkpoint().await
     }
 
     pub async fn snapshot(&self) -> VerticalNodeSnapshot {

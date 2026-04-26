@@ -13,7 +13,10 @@ use crate::{
         vertical_paxos::{message::VerticalPaxosMessage, transport::VerticalPaxosHandle},
     },
     paxos_command::{ClientId, PaxosCommand, RequestId},
-    rsm::kv_store::{KVStore, ReplyOutcome},
+    rsm::{
+        checkpoint::{CheckpointManifest, CheckpointState, RsmCheckpoint},
+        kv_store::{KVStore, ReplyOutcome},
+    },
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -75,6 +78,9 @@ impl Replica {
     }
 
     pub async fn install_configuration(&self, configuration: Arc<VerticalClusterConfiguration>) {
+        if let Some(checkpoint) = configuration.checkpoint() {
+            let _ = self.install_checkpoint(checkpoint).await;
+        }
         let mut data = self.data.lock().await;
         data.next_slot = data.next_slot.max(configuration.start_index());
         data.next_execution_slot = data.next_execution_slot.max(configuration.start_index());
@@ -99,6 +105,58 @@ impl Replica {
         let mut data = self.data.lock().await;
         data.active_configuration = None;
         data.redirected_configuration = None;
+    }
+
+    pub async fn checkpoint(&self) -> RsmCheckpoint {
+        let state = self.store.emit_checkpoint_state().await;
+        let data = self.data.lock().await;
+        let configuration = data
+            .active_configuration
+            .as_ref()
+            .or(data.installed_configuration.as_ref());
+        let ballot = configuration.map(|configuration| configuration.ballot());
+        let client_dedup_watermark: HashMap<ClientId, RequestId> = data.applied_cache.keys().fold(
+            HashMap::new(),
+            |mut watermark, (client_id, request_id)| {
+                watermark
+                    .entry(*client_id)
+                    .and_modify(|seen| *seen = (*seen).max(*request_id))
+                    .or_insert(*request_id);
+                watermark
+            },
+        );
+
+        RsmCheckpoint::new(
+            CheckpointManifest::new(
+                Uuid::new_v4(),
+                self.id,
+                ballot.map_or(0, |ballot| ballot.number as u64),
+                ballot.map_or(0, |ballot| ballot.epoch as u64),
+                data.next_execution_slot.checked_sub(1),
+                current_timestamp_millis(),
+            ),
+            CheckpointState::new(state, client_dedup_watermark),
+        )
+    }
+
+    async fn install_checkpoint(&self, checkpoint: &RsmCheckpoint) -> anyhow::Result<()> {
+        let next_slot = checkpoint
+            .manifest()
+            .last_applied_slot()
+            .map_or(0, |slot| slot + 1);
+        self.store
+            .restore(checkpoint.state().kv_store().clone())
+            .await?;
+        let mut data = self.data.lock().await;
+        data.applied_cache = checkpoint
+            .state()
+            .client_dedup_watermark()
+            .iter()
+            .map(|(client_id, request_id)| ((*client_id, *request_id), ReplyOutcome::Ok))
+            .collect();
+        data.next_slot = data.next_slot.max(next_slot);
+        data.next_execution_slot = data.next_execution_slot.max(next_slot);
+        Ok(())
     }
 
     pub async fn submit_client_request(&self, cmd: PaxosCommand) -> VerticalClientReply {

@@ -1,6 +1,7 @@
 use uuid::Uuid;
 
 use crate::common::ballot::Ballot;
+use crate::rsm::checkpoint::RsmCheckpoint;
 
 use super::quorum::Quorum;
 
@@ -22,6 +23,7 @@ pub struct VerticalClusterConfiguration {
     read_quorum: Quorum,
     write_quorum: Quorum,
     complete_bal: Option<Ballot>,
+    checkpoint: Option<RsmCheckpoint>,
 }
 
 impl VerticalClusterConfiguration {
@@ -77,7 +79,17 @@ impl VerticalClusterConfiguration {
             read_quorum,
             write_quorum,
             complete_bal,
+            checkpoint: None,
         })
+    }
+
+    pub fn with_checkpoint(mut self, checkpoint: RsmCheckpoint) -> Self {
+        self.start_index = checkpoint
+            .manifest()
+            .last_applied_slot()
+            .map_or(0, |slot| slot + 1);
+        self.checkpoint = Some(checkpoint);
+        self
     }
 
     pub fn id(&self) -> Uuid {
@@ -118,6 +130,10 @@ impl VerticalClusterConfiguration {
 
     pub fn complete_bal(&self) -> Option<Ballot> {
         self.complete_bal
+    }
+
+    pub fn checkpoint(&self) -> Option<&RsmCheckpoint> {
+        self.checkpoint.as_ref()
     }
 }
 

@@ -65,6 +65,14 @@ impl KVStore {
         data.clone()
     }
 
+    pub(crate) async fn restore(&self, state: HashMap<String, KVEntry>) -> anyhow::Result<()> {
+        {
+            let mut data = self.data.lock().await;
+            *data = state;
+        }
+        self.save().await
+    }
+
     pub(crate) async fn emit_checkpoint_state(&self) -> RsmCheckpointState {
         RsmCheckpointState::new(self.emit().await)
     }

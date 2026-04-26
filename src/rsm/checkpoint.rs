@@ -179,7 +179,6 @@ impl CheckpointState {
         &self.kv_store
     }
 
-    #[cfg(test)]
     pub(crate) fn client_dedup_watermark(&self) -> &HashMap<Uuid, u64> {
         &self.client_dedup_watermark
     }

@@ -18,6 +18,7 @@ use crate::{
     monitor::PaxosObserver,
     node::vertical_paxos::replica::VerticalClientReply,
     paxos_command::PaxosCommand,
+    rsm::checkpoint::RsmCheckpoint,
 };
 
 use super::{
@@ -98,6 +99,16 @@ impl SynodVerticalSystem {
         member_ids: Vec<Uuid>,
         leader: Uuid,
     ) -> anyhow::Result<Arc<VerticalClusterConfiguration>> {
+        self.reconfigure_members_with_checkpoint(member_ids, leader, None)
+            .await
+    }
+
+    pub async fn reconfigure_members_with_checkpoint(
+        &self,
+        member_ids: Vec<Uuid>,
+        leader: Uuid,
+        checkpoint: Option<RsmCheckpoint>,
+    ) -> anyhow::Result<Arc<VerticalClusterConfiguration>> {
         if member_ids.is_empty() {
             anyhow::bail!("cannot configure empty synod vertical membership");
         }
@@ -108,25 +119,27 @@ impl SynodVerticalSystem {
         let mut sequence = self.configuration_sequence.lock().await;
         let previous_configuration = self.active_configuration().await;
         let quorum = majority_quorum(&member_ids);
-        let configuration = Arc::new(
-            VerticalClusterConfiguration::new(
-                Uuid::new_v4(),
-                leader,
-                VerticalPaxosVariant::V1,
-                Ballot::new(sequence.next_ballot_number, leader),
-                sequence.next_start_index,
-                member_ids.clone(),
-                member_ids,
-                Quorum::new(quorum.clone())
-                    .map_err(|err| anyhow::anyhow!("read quorum should build: {err:?}"))?,
-                Quorum::new(quorum)
-                    .map_err(|err| anyhow::anyhow!("write quorum should build: {err:?}"))?,
-                previous_configuration
-                    .as_ref()
-                    .map(|configuration| configuration.ballot()),
-            )
-            .map_err(|err| anyhow::anyhow!("vertical configuration should build: {err:?}"))?,
-        );
+        let mut configuration = VerticalClusterConfiguration::new(
+            Uuid::new_v4(),
+            leader,
+            VerticalPaxosVariant::V1,
+            Ballot::new(sequence.next_ballot_number, leader),
+            sequence.next_start_index,
+            member_ids.clone(),
+            member_ids,
+            Quorum::new(quorum.clone())
+                .map_err(|err| anyhow::anyhow!("read quorum should build: {err:?}"))?,
+            Quorum::new(quorum)
+                .map_err(|err| anyhow::anyhow!("write quorum should build: {err:?}"))?,
+            previous_configuration
+                .as_ref()
+                .map(|configuration| configuration.ballot()),
+        )
+        .map_err(|err| anyhow::anyhow!("vertical configuration should build: {err:?}"))?;
+        if let Some(checkpoint) = checkpoint {
+            configuration = configuration.with_checkpoint(checkpoint);
+        }
+        let configuration = Arc::new(configuration);
         let configuration_id = configuration.id();
         let predecessor_chain = previous_configuration.into_iter().collect::<Vec<_>>();
 
@@ -140,7 +153,9 @@ impl SynodVerticalSystem {
         self.wait_for_activation_ready(configuration_id).await?;
 
         sequence.next_ballot_number += 1;
-        sequence.next_start_index += 1;
+        sequence.next_start_index = sequence
+            .next_start_index
+            .max(configuration.start_index() + 1);
         Ok(configuration)
     }
 
@@ -168,6 +183,13 @@ impl SynodVerticalSystem {
     ) -> anyhow::Result<crate::node::vertical_paxos::node::VerticalNodeSnapshot> {
         self.runtime
             .snapshot(node_id)
+            .await
+            .with_context(|| format!("vertical node {node_id} was not built"))
+    }
+
+    pub async fn replica_checkpoint(&self, node_id: Uuid) -> anyhow::Result<RsmCheckpoint> {
+        self.runtime
+            .replica_checkpoint(node_id)
             .await
             .with_context(|| format!("vertical node {node_id} was not built"))
     }
