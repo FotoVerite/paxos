@@ -14,18 +14,18 @@ use crate::{
 
 use tera::Tera;
 
+pub type RoomMap = Arc<DashMap<String, Arc<Mutex<SynodCluster>>>>;
+
 /// Shared state for the WebSocketObserver and ClusterManager.
 #[derive(Clone)]
 pub struct AppState {
     pub clusters: Arc<DashMap<IpAddr, Arc<Mutex<ClusterManager>>>>,
-    pub synod: Arc<Mutex<SynodCluster>>,
+    pub rooms: RoomMap,
     pub tera: Arc<Tera>,
 }
 
 impl AppState {
     pub async fn new() -> anyhow::Result<Self> {
-        // Load templates from the templates directory
-        // This will find all .html files in templates/ and subdirectories
         let tera = match Tera::new("templates/**/*.html") {
             Ok(t) => t,
             Err(e) => {
@@ -34,31 +34,46 @@ impl AppState {
             }
         };
 
-        let synod_observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
-        let synod = SynodCluster::new(
-            Arc::new(ClusterPersistence::for_test("synod-main")),
-            synod_observer,
-        )
-        .await?;
-        let synod = Arc::new(Mutex::new(synod));
-        spawn_synod_liveness_sweeper(Arc::clone(&synod));
+        let rooms: RoomMap = Arc::new(DashMap::new());
+        spawn_synod_liveness_sweeper(Arc::clone(&rooms));
 
         Ok(Self {
             clusters: Arc::new(DashMap::new()),
-            synod,
+            rooms,
             tera: Arc::new(tera),
         })
     }
+
+    pub async fn get_or_create_room(&self, room: &str) -> Arc<Mutex<SynodCluster>> {
+        if let Some(existing) = self.rooms.get(room) {
+            return Arc::clone(existing.value());
+        }
+        let observer: Arc<dyn PaxosObserver> = Arc::new(NoOpObserver);
+        let cluster = SynodCluster::new(
+            Arc::new(ClusterPersistence::for_test(&format!("synod-{room}"))),
+            observer,
+        )
+        .await
+        .expect("failed to create synod room");
+        let cluster = Arc::new(Mutex::new(cluster));
+        self.rooms
+            .entry(room.to_string())
+            .or_insert_with(|| Arc::clone(&cluster));
+        Arc::clone(self.rooms.get(room).unwrap().value())
+    }
 }
 
-fn spawn_synod_liveness_sweeper(synod: Arc<Mutex<SynodCluster>>) {
+fn spawn_synod_liveness_sweeper(rooms: RoomMap) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
         loop {
             interval.tick().await;
-            let mut synod = synod.lock().await;
-            if let Err(err) = synod.decommission_idle_clients(SYNOD_CLIENT_TTL).await {
-                tracing::warn!("failed to decommission idle synod clients: {err}");
+            let handles: Vec<_> = rooms.iter().map(|r| Arc::clone(r.value())).collect();
+            for handle in handles {
+                let mut synod = handle.lock().await;
+                if let Err(err) = synod.decommission_idle_clients(SYNOD_CLIENT_TTL).await {
+                    tracing::warn!("failed to decommission idle synod clients: {err}");
+                }
             }
         }
     });

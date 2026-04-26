@@ -7,18 +7,18 @@ use axum::{
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::time::{Duration, interval};
 use uuid::Uuid;
 
 use crate::{
     cluster::synod::{
-        ClientId, RUST_EMOJI_POOL, SYNOD_CLIENT_TTL, SynodProposalError, SynodRequestStatus,
-        SynodRoomState,
+        ClientId, RUST_EMOJI_POOL, SYNOD_CLIENT_TTL, SynodCluster, SynodProposalError,
+        SynodRequestStatus, SynodRoomState,
     },
     web::handlers::AppState,
 };
-
-const DEFAULT_ROOM: &str = "main";
 
 #[derive(Debug, Deserialize)]
 pub struct JoinRequest {
@@ -27,7 +27,7 @@ pub struct JoinRequest {
 
 #[derive(Debug, Serialize)]
 pub struct JoinResponse {
-    pub room: &'static str,
+    pub room: String,
     pub client_id: String,
     pub assigned_node: String,
     pub active_nodes: usize,
@@ -42,7 +42,7 @@ pub struct HeartbeatRequest {
 
 #[derive(Debug, Serialize)]
 pub struct HeartbeatResponse {
-    pub room: &'static str,
+    pub room: String,
     pub client_id: String,
     pub assigned_node: String,
     pub active_nodes: usize,
@@ -58,7 +58,7 @@ pub struct ProposalRequest {
 
 #[derive(Debug, Serialize)]
 pub struct StatusResponse {
-    pub room: &'static str,
+    pub room: String,
     pub active_nodes: usize,
     pub bootstrap_node: Option<Uuid>,
     pub active_configuration: Option<ConfigurationStatus>,
@@ -69,11 +69,18 @@ pub struct StatusResponse {
 #[derive(Debug, Deserialize)]
 pub struct RequestStatusQuery {
     pub client_id: String,
+    pub room: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SocketQuery {
     pub client_id: Option<String>,
+    pub room: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RoomQuery {
+    pub room: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -100,6 +107,10 @@ pub struct ConfigurationStatus {
     pub start_index: usize,
 }
 
+fn room_name(room: Option<&String>) -> &str {
+    room.map(|s| s.as_str()).filter(|s| !s.is_empty()).unwrap_or("main")
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(mobile_page))
@@ -120,9 +131,15 @@ async fn dashboard_page(State(state): State<AppState>) -> Response {
     render_synod_template(&state, "synod/dashboard.html")
 }
 
-async fn join(State(state): State<AppState>, Json(request): Json<JoinRequest>) -> Response {
+async fn join(
+    State(state): State<AppState>,
+    Query(room_query): Query<RoomQuery>,
+    Json(request): Json<JoinRequest>,
+) -> Response {
+    let room = room_name(room_query.room.as_ref()).to_string();
+    let synod = state.get_or_create_room(&room).await;
     let client_id = request.client_id.map(ClientId::from_existing);
-    let mut synod = state.synod.lock().await;
+    let mut synod = synod.lock().await;
     let assignment = match synod.assign_client(client_id).await {
         Ok(assignment) => assignment,
         Err(err) => {
@@ -136,7 +153,7 @@ async fn join(State(state): State<AppState>, Json(request): Json<JoinRequest>) -
     let membership = synod.membership();
 
     Json(JoinResponse {
-        room: DEFAULT_ROOM,
+        room,
         client_id: assignment.client_id.to_string(),
         assigned_node: assignment.node_id.to_string(),
         active_nodes: membership.node_count(),
@@ -148,9 +165,12 @@ async fn join(State(state): State<AppState>, Json(request): Json<JoinRequest>) -
 
 async fn heartbeat(
     State(state): State<AppState>,
+    Query(room_query): Query<RoomQuery>,
     Json(request): Json<HeartbeatRequest>,
 ) -> Response {
-    let mut synod = state.synod.lock().await;
+    let room = room_name(room_query.room.as_ref()).to_string();
+    let synod = state.get_or_create_room(&room).await;
+    let mut synod = synod.lock().await;
     let client_id = ClientId::from_existing(request.client_id);
     let Some(assignment) = synod.heartbeat_client(&client_id) else {
         return (StatusCode::NOT_FOUND, "unknown synod client").into_response();
@@ -158,7 +178,7 @@ async fn heartbeat(
     let membership = synod.membership();
 
     Json(HeartbeatResponse {
-        room: DEFAULT_ROOM,
+        room,
         client_id: assignment.client_id.to_string(),
         assigned_node: assignment.node_id.to_string(),
         active_nodes: membership.node_count(),
@@ -167,8 +187,14 @@ async fn heartbeat(
     .into_response()
 }
 
-async fn propose(State(state): State<AppState>, Json(request): Json<ProposalRequest>) -> Response {
-    let synod = state.synod.lock().await;
+async fn propose(
+    State(state): State<AppState>,
+    Query(room_query): Query<RoomQuery>,
+    Json(request): Json<ProposalRequest>,
+) -> Response {
+    let room = room_name(room_query.room.as_ref()).to_string();
+    let synod = state.get_or_create_room(&room).await;
+    let synod = synod.lock().await;
     match synod
         .propose_emoji(
             ClientId::from_existing(request.client_id),
@@ -196,8 +222,13 @@ async fn propose(State(state): State<AppState>, Json(request): Json<ProposalRequ
     }
 }
 
-async fn status(State(state): State<AppState>) -> impl IntoResponse {
-    let synod = state.synod.lock().await;
+async fn status(
+    State(state): State<AppState>,
+    Query(room_query): Query<RoomQuery>,
+) -> impl IntoResponse {
+    let room = room_name(room_query.room.as_ref()).to_string();
+    let synod = state.get_or_create_room(&room).await;
+    let synod = synod.lock().await;
     let membership = synod.membership();
     let active_configuration =
         synod
@@ -212,7 +243,7 @@ async fn status(State(state): State<AppState>) -> impl IntoResponse {
             });
 
     Json(StatusResponse {
-        room: DEFAULT_ROOM,
+        room,
         active_nodes: membership.node_count(),
         bootstrap_node: membership.bootstrap_node,
         active_configuration,
@@ -226,7 +257,9 @@ async fn request_status(
     Path(request_id): Path<u64>,
     Query(query): Query<RequestStatusQuery>,
 ) -> Response {
-    let synod = state.synod.lock().await;
+    let room = room_name(query.room.as_ref()).to_string();
+    let synod = state.get_or_create_room(&room).await;
+    let synod = synod.lock().await;
     match synod.request_status(&ClientId::from_existing(query.client_id), request_id) {
         Some(status) => Json::<SynodRequestStatus>(status).into_response(),
         None => (StatusCode::NOT_FOUND, "unknown synod request").into_response(),
@@ -238,12 +271,21 @@ async fn ws(
     State(state): State<AppState>,
     Query(query): Query<SocketQuery>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, state, query.client_id))
+    let room = room_name(query.room.as_ref()).to_string();
+    ws.on_upgrade(move |socket| async move {
+        let room_cluster = state.get_or_create_room(&room).await;
+        handle_socket(socket, room, room_cluster, query.client_id).await;
+    })
 }
 
-async fn handle_socket(mut socket: WebSocket, state: AppState, client_id: Option<String>) {
+async fn handle_socket(
+    mut socket: WebSocket,
+    room: String,
+    room_cluster: Arc<Mutex<SynodCluster>>,
+    client_id: Option<String>,
+) {
     let joined = {
-        let mut synod = state.synod.lock().await;
+        let mut synod = room_cluster.lock().await;
         let assignment = match synod
             .assign_client(client_id.map(ClientId::from_existing))
             .await
@@ -262,7 +304,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState, client_id: Option
         };
         let membership = synod.membership();
         JoinResponse {
-            room: DEFAULT_ROOM,
+            room: room.clone(),
             client_id: assignment.client_id.to_string(),
             assigned_node: assignment.node_id.to_string(),
             active_nodes: membership.node_count(),
@@ -286,7 +328,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState, client_id: Option
     loop {
         tokio::select! {
             _ = ticker.tick() => {
-                if send_room_state(&mut socket, &state).await.is_err() {
+                if send_room_state(&mut socket, &room, &room_cluster).await.is_err() {
                     break;
                 }
             }
@@ -296,7 +338,7 @@ async fn handle_socket(mut socket: WebSocket, state: AppState, client_id: Option
                 };
                 match message {
                     Message::Text(payload) => {
-                        if handle_socket_message(&mut socket, &state, &socket_client_id, &payload).await.is_err() {
+                        if handle_socket_message(&mut socket, &room, &room_cluster, &socket_client_id, &payload).await.is_err() {
                             break;
                         }
                     }
@@ -315,7 +357,8 @@ async fn handle_socket(mut socket: WebSocket, state: AppState, client_id: Option
 
 async fn handle_socket_message(
     socket: &mut WebSocket,
-    state: &AppState,
+    room: &str,
+    room_cluster: &Arc<Mutex<SynodCluster>>,
     client_id: &ClientId,
     payload: &str,
 ) -> Result<(), axum::Error> {
@@ -326,7 +369,7 @@ async fn handle_socket_message(
     match message {
         SynodSocketClientMessage::Heartbeat => {
             let heartbeat = {
-                let mut synod = state.synod.lock().await;
+                let mut synod = room_cluster.lock().await;
                 let Some(assignment) = synod.heartbeat_client(client_id) else {
                     send_socket_message(
                         socket,
@@ -339,7 +382,7 @@ async fn handle_socket_message(
                 };
                 let membership = synod.membership();
                 HeartbeatResponse {
-                    room: DEFAULT_ROOM,
+                    room: room.to_string(),
                     client_id: assignment.client_id.to_string(),
                     assigned_node: assignment.node_id.to_string(),
                     active_nodes: membership.node_count(),
@@ -353,9 +396,13 @@ async fn handle_socket_message(
     Ok(())
 }
 
-async fn send_room_state(socket: &mut WebSocket, state: &AppState) -> Result<(), axum::Error> {
+async fn send_room_state(
+    socket: &mut WebSocket,
+    room: &str,
+    room_cluster: &Arc<Mutex<SynodCluster>>,
+) -> Result<(), axum::Error> {
     let status = {
-        let synod = state.synod.lock().await;
+        let synod = room_cluster.lock().await;
         let membership = synod.membership();
         let active_configuration =
             synod
@@ -370,7 +417,7 @@ async fn send_room_state(socket: &mut WebSocket, state: &AppState) -> Result<(),
                 });
 
         StatusResponse {
-            room: DEFAULT_ROOM,
+            room: room.to_string(),
             active_nodes: membership.node_count(),
             bootstrap_node: membership.bootstrap_node,
             active_configuration,

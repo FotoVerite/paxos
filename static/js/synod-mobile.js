@@ -1,6 +1,7 @@
-const CLIENT_KEY = "synod.main.client_id";
-const REQUEST_KEY = "synod.main.request_id";
-const NAME_KEY = "synod.main.character_name";
+const ROOM = new URLSearchParams(location.search).get("room") || "main";
+const CLIENT_KEY = `synod.${ROOM}.client_id`;
+const REQUEST_KEY = `synod.${ROOM}.request_id`;
+const NAME_KEY = `synod.${ROOM}.character_name`;
 const HEARTBEAT_MS = 15000;
 
 const fallbackEmojiPool = ["🦀", "📦", "🔒", "🧵", "⚙️", "🧪"];
@@ -165,7 +166,11 @@ function addStreamEmoji(emoji, count) {
   const item = document.createElement("div");
   item.className = "floating-emoji";
   item.textContent = emoji;
-  item.style.setProperty("--x", `${12 + Math.random() * 76}%`);
+  const laneIndex = Math.max(0, emojiPool.indexOf(emoji));
+  const laneCount = Math.max(emojiPool.length, 1);
+  const laneCenter = ((laneIndex + 0.5) / laneCount) * 100;
+  const jitter = (Math.random() - 0.5) * 8;
+  item.style.setProperty("--x", `${Math.min(92, Math.max(8, laneCenter + jitter))}%`);
   item.style.setProperty("--size", `${24 + Math.min(count || 0, 14) * 2}px`);
   streamStage.appendChild(item);
   item.addEventListener("animationend", () => item.remove());
@@ -177,6 +182,7 @@ function renderHeat(heat) {
   heat.forEach(({ emoji, count }) => {
     const pill = document.createElement("div");
     pill.className = "heat-pill";
+    pill.dataset.emoji = emoji;
     pill.style.setProperty("--heat", String(count / max));
     if (count > 0 && count === max) pill.classList.add("is-hottest");
 
@@ -191,7 +197,7 @@ function renderHeat(heat) {
 }
 
 async function refreshStatus({ animateRecent = true } = {}) {
-  const response = await fetch("/synod/api/status");
+  const response = await fetch(`/synod/api/status?room=${encodeURIComponent(ROOM)}`);
   if (!response.ok) return;
   const status = await response.json();
   activeNodes.textContent = status.active_nodes;
@@ -199,7 +205,7 @@ async function refreshStatus({ animateRecent = true } = {}) {
 }
 
 async function waitForRequest(requestId) {
-  const params = new URLSearchParams({ client_id: session.client_id });
+  const params = new URLSearchParams({ client_id: session.client_id, room: ROOM });
 
   for (let attempt = 0; attempt < 18; attempt += 1) {
     const response = await fetch(`/synod/api/requests/${requestId}?${params}`);
@@ -225,7 +231,7 @@ async function waitForRequest(requestId) {
 async function joinRoom() {
   submitButton.disabled = true;
   const clientId = localStorage.getItem(CLIENT_KEY);
-  const response = await fetch("/synod/api/join", {
+  const response = await fetch(`/synod/api/join?room=${encodeURIComponent(ROOM)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ client_id: clientId }),
@@ -250,7 +256,7 @@ async function joinRoom() {
 
 async function sendHeartbeat() {
   if (!session) return;
-  const response = await fetch("/synod/api/heartbeat", {
+  const response = await fetch(`/synod/api/heartbeat?room=${encodeURIComponent(ROOM)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ client_id: session.client_id }),
@@ -281,7 +287,7 @@ function startHeartbeat() {
 
 function socketUrl() {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const params = new URLSearchParams();
+  const params = new URLSearchParams({ room: ROOM });
   if (session?.client_id) {
     params.set("client_id", session.client_id);
   }
@@ -370,7 +376,7 @@ async function drainProposalQueue() {
       ? `${emoji} proposed. (${queued} queued)`
       : `${emoji} proposed.`;
 
-    const response = await fetch("/synod/api/proposals", {
+    const response = await fetch(`/synod/api/proposals?room=${encodeURIComponent(ROOM)}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

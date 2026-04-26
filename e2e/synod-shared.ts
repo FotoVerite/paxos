@@ -1,6 +1,12 @@
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
-const CLIENT_KEY = "synod.main.client_id";
+export function uniqueRoom(): string {
+  return `test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function clientKey(room: string) {
+  return `synod.${room}.client_id`;
+}
 
 export type MobileClient = {
   context: BrowserContext;
@@ -11,27 +17,26 @@ export type MobileClient = {
  * Create a new mobile browser context and load the Synod app.
  * Waits for the client to be ready before returning.
  */
-export async function newMobileClient(browser: Browser): Promise<MobileClient> {
+export async function newMobileClient(browser: Browser, room = "main"): Promise<MobileClient> {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,
     hasTouch: true
   });
   const page = await context.newPage();
-  await page.goto("/synod");
-  
-  // Wait for client to be ready
+  await page.goto(`/synod?room=${encodeURIComponent(room)}`);
+
   await expect(page.locator("#statusLine")).toContainText("Ready");
   await expect(page.locator("#clientName")).not.toHaveText("Joining...");
-  
+
   return { context, page };
 }
 
 /**
  * Get the client's stored ID from localStorage.
  */
-export async function clientId(page: Page): Promise<string | null> {
-  return page.evaluate((key) => window.localStorage.getItem(key), CLIENT_KEY);
+export async function clientId(page: Page, room = "main"): Promise<string | null> {
+  return page.evaluate((key) => window.localStorage.getItem(key), clientKey(room));
 }
 
 /**
@@ -154,13 +159,14 @@ export async function closeAllClients(clients: MobileClient[]): Promise<void> {
 }
 
 /**
- * Create multiple mobile clients concurrently.
+ * Create multiple mobile clients concurrently, all in the same room.
  */
 export async function openMultipleClients(
   browser: Browser,
-  count: number
+  count: number,
+  room = "main"
 ): Promise<MobileClient[]> {
   return Promise.all(
-    Array.from({ length: count }, () => newMobileClient(browser))
+    Array.from({ length: count }, () => newMobileClient(browser, room))
   );
 }
