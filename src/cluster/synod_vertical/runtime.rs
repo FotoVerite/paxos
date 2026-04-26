@@ -153,13 +153,18 @@ impl SynodVerticalRuntime {
         configuration: Arc<VerticalClusterConfiguration>,
         active_configuration: Arc<VerticalClusterConfiguration>,
     ) -> anyhow::Result<()> {
+        let active_replicas = active_configuration.replicas();
         for node_id in configuration.replicas().iter().copied() {
-            let node = self
-                .node(node_id)
-                .await
-                .with_context(|| format!("vertical replica node {node_id} was not built"))?;
-            node.decommission_replica_set(Arc::clone(&active_configuration))
-                .await;
+            // Only decommission nodes that are NOT in the new active replica set.
+            // Nodes that are still active should retain their active_configuration.
+            if !active_replicas.contains(&node_id) {
+                let node = self
+                    .node(node_id)
+                    .await
+                    .with_context(|| format!("vertical replica node {node_id} was not built"))?;
+                node.decommission_replica_set(Arc::clone(&active_configuration))
+                    .await;
+            }
         }
         Ok(())
     }
