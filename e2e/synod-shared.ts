@@ -69,23 +69,24 @@ export async function statusLine(page: Page): Promise<string> {
  * Returns the slot number where the proposal was applied.
  */
 export async function submitAndWaitForApply(page: Page, timeout: number = 30_000): Promise<number> {
-  // Wait for button to be enabled and clickable
   await expect(page.locator("#submitButton")).toBeEnabled();
-  
+
   const slotBefore = await clusterSlot(page);
-  
-  // Submit the proposal
+
   await page.locator("#submitButton").click();
-  
-  // Wait for it to apply (will be current slot or higher)
-  await expect(page.locator("#statusLine")).toContainText("applied at slot", {
-    timeout
-  });
-  
-  // Button should be enabled again
-  await expect(page.locator("#submitButton")).toBeEnabled();
-  
-  // Return the slot it was applied to
+
+  // Wait for clusterSlot to advance past slotBefore. This is more reliable than
+  // watching status text: the "proposed" state can be too brief to observe on
+  // fast loopback connections, and "applied at slot" text is stale across calls.
+  await page.waitForFunction(
+    (before: number) => {
+      const el = document.querySelector("#clusterSlot");
+      return el !== null && Number(el.textContent) > before;
+    },
+    slotBefore,
+    { timeout }
+  );
+
   return await clusterSlot(page);
 }
 

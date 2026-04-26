@@ -4,16 +4,65 @@ const NAME_KEY = "synod.main.character_name";
 const HEARTBEAT_MS = 15000;
 
 const fallbackEmojiPool = ["🦀", "📦", "🔒", "🧵", "⚙️", "🧪"];
-const names = [
-  "Crate Runner",
-  "Borrow Checker",
-  "Thread Keeper",
-  "Mutex Rider",
-  "Cargo Pilot",
-  "Trait Caller",
-  "Ferris Bureau",
-  "Lifetime Clerk",
+
+const nameCorpus = [
+  "borrow", "checker", "lifetime", "ownership", "rustacean",
+  "mutex", "channel", "thread", "spawner", "closure",
+  "iterator", "receiver", "sender", "runtime", "executor",
+  "reactor", "allocate", "serialize", "atomic", "scheduler",
+  "formatter", "scanner", "tokenizer", "optimizer", "linker",
+  "handler", "watcher", "tracer", "builder", "logger",
+  "mapper", "emitter", "walker", "seeker", "worker",
+  "welder", "hauler", "runner", "keeper", "guard",
+  "warden", "drainer", "wrapper", "hasher", "merger",
+  "folder", "poller", "waker", "joiner", "binder",
+  "forker", "locker", "mover", "cloner", "dropper",
+  "freezer", "caster", "aligner", "patcher", "pusher",
+  "puller", "feeder", "reader", "writer", "loader",
+  "driver", "holder", "catcher", "wrangler", "hooker",
+  "flusher", "sealer", "stealer", "leaker", "pinning",
+  "boxing", "arcing", "linking", "forking", "locking",
 ];
+
+function buildMarkov(words, order = 2) {
+  const chain = {};
+  for (const word of words) {
+    const w = "\x00".repeat(order) + word + "\x00";
+    for (let i = order; i < w.length; i++) {
+      const key = w.slice(i - order, i);
+      (chain[key] ??= []).push(w[i]);
+    }
+  }
+  return chain;
+}
+
+function markovWord(chain, order = 2, min = 4, max = 9) {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    let key = "\x00".repeat(order);
+    let out = "";
+    for (let i = 0; i < max + order * 2; i++) {
+      const opts = chain[key];
+      if (!opts) break;
+      const ch = opts[Math.floor(Math.random() * opts.length)];
+      if (ch === "\x00") { if (out.length >= min) break; else continue; }
+      out += ch;
+      key = (key + ch).slice(-order);
+    }
+    if (out.length >= min) return out[0].toUpperCase() + out.slice(1);
+  }
+  return null;
+}
+
+const nameChain = buildMarkov(nameCorpus);
+
+function generateName() {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const a = markovWord(nameChain);
+    const b = markovWord(nameChain);
+    if (a && b && a !== b) return `${a} ${b}`;
+  }
+  return "Ferris Bureau";
+}
 
 const rotations = {
   "🦀": "rotateX(-18deg) rotateY(24deg)",
@@ -43,6 +92,8 @@ let spin = 0;
 let lastSeenSequence = 0;
 let heartbeatTimer = null;
 let roomSocket = null;
+let proposalQueue = [];
+let processingProposals = false;
 
 function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
@@ -59,7 +110,7 @@ function initials(name) {
 
 function setupIdentity() {
   const stored = localStorage.getItem(NAME_KEY);
-  const name = stored || pick(names);
+  const name = stored || generateName();
   localStorage.setItem(NAME_KEY, name);
   clientName.textContent = name;
   clientBadge.textContent = initials(name);
@@ -122,9 +173,12 @@ function addStreamEmoji(emoji, count) {
 
 function renderHeat(heat) {
   heatRow.replaceChildren();
+  const max = Math.max(...heat.map(h => h.count), 1);
   heat.forEach(({ emoji, count }) => {
     const pill = document.createElement("div");
     pill.className = "heat-pill";
+    pill.style.setProperty("--heat", String(count / max));
+    if (count > 0 && count === max) pill.classList.add("is-hottest");
 
     const symbol = document.createElement("span");
     symbol.textContent = emoji;
@@ -169,6 +223,7 @@ async function waitForRequest(requestId) {
 }
 
 async function joinRoom() {
+  submitButton.disabled = true;
   const clientId = localStorage.getItem(CLIENT_KEY);
   const response = await fetch("/synod/api/join", {
     method: "POST",
@@ -189,6 +244,7 @@ async function joinRoom() {
   rollTo(emojiPool[0] || "🦀");
   renderRoomState(session.state, { animateRecent: false });
   statusLine.textContent = "Ready.";
+  submitButton.disabled = false;
   connectRoomSocket();
 }
 
@@ -292,35 +348,48 @@ function connectRoomSocket() {
   });
 }
 
-async function submitPull() {
-  if (!session || submitButton.disabled) return;
+function submitPull() {
+  if (!session) return;
 
   const emoji = pickEmoji();
   const requestId = nextRequestId();
   rollTo(emoji);
-  submitButton.disabled = true;
-  statusLine.textContent = `${emoji} proposed.`;
+  proposalQueue.push({ emoji, requestId });
 
-  const response = await fetch("/synod/api/proposals", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      client_id: session.client_id,
-      request_id: requestId,
-      emoji,
-    }),
-  });
-
-  if (!response.ok) {
-    statusLine.textContent = await response.text();
-    submitButton.disabled = false;
-    return;
+  if (!processingProposals) {
+    drainProposalQueue();
   }
+}
 
-  const receipt = await response.json();
-  statusLine.textContent = `${receipt.emoji} ${receipt.status.stage} at node ${receipt.assigned_node.slice(0, 8)}.`;
-  await waitForRequest(requestId);
-  submitButton.disabled = false;
+async function drainProposalQueue() {
+  processingProposals = true;
+  while (proposalQueue.length > 0) {
+    const { emoji, requestId } = proposalQueue.shift();
+    const queued = proposalQueue.length;
+    statusLine.textContent = queued > 0
+      ? `${emoji} proposed. (${queued} queued)`
+      : `${emoji} proposed.`;
+
+    const response = await fetch("/synod/api/proposals", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        client_id: session.client_id,
+        request_id: requestId,
+        emoji,
+      }),
+    });
+
+    if (!response.ok) {
+      statusLine.textContent = await response.text();
+      continue;
+    }
+
+    const receipt = await response.json();
+    statusLine.textContent = `${receipt.emoji} ${receipt.status.stage} at node ${receipt.assigned_node.slice(0, 8)}.`;
+    await waitForRequest(requestId);
+  }
+  processingProposals = false;
 }
 
 setupIdentity();

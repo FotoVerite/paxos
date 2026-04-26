@@ -244,7 +244,10 @@ async fn ws(
 async fn handle_socket(mut socket: WebSocket, state: AppState, client_id: Option<String>) {
     let joined = {
         let mut synod = state.synod.lock().await;
-        let assignment = match synod.assign_client(client_id.map(ClientId::from_existing)).await {
+        let assignment = match synod
+            .assign_client(client_id.map(ClientId::from_existing))
+            .await
+        {
             Ok(assignment) => assignment,
             Err(err) => {
                 let _ = send_socket_message(
@@ -273,8 +276,8 @@ async fn handle_socket(mut socket: WebSocket, state: AppState, client_id: Option
         &mut socket,
         SynodSocketServerMessage::Joined { session: joined },
     )
-        .await
-        .is_err()
+    .await
+    .is_err()
     {
         return;
     }

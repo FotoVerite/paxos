@@ -18,21 +18,14 @@
         <div class="badge" id="clientBadge">--</div>
       </section>
 
-      <section class="panel slot-panel">
-        <div class="slot-meta">
-          <span>cluster slot <strong id="clusterSlot">0</strong></span>
-          <span>last applied <strong id="lastApplied">0</strong></span>
-          <span>nodes <strong id="activeNodes">0</strong></span>
-        </div>
-      </section>
-
       <section class="panel machine-panel">
-        <div class="panel-title">
-          <div>
-            <p class="eyebrow">command generator</p>
-            <h2>Pull a value</h2>
+        <div class="machine-header">
+          <div class="machine-stats">
+            <span>slot <strong id="clusterSlot">0</strong></span>
+            <span>applied <strong id="lastApplied">0</strong></span>
+            <span>nodes <strong id="activeNodes">0</strong></span>
           </div>
-          <strong id="poolSize">0 in pool</strong>
+          <span class="machine-pool" id="poolSize">0 in pool</span>
         </div>
         <div class="dice-stage" aria-live="polite">
           <div class="cube" id="emojiCube">
