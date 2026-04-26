@@ -23,6 +23,7 @@ use crate::{
 #[derive(Debug, Deserialize)]
 pub struct JoinRequest {
     pub client_id: Option<String>,
+    pub client_name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -62,6 +63,7 @@ pub struct StatusResponse {
     pub active_nodes: usize,
     pub bootstrap_node: Option<Uuid>,
     pub active_configuration: Option<ConfigurationStatus>,
+    pub clients: Vec<ClientStatus>,
     pub emoji_pool: Vec<&'static str>,
     pub state: SynodRoomState,
 }
@@ -107,8 +109,17 @@ pub struct ConfigurationStatus {
     pub start_index: usize,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ClientStatus {
+    pub client_id: String,
+    pub client_name: Option<String>,
+    pub node_id: Uuid,
+}
+
 fn room_name(room: Option<&String>) -> &str {
-    room.map(|s| s.as_str()).filter(|s| !s.is_empty()).unwrap_or("main")
+    room.map(|s| s.as_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("main")
 }
 
 pub fn router() -> Router<AppState> {
@@ -150,6 +161,9 @@ async fn join(
                 .into_response();
         }
     };
+    if let Some(client_name) = request.client_name {
+        synod.record_client_name(&assignment.client_id, client_name);
+    }
     let membership = synod.membership();
 
     Json(JoinResponse {
@@ -247,6 +261,15 @@ async fn status(
         active_nodes: membership.node_count(),
         bootstrap_node: membership.bootstrap_node,
         active_configuration,
+        clients: membership
+            .assignments
+            .iter()
+            .map(|assignment| ClientStatus {
+                client_id: assignment.client_id.to_string(),
+                client_name: synod.client_name(&assignment.client_id),
+                node_id: assignment.node_id,
+            })
+            .collect(),
         emoji_pool: RUST_EMOJI_POOL.to_vec(),
         state: synod.room_state(),
     })
@@ -421,6 +444,15 @@ async fn send_room_state(
             active_nodes: membership.node_count(),
             bootstrap_node: membership.bootstrap_node,
             active_configuration,
+            clients: membership
+                .assignments
+                .iter()
+                .map(|assignment| ClientStatus {
+                    client_id: assignment.client_id.to_string(),
+                    client_name: synod.client_name(&assignment.client_id),
+                    node_id: assignment.node_id,
+                })
+                .collect(),
             emoji_pool: RUST_EMOJI_POOL.to_vec(),
             state: synod.room_state(),
         }

@@ -104,6 +104,14 @@ impl SynodCluster {
         Ok(assignment)
     }
 
+    pub fn record_client_name(&self, client_id: &ClientId, client_name: impl Into<String>) {
+        self.read_model.record_client_name(client_id, client_name);
+    }
+
+    pub fn client_name(&self, client_id: &ClientId) -> Option<String> {
+        self.read_model.client_name(client_id)
+    }
+
     pub fn heartbeat_client(&mut self, client_id: &ClientId) -> Option<ClientAssignment> {
         let assignment = self.assignments.get(client_id)?.clone();
         self.last_seen.insert(client_id.clone(), Instant::now());

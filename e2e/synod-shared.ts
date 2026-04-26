@@ -43,8 +43,13 @@ export async function clientId(page: Page, room = "main"): Promise<string | null
  * Get the current heat map snapshot as an array of emoji counts.
  */
 export async function heatSnapshot(page: Page): Promise<string[]> {
-  return page.locator(".heat-pill").evaluateAll((items) =>
-    items.map((item) => item.textContent?.replace(/\s+/g, " ").trim() ?? "")
+  return page.locator(".stream-lane").evaluateAll((lanes) =>
+    lanes.map((lane) => {
+      const emoji = (lane as HTMLElement).dataset.emoji ?? "";
+      const countEl = lane.querySelector(".stream-count");
+      const count = countEl?.textContent?.trim() ?? "0";
+      return `${emoji}${count}`;
+    })
   );
 }
 

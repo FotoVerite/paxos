@@ -203,6 +203,36 @@ async fn joined_client_can_propose_rust_emoji() {
 }
 
 #[tokio::test]
+async fn proposed_and_applied_events_use_recorded_client_name() {
+    let mut cluster = test_cluster("synod_client_name_display").await;
+    let assignment = cluster
+        .assign_client(None)
+        .await
+        .expect("assignment should work");
+    cluster.record_client_name(&assignment.client_id, "Borrow Checker");
+
+    cluster
+        .propose_emoji(assignment.client_id.clone(), 1, "🦀".to_string())
+        .await
+        .expect("proposal should submit");
+    wait_for_applied(&cluster, &assignment.client_id, 1).await;
+
+    let status = cluster
+        .request_status(&assignment.client_id, 1)
+        .expect("status should exist");
+    let room_state = cluster.room_state();
+    let recent = room_state
+        .recent
+        .iter()
+        .find(|event| event.request_id == Some(1))
+        .expect("applied event should exist");
+
+    assert_eq!(status.client_id, "Borrow Checker");
+    assert_eq!(recent.client_id.as_deref(), Some("Borrow Checker"));
+    cluster.cleanup().await.expect("cleanup should work");
+}
+
+#[tokio::test]
 async fn late_joining_node_installs_current_rsm_checkpoint() {
     let mut cluster = test_cluster("synod_late_join_checkpoint").await;
     let first = cluster
@@ -296,14 +326,14 @@ fn emoji_proposal_uses_rsm_increment_command() {
 }
 
 async fn wait_for_applied(cluster: &SynodCluster, client_id: &ClientId, request_id: u64) {
-    for _ in 0..20 {
+    for _ in 0..100 {
         if cluster
             .request_status(client_id, request_id)
             .is_some_and(|status| status.stage == SynodRequestStage::Applied)
         {
             return;
         }
-        tokio::task::yield_now().await;
+        tokio::time::sleep(Duration::from_millis(10)).await;
     }
     panic!("request {request_id} was not applied");
 }

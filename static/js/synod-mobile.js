@@ -3,6 +3,7 @@ const CLIENT_KEY = `synod.${ROOM}.client_id`;
 const REQUEST_KEY = `synod.${ROOM}.request_id`;
 const NAME_KEY = `synod.${ROOM}.character_name`;
 const HEARTBEAT_MS = 15000;
+const dieFaces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
 const fallbackEmojiPool = ["🦀", "📦", "🔒", "🧵", "⚙️", "🧪"];
 
@@ -83,9 +84,9 @@ const lastApplied = document.querySelector("#lastApplied");
 const poolSize = document.querySelector("#poolSize");
 const emojiCube = document.querySelector("#emojiCube");
 const submitButton = document.querySelector("#submitButton");
+const submitButtonText = submitButton?.querySelector(".submit-button-text");
 const statusLine = document.querySelector("#statusLine");
 const streamStage = document.querySelector("#streamStage");
-const heatRow = document.querySelector("#heatRow");
 
 let session = null;
 let emojiPool = fallbackEmojiPool;
@@ -95,9 +96,29 @@ let heartbeatTimer = null;
 let roomSocket = null;
 let proposalQueue = [];
 let processingProposals = false;
+let laneRefs = new Map();
+
+const requiredElements = [
+  clientName,
+  clientBadge,
+  nodeLine,
+  activeNodes,
+  clusterSlot,
+  lastApplied,
+  poolSize,
+  emojiCube,
+  submitButton,
+  submitButtonText,
+  statusLine,
+  streamStage,
+];
 
 function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
+}
+
+function pickDieFace() {
+  return pick(dieFaces) || "⚄";
 }
 
 function initials(name) {
@@ -132,12 +153,18 @@ function rollTo(emoji) {
   emojiCube.style.transform = `${rotations[emoji] || rotations["🦀"]} rotateZ(${spin * 360}deg)`;
 }
 
+function setTriggerState(state, label) {
+  submitButton.classList.remove("is-idle", "is-arming", "is-submitting");
+  submitButton.classList.add(`is-${state}`);
+  submitButtonText.textContent = label;
+}
+
 function renderRoomState(state, { animateRecent = true } = {}) {
   if (!state) return;
 
   clusterSlot.textContent = String(state.cluster_slot);
   lastApplied.textContent = String(state.last_applied);
-  renderHeat(state.heat || []);
+  renderActivityLanes(state.heat || [], state.recent || []);
 
   for (const event of state.recent || []) {
     if (animateRecent && event.sequence > lastSeenSequence) {
@@ -152,7 +179,7 @@ function renderNewRoomEvents(state) {
 
   clusterSlot.textContent = String(state.cluster_slot);
   lastApplied.textContent = String(state.last_applied);
-  renderHeat(state.heat || []);
+  renderActivityLanes(state.heat || [], state.recent || []);
 
   for (const event of state.recent || []) {
     if (event.sequence > lastSeenSequence) {
@@ -163,36 +190,101 @@ function renderNewRoomEvents(state) {
 }
 
 function addStreamEmoji(emoji, count) {
+  const lane = laneRefs.get(emoji);
+  if (!lane) return;
+
   const item = document.createElement("div");
   item.className = "floating-emoji";
   item.textContent = emoji;
-  const laneIndex = Math.max(0, emojiPool.indexOf(emoji));
-  const laneCount = Math.max(emojiPool.length, 1);
-  const laneCenter = ((laneIndex + 0.5) / laneCount) * 100;
-  const jitter = (Math.random() - 0.5) * 8;
-  item.style.setProperty("--x", `${Math.min(92, Math.max(8, laneCenter + jitter))}%`);
   item.style.setProperty("--size", `${24 + Math.min(count || 0, 14) * 2}px`);
-  streamStage.appendChild(item);
+  item.style.setProperty("--drift", `${(Math.random() - 0.5) * 12}px`);
+  lane.body.appendChild(item);
+
+  lane.root.classList.remove("pulse");
+  void lane.root.offsetWidth;
+  lane.root.classList.add("pulse");
   item.addEventListener("animationend", () => item.remove());
+  window.setTimeout(() => lane.root.classList.remove("pulse"), 480);
 }
 
-function renderHeat(heat) {
-  heatRow.replaceChildren();
-  const max = Math.max(...heat.map(h => h.count), 1);
-  heat.forEach(({ emoji, count }) => {
-    const pill = document.createElement("div");
-    pill.className = "heat-pill";
-    pill.dataset.emoji = emoji;
-    pill.style.setProperty("--heat", String(count / max));
-    if (count > 0 && count === max) pill.classList.add("is-hottest");
+function ensureActivityScaffold() {
+  if (!streamStage) return;
+  if (laneRefs.size > 0) return;
+
+  streamStage.replaceChildren();
+  const empty = document.createElement("div");
+  empty.className = "stream-empty";
+  empty.textContent = "quiet chamber, waiting for the next proposal";
+  streamStage.appendChild(empty);
+
+  emojiPool.forEach((emoji) => {
+    const lane = document.createElement("div");
+    lane.className = "stream-lane";
+    lane.dataset.emoji = emoji;
+
+    const sigil = document.createElement("div");
+    sigil.className = "stream-sigil";
+    sigil.textContent = emoji;
+
+    const well = document.createElement("div");
+    well.className = "stream-well";
+
+    const fill = document.createElement("div");
+    fill.className = "stream-fill";
+
+    const body = document.createElement("div");
+    body.className = "stream-lane-body";
+
+    const meta = document.createElement("div");
+    meta.className = "stream-meta";
 
     const symbol = document.createElement("span");
+    symbol.className = "stream-symbol";
     symbol.textContent = emoji;
-    const value = document.createElement("strong");
-    value.textContent = String(count);
 
-    pill.append(symbol, value);
-    heatRow.appendChild(pill);
+    const count = document.createElement("strong");
+    count.className = "stream-count";
+    count.textContent = "0";
+
+    meta.append(symbol, count);
+    well.append(fill, body);
+    lane.append(sigil, well, meta);
+    streamStage.appendChild(lane);
+    laneRefs.set(emoji, { root: lane, body, fill, count, sigil });
+  });
+}
+
+function renderActivityLanes(heat, recent) {
+  if (!streamStage) return;
+  const hasPoolChanged =
+    laneRefs.size !== emojiPool.length ||
+    emojiPool.some((emoji) => !laneRefs.has(emoji));
+
+  if (hasPoolChanged) {
+    laneRefs = new Map();
+  }
+
+  ensureActivityScaffold();
+
+  const heatMap = new Map(heat.map(({ emoji, count }) => [emoji, count]));
+  const rankMap = new Map(
+    [...heat]
+      .sort((a, b) => b.count - a.count || emojiPool.indexOf(a.emoji) - emojiPool.indexOf(b.emoji))
+      .map(({ emoji }, index) => [emoji, index + 1])
+  );
+  const max = Math.max(...heat.map((entry) => entry.count), 1);
+  const hasActivity = recent.length > 0 || heat.some((entry) => entry.count > 0);
+  streamStage.classList.toggle("has-activity", hasActivity);
+
+  emojiPool.forEach((emoji) => {
+    const lane = laneRefs.get(emoji);
+    if (!lane) return;
+    const count = heatMap.get(emoji) || 0;
+    const ratio = count / max;
+    lane.root.style.setProperty("--heat", String(ratio));
+    lane.root.dataset.rank = String(rankMap.get(emoji) || emojiPool.length);
+    lane.count.textContent = String(count);
+    lane.root.classList.toggle("is-hot", count > 0 && count === max);
   });
 }
 
@@ -231,10 +323,11 @@ async function waitForRequest(requestId) {
 async function joinRoom() {
   submitButton.disabled = true;
   const clientId = localStorage.getItem(CLIENT_KEY);
+  const clientName = localStorage.getItem(NAME_KEY);
   const response = await fetch(`/synod/api/join?room=${encodeURIComponent(ROOM)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ client_id: clientId }),
+    body: JSON.stringify({ client_id: clientId, client_name: clientName }),
   });
 
   if (!response.ok) {
@@ -250,6 +343,7 @@ async function joinRoom() {
   rollTo(emojiPool[0] || "🦀");
   renderRoomState(session.state, { animateRecent: false });
   statusLine.textContent = "Ready.";
+  setTriggerState("idle", "roll dice");
   submitButton.disabled = false;
   connectRoomSocket();
 }
@@ -359,6 +453,8 @@ function submitPull() {
 
   const emoji = pickEmoji();
   const requestId = nextRequestId();
+  submitButton.dataset.face = pickDieFace();
+  setTriggerState("arming", "rolling");
   rollTo(emoji);
   proposalQueue.push({ emoji, requestId });
 
@@ -372,6 +468,7 @@ async function drainProposalQueue() {
   while (proposalQueue.length > 0) {
     const { emoji, requestId } = proposalQueue.shift();
     const queued = proposalQueue.length;
+    setTriggerState("submitting", queued > 0 ? `queued ${queued + 1}` : "submitting");
     statusLine.textContent = queued > 0
       ? `${emoji} proposed. (${queued} queued)`
       : `${emoji} proposed.`;
@@ -388,20 +485,28 @@ async function drainProposalQueue() {
 
     if (!response.ok) {
       statusLine.textContent = await response.text();
+      setTriggerState("idle", "roll dice");
       continue;
     }
 
     const receipt = await response.json();
     statusLine.textContent = `${receipt.emoji} ${receipt.status.stage} at node ${receipt.assigned_node.slice(0, 8)}.`;
     await waitForRequest(requestId);
+    setTriggerState("idle", proposalQueue.length > 0 ? `queued ${proposalQueue.length}` : "roll dice");
   }
   processingProposals = false;
+  setTriggerState("idle", "roll dice");
 }
 
-setupIdentity();
-submitButton.addEventListener("click", submitPull);
-joinRoom().catch((err) => {
-  statusLine.textContent = err.message;
-  submitButton.disabled = true;
-});
-window.setInterval(() => refreshStatus().catch(() => {}), 1500);
+if (requiredElements.every(Boolean)) {
+  setupIdentity();
+  submitButton.dataset.face = pickDieFace();
+  setTriggerState("idle", "joining");
+  submitButton.addEventListener("click", submitPull);
+  joinRoom().catch((err) => {
+    statusLine.textContent = err.message;
+    setTriggerState("idle", "offline");
+    submitButton.disabled = true;
+  });
+  window.setInterval(() => refreshStatus().catch(() => {}), 1500);
+}

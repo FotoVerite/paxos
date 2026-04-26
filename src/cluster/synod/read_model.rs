@@ -84,6 +84,31 @@ pub struct SynodReadModel {
 }
 
 impl SynodReadModel {
+    pub fn record_client_name(&self, client_id: &ClientId, client_name: impl Into<String>) {
+        let client_name = client_name.into();
+        if client_name.trim().is_empty() {
+            return;
+        }
+
+        let mut state = self.state.lock().expect("synod read model mutex poisoned");
+        state
+            .client_names
+            .insert(client_id.stable_uuid(), client_name.trim().to_string());
+    }
+
+    pub fn client_name(&self, client_id: &ClientId) -> Option<String> {
+        let state = self.state.lock().expect("synod read model mutex poisoned");
+        state.client_names.get(&client_id.stable_uuid()).cloned()
+    }
+
+    fn display_name(state: &ReadModelState, client_id: &ClientId) -> String {
+        state
+            .client_names
+            .get(&client_id.stable_uuid())
+            .cloned()
+            .unwrap_or_else(|| client_id.to_string())
+    }
+
     pub fn record_proposed(
         &self,
         client_id: &ClientId,
@@ -93,11 +118,9 @@ impl SynodReadModel {
     ) -> SynodRequestStatus {
         let client_uuid = client_id.stable_uuid();
         let mut state = self.state.lock().expect("synod read model mutex poisoned");
-        state
-            .client_names
-            .insert(client_uuid, client_id.to_string());
+        let display_name = Self::display_name(&state, client_id);
         let status = SynodRequestStatus {
-            client_id: client_id.to_string(),
+            client_id: display_name,
             request_id,
             emoji: emoji.to_string(),
             stage: SynodRequestStage::Proposed,
@@ -153,11 +176,9 @@ impl SynodReadModel {
     ) -> SynodRequestStatus {
         let client_uuid = client_id.stable_uuid();
         let mut state = self.state.lock().expect("synod read model mutex poisoned");
-        state
-            .client_names
-            .insert(client_uuid, client_id.to_string());
+        let display_name = Self::display_name(&state, client_id);
         let status = SynodRequestStatus {
-            client_id: client_id.to_string(),
+            client_id: display_name,
             request_id,
             emoji: emoji.to_string(),
             stage: SynodRequestStage::Failed,

@@ -1,65 +1,131 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Synod Dashboard</title>
-    <link rel="stylesheet" href="/css/synod.css">
-    <script src="/js/synod-dashboard.js" defer></script>
-  </head>
-  <body class="synod-page dashboard-page">
-    <main class="dashboard-shell">
-      <header class="dashboard-header">
-        <div>
-          <p class="eyebrow">synod / main</p>
-          <h1>Dashboard</h1>
-        </div>
-        <div class="tab-row" role="tablist" aria-label="Dashboard sections">
-          <button class="tab is-active" type="button" data-tab="live">Live</button>
-          <button class="tab" type="button" data-tab="controller">Controller</button>
-          <button class="tab" type="button" data-tab="events">Events</button>
-        </div>
-      </header>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synod · Dashboard</title>
+  <link rel="stylesheet" href="/css/synod-dashboard.css">
+</head>
+<body>
+<div class="dash-body">
 
-      <section class="dashboard-grid" id="livePanel">
-        <article class="panel">
-          <p class="eyebrow">membership</p>
-          <div class="metric" id="activeNodes">0</div>
-          <p class="status-line">active server-owned nodes</p>
-        </article>
-        <article class="panel">
-          <p class="eyebrow">configuration</p>
-          <div class="metric small" id="configId">none</div>
-          <p class="status-line" id="leaderId">leader pending</p>
-        </article>
-        <article class="panel">
-          <p class="eyebrow">rsm</p>
-          <div class="metric" id="lastApplied">0</div>
-          <p class="status-line" id="clusterSlot">cluster slot 0</p>
-        </article>
-        <article class="panel">
-          <p class="eyebrow">heat</p>
-          <div class="dashboard-heat" id="heatRow"></div>
-        </article>
-      </section>
+  <header class="dash-header">
+    <div class="dash-brand">
+      <span class="dash-brand-name">SYNOD</span>
+      <span class="dash-brand-sep">/</span>
+      <span class="dash-brand-room" id="roomLabel">main</span>
+    </div>
+    <div class="dash-header-stats">
+      <div class="dash-hstat">
+        <span class="dash-lamp" id="statusLamp"></span>
+        <span class="dash-hstat-val" id="headerStatus">connecting</span>
+      </div>
+      <div class="dash-hstat">
+        <span class="dash-hstat-label">slot</span>
+        <span class="dash-hstat-val" id="headerSlot">—</span>
+      </div>
+      <div class="dash-hstat">
+        <span class="dash-hstat-label">nodes</span>
+        <span class="dash-hstat-val" id="headerNodes">—</span>
+      </div>
+      <div class="dash-hstat">
+        <span class="dash-hstat-label">applied</span>
+        <span class="dash-hstat-val" id="headerApplied">—</span>
+      </div>
+    </div>
+  </header>
 
-      <section class="panel hidden" id="controllerPanel">
-        <p class="eyebrow">controller</p>
-        <p class="status-line">Controls land after reset/pause semantics are wired.</p>
-      </section>
+  <nav class="dash-tabs">
+    <button class="dash-tab is-active" data-tab="stream">Stream</button>
+    <button class="dash-tab" data-tab="synod">Synod</button>
+    <button class="dash-tab" data-tab="ledger">Ledger</button>
+  </nav>
 
-      <section class="panel hidden" id="eventsPanel">
-        <div class="dashboard-list-header">
-          <p class="eyebrow">requests</p>
-          <span>client lifecycle</span>
+  <!-- Stream -->
+  <section class="dash-panel" id="tab-stream">
+    <div class="stream-layout">
+      <div class="stream-stats">
+        <div class="stream-stat">
+          <div class="stream-stat-label">cluster slot</div>
+          <div class="stream-stat-val" id="statSlot">0</div>
         </div>
-        <div class="request-list" id="requestList"></div>
-        <div class="dashboard-list-header">
-          <p class="eyebrow">ledger</p>
-          <span>applied slots</span>
+        <div class="stream-stat">
+          <div class="stream-stat-label">last applied</div>
+          <div class="stream-stat-val" id="statApplied">0</div>
         </div>
-        <div class="ledger-list" id="ledgerList"></div>
-      </section>
-    </main>
-  </body>
+        <div class="stream-stat">
+          <div class="stream-stat-label">active nodes</div>
+          <div class="stream-stat-val" id="statNodes">0</div>
+        </div>
+        <div class="stream-stat">
+          <div class="stream-stat-label">slots / sec</div>
+          <div class="stream-stat-val" id="statRate">0.0</div>
+        </div>
+      </div>
+
+      <div class="stream-latest" id="latestCommit">
+        <span class="latest-emoji" id="latestEmoji"></span>
+        <div class="latest-meta">
+          <div class="latest-slot" id="latestSlot"></div>
+          <div class="latest-label">just committed</div>
+        </div>
+      </div>
+
+      <div class="stream-cols">
+        <div class="stream-feed-panel">
+          <div class="panel-label">committed · slot order</div>
+          <div class="stream-feed" id="streamFeed">
+            <div class="empty-state">waiting for first proposal…</div>
+          </div>
+        </div>
+        <div class="stream-score-panel">
+          <div class="panel-label">scoreboard</div>
+          <div class="stream-scores" id="streamScores">
+            <div class="empty-state">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Synod -->
+  <section class="dash-panel hidden" id="tab-synod">
+    <div class="synod-layout">
+      <div class="synod-info">
+        <div class="panel-label">configuration</div>
+        <div class="synod-config-id" id="synodConfigId">no active configuration</div>
+        <div class="synod-fields" id="synodFields"></div>
+      </div>
+      <div class="synod-topology">
+        <div class="panel-label">cluster topology</div>
+        <div class="synod-node-grid" id="synodNodeGrid">
+          <div class="empty-state">waiting for configuration…</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ledger -->
+  <section class="dash-panel hidden" id="tab-ledger">
+    <div class="ledger-panel">
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th class="col-slot">slot</th>
+            <th class="col-emoji"></th>
+            <th>client</th>
+            <th>req</th>
+            <th class="col-count">count</th>
+          </tr>
+        </thead>
+        <tbody id="ledgerBody">
+          <tr><td colspan="5" class="empty-state">no entries yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+<script src="/js/synod-dashboard.js"></script>
+</body>
 </html>
