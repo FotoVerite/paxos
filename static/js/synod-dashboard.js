@@ -33,6 +33,11 @@ document.querySelectorAll(".dash-tab").forEach(tab => {
     document.querySelectorAll(".dash-panel").forEach(p => p.classList.add("hidden"));
     tab.classList.add("is-active");
     document.querySelector(`#tab-${tab.dataset.tab}`).classList.remove("hidden");
+    if (tab.dataset.tab === "vis") {
+      vizConfigId = null; // force re-render now that SVG has real dimensions
+      const lastConfig = window.__lastConfig;
+      if (lastConfig) initViz(lastConfig);
+    }
   });
 });
 
@@ -54,6 +59,169 @@ setInterval(() => {
 let lastKnownSlot = -1;
 let ledgerEntries = [];
 let feedInitialised = false;
+
+// ── Visualizer ────────────────────────────────────────────────────────────
+let viz = null;
+let vizConfigId = null;
+let vizNodeIndex = new Map(); // uuid → numeric index
+let vizLeaderIdx = null;
+let vizReplicaIdxs = [];
+let vizAcceptorIdxs = [];
+
+const COMET_COLORS = [
+  '#f87171','#fb923c','#fbbf24','#a3e635',
+  '#34d399','#38bdf8','#818cf8','#e879f9','#f472b6'
+];
+
+function emojiColor(emoji) {
+  let h = 0;
+  for (const cp of emoji) h = (Math.imul(h, 31) + cp.codePointAt(0)) | 0;
+  return COMET_COLORS[Math.abs(h) % COMET_COLORS.length];
+}
+
+function initViz(config) {
+  if (vizConfigId === config.configuration_id) return;
+  vizConfigId = config.configuration_id;
+
+  const svgEl = document.getElementById('synodVis');
+  if (!svgEl) return;
+
+  // Build stable UUID→index map (sort for consistency)
+  const allUuids = [...new Set([config.leader, ...config.replicas, ...config.acceptors])].sort();
+  vizNodeIndex = new Map(allUuids.map((uuid, i) => [uuid, i]));
+
+  vizLeaderIdx    = vizNodeIndex.get(config.leader) ?? null;
+  vizReplicaIdxs  = config.replicas.map(uuid => vizNodeIndex.get(uuid)).filter(i => i !== undefined);
+  vizAcceptorIdxs = config.acceptors.map(uuid => vizNodeIndex.get(uuid)).filter(i => i !== undefined);
+
+  const rect = svgEl.getBoundingClientRect();
+  const nodeRadius = Math.min(rect.width, rect.height) * 0.4;
+
+  viz = new PaxosVisualizer('synodVis', {
+    nodeRadius,
+    nodeCircleRadius: 7,
+    nodeStateOffsetY: 999, // push state labels off-screen
+    topologyGradientColor: '#1e3a5f',
+    nodeLabelFormatter: () => '',
+  });
+
+  // Set roles before render so colors apply
+  allUuids.forEach((uuid, i) => {
+    const isLeader   = uuid === config.leader;
+    const isReplica  = config.replicas.includes(uuid);
+    const isAcceptor = config.acceptors.includes(uuid);
+    const roles = [];
+    if (isLeader)   roles.push('Leader');
+    if (isReplica)  roles.push('Replica');
+    if (isAcceptor) roles.push('Acceptor');
+    viz.setNodeCapabilities(i, roles.length ? roles : ['Acceptor'], null);
+  });
+
+  viz.render({ total_nodes: allUuids.length });
+
+  if (vizLeaderIdx !== null) viz.setLeader(vizLeaderIdx);
+}
+
+function drawEmojiComet(fromIdx, toIdx, emoji, color, options = {}) {
+  const svgEl = document.getElementById('synodVis');
+  if (!viz || !svgEl) return;
+
+  const from = viz.nodeElements[fromIdx];
+  const to   = viz.nodeElements[toIdx];
+  if (!from || !to) return;
+
+  const opacity    = options.opacity    ?? 1.0;
+  const fontSize   = options.fontSize   ?? 16;
+  const glowRadius = options.glowRadius ?? 5;
+
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  let cx = from.x + dx / 2;
+  let cy = from.y + dy / 2;
+  if (dist > 0.0001) {
+    const curveOffset = 36 + ((fromIdx * 7 + toIdx * 11) % 24);
+    cx += (-dy / dist) * curveOffset;
+    cy += ( dx / dist) * curveOffset;
+  }
+
+  const ns = 'http://www.w3.org/2000/svg';
+  const text = document.createElementNS(ns, 'text');
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('dominant-baseline', 'middle');
+  text.setAttribute('font-size', String(fontSize));
+  text.setAttribute('opacity', String(opacity));
+  text.style.filter = `drop-shadow(0 0 ${glowRadius}px ${color})`;
+  text.textContent = emoji;
+
+  let beamsLayer = svgEl.querySelector('#paxos-beams');
+  (beamsLayer || svgEl).appendChild(text);
+
+  const duration = 480;
+  const tickMs = 16;
+  const totalSteps = Math.ceil(duration / tickMs);
+  let step = 0;
+
+  const interval = setInterval(() => {
+    step++;
+    const t  = Math.min(step / totalSteps, 1);
+    const mt = 1 - t;
+    text.setAttribute('x', mt*mt*from.x + 2*mt*t*cx + t*t*to.x);
+    text.setAttribute('y', mt*mt*from.y + 2*mt*t*cy + t*t*to.y);
+
+    if (t >= 1) {
+      clearInterval(interval);
+      let op = opacity;
+      const fade = setInterval(() => {
+        op -= 0.18;
+        text.setAttribute('opacity', Math.max(0, op));
+        if (op <= 0) { clearInterval(fade); text.remove(); }
+      }, 28);
+    }
+  }, tickMs);
+}
+
+function animateCommit(entry, clientNodeMap) {
+  if (!viz || vizLeaderIdx === null) return;
+
+  const color       = emojiColor(entry.emoji);
+  const clientUuid  = clientNodeMap.get(entry.client_id);
+  const clientIdx   = clientUuid != null ? (vizNodeIndex.get(clientUuid) ?? vizLeaderIdx) : vizLeaderIdx;
+
+  // Phase 1 — client node → leader (skip if client IS the leader)
+  if (clientIdx !== vizLeaderIdx) {
+    viz.flashNode(clientIdx, color, { motion: 'reply', resetDelay: 200 });
+    drawEmojiComet(clientIdx, vizLeaderIdx, entry.emoji, color, { opacity: 0.45, fontSize: 13 });
+  }
+
+  // Phase 2 — leader → acceptors (Accept phase)
+  setTimeout(() => {
+    viz.flashNode(vizLeaderIdx, color, { motion: 'proposal', resetDelay: 300 });
+    viz.drawBeamsTo(vizLeaderIdx, vizAcceptorIdxs, color, 340, 'solid', 25, { motion: 'proposal' });
+    vizAcceptorIdxs.forEach((idx, j) => {
+      setTimeout(() => drawEmojiComet(vizLeaderIdx, idx, entry.emoji, color, { opacity: 0.65, fontSize: 14 }), j * 25);
+    });
+  }, 180);
+
+  // Phase 3 — acceptors → leader (votes / quorum replies)
+  setTimeout(() => {
+    viz.drawBeamsFrom(vizAcceptorIdxs, vizLeaderIdx, color, 260, 'dashed', 30, { motion: 'reply' });
+  }, 460);
+
+  // Phase 4 — leader → replicas (commit broadcast)
+  setTimeout(() => {
+    viz.flashNode(vizLeaderIdx, color, { motion: 'success', resetDelay: 600 });
+    vizReplicaIdxs.forEach((idx, j) => {
+      setTimeout(() => drawEmojiComet(vizLeaderIdx, idx, entry.emoji, color, { opacity: 1.0, fontSize: 17, glowRadius: 8 }), j * 20);
+    });
+  }, 650);
+}
+
+function animateEntries(entries, clients, config) {
+  if (!viz || !config) return;
+  const clientNodeMap = new Map((clients || []).map(c => [c.client_id, c.node_id]));
+  entries.forEach((entry, i) => setTimeout(() => animateCommit(entry, clientNodeMap), i * 120));
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -101,13 +269,18 @@ function applyStatus(status) {
           ledgerEntries.unshift(e);
           if (ledgerEntries.length > 80) ledgerEntries.pop();
         }
-        if (newEntries.length) renderLedger();
+        if (newEntries.length) {
+          renderLedger();
+          if (config) animateEntries(newEntries, status.clients || [], config);
+        }
       }
     }
   }
 
   if (config) {
+    window.__lastConfig = config;
     renderSynodConfig(config, nodes, status.clients || []);
+    initViz(config);
   }
 }
 
@@ -225,7 +398,7 @@ function renderLedger() {
   }
   ledgerEntries.slice(0, 60).forEach(e => {
     const tr = document.createElement("tr");
-    const clientName = e.client_id ? escapeHtml(e.client_id) : "—";
+    const clientName = e.client_name ? escapeHtml(e.client_name) : e.client_id ? escapeHtml(e.client_id.slice(0, 8)) : "—";
     tr.innerHTML = `
       <td class="col-slot">#${String(e.slot).padStart(3, "0")}</td>
       <td class="col-emoji">${e.emoji}</td>
@@ -253,11 +426,7 @@ function connect() {
 
   ws.addEventListener("open", () => {
     setConnectionState("active");
-    setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "heartbeat" }));
-      }
-    }, 15000);
+    ws.send(JSON.stringify({ type: "subscribe_observer" }));
   });
 
   ws.addEventListener("message", event => {
@@ -266,6 +435,10 @@ function connect() {
       applyStatus({ active_nodes: msg.session.active_nodes, active_configuration: null, state: msg.session.state });
     } else if (msg.type === "room_state") {
       applyStatus(msg.status);
+    } else if (msg.type === "request_state") {
+      return;
+    } else if (msg.type === "applied") {
+      return;
     } else if (msg.type === "heartbeat") {
       headerNodes.textContent = msg.heartbeat.active_nodes;
       statNodes.textContent   = msg.heartbeat.active_nodes;
@@ -280,13 +453,4 @@ function connect() {
   ws.addEventListener("error", () => setConnectionState("error"));
 }
 
-async function poll() {
-  try {
-    const res = await fetch(`/synod/api/status?room=${encodeURIComponent(ROOM)}`);
-    if (res.ok) applyStatus(await res.json());
-  } catch (_) {}
-}
-
 connect();
-poll();
-setInterval(poll, 2000);

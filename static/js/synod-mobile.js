@@ -87,6 +87,12 @@ const submitButton = document.querySelector("#submitButton");
 const submitButtonText = submitButton?.querySelector(".submit-button-text");
 const statusLine = document.querySelector("#statusLine");
 const streamStage = document.querySelector("#streamStage");
+const rollRail = document.querySelector("#rollRail");
+const rollRailSummary = document.querySelector("#rollRailSummary");
+const rollTrack = document.querySelector("#rollTrack");
+const rollViewer = document.querySelector("#rollViewer");
+const rollViewerFocus = document.querySelector("#rollViewerFocus");
+const rollViewerTable = document.querySelector("#rollViewerTable");
 
 let session = null;
 let emojiPool = fallbackEmojiPool;
@@ -97,6 +103,9 @@ let roomSocket = null;
 let proposalQueue = [];
 let processingProposals = false;
 let laneRefs = new Map();
+let pendingRequests = new Map();
+let rollHistory = [];
+let selectedRollId = null;
 
 const requiredElements = [
   clientName,
@@ -111,6 +120,12 @@ const requiredElements = [
   submitButtonText,
   statusLine,
   streamStage,
+  rollRail,
+  rollRailSummary,
+  rollTrack,
+  rollViewer,
+  rollViewerFocus,
+  rollViewerTable,
 ];
 
 function pick(list) {
@@ -189,15 +204,195 @@ function renderNewRoomEvents(state) {
   }
 }
 
+function requestMatchesLocalSubmit(request) {
+  if (request.client_id !== session?.client_id) return false;
+  const local = pendingRequests.get(request.request_id)
+    || rollHistory.find((item) => item.requestId === request.request_id);
+  return local?.emoji === request.emoji;
+}
+
+function currentExpectedSlot() {
+  const visibleSlot = Number(clusterSlot.textContent || "0");
+  if (Number.isFinite(visibleSlot)) return visibleSlot;
+  return Number(lastApplied.textContent || "0") + 1;
+}
+
+function slotShift(roll) {
+  if (!Number.isFinite(roll.appliedSlot) || !Number.isFinite(roll.expectedSlot)) return null;
+  return roll.appliedSlot - roll.expectedSlot;
+}
+
+function shiftLabel(shift) {
+  if (shift === null) return "pending";
+  if (shift === 0) return "+0";
+  return shift > 0 ? `+${shift}` : String(shift);
+}
+
+function rollTone(roll) {
+  if (roll.status === "failed") return "failed";
+  const shift = slotShift(roll);
+  if (shift === null) return "pending";
+  if (shift === 0) return "even";
+  if (Math.abs(shift) <= 2) return "shifted";
+  return "wide";
+}
+
+function createRollRecord({ emoji, requestId, expectedSlot }) {
+  const roll = {
+    emoji,
+    requestId,
+    expectedSlot,
+    proposedSlot: null,
+    appliedSlot: null,
+    status: "pending",
+  };
+  rollHistory.unshift(roll);
+  rollHistory = rollHistory.slice(0, 14);
+  selectedRollId = requestId;
+  pendingRequests.set(requestId, roll);
+  renderRollRail();
+  return roll;
+}
+
+function updateRollFromRequest(request) {
+  if (!requestMatchesLocalSubmit(request)) return;
+  const roll = pendingRequests.get(request.request_id)
+    || rollHistory.find((item) => item.requestId === request.request_id);
+  if (!roll) return;
+
+  roll.proposedSlot = request.proposed_slot ?? request.slot ?? roll.proposedSlot;
+  roll.appliedSlot = request.applied_slot ?? roll.appliedSlot;
+  roll.status = request.stage;
+  selectedRollId = request.request_id;
+  if (request.stage === "applied" || request.stage === "failed") {
+    pendingRequests.delete(request.request_id);
+  }
+  renderRollRail();
+}
+
+function updateRollFromApplied(entry) {
+  if (!entry?.request_id) return;
+  const roll = pendingRequests.get(entry.request_id)
+    || rollHistory.find((item) => item.requestId === entry.request_id);
+  if (!roll || entry.client_id !== session?.client_id) return;
+
+  roll.appliedSlot = entry.slot;
+  roll.status = "applied";
+  selectedRollId = entry.request_id;
+  pendingRequests.delete(entry.request_id);
+  renderRollRail();
+}
+
+function failRoll(requestId, message) {
+  const roll = pendingRequests.get(requestId)
+    || rollHistory.find((item) => item.requestId === requestId);
+  if (!roll) return;
+  roll.status = "failed";
+  roll.error = message;
+  selectedRollId = requestId;
+  pendingRequests.delete(requestId);
+  renderRollRail();
+}
+
+function renderRollRail() {
+  if (!rollRail || !rollTrack) return;
+
+  rollRail.classList.toggle("is-empty", rollHistory.length === 0);
+  rollViewer.hidden = rollHistory.length === 0;
+  rollRailSummary.textContent = rollHistory.length === 0
+    ? "no local rolls"
+    : `${rollHistory.length} local ${rollHistory.length === 1 ? "roll" : "rolls"}`;
+
+  rollTrack.replaceChildren();
+  for (const roll of rollHistory.slice().reverse()) {
+    const shift = slotShift(roll);
+    const marker = document.createElement("button");
+    marker.type = "button";
+    marker.className = "roll-marker";
+    marker.dataset.tone = rollTone(roll);
+    marker.dataset.selected = String(roll.requestId === selectedRollId);
+    marker.setAttribute(
+      "aria-label",
+      `${roll.emoji} expected slot ${roll.expectedSlot}, ${shift === null ? roll.status : `applied ${roll.appliedSlot}`}`
+    );
+    marker.innerHTML = `<span>${roll.emoji}</span><strong>${shiftLabel(shift)}</strong>`;
+    marker.addEventListener("click", () => {
+      selectedRollId = roll.requestId;
+      renderRollRail();
+    });
+    rollTrack.appendChild(marker);
+  }
+
+  const selected = rollHistory.find((roll) => roll.requestId === selectedRollId) || rollHistory[0];
+  if (!selected) return;
+
+  const selectedShift = slotShift(selected);
+  rollViewerFocus.textContent = selectedShift === null
+    ? `${selected.emoji} expected slot ${selected.expectedSlot}; waiting for applied slot.`
+    : `${selected.emoji} expected ${selected.expectedSlot}, applied ${selected.appliedSlot} (${shiftLabel(selectedShift)}).`;
+
+  rollViewerTable.replaceChildren();
+  const header = document.createElement("div");
+  header.className = "roll-viewer-row is-header";
+  header.innerHTML = "<span></span><span>expected</span><span>applied</span><strong>shift</strong>";
+  rollViewerTable.appendChild(header);
+  for (const roll of rollHistory.slice(0, 6)) {
+    const shift = slotShift(roll);
+    const row = document.createElement("div");
+    row.className = "roll-viewer-row";
+    row.dataset.tone = rollTone(roll);
+    row.innerHTML = `
+      <span>${roll.emoji}</span>
+      <span>${roll.expectedSlot}</span>
+      <span>${roll.appliedSlot ?? "..."}</span>
+      <strong>${shiftLabel(shift)}</strong>
+    `;
+    rollViewerTable.appendChild(row);
+  }
+}
+
+function renderRequestState(request) {
+  if (!requestMatchesLocalSubmit(request)) return;
+  updateRollFromRequest(request);
+
+  if (request.stage === "applied") {
+    statusLine.textContent = `${request.emoji} applied at slot ${request.applied_slot ?? request.slot}.`;
+    setTriggerState("idle", proposalQueue.length > 0 ? `queued ${proposalQueue.length}` : "roll dice");
+    return;
+  }
+  if (request.stage === "failed") {
+    statusLine.textContent = request.error || `${request.emoji} failed.`;
+    setTriggerState("idle", "roll dice");
+    return;
+  }
+
+  statusLine.textContent = `${request.emoji} ${request.stage}.`;
+}
+
+function renderAppliedEvent(entry) {
+  updateRollFromApplied(entry);
+  if (entry.sequence > lastSeenSequence) {
+    addStreamEmoji(entry.emoji, entry.count);
+    lastSeenSequence = entry.sequence;
+  }
+}
+
 function addStreamEmoji(emoji, count) {
   const lane = laneRefs.get(emoji);
   if (!lane) return;
+
+  const burst = document.createElement("div");
+  burst.className = "stream-burst";
+  lane.body.appendChild(burst);
+  burst.addEventListener("animationend", () => burst.remove());
 
   const item = document.createElement("div");
   item.className = "floating-emoji";
   item.textContent = emoji;
   item.style.setProperty("--size", `${24 + Math.min(count || 0, 14) * 2}px`);
-  item.style.setProperty("--drift", `${(Math.random() - 0.5) * 12}px`);
+  item.style.setProperty("--drift", `${(Math.random() - 0.5) * 18}px`);
+  item.style.setProperty("--tilt", `${(Math.random() - 0.5) * 18}deg`);
+  item.style.setProperty("--rise", `${124 + Math.random() * 34}px`);
   lane.body.appendChild(item);
 
   lane.root.classList.remove("pulse");
@@ -212,11 +407,6 @@ function ensureActivityScaffold() {
   if (laneRefs.size > 0) return;
 
   streamStage.replaceChildren();
-  const empty = document.createElement("div");
-  empty.className = "stream-empty";
-  empty.textContent = "quiet chamber, waiting for the next proposal";
-  streamStage.appendChild(empty);
-
   emojiPool.forEach((emoji) => {
     const lane = document.createElement("div");
     lane.className = "stream-lane";
@@ -288,38 +478,6 @@ function renderActivityLanes(heat, recent) {
   });
 }
 
-async function refreshStatus({ animateRecent = true } = {}) {
-  const response = await fetch(`/synod/api/status?room=${encodeURIComponent(ROOM)}`);
-  if (!response.ok) return;
-  const status = await response.json();
-  activeNodes.textContent = status.active_nodes;
-  renderNewRoomEvents(status.state, { animateRecent });
-}
-
-async function waitForRequest(requestId) {
-  const params = new URLSearchParams({ client_id: session.client_id, room: ROOM });
-
-  for (let attempt = 0; attempt < 18; attempt += 1) {
-    const response = await fetch(`/synod/api/requests/${requestId}?${params}`);
-    if (response.ok) {
-      const request = await response.json();
-      if (request.stage === "applied") {
-        statusLine.textContent = `${request.emoji} applied at slot ${request.applied_slot ?? request.slot}.`;
-        await refreshStatus();
-        return;
-      }
-      if (request.stage === "failed") {
-        statusLine.textContent = request.error || `${request.emoji} failed.`;
-        return;
-      }
-      statusLine.textContent = `${request.emoji} ${request.stage}.`;
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, 220));
-  }
-
-  statusLine.textContent = "Still pending. Paxos is being Paxos.";
-}
-
 async function joinRoom() {
   submitButton.disabled = true;
   const clientId = localStorage.getItem(CLIENT_KEY);
@@ -382,9 +540,6 @@ function startHeartbeat() {
 function socketUrl() {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const params = new URLSearchParams({ room: ROOM });
-  if (session?.client_id) {
-    params.set("client_id", session.client_id);
-  }
   return `${protocol}//${window.location.host}/synod/ws?${params}`;
 }
 
@@ -424,12 +579,25 @@ function connectRoomSocket() {
       renderNewRoomEvents(status.state);
       return;
     }
+    if (message.type === "request_state") {
+      renderRequestState(message.request);
+      return;
+    }
+    if (message.type === "applied") {
+      renderAppliedEvent(message.entry);
+      return;
+    }
     if (message.type === "error") {
       statusLine.textContent = message.message || message.Error?.message || "socket error";
     }
   });
 
   roomSocket.addEventListener("open", () => {
+    roomSocket.send(JSON.stringify({
+      type: "join_client",
+      client_id: session.client_id,
+      client_name: localStorage.getItem(NAME_KEY),
+    }));
     heartbeatTimer = window.setInterval(() => {
       if (roomSocket?.readyState === WebSocket.OPEN) {
         roomSocket.send(JSON.stringify({ type: "heartbeat" }));
@@ -453,10 +621,11 @@ function submitPull() {
 
   const emoji = pickEmoji();
   const requestId = nextRequestId();
+  const expectedSlot = currentExpectedSlot();
   submitButton.dataset.face = pickDieFace();
   setTriggerState("arming", "rolling");
   rollTo(emoji);
-  proposalQueue.push({ emoji, requestId });
+  proposalQueue.push({ emoji, requestId, expectedSlot });
 
   if (!processingProposals) {
     drainProposalQueue();
@@ -466,8 +635,9 @@ function submitPull() {
 async function drainProposalQueue() {
   processingProposals = true;
   while (proposalQueue.length > 0) {
-    const { emoji, requestId } = proposalQueue.shift();
+    const { emoji, requestId, expectedSlot } = proposalQueue.shift();
     const queued = proposalQueue.length;
+    createRollRecord({ emoji, requestId, expectedSlot });
     setTriggerState("submitting", queued > 0 ? `queued ${queued + 1}` : "submitting");
     statusLine.textContent = queued > 0
       ? `${emoji} proposed. (${queued} queued)`
@@ -484,14 +654,16 @@ async function drainProposalQueue() {
     });
 
     if (!response.ok) {
-      statusLine.textContent = await response.text();
+      const message = await response.text();
+      statusLine.textContent = message;
+      failRoll(requestId, message);
       setTriggerState("idle", "roll dice");
       continue;
     }
 
     const receipt = await response.json();
+    updateRollFromRequest(receipt.status);
     statusLine.textContent = `${receipt.emoji} ${receipt.status.stage} at node ${receipt.assigned_node.slice(0, 8)}.`;
-    await waitForRequest(requestId);
     setTriggerState("idle", proposalQueue.length > 0 ? `queued ${proposalQueue.length}` : "roll dice");
   }
   processingProposals = false;
@@ -508,5 +680,4 @@ if (requiredElements.every(Boolean)) {
     setTriggerState("idle", "offline");
     submitButton.disabled = true;
   });
-  window.setInterval(() => refreshStatus().catch(() => {}), 1500);
 }

@@ -153,6 +153,20 @@ body::after {
 
 .dash-panel.hidden { display: none; }
 
+.vis-panel {
+  padding: 12px;
+  overflow: hidden;
+  display: flex;
+}
+
+#synodVis {
+  flex: 1;
+  min-height: 0;
+  border-radius: 5px;
+  background: #070a0d;
+  border: 1px solid var(--db-border);
+}
+
 .panel-label {
   font-family: var(--db-mono);
   font-size: 11px;

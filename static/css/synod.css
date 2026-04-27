@@ -183,10 +183,164 @@ h2 {
   white-space: nowrap;
 }
 
+.roll-rail {
+  margin: 8px 0 0;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent),
+    rgba(12, 7, 20, 0.38);
+}
+
+.roll-rail.is-empty {
+  opacity: 0.72;
+}
+
+.roll-rail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+  color: oklch(64% 0.08 290);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.roll-rail-head strong {
+  color: oklch(77% 0.07 282);
+  font-size: 10px;
+}
+
+.roll-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(30px, 1fr);
+  gap: 4px;
+  min-height: 30px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.roll-track::-webkit-scrollbar {
+  display: none;
+}
+
+.roll-marker {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(20, 12, 31, 0.78);
+  cursor: pointer;
+}
+
+.roll-marker span {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.roll-marker strong {
+  margin-top: 1px;
+  color: oklch(78% 0.06 285);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.roll-marker[data-tone="even"] {
+  border-color: rgba(126, 214, 132, 0.42);
+  background: linear-gradient(180deg, rgba(126, 214, 132, 0.16), rgba(20, 12, 31, 0.76));
+}
+
+.roll-marker[data-tone="shifted"] {
+  border-color: rgba(255, 209, 102, 0.5);
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.18), rgba(20, 12, 31, 0.76));
+}
+
+.roll-marker[data-tone="wide"],
+.roll-marker[data-tone="failed"] {
+  border-color: rgba(255, 92, 200, 0.5);
+  background: linear-gradient(180deg, rgba(255, 92, 200, 0.18), rgba(20, 12, 31, 0.76));
+}
+
+.roll-marker[data-tone="pending"] {
+  border-style: dashed;
+}
+
+.roll-marker[data-selected="true"] {
+  box-shadow:
+    0 0 0 1px rgba(66, 217, 255, 0.52),
+    0 0 18px rgba(66, 217, 255, 0.12);
+}
+
+.roll-marker:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.roll-viewer {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.roll-viewer-focus {
+  margin-bottom: 5px;
+  color: oklch(84% 0.04 288);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.roll-viewer-table {
+  display: grid;
+  gap: 3px;
+}
+
+.roll-viewer-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 1fr 34px;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 2px 6px;
+  border-radius: 7px;
+  color: oklch(73% 0.05 286);
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 11px;
+}
+
+.roll-viewer-row strong {
+  justify-self: end;
+  color: var(--text);
+}
+
+.roll-viewer-row.is-header {
+  min-height: 18px;
+  padding-top: 0;
+  padding-bottom: 0;
+  color: oklch(49% 0.05 282);
+  background: transparent;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.roll-viewer-row.is-header strong {
+  color: oklch(49% 0.05 282);
+}
+
 .dice-stage {
   display: grid;
   place-items: center;
-  min-height: 248px;
+  min-height: 232px;
   margin: 10px 0 12px;
   border: 1px solid rgba(66, 217, 255, 0.42);
   border-radius: 8px;
@@ -454,25 +608,6 @@ h2 {
   pointer-events: none;
 }
 
-.stream-empty {
-  position: absolute;
-  inset: 0 0 22px;
-  display: grid;
-  place-items: center;
-  padding: 0 32px;
-  color: rgba(200, 184, 216, 0.56);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  text-align: center;
-  transition: opacity 220ms cubic-bezier(0.25, 1, 0.5, 1);
-  pointer-events: none;
-}
-
-.stream-stage.has-activity .stream-empty {
-  opacity: 0;
-}
-
 .stream-lane {
   position: relative;
   flex: 1 1 0;
@@ -614,6 +749,10 @@ h2 {
   animation: fill-kick 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.stream-lane.pulse .stream-sigil {
+  animation: sigil-pop 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .stream-well::after {
   content: "";
   position: absolute;
@@ -637,20 +776,49 @@ h2 {
   overflow: hidden;
 }
 
+.stream-burst {
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--lane-accent) 76%, rgba(255, 255, 255, 0.5));
+  box-shadow:
+    0 -12px 0 -3px color-mix(in oklab, var(--lane-accent) 62%, transparent),
+    9px -7px 0 -3px color-mix(in oklab, var(--lane-accent) 50%, transparent),
+    -9px -7px 0 -3px color-mix(in oklab, var(--lane-accent) 50%, transparent);
+  transform: translateX(-50%) scale(0.5);
+  opacity: 0;
+  pointer-events: none;
+  animation: stream-burst 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .floating-emoji {
   position: absolute;
   bottom: 6px;
   left: 50%;
   font-size: var(--size);
   opacity: 0.84;
-  transform: translateX(-50%);
+  transform: translateX(-50%) rotate(var(--tilt, 0deg)) scale(0.78);
   will-change: transform, opacity;
   animation: float-up 2200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes float-up {
+  0% {
+    transform: translate3d(-50%, 0, 0) rotate(var(--tilt, 0deg)) scale(0.78);
+    opacity: 0;
+  }
+  12% {
+    transform: translate3d(calc(-50% + var(--drift, 0px) * -0.18), -20px, 0) rotate(0deg) scale(1.08);
+    opacity: 0.94;
+  }
+  62% {
+    opacity: 0.82;
+  }
   to {
-    transform: translate3d(calc(-50% + var(--drift, 0px)), -138px, 0) scale(1.04);
+    transform: translate3d(calc(-50% + var(--drift, 0px)), calc(var(--rise, 138px) * -1), 0) rotate(calc(var(--tilt, 0deg) * -0.45)) scale(1.02);
     opacity: 0;
   }
 }
@@ -701,6 +869,29 @@ h2 {
   to {
     opacity: 0;
     transform: translateX(-50%) scale(2.1);
+  }
+}
+
+@keyframes stream-burst {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.45);
+  }
+  18% {
+    opacity: 0.88;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-24px) scale(2.8);
+  }
+}
+
+@keyframes sigil-pop {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+  }
+  42% {
+    transform: translateX(-50%) translateY(-2px) scale(1.14);
   }
 }
 
@@ -827,7 +1018,9 @@ h2 {
   .cube,
   .submit-button::before,
   .floating-emoji,
+  .stream-burst,
   .stream-fill,
+  .stream-sigil,
   .stream-well::after {
     animation: none !important;
     transition-duration: 0.01ms !important;

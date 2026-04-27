@@ -38,6 +38,7 @@
   <nav class="dash-tabs">
     <button class="dash-tab is-active" data-tab="stream">Stream</button>
     <button class="dash-tab" data-tab="synod">Synod</button>
+    <button class="dash-tab" data-tab="vis">Visualizer</button>
     <button class="dash-tab" data-tab="ledger">Ledger</button>
   </nav>
 
@@ -105,6 +106,11 @@
     </div>
   </section>
 
+  <!-- Visualizer -->
+  <section class="dash-panel vis-panel hidden" id="tab-vis">
+    <svg id="synodVis"></svg>
+  </section>
+
   <!-- Ledger -->
   <section class="dash-panel hidden" id="tab-ledger">
     <div class="ledger-panel">
@@ -126,6 +132,7 @@
   </section>
 
 </div>
+<script src="/paxos-visualizer.js"></script>
 <script src="/js/synod-dashboard.js"></script>
 </body>
 </html>

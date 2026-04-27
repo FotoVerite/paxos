@@ -41,6 +41,17 @@
           <span class="submit-button-text">roll dice</span>
         </button>
         <p class="status-line" id="statusLine">Waiting for room assignment.</p>
+        <div class="roll-rail is-empty" id="rollRail" aria-label="Recent roll ordering">
+          <div class="roll-rail-head">
+            <span>roll order</span>
+            <strong id="rollRailSummary">no local rolls</strong>
+          </div>
+          <div class="roll-track" id="rollTrack"></div>
+          <div class="roll-viewer" id="rollViewer" hidden>
+            <div class="roll-viewer-focus" id="rollViewerFocus"></div>
+            <div class="roll-viewer-table" id="rollViewerTable"></div>
+          </div>
+        </div>
       </section>
 
       <section class="panel stream-panel">
