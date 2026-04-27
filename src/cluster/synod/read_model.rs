@@ -4,6 +4,7 @@ use std::{
 };
 
 use serde::Serialize;
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::{
@@ -30,6 +31,7 @@ pub enum SynodRequestStage {
 #[derive(Debug, Clone, Serialize)]
 pub struct SynodRequestStatus {
     pub client_id: String,
+    pub client_name: Option<String>,
     pub request_id: u64,
     pub emoji: String,
     pub stage: SynodRequestStage,
@@ -48,6 +50,7 @@ pub struct SynodAppliedEmoji {
     pub emoji: String,
     pub count: usize,
     pub client_id: Option<String>,
+    pub client_name: Option<String>,
     pub request_id: Option<u64>,
     pub created_at: u64,
 }
@@ -67,12 +70,20 @@ pub struct SynodRoomState {
     pub requests: Vec<SynodRequestStatus>,
 }
 
+#[derive(Debug, Clone)]
+pub enum SynodRoomUpdate {
+    RequestState(SynodRequestStatus),
+    Applied(SynodAppliedEmoji),
+    RoomChanged,
+}
+
 #[derive(Default)]
 struct ReadModelState {
     applied_slots: HashSet<usize>,
     counts: HashMap<String, usize>,
     recent: VecDeque<SynodAppliedEmoji>,
     requests: HashMap<(Uuid, u64), SynodRequestStatus>,
+    client_ids: HashMap<Uuid, String>,
     client_names: HashMap<Uuid, String>,
     last_applied: usize,
     sequence: u64,
@@ -92,6 +103,9 @@ impl SynodReadModel {
 
         let mut state = self.state.lock().expect("synod read model mutex poisoned");
         state
+            .client_ids
+            .insert(client_id.stable_uuid(), client_id.to_string());
+        state
             .client_names
             .insert(client_id.stable_uuid(), client_name.trim().to_string());
     }
@@ -101,12 +115,8 @@ impl SynodReadModel {
         state.client_names.get(&client_id.stable_uuid()).cloned()
     }
 
-    fn display_name(state: &ReadModelState, client_id: &ClientId) -> String {
-        state
-            .client_names
-            .get(&client_id.stable_uuid())
-            .cloned()
-            .unwrap_or_else(|| client_id.to_string())
+    fn client_name_for(state: &ReadModelState, client_id: &ClientId) -> Option<String> {
+        state.client_names.get(&client_id.stable_uuid()).cloned()
     }
 
     pub fn record_proposed(
@@ -118,9 +128,11 @@ impl SynodReadModel {
     ) -> SynodRequestStatus {
         let client_uuid = client_id.stable_uuid();
         let mut state = self.state.lock().expect("synod read model mutex poisoned");
-        let display_name = Self::display_name(&state, client_id);
+        state.client_ids.insert(client_uuid, client_id.to_string());
+        let client_name = Self::client_name_for(&state, client_id);
         let status = SynodRequestStatus {
-            client_id: display_name,
+            client_id: client_id.to_string(),
+            client_name,
             request_id,
             emoji: emoji.to_string(),
             stage: SynodRequestStage::Proposed,
@@ -137,7 +149,12 @@ impl SynodReadModel {
         status
     }
 
-    pub fn record_reply(&self, client_id: &ClientId, request_id: u64, reply: &VerticalClientReply) {
+    pub fn record_reply(
+        &self,
+        client_id: &ClientId,
+        request_id: u64,
+        reply: &VerticalClientReply,
+    ) -> Option<SynodRequestStatus> {
         let client_uuid = client_id.stable_uuid();
         let mut state = self.state.lock().expect("synod read model mutex poisoned");
         if let Some(status) = state.requests.get_mut(&(client_uuid, request_id)) {
@@ -163,7 +180,9 @@ impl SynodReadModel {
                     status.configuration_id = Some(*active_configuration_id);
                 }
             }
+            return Some(status.clone());
         }
+        None
     }
 
     pub fn record_failed(
@@ -176,9 +195,11 @@ impl SynodReadModel {
     ) -> SynodRequestStatus {
         let client_uuid = client_id.stable_uuid();
         let mut state = self.state.lock().expect("synod read model mutex poisoned");
-        let display_name = Self::display_name(&state, client_id);
+        state.client_ids.insert(client_uuid, client_id.to_string());
+        let client_name = Self::client_name_for(&state, client_id);
         let status = SynodRequestStatus {
-            client_id: display_name,
+            client_id: client_id.to_string(),
+            client_name,
             request_id,
             emoji: emoji.to_string(),
             stage: SynodRequestStage::Failed,
@@ -235,24 +256,32 @@ impl SynodReadModel {
         }
     }
 
-    fn record_applied(&self, id: Uuid, slot: usize, value: PaxosCommand, created_at: u64) {
+    fn record_applied(
+        &self,
+        id: Uuid,
+        slot: usize,
+        value: PaxosCommand,
+        created_at: u64,
+    ) -> Option<(Option<SynodRequestStatus>, SynodAppliedEmoji)> {
         let Some(emoji) = emoji_from_command(value.operation()) else {
-            return;
+            return None;
         };
         let client_identity = value.client_identity();
 
         let mut state = self.state.lock().expect("synod read model mutex poisoned");
-        if let Some((client_uuid, request_id)) = client_identity {
+        let request_status = if let Some((client_uuid, request_id)) = client_identity {
             let client_id = state
-                .client_names
+                .client_ids
                 .get(&client_uuid)
                 .cloned()
                 .unwrap_or_else(|| client_uuid.to_string());
+            let client_name = state.client_names.get(&client_uuid).cloned();
             let status = state
                 .requests
                 .entry((client_uuid, request_id))
                 .or_insert_with(|| SynodRequestStatus {
                     client_id,
+                    client_name,
                     request_id,
                     emoji: emoji.clone(),
                     stage: SynodRequestStage::Pending,
@@ -266,10 +295,13 @@ impl SynodReadModel {
             status.stage = SynodRequestStage::Applied;
             status.slot = Some(slot);
             status.applied_slot = Some(slot);
-        }
+            Some(status.clone())
+        } else {
+            None
+        };
 
         if !state.applied_slots.insert(slot) {
-            return;
+            return None;
         }
 
         let count = {
@@ -280,9 +312,10 @@ impl SynodReadModel {
         state.last_applied = state.last_applied.max(slot);
         state.sequence += 1;
 
-        let (client_id, request_id) =
-            client_identity.map_or((None, None), |(client_uuid, request_id)| {
+        let (client_id, client_name, request_id) =
+            client_identity.map_or((None, None, None), |(client_uuid, request_id)| {
                 (
+                    state.client_ids.get(&client_uuid).cloned(),
                     state.client_names.get(&client_uuid).cloned(),
                     Some(request_id),
                 )
@@ -293,6 +326,7 @@ impl SynodReadModel {
             emoji,
             count,
             client_id,
+            client_name,
             request_id,
             created_at,
         };
@@ -300,18 +334,32 @@ impl SynodReadModel {
         while state.recent.len() > RECENT_LIMIT {
             state.recent.pop_front();
         }
+        Some((
+            request_status,
+            state
+                .recent
+                .back()
+                .cloned()
+                .expect("applied event just recorded"),
+        ))
     }
 }
 
 pub struct SynodReadModelObserver {
     read_model: SynodReadModel,
+    updates: broadcast::Sender<SynodRoomUpdate>,
     delegate: Arc<dyn PaxosObserver>,
 }
 
 impl SynodReadModelObserver {
-    pub fn new(read_model: SynodReadModel, delegate: Arc<dyn PaxosObserver>) -> Self {
+    pub fn new(
+        read_model: SynodReadModel,
+        updates: broadcast::Sender<SynodRoomUpdate>,
+        delegate: Arc<dyn PaxosObserver>,
+    ) -> Self {
         Self {
             read_model,
+            updates,
             delegate,
         }
     }
@@ -327,7 +375,15 @@ impl PaxosObserver for SynodReadModelObserver {
             ..
         } = event.clone()
         {
-            self.read_model.record_applied(id, slot, value, created_at);
+            if let Some((request_status, applied)) =
+                self.read_model.record_applied(id, slot, value, created_at)
+            {
+                if let Some(status) = request_status {
+                    let _ = self.updates.send(SynodRoomUpdate::RequestState(status));
+                }
+                let _ = self.updates.send(SynodRoomUpdate::Applied(applied));
+                let _ = self.updates.send(SynodRoomUpdate::RoomChanged);
+            }
         }
         self.delegate.on_event(event);
     }

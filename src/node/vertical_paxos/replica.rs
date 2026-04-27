@@ -53,6 +53,18 @@ struct ReplicaData {
     applied_cache: HashMap<(ClientId, RequestId), ReplyOutcome>,
 }
 
+impl ReplicaData {
+    fn rehome_pending_proposal(&mut self, cmd: PaxosCommand) -> (usize, PaxosCommand) {
+        let mut new_slot = self.next_slot;
+        while self.decisions.contains_key(&new_slot) || self.proposals.contains_key(&new_slot) {
+            new_slot += 1;
+        }
+        self.next_slot = new_slot + 1;
+        self.proposals.insert(new_slot, cmd.clone());
+        (new_slot, cmd)
+    }
+}
+
 pub struct Replica {
     id: Uuid,
     peers: Arc<VerticalPaxosHandle>,
@@ -219,7 +231,7 @@ impl Replica {
     }
 
     pub async fn handle_decision(&self, pvalue: PValue) -> Option<VerticalPaxosMessage> {
-        let mut repropose = None;
+        let mut repropose = Vec::new();
         let slot = pvalue.slot();
         let cmd = pvalue.cmd();
 
@@ -234,32 +246,43 @@ impl Replica {
             }
 
             data.decisions.insert(slot, cmd.clone());
-            if let Some(pending) = data.proposals.remove(&slot) {
-                if pending != cmd {
-                    let new_slot = data.next_slot;
-                    data.next_slot += 1;
-                    data.proposals.insert(new_slot, pending.clone());
-                    repropose = Some((new_slot, pending));
+
+            data.next_slot = data.next_slot.max(slot + 1);
+            let stale_slots = data
+                .proposals
+                .range(..=slot)
+                .map(|(slot, _)| *slot)
+                .collect::<Vec<_>>();
+            for stale_slot in stale_slots {
+                let Some(pending) = data.proposals.remove(&stale_slot) else {
+                    continue;
+                };
+                if stale_slot == slot && pending == cmd {
+                    continue;
                 }
+                let (new_slot, pending) = data.rehome_pending_proposal(pending);
+                repropose.push((new_slot, pending));
             }
         }
 
-        if let Some((new_slot, pending)) = repropose {
+        if !repropose.is_empty() {
             let active_configuration = {
                 let data = self.data.lock().await;
                 data.active_configuration.clone()
             };
             if let Some(active_configuration) = active_configuration {
-                self.peers
-                    .send(
-                        active_configuration.leader(),
-                        VerticalPaxosMessage::PROPOSE {
-                            from: self.id,
-                            slot: new_slot,
-                            cmd: pending,
-                        },
-                    )
-                    .await;
+                for (new_slot, pending) in repropose {
+                    self.peers
+                        .send(
+                            active_configuration.leader(),
+                            VerticalPaxosMessage::PROPOSE {
+                                from: self.id,
+                                slot: new_slot,
+                                cmd: pending,
+                            },
+                        )
+                        .await;
+                }
             }
         }
 

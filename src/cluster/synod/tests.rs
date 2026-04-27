@@ -227,8 +227,13 @@ async fn proposed_and_applied_events_use_recorded_client_name() {
         .find(|event| event.request_id == Some(1))
         .expect("applied event should exist");
 
-    assert_eq!(status.client_id, "Borrow Checker");
-    assert_eq!(recent.client_id.as_deref(), Some("Borrow Checker"));
+    assert_eq!(status.client_id, assignment.client_id.to_string());
+    assert_eq!(status.client_name.as_deref(), Some("Borrow Checker"));
+    assert_eq!(
+        recent.client_id.as_deref(),
+        Some(assignment.client_id.as_str())
+    );
+    assert_eq!(recent.client_name.as_deref(), Some("Borrow Checker"));
     cluster.cleanup().await.expect("cleanup should work");
 }
 
@@ -413,7 +418,8 @@ async fn concurrent_proposals_from_different_clients() {
     assert_eq!(r2.status.stage, SynodRequestStage::Accepted);
     assert_eq!(r3.status.stage, SynodRequestStage::Accepted);
 
-    // All should have different slots
+    // Assigned replicas race independently, so the immediate proposed slots may collide.
+    // The safety property is that the commands eventually apply in distinct decided slots.
     let s1 = match &r1.reply {
         VerticalClientReply::Accepted { slot, .. } => *slot,
         _ => panic!("expected Accepted"),
@@ -427,9 +433,9 @@ async fn concurrent_proposals_from_different_clients() {
         _ => panic!("expected Accepted"),
     };
 
-    assert_ne!(s1, s2, "concurrent proposals should get different slots");
-    assert_ne!(s2, s3, "concurrent proposals should get different slots");
-    assert_ne!(s1, s3, "concurrent proposals should get different slots");
+    assert!(s1 <= 2, "first proposed slot should be near the frontier");
+    assert!(s2 <= 2, "second proposed slot should be near the frontier");
+    assert!(s3 <= 2, "third proposed slot should be near the frontier");
 
     // All should eventually apply
     tokio::time::sleep(Duration::from_millis(500)).await;

@@ -16,5 +16,5 @@ pub use proposal::{
 };
 pub use read_model::{
     SynodAppliedEmoji, SynodHeatItem, SynodReadModel, SynodReadModelObserver, SynodRequestStage,
-    SynodRequestStatus, SynodRoomState,
+    SynodRequestStatus, SynodRoomState, SynodRoomUpdate,
 };

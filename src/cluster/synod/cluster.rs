@@ -4,6 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::{
@@ -19,7 +20,7 @@ use crate::{
 
 use super::{
     ClientAssignment, ClientId, SynodMembership, SynodProposalError, SynodProposalReceipt,
-    SynodReadModel, SynodReadModelObserver, SynodRequestStatus, SynodRoomState,
+    SynodReadModel, SynodReadModelObserver, SynodRequestStatus, SynodRoomState, SynodRoomUpdate,
     emoji_increment_command, is_valid_rust_emoji,
 };
 
@@ -29,8 +30,9 @@ pub struct SynodCluster {
     assignments: HashMap<ClientId, ClientAssignment>,
     last_seen: HashMap<ClientId, Instant>,
     assignment_order: Vec<ClientId>,
-    system: SynodVerticalSystem,
+    system: Arc<SynodVerticalSystem>,
     read_model: SynodReadModel,
+    updates: broadcast::Sender<SynodRoomUpdate>,
     persistence: Arc<ClusterPersistence>,
     observer: Arc<dyn PaxosObserver>,
 }
@@ -43,18 +45,124 @@ struct PreparedEmojiProposal {
     command: PaxosCommand,
 }
 
+pub struct SynodProposalPlan {
+    proposal: PreparedEmojiProposal,
+    system: Arc<SynodVerticalSystem>,
+    read_model: SynodReadModel,
+    updates: broadcast::Sender<SynodRoomUpdate>,
+}
+
+impl SynodProposalPlan {
+    pub async fn submit(self) -> Result<SynodProposalReceipt, SynodProposalError> {
+        self.wait_for_active_configuration().await?;
+        self.record_proposal_started();
+
+        let reply = self.submit_rsm_increment().await.map_err(|err| {
+            self.record_proposal_failed(err.to_string());
+            SynodProposalError::Submit(err)
+        })?;
+        self.record_proposal_reply(&reply);
+
+        Ok(self.receipt_for(reply))
+    }
+
+    async fn wait_for_active_configuration(&self) -> Result<(), SynodProposalError> {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if self
+                    .system
+                    .master()
+                    .active_configuration_id()
+                    .await
+                    .is_some()
+                {
+                    return;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .map_err(|_| {
+            SynodProposalError::Submit(anyhow::anyhow!("timed out waiting for cluster to be ready"))
+        })
+    }
+
+    fn emit_update(&self, update: SynodRoomUpdate) {
+        let _ = self.updates.send(update);
+    }
+
+    fn record_proposal_started(&self) {
+        let status = self.read_model.record_proposed(
+            &self.proposal.client_id,
+            self.proposal.request_id,
+            &self.proposal.emoji,
+            self.proposal.assignment.node_id,
+        );
+        self.emit_update(SynodRoomUpdate::RequestState(status));
+    }
+
+    async fn submit_rsm_increment(&self) -> anyhow::Result<VerticalClientReply> {
+        self.system
+            .submit_client_request(
+                self.proposal.assignment.node_id,
+                self.proposal.command.clone(),
+            )
+            .await
+    }
+
+    fn record_proposal_reply(&self, reply: &VerticalClientReply) {
+        if let Some(status) =
+            self.read_model
+                .record_reply(&self.proposal.client_id, self.proposal.request_id, reply)
+        {
+            self.emit_update(SynodRoomUpdate::RequestState(status));
+        }
+    }
+
+    fn record_proposal_failed(&self, error: String) {
+        let status = self.read_model.record_failed(
+            &self.proposal.client_id,
+            self.proposal.request_id,
+            &self.proposal.emoji,
+            Some(self.proposal.assignment.node_id),
+            error,
+        );
+        self.emit_update(SynodRoomUpdate::RequestState(status));
+    }
+
+    fn receipt_for(self, reply: VerticalClientReply) -> SynodProposalReceipt {
+        let status = self
+            .read_model
+            .request_status(&self.proposal.client_id, self.proposal.request_id)
+            .expect("submitted request should have read-model status");
+
+        SynodProposalReceipt {
+            client_id: self.proposal.client_id,
+            request_id: self.proposal.request_id,
+            emoji: self.proposal.emoji,
+            assigned_node: self.proposal.assignment.node_id,
+            reply,
+            status,
+        }
+    }
+}
+
 impl SynodCluster {
     pub async fn new(
         persistence: Arc<ClusterPersistence>,
         observer: Arc<dyn PaxosObserver>,
     ) -> anyhow::Result<Self> {
         let read_model = SynodReadModel::default();
-        let system = Self::build_system(
-            Arc::clone(&persistence),
-            Arc::clone(&observer),
-            read_model.clone(),
-        )
-        .await?;
+        let (updates, _) = broadcast::channel(256);
+        let system = Arc::new(
+            Self::build_system(
+                Arc::clone(&persistence),
+                Arc::clone(&observer),
+                read_model.clone(),
+                updates.clone(),
+            )
+            .await?,
+        );
         system.start().await;
 
         Ok(Self {
@@ -63,6 +171,7 @@ impl SynodCluster {
             assignment_order: Vec::new(),
             system,
             read_model,
+            updates,
             persistence,
             observer,
         })
@@ -72,9 +181,18 @@ impl SynodCluster {
         persistence: Arc<ClusterPersistence>,
         observer: Arc<dyn PaxosObserver>,
         read_model: SynodReadModel,
+        updates: broadcast::Sender<SynodRoomUpdate>,
     ) -> anyhow::Result<SynodVerticalSystem> {
-        let observer = Arc::new(SynodReadModelObserver::new(read_model, observer));
+        let observer = Arc::new(SynodReadModelObserver::new(read_model, updates, observer));
         SynodVerticalSystem::new(Vec::new(), persistence, observer).await
+    }
+
+    pub fn subscribe_updates(&self) -> broadcast::Receiver<SynodRoomUpdate> {
+        self.updates.subscribe()
+    }
+
+    fn emit_update(&self, update: SynodRoomUpdate) {
+        let _ = self.updates.send(update);
     }
 
     pub async fn assign_client(
@@ -100,12 +218,14 @@ impl SynodCluster {
         self.last_seen
             .insert(assignment.client_id.clone(), Instant::now());
         self.reconfigure_current_membership().await?;
+        self.emit_update(SynodRoomUpdate::RoomChanged);
 
         Ok(assignment)
     }
 
     pub fn record_client_name(&self, client_id: &ClientId, client_name: impl Into<String>) {
         self.read_model.record_client_name(client_id, client_name);
+        self.emit_update(SynodRoomUpdate::RoomChanged);
     }
 
     pub fn client_name(&self, client_id: &ClientId) -> Option<String> {
@@ -150,115 +270,56 @@ impl SynodCluster {
     ) -> Result<SynodProposalReceipt, SynodProposalError> {
         // Validate the proposal early (client must exist, emoji must be valid).
         // This allows early rejection without waiting for cluster readiness.
-        let proposal = self.prepare_emoji_proposal(client_id.clone(), request_id, emoji)?;
-
-        // Wait until the cluster has an active configuration before allowing proposals.
-        // This ensures all nodes have been activated and are ready to accept client requests.
-        self.wait_for_active_configuration().await?;
-        self.record_proposal_started(&proposal);
-
-        let reply = self.submit_rsm_increment(&proposal).await.map_err(|err| {
-            self.record_proposal_failed(&proposal, err.to_string());
-            SynodProposalError::Submit(err)
-        })?;
-        self.record_proposal_reply(&proposal, &reply);
-
-        Ok(self.receipt_for(proposal, reply))
+        self.plan_emoji_proposal(client_id, request_id, emoji)?
+            .submit()
+            .await
     }
 
-    fn prepare_emoji_proposal(
+    pub fn plan_emoji_proposal(
         &self,
         client_id: ClientId,
         request_id: u64,
         emoji: String,
-    ) -> Result<PreparedEmojiProposal, SynodProposalError> {
+    ) -> Result<SynodProposalPlan, SynodProposalError> {
         if !is_valid_rust_emoji(&emoji) {
-            self.read_model.record_failed(
+            let status = self.read_model.record_failed(
                 &client_id,
                 request_id,
                 &emoji,
                 None,
                 "emoji is not in the synod room pool",
             );
+            self.emit_update(SynodRoomUpdate::RequestState(status));
             return Err(SynodProposalError::InvalidEmoji(emoji));
         }
 
         let assignment = self.assignment_for(&client_id).cloned().ok_or_else(|| {
-            self.read_model.record_failed(
+            let status = self.read_model.record_failed(
                 &client_id,
                 request_id,
                 &emoji,
                 None,
                 "client has not joined the synod room",
             );
+            self.emit_update(SynodRoomUpdate::RequestState(status));
             SynodProposalError::UnknownClient(client_id.clone())
         })?;
 
-        Ok(PreparedEmojiProposal {
+        let proposal = PreparedEmojiProposal {
             command: emoji_increment_command(&emoji)
                 .with_client(client_id.stable_uuid(), request_id),
             client_id,
             request_id,
             emoji,
             assignment,
-        })
-    }
-
-    fn record_proposal_started(&self, proposal: &PreparedEmojiProposal) {
-        self.read_model.record_proposed(
-            &proposal.client_id,
-            proposal.request_id,
-            &proposal.emoji,
-            proposal.assignment.node_id,
-        );
-    }
-
-    async fn submit_rsm_increment(
-        &self,
-        proposal: &PreparedEmojiProposal,
-    ) -> anyhow::Result<VerticalClientReply> {
-        let target_node = if let Some(config) = self.system.active_configuration().await {
-            config.leader()
-        } else {
-            proposal.assignment.node_id
         };
-        self.system
-            .submit_client_request(target_node, proposal.command.clone())
-            .await
-    }
 
-    fn record_proposal_reply(&self, proposal: &PreparedEmojiProposal, reply: &VerticalClientReply) {
-        self.read_model
-            .record_reply(&proposal.client_id, proposal.request_id, reply);
-    }
-
-    fn record_proposal_failed(&self, proposal: &PreparedEmojiProposal, error: String) {
-        self.read_model.record_failed(
-            &proposal.client_id,
-            proposal.request_id,
-            &proposal.emoji,
-            Some(proposal.assignment.node_id),
-            error,
-        );
-    }
-
-    fn receipt_for(
-        &self,
-        proposal: PreparedEmojiProposal,
-        reply: VerticalClientReply,
-    ) -> SynodProposalReceipt {
-        let status = self
-            .request_status(&proposal.client_id, proposal.request_id)
-            .expect("submitted request should have read-model status");
-
-        SynodProposalReceipt {
-            client_id: proposal.client_id,
-            request_id: proposal.request_id,
-            emoji: proposal.emoji,
-            assigned_node: proposal.assignment.node_id,
-            reply,
-            status,
-        }
+        Ok(SynodProposalPlan {
+            proposal,
+            system: Arc::clone(&self.system),
+            read_model: self.read_model.clone(),
+            updates: self.updates.clone(),
+        })
     }
 
     pub fn request_status(
@@ -271,30 +332,6 @@ impl SynodCluster {
 
     pub fn room_state(&self) -> SynodRoomState {
         self.read_model.room_state()
-    }
-
-    async fn wait_for_active_configuration(&self) -> Result<(), SynodProposalError> {
-        tokio::time::timeout(Duration::from_secs(5), async {
-            loop {
-                // Wait for the master to have an active_configuration_id set.
-                // This indicates that activate_replica_set() has been called and replicas
-                // should have their active_configuration set.
-                if self
-                    .system
-                    .master()
-                    .active_configuration_id()
-                    .await
-                    .is_some()
-                {
-                    return;
-                }
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .map_err(|_| {
-            SynodProposalError::Submit(anyhow::anyhow!("timed out waiting for cluster to be ready"))
-        })
     }
 
     pub fn assignment_count(&self) -> usize {
@@ -411,12 +448,15 @@ impl SynodCluster {
 
         if remaining_node_ids.is_empty() {
             self.system.cleanup().await?;
-            self.system = Self::build_system(
-                Arc::clone(&self.persistence),
-                Arc::clone(&self.observer),
-                self.read_model.clone(),
-            )
-            .await?;
+            self.system = Arc::new(
+                Self::build_system(
+                    Arc::clone(&self.persistence),
+                    Arc::clone(&self.observer),
+                    self.read_model.clone(),
+                    self.updates.clone(),
+                )
+                .await?,
+            );
             self.system.start().await;
         } else {
             let checkpoint = self.current_replica_checkpoint().await?;
@@ -430,6 +470,7 @@ impl SynodCluster {
             }
         }
 
+        self.emit_update(SynodRoomUpdate::RoomChanged);
         Ok(expired)
     }
 }

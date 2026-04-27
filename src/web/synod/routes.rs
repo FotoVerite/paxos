@@ -9,13 +9,12 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::time::{Duration, interval};
 use uuid::Uuid;
 
 use crate::{
     cluster::synod::{
-        ClientId, RUST_EMOJI_POOL, SYNOD_CLIENT_TTL, SynodCluster, SynodProposalError,
-        SynodRequestStatus, SynodRoomState,
+        ClientId, RUST_EMOJI_POOL, SYNOD_CLIENT_TTL, SynodAppliedEmoji, SynodCluster,
+        SynodProposalError, SynodRequestStatus, SynodRoomState, SynodRoomUpdate,
     },
     web::handlers::AppState,
 };
@@ -76,7 +75,6 @@ pub struct RequestStatusQuery {
 
 #[derive(Debug, Deserialize)]
 pub struct SocketQuery {
-    pub client_id: Option<String>,
     pub room: Option<String>,
 }
 
@@ -88,6 +86,11 @@ pub struct RoomQuery {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SynodSocketClientMessage {
+    JoinClient {
+        client_id: Option<String>,
+        client_name: Option<String>,
+    },
+    SubscribeObserver,
     Heartbeat,
 }
 
@@ -96,6 +99,8 @@ pub enum SynodSocketClientMessage {
 pub enum SynodSocketServerMessage {
     Joined { session: JoinResponse },
     Heartbeat { heartbeat: HeartbeatResponse },
+    RequestState { request: SynodRequestStatus },
+    Applied { entry: SynodAppliedEmoji },
     RoomState { status: StatusResponse },
     Error { message: String },
 }
@@ -208,27 +213,37 @@ async fn propose(
 ) -> Response {
     let room = room_name(room_query.room.as_ref()).to_string();
     let synod = state.get_or_create_room(&room).await;
-    let synod = synod.lock().await;
-    match synod
-        .propose_emoji(
+    let plan = {
+        let synod = synod.lock().await;
+        synod.plan_emoji_proposal(
             ClientId::from_existing(request.client_id),
             request.request_id,
             request.emoji,
         )
-        .await
-    {
-        Ok(receipt) => Json(receipt).into_response(),
-        Err(SynodProposalError::InvalidEmoji(err)) => (
+    };
+
+    match plan {
+        Ok(plan) => match plan.submit().await {
+            Ok(receipt) => Json(receipt).into_response(),
+            Err(err) => proposal_error_response(err),
+        },
+        Err(err) => proposal_error_response(err),
+    }
+}
+
+fn proposal_error_response(err: SynodProposalError) -> Response {
+    match err {
+        SynodProposalError::InvalidEmoji(err) => (
             StatusCode::BAD_REQUEST,
             format!("invalid synod emoji: {err}"),
         )
             .into_response(),
-        Err(SynodProposalError::UnknownClient(err)) => (
+        SynodProposalError::UnknownClient(err) => (
             StatusCode::NOT_FOUND,
             format!("unknown synod client: {err}"),
         )
             .into_response(),
-        Err(SynodProposalError::Submit(err)) => (
+        SynodProposalError::Submit(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("failed to submit synod proposal: {err}"),
         )
@@ -297,7 +312,7 @@ async fn ws(
     let room = room_name(query.room.as_ref()).to_string();
     ws.on_upgrade(move |socket| async move {
         let room_cluster = state.get_or_create_room(&room).await;
-        handle_socket(socket, room, room_cluster, query.client_id).await;
+        handle_socket(socket, room, room_cluster).await;
     })
 }
 
@@ -305,53 +320,24 @@ async fn handle_socket(
     mut socket: WebSocket,
     room: String,
     room_cluster: Arc<Mutex<SynodCluster>>,
-    client_id: Option<String>,
 ) {
-    let joined = {
-        let mut synod = room_cluster.lock().await;
-        let assignment = match synod
-            .assign_client(client_id.map(ClientId::from_existing))
-            .await
-        {
-            Ok(assignment) => assignment,
-            Err(err) => {
-                let _ = send_socket_message(
-                    &mut socket,
-                    SynodSocketServerMessage::Error {
-                        message: format!("failed to join synod room: {err}"),
-                    },
-                )
-                .await;
-                return;
-            }
-        };
-        let membership = synod.membership();
-        JoinResponse {
-            room: room.clone(),
-            client_id: assignment.client_id.to_string(),
-            assigned_node: assignment.node_id.to_string(),
-            active_nodes: membership.node_count(),
-            emoji_pool: RUST_EMOJI_POOL.to_vec(),
-            state: synod.room_state(),
-        }
+    let mut updates = {
+        let synod = room_cluster.lock().await;
+        synod.subscribe_updates()
     };
-    let socket_client_id = ClientId::from_existing(joined.client_id.clone());
+    let mut socket_client_id: Option<ClientId> = None;
+    let mut subscribed = false;
 
-    if send_socket_message(
-        &mut socket,
-        SynodSocketServerMessage::Joined { session: joined },
-    )
-    .await
-    .is_err()
-    {
-        return;
-    }
-
-    let mut ticker = interval(Duration::from_secs(15));
     loop {
         tokio::select! {
-            _ = ticker.tick() => {
-                if send_room_state(&mut socket, &room, &room_cluster).await.is_err() {
+            update = updates.recv() => {
+                if !subscribed {
+                    continue;
+                }
+                let Ok(update) = update else {
+                    continue;
+                };
+                if send_synod_update(&mut socket, &room, &room_cluster, update).await.is_err() {
                     break;
                 }
             }
@@ -361,7 +347,14 @@ async fn handle_socket(
                 };
                 match message {
                     Message::Text(payload) => {
-                        if handle_socket_message(&mut socket, &room, &room_cluster, &socket_client_id, &payload).await.is_err() {
+                        if handle_socket_message(
+                            &mut socket,
+                            &room,
+                            &room_cluster,
+                            &mut socket_client_id,
+                            &mut subscribed,
+                            &payload,
+                        ).await.is_err() {
                             break;
                         }
                     }
@@ -378,11 +371,29 @@ async fn handle_socket(
     }
 }
 
+async fn send_synod_update(
+    socket: &mut WebSocket,
+    room: &str,
+    room_cluster: &Arc<Mutex<SynodCluster>>,
+    update: SynodRoomUpdate,
+) -> Result<(), axum::Error> {
+    match update {
+        SynodRoomUpdate::RequestState(request) => {
+            send_socket_message(socket, SynodSocketServerMessage::RequestState { request }).await
+        }
+        SynodRoomUpdate::Applied(entry) => {
+            send_socket_message(socket, SynodSocketServerMessage::Applied { entry }).await
+        }
+        SynodRoomUpdate::RoomChanged => send_room_state(socket, room, room_cluster).await,
+    }
+}
+
 async fn handle_socket_message(
     socket: &mut WebSocket,
     room: &str,
     room_cluster: &Arc<Mutex<SynodCluster>>,
-    client_id: &ClientId,
+    socket_client_id: &mut Option<ClientId>,
+    subscribed: &mut bool,
     payload: &str,
 ) -> Result<(), axum::Error> {
     let Ok(message) = serde_json::from_str::<SynodSocketClientMessage>(payload) else {
@@ -390,7 +401,61 @@ async fn handle_socket_message(
     };
 
     match message {
+        SynodSocketClientMessage::JoinClient {
+            client_id,
+            client_name,
+        } => {
+            let joined = {
+                let mut synod = room_cluster.lock().await;
+                let assignment = match synod
+                    .assign_client(client_id.map(ClientId::from_existing))
+                    .await
+                {
+                    Ok(assignment) => assignment,
+                    Err(err) => {
+                        send_socket_message(
+                            socket,
+                            SynodSocketServerMessage::Error {
+                                message: format!("failed to join synod room: {err}"),
+                            },
+                        )
+                        .await?;
+                        return Ok(());
+                    }
+                };
+                if let Some(client_name) = client_name {
+                    synod.record_client_name(&assignment.client_id, client_name);
+                }
+                let membership = synod.membership();
+                JoinResponse {
+                    room: room.to_string(),
+                    client_id: assignment.client_id.to_string(),
+                    assigned_node: assignment.node_id.to_string(),
+                    active_nodes: membership.node_count(),
+                    emoji_pool: RUST_EMOJI_POOL.to_vec(),
+                    state: synod.room_state(),
+                }
+            };
+            *socket_client_id = Some(ClientId::from_existing(joined.client_id.clone()));
+            *subscribed = true;
+            send_socket_message(socket, SynodSocketServerMessage::Joined { session: joined })
+                .await?;
+        }
+        SynodSocketClientMessage::SubscribeObserver => {
+            *subscribed = true;
+            send_room_state(socket, room, room_cluster).await?;
+        }
         SynodSocketClientMessage::Heartbeat => {
+            let Some(client_id) = socket_client_id.as_ref() else {
+                send_socket_message(
+                    socket,
+                    SynodSocketServerMessage::Error {
+                        message: "socket has not joined as a synod client".to_string(),
+                    },
+                )
+                .await?;
+                return Ok(());
+            };
             let heartbeat = {
                 let mut synod = room_cluster.lock().await;
                 let Some(assignment) = synod.heartbeat_client(client_id) else {
