@@ -38,6 +38,16 @@ body.synod-page {
   padding: 14px;
 }
 
+.synod-mobile .phone-shell {
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+}
+
+.synod-mobile .hero-panel {
+  flex: 0 0 auto;
+}
+
 .dashboard-shell {
   width: min(100%, 1080px);
 }
@@ -158,6 +168,15 @@ h2 {
   margin-bottom: 0;
 }
 
+.synod-mobile .machine-panel {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 0;
+  flex-direction: column;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
 .machine-stats {
   display: flex;
   gap: 18px;
@@ -190,6 +209,12 @@ h2 {
 .roll-rail {
   margin: 8px 0 0;
   padding: 7px;
+  display: flex;
+  flex: 0 0 auto;
+  height: 186px;
+  min-height: 186px;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background:
@@ -290,6 +315,7 @@ h2 {
 }
 
 .roll-viewer {
+  flex: 0 0 auto;
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -305,6 +331,7 @@ h2 {
 .roll-viewer-table {
   display: grid;
   gap: 3px;
+  min-height: 93px;
 }
 
 .roll-viewer-row {
@@ -579,6 +606,7 @@ h2 {
 }
 
 .stream-panel {
+  flex: 0 0 auto;
   margin-top: 8px;
 }
 
@@ -1106,14 +1134,12 @@ h2 {
 
   .roll-rail {
     margin-top: 6px;
+    height: 80px;
+    min-height: 80px;
   }
 
   .roll-viewer {
     display: none;
-  }
-
-  .stream-panel {
-    padding-bottom: 12px;
   }
 
   .stream-stage {
