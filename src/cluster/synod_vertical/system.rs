@@ -34,6 +34,7 @@ pub struct SynodVerticalSystem {
 }
 
 struct ConfigurationSequence {
+    next_epoch: usize,
     next_ballot_number: usize,
     next_start_index: usize,
 }
@@ -63,6 +64,7 @@ impl SynodVerticalSystem {
             master,
             control_plane,
             configuration_sequence: Mutex::new(ConfigurationSequence {
+                next_epoch: 0,
                 next_ballot_number: 1,
                 next_start_index: 0,
             }),
@@ -123,7 +125,7 @@ impl SynodVerticalSystem {
             Uuid::new_v4(),
             leader,
             VerticalPaxosVariant::V1,
-            Ballot::new(sequence.next_ballot_number, leader),
+            Ballot::with_epoch(sequence.next_ballot_number, leader, sequence.next_epoch),
             sequence.next_start_index,
             member_ids.clone(),
             member_ids,
@@ -152,6 +154,7 @@ impl SynodVerticalSystem {
         .await?;
         self.wait_for_activation_ready(configuration_id).await?;
 
+        sequence.next_epoch += 1;
         sequence.next_ballot_number += 1;
         sequence.next_start_index = sequence
             .next_start_index

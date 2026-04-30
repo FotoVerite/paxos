@@ -69,6 +69,13 @@ impl Commander {
         let should_send = {
             let mut pending = self.pending.lock().await;
             if pending.contains_key(&slot) {
+                tracing::warn!(
+                    target: "synod::inflight",
+                    leader = %self.id,
+                    ballot = ?self.ballot,
+                    slot,
+                    "dropping duplicate commander proposal for occupied pending slot"
+                );
                 false
             } else {
                 pending.insert(
@@ -105,6 +112,14 @@ impl Commander {
             if entry.decided && entry.replica_acks.is_superset(&replicas) {
                 pending.remove(&slot);
             }
+        } else {
+            tracing::warn!(
+                target: "synod::inflight",
+                leader = %self.id,
+                from = %from,
+                slot,
+                "ignoring replica ACK for unknown commander slot"
+            );
         }
     }
 
@@ -127,19 +142,57 @@ impl Commander {
         pvalue: PValue,
     ) -> Option<VerticalPaxosMessage> {
         if ballot > self.ballot {
+            tracing::warn!(
+                target: "synod::inflight",
+                leader = %self.id,
+                from = %from,
+                slot = pvalue.slot(),
+                commander_ballot = ?self.ballot,
+                observed_ballot = ?ballot,
+                "commander preempted by higher ballot P2B"
+            );
             return Some(VerticalPaxosMessage::PREEMPT {
                 from: self.id,
                 to: self.id,
                 ballot,
             });
         }
-        if ballot < self.ballot || !self.write_quorum.contains(&from) {
+        if ballot < self.ballot {
+            tracing::warn!(
+                target: "synod::inflight",
+                leader = %self.id,
+                from = %from,
+                slot = pvalue.slot(),
+                commander_ballot = ?self.ballot,
+                observed_ballot = ?ballot,
+                "ignoring stale lower-ballot P2B"
+            );
+            return None;
+        }
+        if !self.write_quorum.contains(&from) {
+            tracing::warn!(
+                target: "synod::inflight",
+                leader = %self.id,
+                from = %from,
+                slot = pvalue.slot(),
+                ballot = ?ballot,
+                write_quorum = ?self.write_quorum,
+                "ignoring P2B from acceptor outside active commander write quorum"
+            );
             return None;
         }
 
         let decided_cmd = {
             let mut pending = self.pending.lock().await;
             let Some(entry) = pending.get_mut(&pvalue.slot()) else {
+                tracing::warn!(
+                    target: "synod::inflight",
+                    leader = %self.id,
+                    from = %from,
+                    slot = pvalue.slot(),
+                    ballot = ?ballot,
+                    "ignoring P2B for unknown commander pending slot"
+                );
                 return None;
             };
             entry.acceptor_acks.insert(from);

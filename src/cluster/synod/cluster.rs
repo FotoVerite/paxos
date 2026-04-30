@@ -429,10 +429,24 @@ impl SynodCluster {
             return Ok(Vec::new());
         }
 
+        tracing::warn!(
+            target: "synod::despawn",
+            expired_clients = expired_client_ids.len(),
+            total_clients = self.assignment_order.len(),
+            bootstrap_node = ?self.bootstrap_node(),
+            "decommissioning idle synod clients"
+        );
+
         let mut expired = Vec::new();
         for client_id in &expired_client_ids {
             self.last_seen.remove(client_id);
             if let Some(assignment) = self.assignments.remove(client_id) {
+                tracing::warn!(
+                    target: "synod::despawn",
+                    client_id = %assignment.client_id,
+                    node_id = %assignment.node_id,
+                    "removing idle synod client assignment"
+                );
                 expired.push(assignment);
             }
         }
@@ -447,7 +461,13 @@ impl SynodCluster {
             .collect::<Vec<_>>();
 
         if remaining_node_ids.is_empty() {
+            tracing::warn!(
+                target: "synod::despawn",
+                expired_nodes = expired.len(),
+                "all synod clients expired; resetting room system"
+            );
             self.system.cleanup().await?;
+            self.read_model.reset();
             self.system = Arc::new(
                 Self::build_system(
                     Arc::clone(&self.persistence),
@@ -460,9 +480,22 @@ impl SynodCluster {
             self.system.start().await;
         } else {
             let checkpoint = self.current_replica_checkpoint().await?;
+            tracing::warn!(
+                target: "synod::despawn",
+                remaining_nodes = ?remaining_node_ids,
+                expired_nodes = ?expired.iter().map(|assignment| assignment.node_id).collect::<Vec<_>>(),
+                checkpoint_last_applied = ?checkpoint.as_ref().and_then(|checkpoint| checkpoint.manifest().last_applied_slot()),
+                new_leader = ?self.bootstrap_node(),
+                "reconfiguring synod room after idle decommission"
+            );
             self.reconfigure_member_ids(remaining_node_ids, checkpoint)
                 .await?;
             for assignment in &expired {
+                tracing::warn!(
+                    target: "synod::despawn",
+                    node_id = %assignment.node_id,
+                    "stopping and removing expired synod node"
+                );
                 self.system
                     .runtime()
                     .stop_and_remove_node(assignment.node_id)

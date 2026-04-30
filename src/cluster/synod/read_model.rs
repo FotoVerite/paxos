@@ -95,6 +95,11 @@ pub struct SynodReadModel {
 }
 
 impl SynodReadModel {
+    pub fn reset(&self) {
+        let mut state = self.state.lock().expect("synod read model mutex poisoned");
+        *state = ReadModelState::default();
+    }
+
     pub fn record_client_name(&self, client_id: &ClientId, client_name: impl Into<String>) {
         let client_name = client_name.into();
         if client_name.trim().is_empty() {

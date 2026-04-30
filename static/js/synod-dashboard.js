@@ -80,11 +80,18 @@ function emojiColor(emoji) {
 }
 
 function initViz(config) {
-  if (vizConfigId === config.configuration_id) return;
-  vizConfigId = config.configuration_id;
-
   const svgEl = document.getElementById('synodVis');
   if (!svgEl) return;
+
+  // Don't render while the panel is hidden — getBoundingClientRect returns zero
+  // and all nodes would pile up at (0,0). Tab click will re-trigger with real dims.
+  const rect = svgEl.getBoundingClientRect();
+  if (rect.width < 10 || rect.height < 10) return;
+
+  if (vizConfigId === config.configuration_id) return;
+
+  const isReconfig = viz !== null;
+  vizConfigId = config.configuration_id;
 
   // Build stable UUID→index map (sort for consistency)
   const allUuids = [...new Set([config.leader, ...config.replicas, ...config.acceptors])].sort();
@@ -94,32 +101,61 @@ function initViz(config) {
   vizReplicaIdxs  = config.replicas.map(uuid => vizNodeIndex.get(uuid)).filter(i => i !== undefined);
   vizAcceptorIdxs = config.acceptors.map(uuid => vizNodeIndex.get(uuid)).filter(i => i !== undefined);
 
-  const rect = svgEl.getBoundingClientRect();
   const nodeRadius = Math.min(rect.width, rect.height) * 0.4;
+
+  // Pin SVG coordinate system to its CSS pixel size so user-units match pixels
+  svgEl.setAttribute('width',  rect.width);
+  svgEl.setAttribute('height', rect.height);
 
   viz = new PaxosVisualizer('synodVis', {
     nodeRadius,
     nodeCircleRadius: 7,
-    nodeStateOffsetY: 999, // push state labels off-screen
+    nodeStateOffsetY: 999,
     topologyGradientColor: '#1e3a5f',
     nodeLabelFormatter: () => '',
   });
 
-  // Set roles before render so colors apply
   allUuids.forEach((uuid, i) => {
-    const isLeader   = uuid === config.leader;
-    const isReplica  = config.replicas.includes(uuid);
-    const isAcceptor = config.acceptors.includes(uuid);
     const roles = [];
-    if (isLeader)   roles.push('Leader');
-    if (isReplica)  roles.push('Replica');
-    if (isAcceptor) roles.push('Acceptor');
+    if (uuid === config.leader)              roles.push('Leader');
+    if (config.replicas.includes(uuid))      roles.push('Replica');
+    if (config.acceptors.includes(uuid))     roles.push('Acceptor');
     viz.setNodeCapabilities(i, roles.length ? roles : ['Acceptor'], null);
   });
 
   viz.render({ total_nodes: allUuids.length });
 
   if (vizLeaderIdx !== null) viz.setLeader(vizLeaderIdx);
+
+  if (isReconfig) flashReconfig(svgEl, allUuids.length);
+}
+
+function flashReconfig(svgEl, nodeCount) {
+  // Flash all nodes amber then fade a RECONFIG label
+  for (let i = 0; i < nodeCount; i++) {
+    viz.flashNode(i, '#ffb347', { motion: 'proposal', resetDelay: 900 });
+  }
+
+  const ns = 'http://www.w3.org/2000/svg';
+  const label = document.createElementNS(ns, 'text');
+  label.setAttribute('x', '50%');
+  label.setAttribute('y', '50%');
+  label.setAttribute('text-anchor', 'middle');
+  label.setAttribute('dominant-baseline', 'middle');
+  label.setAttribute('fill', '#ffb347');
+  label.setAttribute('font-size', '20');
+  label.setAttribute('font-family', 'monospace');
+  label.setAttribute('letter-spacing', '4');
+  label.setAttribute('opacity', '1');
+  label.textContent = 'RECONFIGURING';
+  svgEl.appendChild(label);
+
+  let op = 1;
+  const fade = setInterval(() => {
+    op -= 0.04;
+    label.setAttribute('opacity', String(Math.max(0, op)));
+    if (op <= 0) { clearInterval(fade); label.remove(); }
+  }, 40);
 }
 
 function drawEmojiComet(fromIdx, toIdx, emoji, color, options = {}) {

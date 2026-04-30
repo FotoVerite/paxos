@@ -243,7 +243,15 @@ impl VerticalNode {
                     }
                 }
             }
-            LocalRoutingDecision::Drop => {}
+            LocalRoutingDecision::Drop => {
+                tracing::warn!(
+                    target: "synod::inflight",
+                    node = %self.id,
+                    acceptor_online = inbox_context.acceptor_online,
+                    message = ?msg,
+                    "vertical node dropped stale or non-actionable message"
+                );
+            }
         }
     }
 

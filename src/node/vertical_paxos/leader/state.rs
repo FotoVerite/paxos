@@ -37,6 +37,14 @@ impl LeaderState {
         if let Some(existing) = state.synchronizer.as_mut() {
             existing.shutdown().await;
         }
+        if !state.proposals.is_empty() {
+            tracing::warn!(
+                target: "synod::inflight",
+                stale_pending = state.proposals.len(),
+                "retiring leader buffered proposals on new activation"
+            );
+        }
+        state.proposals.clear();
         state.synchronizer = Some(synchronizer);
         state.commander = None;
     }
@@ -55,6 +63,13 @@ impl LeaderState {
         if let Some(commander) = state.commander.as_ref() {
             commander.add_pending(slot, cmd).await;
             return;
+        }
+        if state.proposals.contains_key(&slot) {
+            tracing::warn!(
+                target: "synod::inflight",
+                slot,
+                "dropping duplicate leader buffered proposal for occupied slot"
+            );
         }
         state.proposals.entry(slot).or_insert(cmd);
     }
@@ -116,6 +131,14 @@ impl LeaderState {
         if let Some(synchronizer) = state.synchronizer.as_mut() {
             synchronizer.shutdown().await;
         }
+        if !state.proposals.is_empty() {
+            tracing::warn!(
+                target: "synod::inflight",
+                stale_pending = state.proposals.len(),
+                "retiring leader buffered proposals on shutdown"
+            );
+        }
+        state.proposals.clear();
         state.synchronizer = None;
         state.commander = None;
     }

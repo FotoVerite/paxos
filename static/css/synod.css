@@ -340,7 +340,7 @@ h2 {
 .dice-stage {
   display: grid;
   place-items: center;
-  min-height: 232px;
+  min-height: clamp(168px, 28svh, 232px);
   margin: 10px 0 12px;
   border: 1px solid rgba(66, 217, 255, 0.42);
   border-radius: 8px;
@@ -351,8 +351,10 @@ h2 {
 
 .cube {
   position: relative;
-  width: 116px;
-  height: 116px;
+  --cube-size: clamp(92px, 16svh, 116px);
+  --cube-depth: calc(var(--cube-size) / 2);
+  width: var(--cube-size);
+  height: var(--cube-size);
   transform-style: preserve-3d;
   transform: rotateX(-18deg) rotateY(24deg);
   transition: transform 780ms cubic-bezier(.2, .8, .2, 1);
@@ -367,16 +369,16 @@ h2 {
   border-radius: 8px;
   background: linear-gradient(135deg, rgba(66, 217, 255, 0.22), rgba(255, 92, 200, 0.24));
   box-shadow: inset -16px -18px 32px rgba(0, 0, 0, 0.32);
-  font-size: 58px;
+  font-size: calc(var(--cube-size) * 0.5);
   backface-visibility: hidden;
 }
 
-.face-front { transform: translateZ(58px); }
-.face-back { transform: rotateY(180deg) translateZ(58px); }
-.face-right { transform: rotateY(90deg) translateZ(58px); }
-.face-left { transform: rotateY(-90deg) translateZ(58px); }
-.face-top { transform: rotateX(90deg) translateZ(58px); }
-.face-bottom { transform: rotateX(-90deg) translateZ(58px); }
+.face-front { transform: translateZ(var(--cube-depth)); }
+.face-back { transform: rotateY(180deg) translateZ(var(--cube-depth)); }
+.face-right { transform: rotateY(90deg) translateZ(var(--cube-depth)); }
+.face-left { transform: rotateY(-90deg) translateZ(var(--cube-depth)); }
+.face-top { transform: rotateX(90deg) translateZ(var(--cube-depth)); }
+.face-bottom { transform: rotateX(-90deg) translateZ(var(--cube-depth)); }
 
 .submit-button,
 .tab {
@@ -393,6 +395,10 @@ h2 {
   isolation: isolate;
   width: 100%;
   overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
   color: oklch(15% 0.04 304);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 38%),
@@ -585,7 +591,7 @@ h2 {
   display: flex;
   align-items: stretch;
   gap: 4px;
-  height: 228px;
+  height: clamp(142px, 24svh, 228px);
   margin-top: 10px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
@@ -1040,5 +1046,82 @@ h2 {
 
   .dashboard-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 760px) and (max-width: 520px) {
+  .phone-shell {
+    padding: 10px 12px;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .hero-panel {
+    padding: 10px 14px;
+  }
+
+  .hero-panel,
+  .machine-panel,
+  .dashboard-header {
+    margin-bottom: 8px;
+  }
+
+  .node-line {
+    margin-top: 5px;
+    font-size: 12px;
+  }
+
+  .badge {
+    width: 40px;
+    font-size: 12px;
+  }
+
+  .machine-header {
+    padding-bottom: 7px;
+  }
+
+  .dice-stage {
+    min-height: clamp(124px, 21svh, 154px);
+    margin: 7px 0 9px;
+  }
+
+  .cube {
+    --cube-size: clamp(78px, 13svh, 94px);
+  }
+
+  .submit-button-text {
+    min-height: 42px;
+  }
+
+  .status-line {
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  .roll-rail {
+    margin-top: 6px;
+  }
+
+  .roll-viewer {
+    display: none;
+  }
+
+  .stream-panel {
+    padding-bottom: 12px;
+  }
+
+  .stream-stage {
+    height: clamp(108px, 18svh, 132px);
+    margin-top: 7px;
+  }
+
+  .stream-sigil {
+    top: 8px;
+  }
+
+  .stream-well {
+    inset: 24px 3px 8px;
   }
 }

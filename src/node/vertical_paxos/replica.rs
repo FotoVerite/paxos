@@ -111,6 +111,15 @@ impl Replica {
         let mut data = self.data.lock().await;
         data.active_configuration = None;
         data.redirected_configuration = Some(active_configuration);
+        if !data.proposals.is_empty() {
+            tracing::warn!(
+                target: "synod::inflight",
+                replica = %self.id,
+                stale_pending = data.proposals.len(),
+                "retiring local replica proposals on decommission"
+            );
+        }
+        data.proposals.clear();
     }
 
     pub async fn clear_routing_state(&self) {
@@ -237,7 +246,38 @@ impl Replica {
 
         {
             let mut data = self.data.lock().await;
+            match data.active_configuration.as_ref() {
+                Some(configuration) if configuration.ballot() != pvalue.ballot() => {
+                    tracing::warn!(
+                        target: "synod::inflight",
+                        replica = %self.id,
+                        slot,
+                        active_configuration = %configuration.id(),
+                        active_ballot = ?configuration.ballot(),
+                        pvalue_ballot = ?pvalue.ballot(),
+                        "replica received decision whose ballot does not match active configuration"
+                    );
+                }
+                None => {
+                    tracing::warn!(
+                        target: "synod::inflight",
+                        replica = %self.id,
+                        slot,
+                        pvalue_ballot = ?pvalue.ballot(),
+                        redirected_configuration = ?data.redirected_configuration.as_ref().map(|configuration| configuration.id()),
+                        "inactive or decommissioned replica received decision"
+                    );
+                }
+                _ => {}
+            }
             if data.decisions.contains_key(&slot) {
+                tracing::warn!(
+                    target: "synod::inflight",
+                    replica = %self.id,
+                    slot,
+                    pvalue_ballot = ?pvalue.ballot(),
+                    "replica ignoring duplicate learned decision"
+                );
                 return Some(VerticalPaxosMessage::ACK {
                     from: self.id,
                     to: pvalue.ballot().node_id,
@@ -261,6 +301,14 @@ impl Replica {
                     continue;
                 }
                 let (new_slot, pending) = data.rehome_pending_proposal(pending);
+                tracing::warn!(
+                    target: "synod::inflight",
+                    replica = %self.id,
+                    stale_slot,
+                    new_slot,
+                    learned_slot = slot,
+                    "re-homing stale local proposal above learned decision"
+                );
                 repropose.push((new_slot, pending));
             }
         }

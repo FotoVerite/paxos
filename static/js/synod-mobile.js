@@ -3,6 +3,7 @@ const CLIENT_KEY = `synod.${ROOM}.client_id`;
 const REQUEST_KEY = `synod.${ROOM}.request_id`;
 const NAME_KEY = `synod.${ROOM}.character_name`;
 const HEARTBEAT_MS = 15000;
+const MAX_LOCAL_ROLLS = 3;
 const dieFaces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
 const fallbackEmojiPool = ["🦀", "📦", "🔒", "🧵", "⚙️", "🧪"];
@@ -102,6 +103,7 @@ let heartbeatTimer = null;
 let roomSocket = null;
 let proposalQueue = [];
 let processingProposals = false;
+let cacheGeneration = 0;
 let laneRefs = new Map();
 let pendingRequests = new Map();
 let rollHistory = [];
@@ -157,6 +159,31 @@ function nextRequestId() {
   const current = Number(localStorage.getItem(REQUEST_KEY) || "0") + 1;
   localStorage.setItem(REQUEST_KEY, String(current));
   return current;
+}
+
+function isFreshRoomState(state) {
+  return Number(state?.cluster_slot || 0) === 0
+    && Number(state?.last_applied || 0) === 0;
+}
+
+function shouldResetTransientRoomCache(previousClientId, nextSession) {
+  if (!nextSession) return false;
+  if (previousClientId && nextSession.client_id !== previousClientId) return true;
+  return lastSeenSequence > 0 && isFreshRoomState(nextSession.state);
+}
+
+function resetTransientRoomCache() {
+  cacheGeneration += 1;
+  localStorage.removeItem(REQUEST_KEY);
+  proposalQueue = [];
+  processingProposals = false;
+  pendingRequests = new Map();
+  rollHistory = [];
+  selectedRollId = null;
+  lastSeenSequence = 0;
+  laneRefs = new Map();
+  streamStage?.replaceChildren();
+  renderRollRail();
 }
 
 function pickEmoji() {
@@ -247,7 +274,7 @@ function createRollRecord({ emoji, requestId, expectedSlot }) {
     status: "pending",
   };
   rollHistory.unshift(roll);
-  rollHistory = rollHistory.slice(0, 14);
+  rollHistory = rollHistory.slice(0, MAX_LOCAL_ROLLS);
   selectedRollId = requestId;
   pendingRequests.set(requestId, roll);
   renderRollRail();
@@ -336,7 +363,7 @@ function renderRollRail() {
   header.className = "roll-viewer-row is-header";
   header.innerHTML = "<span></span><span>expected</span><span>applied</span><strong>shift</strong>";
   rollViewerTable.appendChild(header);
-  for (const roll of rollHistory.slice(0, 6)) {
+  for (const roll of rollHistory.slice(0, MAX_LOCAL_ROLLS)) {
     const shift = slotShift(roll);
     const row = document.createElement("div");
     row.className = "roll-viewer-row";
@@ -482,6 +509,7 @@ async function joinRoom() {
   submitButton.disabled = true;
   const clientId = localStorage.getItem(CLIENT_KEY);
   const clientName = localStorage.getItem(NAME_KEY);
+  const previousClientId = session?.client_id || clientId;
   const response = await fetch(`/synod/api/join?room=${encodeURIComponent(ROOM)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -492,7 +520,11 @@ async function joinRoom() {
     throw new Error(await response.text());
   }
 
-  session = await response.json();
+  const nextSession = await response.json();
+  if (shouldResetTransientRoomCache(previousClientId, nextSession)) {
+    resetTransientRoomCache();
+  }
+  session = nextSession;
   localStorage.setItem(CLIENT_KEY, session.client_id);
   emojiPool = session.emoji_pool.length ? session.emoji_pool : fallbackEmojiPool;
   nodeLine.textContent = `node ${session.assigned_node.slice(0, 8)} · client ${session.client_id.slice(0, 8)}`;
@@ -515,8 +547,8 @@ async function sendHeartbeat() {
   });
 
   if (response.status === 404) {
-    localStorage.removeItem(CLIENT_KEY);
     session = null;
+    resetTransientRoomCache();
     statusLine.textContent = "Room session expired. Rejoining.";
     await joinRoom();
     return;
@@ -560,7 +592,11 @@ function connectRoomSocket() {
   roomSocket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.type === "joined") {
-      session = message.session;
+      const nextSession = message.session;
+      if (shouldResetTransientRoomCache(session?.client_id, nextSession)) {
+        resetTransientRoomCache();
+      }
+      session = nextSession;
       localStorage.setItem(CLIENT_KEY, session.client_id);
       emojiPool = session.emoji_pool.length ? session.emoji_pool : fallbackEmojiPool;
       nodeLine.textContent = `node ${session.assigned_node.slice(0, 8)} · client ${session.client_id.slice(0, 8)}`;
@@ -633,9 +669,12 @@ function submitPull() {
 }
 
 async function drainProposalQueue() {
+  const generation = cacheGeneration;
   processingProposals = true;
-  while (proposalQueue.length > 0) {
+  while (proposalQueue.length > 0 && generation === cacheGeneration) {
     const { emoji, requestId, expectedSlot } = proposalQueue.shift();
+    const activeSession = session;
+    if (!activeSession) break;
     const queued = proposalQueue.length;
     createRollRecord({ emoji, requestId, expectedSlot });
     setTriggerState("submitting", queued > 0 ? `queued ${queued + 1}` : "submitting");
@@ -647,11 +686,13 @@ async function drainProposalQueue() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        client_id: session.client_id,
+        client_id: activeSession.client_id,
         request_id: requestId,
         emoji,
       }),
     });
+
+    if (generation !== cacheGeneration) break;
 
     if (!response.ok) {
       const message = await response.text();
@@ -662,6 +703,7 @@ async function drainProposalQueue() {
     }
 
     const receipt = await response.json();
+    if (generation !== cacheGeneration) break;
     updateRollFromRequest(receipt.status);
     statusLine.textContent = `${receipt.emoji} ${receipt.status.stage} at node ${receipt.assigned_node.slice(0, 8)}.`;
     setTriggerState("idle", proposalQueue.length > 0 ? `queued ${proposalQueue.length}` : "roll dice");

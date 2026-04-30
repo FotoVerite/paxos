@@ -173,6 +173,19 @@ async fn decommissioning_last_client_resets_to_empty_cluster() {
         .await
         .expect("fresh assignment should work after reset");
     assert_eq!(cluster.server_node_ids().await, vec![fresh.node_id]);
+
+    let receipt = cluster
+        .propose_emoji(fresh.client_id.clone(), 1, "🦀".to_string())
+        .await
+        .expect("fresh proposal should submit after reset");
+    assert_eq!(receipt.status.stage, SynodRequestStage::Accepted);
+
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let state = cluster.room_state();
+    assert_eq!(
+        state.cluster_slot, 1,
+        "fresh room should apply slot 0 after full spin-down reset"
+    );
     cluster.cleanup().await.expect("cleanup should work");
 }
 
@@ -379,6 +392,10 @@ async fn new_client_join_reconfigures_active_membership() {
         &[first.node_id, second.node_id]
     );
     assert_eq!(second_config.complete_bal(), Some(first_config.ballot()));
+    assert!(
+        second_config.ballot().epoch > first_config.ballot().epoch,
+        "reconfiguration should advance ballot epoch"
+    );
     assert_eq!(
         cluster.active_configuration_id().await,
         Some(second_config.id())
