@@ -67,7 +67,7 @@ body.synod-page {
 }
 
 .hero-panel {
-  padding: 12px 16px;
+  padding: 10px 16px;
   align-items: center;
 }
 
@@ -93,6 +93,10 @@ h1 {
   font-weight: 800;
   letter-spacing: -0.01em;
   line-height: 1.15;
+}
+
+.synod-mobile .eyebrow {
+  margin-bottom: 5px;
 }
 
 h2 {
@@ -382,7 +386,7 @@ h2 {
 
 .submit-button,
 .tab {
-  min-height: 44px;
+  min-height: 40px;
   border: 0;
   border-radius: 8px;
   cursor: pointer;
@@ -407,8 +411,8 @@ h2 {
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
     0 12px 24px rgba(255, 92, 200, 0.14),
     0 4px 8px rgba(0, 0, 0, 0.18);
-  font-size: 16px;
-  letter-spacing: 0.18em;
+  font-size: 14px;
+  letter-spacing: 0.14em;
   border-radius: 14px 22px 14px 14px;
   transform: translateY(0);
   transition:
@@ -437,8 +441,8 @@ h2 {
 .submit-button::after {
   content: attr(data-face);
   inset: auto auto 2px 5px;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   border-radius: 11px;
@@ -463,8 +467,8 @@ h2 {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 44px;
-  padding: 0 16px 0 56px;
+  min-height: 40px;
+  padding: 0 14px 0 50px;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
@@ -570,20 +574,24 @@ h2 {
 }
 
 .status-line {
-  margin: 12px 0 0;
+  margin: 9px 0 0;
   color: var(--muted);
 }
 
 .stream-panel {
-  padding-bottom: 14px;
+  margin-top: 8px;
 }
 
-.stream-title {
-  align-items: flex-end;
-}
-
-.stream-title .eyebrow {
-  margin-bottom: 0;
+.heat-shell {
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 44%),
+    rgba(18, 9, 29, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 14px 32px rgba(0, 0, 0, 0.18);
 }
 
 .stream-stage {
@@ -591,16 +599,12 @@ h2 {
   display: flex;
   align-items: stretch;
   gap: 4px;
-  height: clamp(142px, 24svh, 228px);
-  margin-top: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
+  height: clamp(132px, 22svh, 190px);
+  padding: 0 1px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent 1px),
-    linear-gradient(180deg, rgba(60, 36, 83, 0.18), rgba(9, 5, 16, 0.4)),
-    rgba(12, 7, 20, 0.58);
-  background-size: 100% 24px, 36px 100%, auto, auto;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022), transparent 1px);
+  background-size: 100% 24px, 36px 100%;
   overflow: hidden;
 }
 
@@ -1092,7 +1096,7 @@ h2 {
   }
 
   .submit-button-text {
-    min-height: 42px;
+    min-height: 38px;
   }
 
   .status-line {
@@ -1114,7 +1118,6 @@ h2 {
 
   .stream-stage {
     height: clamp(108px, 18svh, 132px);
-    margin-top: 7px;
   }
 
   .stream-sigil {
