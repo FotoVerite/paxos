@@ -15,6 +15,6 @@ pub use proposal::{
     SynodProposalError, SynodProposalReceipt, emoji_counter_key, emoji_increment_command,
 };
 pub use read_model::{
-    SynodAppliedEmoji, SynodHeatItem, SynodReadModel, SynodReadModelObserver, SynodRequestStage,
-    SynodRequestStatus, SynodRoomState, SynodRoomUpdate,
+    SynodActivityEvent, SynodActivityKind, SynodAppliedEmoji, SynodHeatItem, SynodReadModel,
+    SynodReadModelObserver, SynodRequestStage, SynodRequestStatus, SynodRoomState, SynodRoomUpdate,
 };

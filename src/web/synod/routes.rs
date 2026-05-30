@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use crate::{
     cluster::synod::{
-        ClientId, RUST_EMOJI_POOL, SYNOD_CLIENT_TTL, SynodAppliedEmoji, SynodCluster,
-        SynodProposalError, SynodRequestStatus, SynodRoomState, SynodRoomUpdate,
+        ClientId, RUST_EMOJI_POOL, SYNOD_CLIENT_TTL, SynodActivityEvent, SynodAppliedEmoji,
+        SynodCluster, SynodProposalError, SynodRequestStatus, SynodRoomState, SynodRoomUpdate,
     },
     web::handlers::AppState,
 };
@@ -101,6 +101,7 @@ pub enum SynodSocketServerMessage {
     Heartbeat { heartbeat: HeartbeatResponse },
     RequestState { request: SynodRequestStatus },
     Applied { entry: SynodAppliedEmoji },
+    Activity { event: SynodActivityEvent },
     RoomState { status: StatusResponse },
     Error { message: String },
 }
@@ -112,6 +113,7 @@ pub struct ConfigurationStatus {
     pub acceptors: Vec<Uuid>,
     pub replicas: Vec<Uuid>,
     pub start_index: usize,
+    pub checkpoint_slot: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -154,9 +156,12 @@ async fn join(
 ) -> Response {
     let room = room_name(room_query.room.as_ref()).to_string();
     let synod = state.get_or_create_room(&room).await;
-    let client_id = request.client_id.map(ClientId::from_existing);
+    let requested_client_id = request.client_id.map(ClientId::from_existing);
     let mut synod = synod.lock().await;
-    let assignment = match synod.assign_client(client_id).await {
+    let already_assigned = requested_client_id
+        .as_ref()
+        .is_some_and(|client_id| synod.has_assignment(client_id));
+    let assignment = match synod.assign_client(requested_client_id).await {
         Ok(assignment) => assignment,
         Err(err) => {
             return (
@@ -168,6 +173,9 @@ async fn join(
     };
     if let Some(client_name) = request.client_name {
         synod.record_client_name(&assignment.client_id, client_name);
+    }
+    if !already_assigned {
+        synod.emit_client_joined(&assignment);
     }
     let membership = synod.membership();
 
@@ -269,6 +277,9 @@ async fn status(
                 acceptors: configuration.acceptors().to_vec(),
                 replicas: configuration.replicas().to_vec(),
                 start_index: configuration.start_index(),
+                checkpoint_slot: configuration
+                    .checkpoint()
+                    .and_then(|checkpoint| checkpoint.manifest().last_applied_slot()),
             });
 
     Json(StatusResponse {
@@ -384,6 +395,9 @@ async fn send_synod_update(
         SynodRoomUpdate::Applied(entry) => {
             send_socket_message(socket, SynodSocketServerMessage::Applied { entry }).await
         }
+        SynodRoomUpdate::Activity(event) => {
+            send_socket_message(socket, SynodSocketServerMessage::Activity { event }).await
+        }
         SynodRoomUpdate::RoomChanged => send_room_state(socket, room, room_cluster).await,
     }
 }
@@ -407,10 +421,11 @@ async fn handle_socket_message(
         } => {
             let joined = {
                 let mut synod = room_cluster.lock().await;
-                let assignment = match synod
-                    .assign_client(client_id.map(ClientId::from_existing))
-                    .await
-                {
+                let requested_client_id = client_id.map(ClientId::from_existing);
+                let already_assigned = requested_client_id
+                    .as_ref()
+                    .is_some_and(|client_id| synod.has_assignment(client_id));
+                let assignment = match synod.assign_client(requested_client_id).await {
                     Ok(assignment) => assignment,
                     Err(err) => {
                         send_socket_message(
@@ -425,6 +440,9 @@ async fn handle_socket_message(
                 };
                 if let Some(client_name) = client_name {
                     synod.record_client_name(&assignment.client_id, client_name);
+                }
+                if !already_assigned {
+                    synod.emit_client_joined(&assignment);
                 }
                 let membership = synod.membership();
                 JoinResponse {
@@ -502,6 +520,9 @@ async fn send_room_state(
                     acceptors: configuration.acceptors().to_vec(),
                     replicas: configuration.replicas().to_vec(),
                     start_index: configuration.start_index(),
+                    checkpoint_slot: configuration
+                        .checkpoint()
+                        .and_then(|checkpoint| checkpoint.manifest().last_applied_slot()),
                 });
 
         StatusResponse {

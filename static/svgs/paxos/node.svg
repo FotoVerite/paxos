@@ -1,0 +1,41 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="vaporGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#01CDFE" /> <!-- Cyan -->
+      <stop offset="100%" stop-color="#FF71CE" /> <!-- Magenta -->
+    </linearGradient>
+    
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- THE FLOOR (Perspective Grid) -->
+  <g stroke="url(#vaporGrad)" stroke-width="0.5" opacity="0.3">
+    <line x1="10" y1="80" x2="90" y2="80" />
+    <line x1="0" y1="95" x2="100" y2="95" />
+    <line x1="50" y1="80" x2="20" y2="100" />
+    <line x1="50" y1="80" x2="80" y2="100" />
+  </g>
+
+  <!-- THE NODE (Simplified Wireframe Monolith) -->
+  <g transform="translate(50, 50)" filter="url(#glow)">
+    <!-- Back Face / Depth -->
+    <rect x="-12" y="-22" width="24" height="40" fill="none" stroke="#FF71CE" stroke-width="0.5" opacity="0.5" />
+    
+    <!-- Front Face -->
+    <rect x="-15" y="-25" width="24" height="40" fill="#0D1117" stroke="url(#vaporGrad)" stroke-width="1.5" />
+    
+    <!-- Internal "Status" Light (The State) -->
+    <rect x="-10" y="-20" width="14" height="4" fill="url(#vaporGrad)" opacity="0.8">
+       <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite" />
+    </rect>
+  </g>
+
+  <!-- SCANLINE OVERLAY -->
+  <rect x="0" y="0" width="100" height="100" fill="none" stroke="url(#vaporGrad)" stroke-width="0.2" opacity="0.1" pointer-events="none" />
+</svg>

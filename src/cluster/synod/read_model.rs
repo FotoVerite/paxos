@@ -70,10 +70,34 @@ pub struct SynodRoomState {
     pub requests: Vec<SynodRequestStatus>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SynodActivityKind {
+    ClientJoined,
+    HeartbeatExpired,
+    LeaderRemoved,
+    RoomIdle,
+    ConfigurationChanged,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SynodActivityEvent {
+    pub kind: SynodActivityKind,
+    pub message: String,
+    pub client_id: Option<String>,
+    pub client_name: Option<String>,
+    pub node_id: Option<Uuid>,
+    pub previous_leader: Option<Uuid>,
+    pub next_leader: Option<Uuid>,
+    pub configuration_id: Option<Uuid>,
+    pub checkpoint_slot: Option<usize>,
+}
+
 #[derive(Debug, Clone)]
 pub enum SynodRoomUpdate {
     RequestState(SynodRequestStatus),
     Applied(SynodAppliedEmoji),
+    Activity(SynodActivityEvent),
     RoomChanged,
 }
 

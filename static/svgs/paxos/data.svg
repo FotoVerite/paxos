@@ -1,0 +1,44 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="dataGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#01CDFE" /> <!-- Cyan -->
+      <stop offset="50%" stop-color="#B967FF" /> <!-- Purple -->
+      <stop offset="100%" stop-color="#FF71CE" /> <!-- Magenta -->
+    </linearGradient>
+    
+    <filter id="neonGlow">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- THE DATA OBJECT (Fragmented Voxel) -->
+  <g transform="translate(50, 50)" filter="url(#neonGlow)">
+    <!-- Main Isometric Face (Primary Value) -->
+    <path d="M 0 -15 L 15 -5 L 15 10 L 0 20 L -15 10 L -15 -5 Z" 
+          fill="none" 
+          stroke="url(#dataGrad)" 
+          stroke-width="1.5" />
+    
+    <!-- Internal Divisions (Bits/Structure) -->
+    <path d="M 0 -15 L 0 20 M -15 -5 L 0 5 L 15 -5" 
+          stroke="url(#dataGrad)" 
+          stroke-width="0.8" 
+          opacity="0.6" />
+
+    <!-- Floating "Bits" (Detached fragments) -->
+    <rect x="-22" y="-18" width="4" height="4" fill="#01CDFE" opacity="0.8">
+      <animate attributeName="y" values="-18;-22;-18" dur="3s" repeatCount="indefinite" />
+    </rect>
+    <rect x="18" y="12" width="3" height="3" fill="#FF71CE" opacity="0.6">
+      <animate attributeName="y" values="12;8;12" dur="4s" repeatCount="indefinite" />
+    </rect>
+  </g>
+
+  <!-- CHROMATIC ABERRATION EFFECT -->
+  <path d="M 51 34 L 66 44 L 66 59" fill="none" stroke="#FF71CE" stroke-width="0.3" opacity="0.4" />
+  <path d="M 49 36 L 34 46 L 34 61" fill="none" stroke="#01CDFE" stroke-width="0.3" opacity="0.4" />
+</svg>

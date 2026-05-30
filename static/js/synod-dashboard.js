@@ -1,4 +1,6 @@
 const ROOM = new URLSearchParams(location.search).get("room") || "main";
+const VISUALIZER_ENABLED = false;
+const REQUEST_TERMINAL_TTL_MS = 6000;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const roomLabel    = document.querySelector("#roomLabel");
@@ -23,6 +25,12 @@ const latestCommit = document.querySelector("#latestCommit");
 const latestEmoji  = document.querySelector("#latestEmoji");
 const latestSlot   = document.querySelector("#latestSlot");
 const ledgerBody   = document.querySelector("#ledgerBody");
+const activityPulse = document.querySelector("#activityPulse");
+const activityPipeline = document.querySelector("#activityPipeline");
+const activityRequests = document.querySelector("#activityRequests");
+const activityReorders = document.querySelector("#activityReorders");
+const activityConfigLog = document.querySelector("#activityConfigLog");
+const pipelineWindow = document.querySelector("#pipelineWindow");
 
 roomLabel.textContent = ROOM;
 
@@ -33,7 +41,7 @@ document.querySelectorAll(".dash-tab").forEach(tab => {
     document.querySelectorAll(".dash-panel").forEach(p => p.classList.add("hidden"));
     tab.classList.add("is-active");
     document.querySelector(`#tab-${tab.dataset.tab}`).classList.remove("hidden");
-    if (tab.dataset.tab === "vis") {
+    if (VISUALIZER_ENABLED && tab.dataset.tab === "vis") {
       vizConfigId = null; // force re-render now that SVG has real dimensions
       const lastConfig = window.__lastConfig;
       if (lastConfig) initViz(lastConfig);
@@ -53,12 +61,17 @@ setInterval(() => {
   const now = Date.now();
   recentTs = recentTs.filter(t => now - t < 2000);
   statRate.textContent = (recentTs.length / 2).toFixed(1);
+  renderActivity();
 }, 500);
 
 // ── State ─────────────────────────────────────────────────────────────────
 let lastKnownSlot = -1;
 let ledgerEntries = [];
 let feedInitialised = false;
+let latestStatus = null;
+let previousConfig = null;
+let requestStates = new Map();
+let configEvents = [];
 
 // ── Visualizer ────────────────────────────────────────────────────────────
 let viz = null;
@@ -80,6 +93,7 @@ function emojiColor(emoji) {
 }
 
 function initViz(config) {
+  if (!VISUALIZER_ENABLED) return;
   const svgEl = document.getElementById('synodVis');
   if (!svgEl) return;
 
@@ -254,6 +268,7 @@ function animateCommit(entry, clientNodeMap) {
 }
 
 function animateEntries(entries, clients, config) {
+  if (!VISUALIZER_ENABLED) return;
   if (!viz || !config) return;
   const clientNodeMap = new Map((clients || []).map(c => [c.client_id, c.node_id]));
   entries.forEach((entry, i) => setTimeout(() => animateCommit(entry, clientNodeMap), i * 120));
@@ -267,11 +282,281 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function shortId(value) {
+  if (!value) return "—";
+  const text = String(value);
+  return text.length > 8 ? text.slice(0, 8) : text;
+}
+
+function requestKey(request) {
+  return `${request.client_id}:${request.request_id}`;
+}
+
+function isTerminalStage(stage) {
+  return stage === "applied" || stage === "failed";
+}
+
+function clientLabel(value) {
+  if (!value) return "—";
+  return value.client_name || (value.client_id ? shortId(value.client_id) : "—");
+}
+
+function formatConfigId(config) {
+  return config?.configuration_id ? shortId(config.configuration_id) : "none";
+}
+
+function sameList(a = [], b = []) {
+  if (a.length !== b.length) return false;
+  const lhs = [...a].sort();
+  const rhs = [...b].sort();
+  return lhs.every((value, index) => value === rhs[index]);
+}
+
+function pushConfigEvent(kind, detail, tone = "info") {
+  const previous = configEvents[0];
+  if (previous?.kind === kind && previous?.detail === detail) return;
+  configEvents.unshift({
+    kind,
+    detail,
+    tone,
+    at: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+  });
+  configEvents = configEvents.slice(0, 24);
+}
+
+function activityKindLabel(kind) {
+  return String(kind || "activity").replaceAll("_", " ");
+}
+
+function activityTone(kind) {
+  if (kind === "client_joined") return "good";
+  if (kind === "heartbeat_expired" || kind === "leader_removed" || kind === "room_idle") return "warn";
+  return "info";
+}
+
+function clientLabelForId(clientId) {
+  const client = latestStatus?.clients?.find(item => item.client_id === clientId);
+  return client ? clientLabel(client) : clientId ? shortId(clientId) : null;
+}
+
+function pushBackendActivity(event) {
+  if (!event) return;
+  const label = activityKindLabel(event.kind);
+  const clientName = clientLabelForId(event.client_id) || event.client_name;
+  let detail = "";
+  if (event.kind === "client_joined") {
+    detail = `${clientName || shortId(event.client_id)} · node ${shortId(event.node_id)}`;
+  } else if (event.kind === "heartbeat_expired") {
+    detail = `${clientName || shortId(event.client_id)} · node ${shortId(event.node_id)} expired`;
+  } else if (event.kind === "leader_removed") {
+    detail = `${shortId(event.previous_leader)} → ${shortId(event.next_leader)}`;
+  } else if (event.kind === "room_idle") {
+    detail = "all nodes decommissioned";
+  } else if (event.kind === "configuration_changed") {
+    detail = `cfg ${shortId(event.configuration_id)} · leader ${shortId(event.next_leader)}`;
+  } else {
+    detail = event.message || "";
+  }
+  if (event.checkpoint_slot != null) {
+    detail = `${detail}${detail ? " · " : ""}checkpoint ${event.checkpoint_slot}`;
+  }
+  if (!detail && event.node_id) detail = `node ${shortId(event.node_id)}`;
+  pushConfigEvent(label, detail || "backend activity", activityTone(event.kind));
+}
+
+function pruneRequestStates(now = Date.now()) {
+  for (const [key, request] of requestStates) {
+    if (isTerminalStage(request.stage) && now - (request._seen_at || 0) > REQUEST_TERMINAL_TTL_MS) {
+      requestStates.delete(key);
+    }
+  }
+}
+
+function upsertRequestState(request, { snapshot = false } = {}) {
+  if (!request?.client_id || request.request_id == null) return;
+  const key = requestKey(request);
+  const existing = requestStates.get(key);
+  if (snapshot && isTerminalStage(request.stage) && !existing) return;
+  const seenAt = snapshot && existing ? existing._seen_at : Date.now();
+  requestStates.set(key, { ...request, _seen_at: seenAt });
+  pruneRequestStates();
+  if (requestStates.size > 120) {
+    const oldest = [...requestStates.entries()]
+      .sort((a, b) => (a[1]._seen_at || 0) - (b[1]._seen_at || 0))[0]?.[0];
+    if (oldest) requestStates.delete(oldest);
+  }
+}
+
+function mergeSnapshotRequests(requests = []) {
+  requests.forEach(request => upsertRequestState(request, { snapshot: true }));
+}
+
+function observeConfigChanges(config, activeNodes) {
+  if (config) {
+    if (!previousConfig) {
+      pushConfigEvent("configuration active", `cfg ${formatConfigId(config)} · leader ${shortId(config.leader)}`, "good");
+    } else if (previousConfig.configuration_id !== config.configuration_id) {
+      pushConfigEvent(
+        "configuration changed",
+        `${formatConfigId(previousConfig)} → ${formatConfigId(config)} · start ${config.start_index}`,
+        "warn"
+      );
+    } else {
+      if (previousConfig.leader !== config.leader) {
+        pushConfigEvent("leader changed", `${shortId(previousConfig.leader)} → ${shortId(config.leader)}`, "warn");
+      }
+      if (!sameList(previousConfig.replicas, config.replicas)) {
+        pushConfigEvent("replica set changed", `${previousConfig.replicas.length} → ${config.replicas.length}`, "info");
+      }
+      if (!sameList(previousConfig.acceptors, config.acceptors)) {
+        pushConfigEvent("acceptor set changed", `${previousConfig.acceptors.length} → ${config.acceptors.length}`, "info");
+      }
+      if (previousConfig.start_index !== config.start_index) {
+        pushConfigEvent("start index advanced", `${previousConfig.start_index} → ${config.start_index}`, "good");
+      }
+    }
+    previousConfig = {
+      configuration_id: config.configuration_id,
+      leader: config.leader,
+      replicas: [...config.replicas],
+      acceptors: [...config.acceptors],
+      start_index: config.start_index,
+    };
+  }
+
+  if (!config && activeNodes === 0 && previousConfig) {
+    previousConfig = null;
+  }
+}
+
+function renderActivity() {
+  if (!activityPulse || !activityPipeline || !activityRequests || !activityReorders || !activityConfigLog) return;
+  pruneRequestStates();
+
+  const status = latestStatus;
+  const state = status?.state;
+  const config = status?.active_configuration;
+  const requests = [...requestStates.values()]
+    .sort((a, b) => (b._seen_at ?? 0) - (a._seen_at ?? 0))
+    .slice(0, 10);
+  const stageCounts = { proposed: 0, accepted: 0, pending: 0, applied: 0, failed: 0 };
+  requestStates.forEach(request => {
+    if (stageCounts[request.stage] != null) stageCounts[request.stage] += 1;
+  });
+  const liveRequests = [...requestStates.values()].filter(request => !isTerminalStage(request.stage));
+  const inflightCount = liveRequests.length;
+  const oldestLiveMs = liveRequests.reduce((oldest, request) => {
+    if (!request._seen_at) return oldest;
+    return oldest == null ? request._seen_at : Math.min(oldest, request._seen_at);
+  }, null);
+  const oldestLiveAge = oldestLiveMs == null ? "—" : `${Math.max(0, Math.floor((Date.now() - oldestLiveMs) / 1000))}s`;
+  if (pipelineWindow) {
+    pipelineWindow.textContent = `applied/failed clear after ${REQUEST_TERMINAL_TTL_MS / 1000}s`;
+  }
+
+  activityPulse.innerHTML = `
+    <div><span>config</span><strong>${formatConfigId(config)}</strong></div>
+    <div><span>leader</span><strong>${shortId(config?.leader)}</strong></div>
+    <div><span>clients</span><strong>${status?.clients?.length ?? 0}</strong></div>
+    <div><span>nodes</span><strong>${status?.active_nodes ?? 0}</strong></div>
+    <div><span>in flight</span><strong>${inflightCount}</strong></div>
+    <div><span>oldest</span><strong>${oldestLiveAge}</strong></div>
+    <div><span>slot</span><strong>${state?.cluster_slot ?? "—"}</strong></div>
+    <div><span>checkpoint</span><strong>${config?.checkpoint_slot ?? "—"}</strong></div>`;
+
+  activityPipeline.innerHTML = [
+    ["proposed", "live"],
+    ["accepted", "live"],
+    ["pending", "live"],
+    ["applied", "recent"],
+    ["failed", "recent"],
+  ]
+    .map(([stage, scope]) => `
+      <div class="pipeline-step stage-${stage}">
+        <span>${stage}</span>
+        <strong>${stageCounts[stage]}</strong>
+        <small>${scope}</small>
+      </div>`)
+    .join("");
+
+  activityRequests.replaceChildren();
+  if (!requests.length) {
+    activityRequests.innerHTML = `<div class="empty-state compact">waiting for requests</div>`;
+  } else {
+    requests.slice(0, 8).forEach(request => {
+      const row = document.createElement("div");
+      row.className = `activity-row stage-${request.stage}`;
+      row.innerHTML = `
+        <span class="activity-emoji">${escapeHtml(request.emoji)}</span>
+        <div>
+          <strong>${escapeHtml(clientLabel(request))}</strong>
+          <span>req ${request.request_id} · node ${shortId(request.assigned_node)}</span>
+        </div>
+        <em>${request.stage}</em>`;
+      activityRequests.appendChild(row);
+    });
+  }
+
+  const appliedByRequest = new Map(
+    (state?.recent || [])
+      .filter(entry => entry.client_id && entry.request_id != null)
+      .map(entry => [`${entry.client_id}:${entry.request_id}`, entry])
+  );
+  const reorders = requests
+    .map(request => {
+      const applied = appliedByRequest.get(requestKey(request));
+      const expected = request.proposed_slot ?? request.slot;
+      const appliedSlot = request.applied_slot ?? applied?.slot;
+      const shift = Number.isFinite(expected) && Number.isFinite(appliedSlot) ? appliedSlot - expected : null;
+      return { request, expected, appliedSlot, shift };
+    })
+    .filter(item => item.request.stage === "accepted" || item.request.stage === "pending" || (item.shift !== null && item.shift !== 0))
+    .slice(0, 8);
+
+  activityReorders.replaceChildren();
+  if (!reorders.length) {
+    activityReorders.innerHTML = `<div class="empty-state compact">no slot shifts yet</div>`;
+  } else {
+    reorders.forEach(({ request, expected, appliedSlot, shift }) => {
+      const row = document.createElement("div");
+      row.className = `activity-row ${shift ? "is-shifted" : ""}`;
+      row.innerHTML = `
+        <span class="activity-emoji">${escapeHtml(request.emoji)}</span>
+        <div>
+          <strong>${escapeHtml(clientLabel(request))}</strong>
+          <span>expected ${expected ?? "—"} · applied ${appliedSlot ?? "—"}</span>
+        </div>
+        <em>${shift == null ? request.stage : shift > 0 ? `+${shift}` : String(shift)}</em>`;
+      activityReorders.appendChild(row);
+    });
+  }
+
+  activityConfigLog.replaceChildren();
+  if (!configEvents.length) {
+    activityConfigLog.innerHTML = `<div class="empty-state compact">waiting for configuration</div>`;
+  } else {
+    configEvents.slice(0, 10).forEach(event => {
+      const row = document.createElement("div");
+      row.className = `activity-event tone-${event.tone}`;
+      row.innerHTML = `
+        <time>${event.at}</time>
+        <div>
+          <strong>${escapeHtml(event.kind)}</strong>
+          <span>${escapeHtml(event.detail)}</span>
+        </div>`;
+      activityConfigLog.appendChild(row);
+    });
+  }
+}
+
 // ── Render ────────────────────────────────────────────────────────────────
 function applyStatus(status) {
   const nodes  = status.active_nodes;
   const config = status.active_configuration;
   const state  = status.state;
+  latestStatus = status;
+  mergeSnapshotRequests(state?.requests || []);
+  observeConfigChanges(config, nodes);
 
   headerNodes.textContent = nodes;
   statNodes.textContent   = nodes;
@@ -318,6 +603,7 @@ function applyStatus(status) {
     renderSynodConfig(config, nodes, status.clients || []);
     initViz(config);
   }
+  renderActivity();
 }
 
 function addChip(entry, animate) {
@@ -393,6 +679,10 @@ function renderSynodConfig(config, activeNodes, clients = []) {
     <div>
       <div class="synod-field-key">start index</div>
       <div class="synod-field-val plain">${config.start_index}</div>
+    </div>
+    <div>
+      <div class="synod-field-key">checkpoint slot</div>
+      <div class="synod-field-val plain">${config.checkpoint_slot ?? "—"}</div>
     </div>
     <div>
       <div class="synod-field-key">active nodes</div>
@@ -472,8 +762,15 @@ function connect() {
     } else if (msg.type === "room_state") {
       applyStatus(msg.status);
     } else if (msg.type === "request_state") {
+      upsertRequestState(msg.request);
+      renderActivity();
+      return;
+    } else if (msg.type === "activity") {
+      pushBackendActivity(msg.event);
+      renderActivity();
       return;
     } else if (msg.type === "applied") {
+      renderActivity();
       return;
     } else if (msg.type === "heartbeat") {
       headerNodes.textContent = msg.heartbeat.active_nodes;

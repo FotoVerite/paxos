@@ -325,13 +325,24 @@ function renderRollRail() {
   if (!rollRail || !rollTrack) return;
 
   rollRail.classList.toggle("is-empty", rollHistory.length === 0);
-  rollViewer.hidden = rollHistory.length === 0;
+  rollViewer.hidden = false;
   rollRailSummary.textContent = rollHistory.length === 0
     ? "no local rolls"
     : `${rollHistory.length} local ${rollHistory.length === 1 ? "roll" : "rolls"}`;
 
   rollTrack.replaceChildren();
-  for (const roll of rollHistory.slice().reverse()) {
+  const markerRolls = rollHistory.slice().reverse();
+  for (let index = 0; index < MAX_LOCAL_ROLLS; index += 1) {
+    const roll = markerRolls[index];
+    if (!roll) {
+      const marker = document.createElement("div");
+      marker.className = "roll-marker is-placeholder";
+      marker.setAttribute("aria-hidden", "true");
+      marker.innerHTML = "<span>·</span><strong>slot</strong>";
+      rollTrack.appendChild(marker);
+      continue;
+    }
+
     const shift = slotShift(roll);
     const marker = document.createElement("button");
     marker.type = "button";
@@ -351,19 +362,30 @@ function renderRollRail() {
   }
 
   const selected = rollHistory.find((roll) => roll.requestId === selectedRollId) || rollHistory[0];
-  if (!selected) return;
-
-  const selectedShift = slotShift(selected);
-  rollViewerFocus.textContent = selectedShift === null
-    ? `${selected.emoji} expected slot ${selected.expectedSlot}; waiting for applied slot.`
-    : `${selected.emoji} expected ${selected.expectedSlot}, applied ${selected.appliedSlot} (${shiftLabel(selectedShift)}).`;
+  if (!selected) {
+    rollViewerFocus.textContent = "Rolls reserve a slot here, then show where Paxos actually applied them.";
+  } else {
+    const selectedShift = slotShift(selected);
+    rollViewerFocus.textContent = selectedShift === null
+      ? `${selected.emoji} expected slot ${selected.expectedSlot}; waiting for applied slot.`
+      : `${selected.emoji} expected ${selected.expectedSlot}, applied ${selected.appliedSlot} (${shiftLabel(selectedShift)}).`;
+  }
 
   rollViewerTable.replaceChildren();
   const header = document.createElement("div");
   header.className = "roll-viewer-row is-header";
   header.innerHTML = "<span></span><span>expected</span><span>applied</span><strong>shift</strong>";
   rollViewerTable.appendChild(header);
-  for (const roll of rollHistory.slice(0, MAX_LOCAL_ROLLS)) {
+  for (let index = 0; index < MAX_LOCAL_ROLLS; index += 1) {
+    const roll = rollHistory[index];
+    if (!roll) {
+      const row = document.createElement("div");
+      row.className = "roll-viewer-row is-empty";
+      row.innerHTML = "<span>·</span><span>--</span><span>--</span><strong>--</strong>";
+      rollViewerTable.appendChild(row);
+      continue;
+    }
+
     const shift = slotShift(roll);
     const row = document.createElement("div");
     row.className = "roll-viewer-row";
@@ -716,6 +738,7 @@ if (requiredElements.every(Boolean)) {
   setupIdentity();
   submitButton.dataset.face = pickDieFace();
   setTriggerState("idle", "joining");
+  renderRollRail();
   submitButton.addEventListener("click", submitPull);
   joinRoom().catch((err) => {
     statusLine.textContent = err.message;

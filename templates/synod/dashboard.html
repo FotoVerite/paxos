@@ -37,8 +37,8 @@
 
   <nav class="dash-tabs">
     <button class="dash-tab is-active" data-tab="stream">Stream</button>
+    <button class="dash-tab" data-tab="activity">Activity</button>
     <button class="dash-tab" data-tab="synod">Synod</button>
-    <button class="dash-tab" data-tab="vis">Visualizer</button>
     <button class="dash-tab" data-tab="ledger">Ledger</button>
   </nav>
 
@@ -89,6 +89,46 @@
     </div>
   </section>
 
+  <!-- Activity -->
+  <section class="dash-panel hidden" id="tab-activity">
+    <div class="activity-layout">
+      <div class="activity-strip">
+        <div class="activity-card">
+          <div class="panel-label">room pulse</div>
+          <div class="activity-pulse" id="activityPulse"></div>
+        </div>
+        <div class="activity-card">
+          <div class="panel-label with-note">
+            <span>request pipeline</span>
+            <em id="pipelineWindow">live + recent</em>
+          </div>
+          <div class="activity-pipeline" id="activityPipeline"></div>
+        </div>
+      </div>
+
+      <div class="activity-grid">
+        <div class="activity-card">
+          <div class="panel-label">recent requests</div>
+          <div class="activity-list" id="activityRequests">
+            <div class="empty-state compact">waiting for requests</div>
+          </div>
+        </div>
+        <div class="activity-card">
+          <div class="panel-label">reorder watch</div>
+          <div class="activity-list" id="activityReorders">
+            <div class="empty-state compact">no slot shifts yet</div>
+          </div>
+        </div>
+        <div class="activity-card">
+          <div class="panel-label">configuration log</div>
+          <div class="activity-list" id="activityConfigLog">
+            <div class="empty-state compact">waiting for configuration</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Synod -->
   <section class="dash-panel hidden" id="tab-synod">
     <div class="synod-layout">
@@ -104,11 +144,6 @@
         </div>
       </div>
     </div>
-  </section>
-
-  <!-- Visualizer -->
-  <section class="dash-panel vis-panel hidden" id="tab-vis">
-    <svg id="synodVis"></svg>
   </section>
 
   <!-- Ledger -->
@@ -132,7 +167,6 @@
   </section>
 
 </div>
-<script src="/paxos-visualizer.js"></script>
 <script src="/js/synod-dashboard.js"></script>
 </body>
 </html>

@@ -19,9 +19,10 @@ use crate::{
 };
 
 use super::{
-    ClientAssignment, ClientId, SynodMembership, SynodProposalError, SynodProposalReceipt,
-    SynodReadModel, SynodReadModelObserver, SynodRequestStatus, SynodRoomState, SynodRoomUpdate,
-    emoji_increment_command, is_valid_rust_emoji,
+    ClientAssignment, ClientId, SynodActivityEvent, SynodActivityKind, SynodMembership,
+    SynodProposalError, SynodProposalReceipt, SynodReadModel, SynodReadModelObserver,
+    SynodRequestStatus, SynodRoomState, SynodRoomUpdate, emoji_increment_command,
+    is_valid_rust_emoji,
 };
 
 pub const SYNOD_CLIENT_TTL: Duration = Duration::from_secs(60);
@@ -195,6 +196,25 @@ impl SynodCluster {
         let _ = self.updates.send(update);
     }
 
+    pub fn emit_client_joined(&self, assignment: &ClientAssignment) {
+        self.emit_update(SynodRoomUpdate::Activity(SynodActivityEvent {
+            kind: SynodActivityKind::ClientJoined,
+            message: format!(
+                "{} joined on node {}",
+                self.client_name(&assignment.client_id)
+                    .unwrap_or_else(|| assignment.client_id.to_string()),
+                assignment.node_id
+            ),
+            client_id: Some(assignment.client_id.to_string()),
+            client_name: self.client_name(&assignment.client_id),
+            node_id: Some(assignment.node_id),
+            previous_leader: None,
+            next_leader: self.bootstrap_node(),
+            configuration_id: None,
+            checkpoint_slot: None,
+        }));
+    }
+
     pub async fn assign_client(
         &mut self,
         client_id: Option<ClientId>,
@@ -250,6 +270,10 @@ impl SynodCluster {
 
     pub fn assignment_for(&self, client_id: &ClientId) -> Option<&ClientAssignment> {
         self.assignments.get(client_id)
+    }
+
+    pub fn has_assignment(&self, client_id: &ClientId) -> bool {
+        self.assignments.contains_key(client_id)
     }
 
     async fn current_replica_checkpoint(&self) -> anyhow::Result<Option<RsmCheckpoint>> {
@@ -414,6 +438,11 @@ impl SynodCluster {
         &mut self,
         cutoff: Instant,
     ) -> anyhow::Result<Vec<ClientAssignment>> {
+        let previous_leader = self
+            .system
+            .active_configuration()
+            .await
+            .map(|configuration| configuration.leader());
         let expired_client_ids = self
             .assignment_order
             .iter()
@@ -459,6 +488,51 @@ impl SynodCluster {
             .filter_map(|client_id| self.assignments.get(client_id))
             .map(|assignment| assignment.node_id)
             .collect::<Vec<_>>();
+        let expired_node_ids = expired
+            .iter()
+            .map(|assignment| assignment.node_id)
+            .collect::<Vec<_>>();
+
+        for assignment in &expired {
+            self.emit_update(SynodRoomUpdate::Activity(SynodActivityEvent {
+                kind: SynodActivityKind::HeartbeatExpired,
+                message: format!(
+                    "{} missed heartbeat; node {} removed",
+                    self.client_name(&assignment.client_id)
+                        .unwrap_or_else(|| assignment.client_id.to_string()),
+                    assignment.node_id
+                ),
+                client_id: Some(assignment.client_id.to_string()),
+                client_name: self.client_name(&assignment.client_id),
+                node_id: Some(assignment.node_id),
+                previous_leader,
+                next_leader: self.bootstrap_node(),
+                configuration_id: None,
+                checkpoint_slot: None,
+            }));
+        }
+
+        if let Some(leader) = previous_leader {
+            if expired_node_ids.contains(&leader) {
+                self.emit_update(SynodRoomUpdate::Activity(SynodActivityEvent {
+                    kind: SynodActivityKind::LeaderRemoved,
+                    message: format!(
+                        "leader {} expired; next leader {}",
+                        leader,
+                        self.bootstrap_node()
+                            .map(|node_id| node_id.to_string())
+                            .unwrap_or_else(|| "none".to_string())
+                    ),
+                    client_id: None,
+                    client_name: None,
+                    node_id: Some(leader),
+                    previous_leader: Some(leader),
+                    next_leader: self.bootstrap_node(),
+                    configuration_id: None,
+                    checkpoint_slot: None,
+                }));
+            }
+        }
 
         if remaining_node_ids.is_empty() {
             tracing::warn!(
@@ -478,18 +552,49 @@ impl SynodCluster {
                 .await?,
             );
             self.system.start().await;
+            self.emit_update(SynodRoomUpdate::Activity(SynodActivityEvent {
+                kind: SynodActivityKind::RoomIdle,
+                message: "all clients expired; room reset and waiting for a join".to_string(),
+                client_id: None,
+                client_name: None,
+                node_id: None,
+                previous_leader,
+                next_leader: None,
+                configuration_id: None,
+                checkpoint_slot: None,
+            }));
         } else {
             let checkpoint = self.current_replica_checkpoint().await?;
+            let checkpoint_slot = checkpoint
+                .as_ref()
+                .and_then(|checkpoint| checkpoint.manifest().last_applied_slot());
             tracing::warn!(
                 target: "synod::despawn",
                 remaining_nodes = ?remaining_node_ids,
-                expired_nodes = ?expired.iter().map(|assignment| assignment.node_id).collect::<Vec<_>>(),
-                checkpoint_last_applied = ?checkpoint.as_ref().and_then(|checkpoint| checkpoint.manifest().last_applied_slot()),
+                expired_nodes = ?expired_node_ids,
+                checkpoint_last_applied = ?checkpoint_slot,
                 new_leader = ?self.bootstrap_node(),
                 "reconfiguring synod room after idle decommission"
             );
             self.reconfigure_member_ids(remaining_node_ids, checkpoint)
                 .await?;
+            let active_configuration = self.system.active_configuration().await;
+            self.emit_update(SynodRoomUpdate::Activity(SynodActivityEvent {
+                kind: SynodActivityKind::ConfigurationChanged,
+                message: format!(
+                    "membership reconfigured; {} nodes remain",
+                    self.assignment_order.len()
+                ),
+                client_id: None,
+                client_name: None,
+                node_id: None,
+                previous_leader,
+                next_leader: self.bootstrap_node(),
+                configuration_id: active_configuration
+                    .as_ref()
+                    .map(|configuration| configuration.id()),
+                checkpoint_slot,
+            }));
             for assignment in &expired {
                 tracing::warn!(
                     target: "synod::despawn",
